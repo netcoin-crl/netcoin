@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import json
 from pathlib import Path
 from typing import Iterable
 
@@ -34,6 +35,72 @@ def page(title: str, body: str) -> str:
 {body}
 </body>
 </html>"""
+
+
+def build_search_index(chain: Blockchain) -> list[dict]:
+    """A compact per-block index used by the client-side explorer search."""
+    index = []
+    for block in chain.chain:
+        bh = block.hash()
+        txids = []
+        addresses = set()
+        for tx in block.transactions:
+            txids.append(tx.txid())
+            for out in tx.outputs:
+                if out.address:
+                    addresses.add(out.address)
+        index.append(
+            {
+                "height": block.header.height,
+                "hash": bh,
+                "timestamp": block.header.timestamp,
+                "txids": txids,
+                "addresses": sorted(addresses),
+            }
+        )
+    return index
+
+
+def _embed_json(data: object) -> str:
+    # Safe to embed inside a <script> block: prevent a literal </script> or HTML
+    # comment opener from terminating the element early.
+    return json.dumps(data, separators=(",", ":")).replace("</", "<\\/").replace("<!--", "<\\!--")
+
+
+SEARCH_SCRIPT = """
+<script id="netcoin-index" type="application/json">__INDEX__</script>
+<script>
+(function () {
+  var index = JSON.parse(document.getElementById('netcoin-index').textContent);
+  var box = document.getElementById('q');
+  var out = document.getElementById('results');
+  if (!box) return;
+  function link(b, label) {
+    return '<a href="block-' + b.hash + '.html">' + label + '</a>';
+  }
+  function search(qRaw) {
+    var q = (qRaw || '').trim().toLowerCase();
+    if (!q) { out.innerHTML = ''; return; }
+    var hits = [];
+    for (var i = 0; i < index.length && hits.length < 50; i++) {
+      var b = index[i];
+      if (String(b.height) === q) { hits.push(link(b, 'Block ' + b.height + ' (height match)')); continue; }
+      if (b.hash.indexOf(q) === 0) { hits.push(link(b, 'Block ' + b.height + ' (hash ' + b.hash.slice(0, 16) + '…)')); continue; }
+      var matched = false;
+      for (var t = 0; t < b.txids.length; t++) {
+        if (b.txids[t].indexOf(q) === 0) { hits.push(link(b, 'tx ' + b.txids[t].slice(0, 16) + '… in block ' + b.height)); matched = true; break; }
+      }
+      if (matched) continue;
+      for (var a = 0; a < b.addresses.length; a++) {
+        if (b.addresses[a].toLowerCase().indexOf(q) !== -1) { hits.push(link(b, 'address ' + b.addresses[a] + ' in block ' + b.height)); break; }
+      }
+    }
+    out.innerHTML = hits.length ? '<ul><li>' + hits.join('</li><li>') + '</li></ul>' : '<p>No matches.</p>';
+  }
+  box.addEventListener('input', function () { search(box.value); });
+})();
+</script>
+"""
 
 
 def generate_explorer(chain: Blockchain, out_dir: str | Path) -> Path:
@@ -70,10 +137,18 @@ def generate_explorer(chain: Blockchain, out_dir: str | Path) -> Path:
         (out / f"block-{bh}.html").write_text(page(f"NetCoin block {block.header.height}", block_body))
 
     info = chain.chain_info()
+    search_box = """
+<h2>Search</h2>
+<p><input id="q" type="search" placeholder="height, block hash, txid, or address" style="width:100%;max-width:560px;padding:.5rem"></p>
+<div id="results"></div>
+"""
+    script = SEARCH_SCRIPT.replace("__INDEX__", _embed_json(build_search_index(chain)))
     index_body = f"""
 <h1>NetCoin Explorer</h1>
 <p>Height: <strong>{info['height']}</strong> | Tip: <code>{esc(info['tip_hash'])}</code> | Mempool: {info['mempool_transactions']}</p>
+{search_box}
 <table><tr><th>height</th><th>hash</th><th>transactions</th><th>weight</th><th>timestamp</th></tr>{''.join(blocks_rows)}</table>
+{script}
 """
     index = out / "index.html"
     index.write_text(page("NetCoin Explorer", index_body))
