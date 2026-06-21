@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report (do not open a public issue)
+    url: https://github.com/Adoniyas1/netcoin/security/advisories/new
+    about: Report security-sensitive issues privately. See SECURITY.md. Never post private keys or seed phrases.
+  - name: Testnet safety reminder
+    url: https://github.com/Adoniyas1/netcoin/blob/main/README.md
+    about: NetCoin is educational testnet software. NET has no real-money value.

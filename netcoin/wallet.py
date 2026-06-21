@@ -364,10 +364,17 @@ def _to_plain_dict(self: Wallet) -> Dict[str, Any]:
     return data
 
 
+def _watch_only(address: str) -> Dict[str, Any]:
+    if not validate_address(address):
+        raise WalletError("address is not a valid NetCoin address")
+    return {"network": "NetCoin", "address": address, "watch_only": True, "encrypted": False}
+
+
 Wallet.from_mnemonic = _from_mnemonic  # type: ignore[attr-defined]
 Wallet.create_with_mnemonic = _create_with_mnemonic  # type: ignore[attr-defined]
 Wallet.from_wif = _from_wif  # type: ignore[attr-defined]
 Wallet.to_plain_dict = _to_plain_dict  # type: ignore[attr-defined]
+Wallet.watch_only = staticmethod(_watch_only)  # type: ignore[attr-defined]
 
 
 _original_public_dict = Wallet.public_dict

@@ -41,7 +41,17 @@ DEFAULT_NODE_PORT = 18444
 DEFAULT_RPC_PORT = 18445
 DEFAULT_POOL_PORT = 18446
 PROTOCOL_VERSION = 2
+NODE_VERSION = "0.3.0"
+NETWORK_NAME = "testnet"
+USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")
+
+# Built-in public testnet seeds so a new node can join without copying URLs.
+DEFAULT_TESTNET_SEEDS = (
+    "http://seed1.netcoin.online:28444",
+    "http://seed2.netcoin.online:28444",
+    "http://seed3.netcoin.online:28444",
+)
 
 # Maximum accepted HTTP request body for the node and RPC servers, in bytes.
 # Anything larger is rejected before it is read, to blunt trivial memory-DoS

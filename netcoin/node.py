@@ -8,6 +8,7 @@ compact block summaries, mempool exchange, block templates, and orphan handling.
 from __future__ import annotations
 
 import json
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -17,7 +18,14 @@ from urllib.request import Request, urlopen
 from .block import Block
 from .chain import Blockchain
 from .compact import CompactBlock, make_compact_block, reconstruct_compact_block
-from .params import DEFAULT_NODE_PORT, MAX_REQUEST_BODY_BYTES, PROTOCOL_VERSION
+from .params import (
+    DEFAULT_NODE_PORT,
+    MAX_REQUEST_BODY_BYTES,
+    NETWORK_NAME,
+    NODE_VERSION,
+    PROTOCOL_VERSION,
+    USER_AGENT,
+)
 from .tx import Transaction
 
 
@@ -45,6 +53,7 @@ class NetCoinNode:
         # re-broadcast in a relay loop when peers echo it back.
         self._broadcast_seen: List[str] = []
         self._broadcast_seen_set: set[str] = set()
+        self.started_at = time.time()
         self.peers_path = Path(peers_path) if peers_path else (Path(chain.data_dir) / "peers.json")
         # Reload peers discovered on previous runs, then merge in any provided
         # via --peer so the node reconnects to known peers across restarts.
@@ -132,17 +141,74 @@ class NetCoinNode:
         except OSError:
             pass
 
+    SERVICES = ["network", "headers", "compact-blocks", "mempool", "block-template", "explorer-api"]
+
+    def uptime_seconds(self) -> int:
+        return int(time.time() - self.started_at)
+
+    def genesis_hash(self) -> str:
+        return self.chain.chain[0].hash()
+
     def info(self) -> Dict[str, Any]:
         data = self.chain.chain_info()
+        # Version-handshake fields let peers check compatibility (genesis, network,
+        # protocol) before trusting each other.
         data.update(
             {
                 "protocol_version": PROTOCOL_VERSION,
+                "version": NODE_VERSION,
+                "user_agent": USER_AGENT,
+                "network": NETWORK_NAME,
+                "genesis_hash": self.genesis_hash(),
+                "uptime_seconds": self.uptime_seconds(),
                 "peers": sorted(self.peers),
                 "orphans": len(self.orphans),
-                "services": ["network", "headers", "compact-blocks", "mempool", "block-template"],
+                "services": self.SERVICES,
             }
         )
         return data
+
+    def health(self) -> Dict[str, Any]:
+        chain_info = self.chain.chain_info()
+        return {
+            "ok": True,
+            "version": NODE_VERSION,
+            "network": NETWORK_NAME,
+            "protocol_version": PROTOCOL_VERSION,
+            "genesis_hash": self.genesis_hash(),
+            "height": chain_info["height"],
+            "tip_hash": chain_info["tip_hash"],
+            "mempool": chain_info["mempool_transactions"],
+            "peers": len(self.peers),
+            "orphans": len(self.orphans),
+            "uptime_seconds": self.uptime_seconds(),
+            "services": self.SERVICES,
+        }
+
+    def metrics_text(self) -> str:
+        """Prometheus text-exposition-format metrics."""
+        info = self.chain.chain_info()
+        lines = [
+            "# HELP netcoin_block_height Current best block height.",
+            "# TYPE netcoin_block_height gauge",
+            f"netcoin_block_height {info['height']}",
+            "# HELP netcoin_mempool_transactions Transactions in the mempool.",
+            "# TYPE netcoin_mempool_transactions gauge",
+            f"netcoin_mempool_transactions {info['mempool_transactions']}",
+            "# HELP netcoin_peers Connected/known peers.",
+            "# TYPE netcoin_peers gauge",
+            f"netcoin_peers {len(self.peers)}",
+            "# HELP netcoin_orphan_candidates Stored off-tip blocks.",
+            "# TYPE netcoin_orphan_candidates gauge",
+            f"netcoin_orphan_candidates {info['orphan_candidates']}",
+            "# HELP netcoin_cumulative_work Cumulative chain work.",
+            "# TYPE netcoin_cumulative_work gauge",
+            f"netcoin_cumulative_work {info['cumulative_work']}",
+            "# HELP netcoin_uptime_seconds Node uptime in seconds.",
+            "# TYPE netcoin_uptime_seconds counter",
+            f"netcoin_uptime_seconds {self.uptime_seconds()}",
+        ]
+        return "\n".join(lines) + "\n"
 
     def fetch_json(self, url: str, timeout: int = 5) -> Dict[str, Any]:
         with urlopen(url, timeout=timeout) as response:
@@ -154,10 +220,24 @@ class NetCoinNode:
         with urlopen(request, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))
 
+    def compatible_peer(self, remote: Dict[str, Any]) -> bool:
+        """Reject peers on a different genesis or network before syncing from them.
+
+        Older peers may not report genesis/network; only reject on a clear mismatch."""
+        remote_genesis = remote.get("genesis_hash")
+        if remote_genesis and remote_genesis != self.genesis_hash():
+            return False
+        remote_network = remote.get("network")
+        if remote_network and remote_network != NETWORK_NAME:
+            return False
+        return True
+
     def sync_from_peer(self, peer: str) -> bool:
         peer = peer.rstrip("/")
         try:
             remote = self.fetch_json(f"{peer}/info").get("node", {})
+            if not self.compatible_peer(remote):
+                return False
             if int(remote.get("height", 0)) <= self.chain.height():
                 return False
             # Headers-first shape: inspect remote headers before full block download.
@@ -267,6 +347,14 @@ def make_handler(node: NetCoinNode):
             self.end_headers()
             self.wfile.write(body)
 
+        def send_text(self, text: str, status: int = 200) -> None:
+            body = text.encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
         def send_error_json(self, message: str, status: int = 400) -> None:
             self.send_json({"ok": False, "error": message}, status=status)
 
@@ -275,6 +363,10 @@ def make_handler(node: NetCoinNode):
             try:
                 if parsed.path in ("/", "/info"):
                     self.send_json({"ok": True, "node": node.info()})
+                elif parsed.path == "/health":
+                    self.send_json(node.health())
+                elif parsed.path == "/metrics":
+                    self.send_text(node.metrics_text())
                 elif parsed.path == "/chain":
                     self.send_json(node.chain.export_chain())
                 elif parsed.path == "/headers":
@@ -296,6 +388,37 @@ def make_handler(node: NetCoinNode):
                         self.send_error_json("block not found", status=404)
                     else:
                         self.send_json(make_compact_block(block).to_dict())
+                elif parsed.path.startswith("/tx/"):
+                    txid = parsed.path.split("/", 2)[2]
+                    found = node.chain.get_transaction(txid)
+                    if found is None:
+                        self.send_error_json("transaction not found", status=404)
+                    else:
+                        tx, block = found
+                        payload = {
+                            "txid": tx.txid(),
+                            "wtxid": tx.wtxid(),
+                            "confirmed": block is not None,
+                            "block_hash": block.hash() if block else None,
+                            "block_height": block.header.height if block else None,
+                            "tx": tx.to_dict(include_scripts=True, include_witness=True),
+                        }
+                        self.send_json(payload)
+                elif parsed.path == "/latest":
+                    query = parse_qs(parsed.query)
+                    n = max(1, min(int(query.get("n", [10])[0]), 100))
+                    recent = node.chain.chain[-n:][::-1]
+                    blocks = [
+                        {
+                            "height": b.header.height,
+                            "hash": b.hash(),
+                            "timestamp": b.header.timestamp,
+                            "transactions": len(b.transactions),
+                            "weight": b.weight(),
+                        }
+                        for b in recent
+                    ]
+                    self.send_json({"height": node.chain.height(), "tip_hash": node.chain.tip_hash(), "blocks": blocks})
                 elif parsed.path == "/blocktemplate":
                     query = parse_qs(parsed.query)
                     address = query.get("address", [None])[0]
