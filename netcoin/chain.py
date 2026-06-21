@@ -86,6 +86,9 @@ class Blockchain:
         self.tx_index: Dict[str, Dict[str, Any]] = {}
         self.address_index: Dict[str, set] = {}
         self._utxo_addr: Dict[str, str] = {}  # outpoint -> address, for the address index
+        self._utxos: Dict[str, SpendableOutput] = {}  # persistent authoritative UTXO set
+        self.pruned = False  # True when running from a pruned store (no old block bodies)
+        self.pruned_below = 0
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.load_or_create()
 
@@ -113,14 +116,26 @@ class Blockchain:
                 for txin in tx.inputs:
                     self._utxo_addr.pop(txin.outpoint(), None)
 
-    def reindex(self) -> None:
-        """Rebuild the block, transaction, and address indexes from the chain."""
+    def _reindex_indexes_only(self) -> None:
         self.block_index = {}
         self.tx_index = {}
         self.address_index = {}
         self._utxo_addr = {}
         for block in self.chain:
             self._index_block(block)
+
+    def reindex(self) -> None:
+        """Rebuild the block, transaction, address, and UTXO indexes from the chain."""
+        self._reindex_indexes_only()
+        # A pruned node's UTXO set comes from its snapshot, not a full rescan.
+        if not self.pruned:
+            self._utxos = self._recompute_utxos_from_chain()
+
+    def _load_utxos_from_snapshot(self, snapshot: Dict[str, Any]) -> None:
+        self._utxos = {}
+        for item in snapshot.get("utxos", []):
+            spendable = SpendableOutput.from_dict(item)
+            self._utxos[spendable.outpoint()] = spendable
 
     def address_summary(self, address: str) -> Dict[str, Any]:
         if not validate_address(address):
@@ -154,6 +169,21 @@ class Blockchain:
         return self.tip().hash()
 
     def load_or_create(self) -> None:
+        if self.store is not None and self.store.is_pruned():
+            # Pruned reload: trust the stored UTXO snapshot and the kept recent
+            # blocks; do not revalidate from genesis (old bodies are gone).
+            self.pruned = True
+            self.pruned_below = self.store.pruned_below()
+            self.chain = [Block.from_dict(item) for item in self.store.load_chain()]
+            if not self.chain:
+                raise ChainError("pruned store has no retained blocks")
+            snapshot = self.store.load_utxo_snapshot()
+            if snapshot is None:
+                raise ChainError("pruned store is missing its UTXO snapshot")
+            self._load_utxos_from_snapshot(snapshot)
+            self._reindex_indexes_only()
+            self.mempool = [Transaction.from_dict(item) for item in self.store.load_mempool()]
+            return
         if self.store is not None:
             if self.store.has_chain():
                 self.chain = [Block.from_dict(item) for item in self.store.load_chain()]
@@ -248,23 +278,33 @@ class Blockchain:
         new_target = old_target * actual_timespan // TARGET_TIMESPAN_SECONDS
         return target_to_bits(new_target)
 
-    def utxo_set(self, include_mempool: bool = False) -> Dict[str, SpendableOutput]:
+    def _recompute_utxos_from_chain(self) -> Dict[str, SpendableOutput]:
+        """Authoritative full-scan UTXO computation (source of truth for rebuilds
+        and integrity checks). The persistent `self._utxos` cache mirrors this."""
         utxos: Dict[str, SpendableOutput] = {}
         for block in self.chain:
-            for tx in block.transactions:
-                if not tx.is_coinbase:
-                    for txin in tx.inputs:
-                        utxos.pop(txin.outpoint(), None)
-                txid = tx.txid()
-                for index, output in enumerate(tx.outputs):
-                    if output.amount > 0:
-                        utxos[f"{txid}:{index}"] = SpendableOutput(
-                            txid=txid,
-                            vout=index,
-                            output=output,
-                            height=block.header.height,
-                            coinbase=tx.is_coinbase,
-                        )
+            self._apply_block_to_utxos(block, utxos)
+        return utxos
+
+    def _apply_block_to_utxos(self, block: Block, utxos: Dict[str, SpendableOutput]) -> None:
+        for tx in block.transactions:
+            if not tx.is_coinbase:
+                for txin in tx.inputs:
+                    utxos.pop(txin.outpoint(), None)
+            txid = tx.txid()
+            for index, output in enumerate(tx.outputs):
+                if output.amount > 0:
+                    utxos[f"{txid}:{index}"] = SpendableOutput(
+                        txid=txid,
+                        vout=index,
+                        output=output,
+                        height=block.header.height,
+                        coinbase=tx.is_coinbase,
+                    )
+
+    def utxo_set(self, include_mempool: bool = False) -> Dict[str, SpendableOutput]:
+        # Serve a copy of the persistent UTXO cache so callers can mutate freely.
+        utxos = dict(self._utxos)
         if include_mempool:
             height = self.height() + 1
             for tx in self.mempool:
@@ -690,6 +730,7 @@ class Blockchain:
 
         self.chain.append(candidate)
         self._index_block(candidate)
+        self._apply_block_to_utxos(candidate, self._utxos)
         self.remove_mempool_transactions(selected_txids)
         self.purge_invalid_mempool()
         self.save_chain()
@@ -706,6 +747,7 @@ class Blockchain:
             self.validate_block_against(block, self.tip(), self.utxo_set(), self.chain)
             self.chain.append(block)
             self._index_block(block)
+            self._apply_block_to_utxos(block, self._utxos)
             included = [tx.txid() for tx in block.transactions[1:]]
             self.remove_mempool_transactions(included)
             self.purge_invalid_mempool()
@@ -874,20 +916,55 @@ class Blockchain:
             return False
         return snapshot.get("digest") == self.utxo_snapshot_digest()
 
+    def prune(self, keep_depth: int) -> Dict[str, Any]:
+        """Drop block bodies below tip-keep_depth from disk, keeping headers and a
+        UTXO snapshot (SQLite backend only). The running node is unaffected; on the
+        next reload the node runs in pruned mode. keep_depth should be at least the
+        difficulty window (2016) for a node that will keep mining across a retarget."""
+        if self.store is None:
+            raise ChainError("pruning requires the SQLite backend (NETCOIN_BACKEND=sqlite)")
+        if keep_depth < 1:
+            raise ChainError("keep_depth must be >= 1")
+        # Ensure the latest blocks are persisted, then snapshot the UTXO set.
+        self.save_chain()
+        self.store.save_utxo_snapshot(self.export_utxo_snapshot())
+        below_height = max(1, self.height() - keep_depth + 1)
+        pruned = self.store.prune_bodies(below_height)
+        return {
+            "ok": True,
+            "pruned_block_bodies": pruned,
+            "pruned_below_height": below_height,
+            "kept_from_height": below_height,
+            "tip_height": self.height(),
+        }
+
     def verify_integrity(self) -> Dict[str, Any]:
         """Revalidate the chain and check index/UTXO consistency (chainstate check)."""
+        if self.pruned:
+            # A pruned node cannot revalidate from genesis; report pruned state.
+            return {
+                "ok": True,
+                "pruned": True,
+                "pruned_below_height": self.pruned_below,
+                "height": self.height(),
+                "retained_blocks": len(self.chain),
+                "utxos": len(self._utxos),
+            }
         self.assert_valid_chain(self.chain)
         expected_blocks = {b.hash() for b in self.chain}
         index_consistent = set(self.block_index) == expected_blocks
-        utxos = self.utxo_set()
+        # The persistent UTXO cache must match a fresh full-scan recomputation.
+        recomputed = self._recompute_utxos_from_chain()
+        utxo_consistent = set(self._utxos) == set(recomputed)
         return {
-            "ok": index_consistent,
+            "ok": index_consistent and utxo_consistent,
             "height": self.height(),
             "blocks": len(self.chain),
             "indexed_blocks": len(self.block_index),
             "indexed_txs": len(self.tx_index),
-            "utxos": len(utxos),
+            "utxos": len(self._utxos),
             "index_consistent": index_consistent,
+            "utxo_consistent": utxo_consistent,
         }
 
     def headers(self, start_height: int = 0, limit: int = 2000) -> List[Dict[str, Any]]:
