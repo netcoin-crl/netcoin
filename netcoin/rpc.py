@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import hmac
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 
 from .chain import Blockchain
-from .params import DEFAULT_RPC_PORT, TICKER
+from .params import DEFAULT_RPC_PORT, MAX_REQUEST_BODY_BYTES, TICKER
 from .block import Block
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .tx import Transaction, sats_to_amount
@@ -102,16 +104,34 @@ class RPCServer:
         return None
 
 
-def make_handler(rpc: RPCServer):
+def make_handler(rpc: RPCServer, token: Optional[str] = None):
     class Handler(BaseHTTPRequestHandler):
         server_version = "NetCoinRPC/0.2"
 
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
             return
 
+        def authorized(self) -> bool:
+            # When no token is configured the RPC is open (intended only for a
+            # localhost bind). When a token is set, require a matching bearer
+            # token or X-Auth-Token header, compared in constant time.
+            if not token:
+                return True
+            header = self.headers.get("Authorization", "")
+            presented = header[7:] if header.startswith("Bearer ") else self.headers.get("X-Auth-Token", "")
+            return bool(presented) and hmac.compare_digest(presented, token)
+
         def do_POST(self) -> None:  # noqa: N802
+            if not self.authorized():
+                self.send_json(
+                    {"jsonrpc": "2.0", "id": None, "result": None, "error": "unauthorized"},
+                    status=401,
+                )
+                return
             try:
                 length = int(self.headers.get("Content-Length", "0"))
+                if length > MAX_REQUEST_BODY_BYTES:
+                    raise RPCError("request body too large")
                 request = json.loads(self.rfile.read(length).decode("utf-8"))
                 result = rpc.call(str(request.get("method")), list(request.get("params", [])))
                 payload = {"jsonrpc": "2.0", "id": request.get("id"), "result": result, "error": None}
@@ -120,7 +140,8 @@ def make_handler(rpc: RPCServer):
                 self.send_json({"jsonrpc": "2.0", "id": None, "result": None, "error": str(exc)}, status=400)
 
         def do_GET(self) -> None:  # noqa: N802
-            self.send_json({"ok": True, "service": "NetCoin JSON-RPC", "methods": RPC_METHODS})
+            # The discovery page never requires auth and never leaks the token.
+            self.send_json({"ok": True, "service": "NetCoin JSON-RPC", "methods": RPC_METHODS, "auth_required": bool(token)})
 
         def send_json(self, payload: Dict[str, Any], status: int = 200) -> None:
             body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
@@ -149,11 +170,24 @@ RPC_METHODS = [
 ]
 
 
-def run_rpc(data_dir: str, host: str = "127.0.0.1", port: int = DEFAULT_RPC_PORT) -> None:
+def run_rpc(
+    data_dir: str,
+    host: str = "127.0.0.1",
+    port: int = DEFAULT_RPC_PORT,
+    token: Optional[str] = None,
+) -> None:
     chain = Blockchain(data_dir=data_dir)
     rpc = RPCServer(chain)
-    server = ThreadingHTTPServer((host, port), make_handler(rpc))
+    # Prefer an explicit token, fall back to the NETCOIN_RPC_TOKEN env var.
+    token = token or os.environ.get("NETCOIN_RPC_TOKEN") or None
+    server = ThreadingHTTPServer((host, port), make_handler(rpc, token=token))
     print(f"NetCoin RPC listening on http://{host}:{port}")
+    if token:
+        print("RPC authentication: enabled (send 'Authorization: Bearer <token>')")
+    else:
+        print("RPC authentication: DISABLED — keep this bound to 127.0.0.1 only")
+    if host not in ("127.0.0.1", "localhost", "::1") and not token:
+        print("WARNING: RPC is bound to a non-local address without a token. Set NETCOIN_RPC_TOKEN.")
     try:
         server.serve_forever()
     finally:

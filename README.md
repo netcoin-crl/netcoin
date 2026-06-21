@@ -103,6 +103,17 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current public testnet 
 
 See [docs/SECURITY_TESTING.md](docs/SECURITY_TESTING.md) for malformed block, bad transaction, faucet abuse, node crash, replay, and public endpoint limit testing.
 
+### Guides for testers
+
+- [docs/STARTER_KIT.md](docs/STARTER_KIT.md) — 10-minute from-scratch walkthrough: install, wallet, faucet, send, mine, report bugs.
+- [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md) — run your own independent full node and peer with the public seeds.
+- [docs/MINING.md](docs/MINING.md) — mine testnet blocks from your own machine and submit them.
+- [docs/RELEASING.md](docs/RELEASING.md) — versioning, signed release artifacts, and how users verify downloads.
+
+> The JSON-RPC server supports optional bearer-token auth: pass `--rpc-token` (or set
+> `NETCOIN_RPC_TOKEN`) and keep it bound to `127.0.0.1`. The node and RPC servers also
+> cap request body size to blunt trivial memory-DoS attempts.
+
 ## Quick start
 
 ```bash

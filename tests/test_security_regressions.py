@@ -10,11 +10,14 @@ from threading import Thread
 import pytest
 
 import netcoin.chain as chain_module
+import netcoin.node as node_module
 from netcoin.block import Block, BlockHeader, make_block, merkle_root, mine_header
 from netcoin.chain import Blockchain, ChainError
 from netcoin.miner import solve_template
 from netcoin.node import NetCoinNode, make_handler
-from netcoin.params import ZERO_HASH
+from netcoin.params import HALVING_INTERVAL, INITIAL_SUBSIDY, ZERO_HASH
+from netcoin.rpc import RPCServer
+from netcoin.rpc import make_handler as make_rpc_handler
 from netcoin.tx import (
     Transaction,
     TransactionError,
@@ -445,4 +448,100 @@ def test_node_survives_garbage_block_post(tmp_path: Path):
             info = json.loads(response.read().decode("utf-8"))
         assert info["ok"] is True
         assert info["node"]["height"] == 0
+
+
+def test_node_rejects_oversized_request_body(tmp_path: Path, monkeypatch):
+    chain = Blockchain(tmp_path / "chain")
+    monkeypatch.setattr(node_module, "MAX_REQUEST_BODY_BYTES", 16)
+    with served_node(chain) as peer:
+        request = Request(
+            f"{peer.base_url}/tx",
+            data=b'{"padding":"this body is definitely longer than sixteen bytes"}',
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with pytest.raises(HTTPError) as excinfo:
+            urlopen(request, timeout=5)
+        assert excinfo.value.code == 400
+        error = json.loads(excinfo.value.read().decode("utf-8"))
+        assert "too large" in error["error"]
+
+        with urlopen(f"{peer.base_url}/info", timeout=5) as response:
+            assert json.loads(response.read().decode("utf-8"))["ok"] is True
+
+
+# ----------------------------------------------------------------------
+# Consensus: halving schedule
+# ----------------------------------------------------------------------
+
+def test_subsidy_halving_schedule(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    assert chain.subsidy(0) == INITIAL_SUBSIDY
+    assert chain.subsidy(HALVING_INTERVAL - 1) == INITIAL_SUBSIDY
+    assert chain.subsidy(HALVING_INTERVAL) == INITIAL_SUBSIDY // 2
+    assert chain.subsidy(2 * HALVING_INTERVAL) == INITIAL_SUBSIDY // 4
+    assert chain.subsidy(3 * HALVING_INTERVAL) == INITIAL_SUBSIDY // 8
+    # Past 64 halvings the subsidy must be exactly zero, never negative.
+    assert chain.subsidy(64 * HALVING_INTERVAL) == 0
+    assert chain.subsidy(1000 * HALVING_INTERVAL) == 0
+    with pytest.raises(ChainError):
+        chain.subsidy(-1)
+
+
+# ----------------------------------------------------------------------
+# RPC authentication (#17)
+# ----------------------------------------------------------------------
+
+def _rpc_call(base_url, method, params=None, token=None):
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}).encode()
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return Request(base_url, data=body, headers=headers, method="POST")
+
+
+def test_rpc_requires_token_when_configured(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    rpc = RPCServer(chain)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_rpc_handler(rpc, token="s3cret"))
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        # No token -> 401
+        with pytest.raises(HTTPError) as excinfo:
+            urlopen(_rpc_call(base_url, "getblockcount"), timeout=5)
+        assert excinfo.value.code == 401
+
+        # Wrong token -> 401
+        with pytest.raises(HTTPError) as excinfo:
+            urlopen(_rpc_call(base_url, "getblockcount", token="nope"), timeout=5)
+        assert excinfo.value.code == 401
+
+        # Correct token -> 200 with result
+        with urlopen(_rpc_call(base_url, "getblockcount", token="s3cret"), timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        assert payload["error"] is None
+        assert payload["result"] == 0
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_rpc_open_when_no_token(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    rpc = RPCServer(chain)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_rpc_handler(rpc, token=None))
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        with urlopen(_rpc_call(base_url, "getblockcount"), timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        assert payload["result"] == 0
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
 

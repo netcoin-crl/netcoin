@@ -16,7 +16,7 @@ from urllib.request import Request, urlopen
 from .block import Block
 from .chain import Blockchain
 from .compact import CompactBlock, make_compact_block, reconstruct_compact_block
-from .params import DEFAULT_NODE_PORT, PROTOCOL_VERSION
+from .params import DEFAULT_NODE_PORT, MAX_REQUEST_BODY_BYTES, PROTOCOL_VERSION
 from .tx import Transaction
 
 
@@ -136,6 +136,8 @@ def make_handler(node: NetCoinNode):
 
         def read_json(self) -> Dict[str, Any]:
             length = int(self.headers.get("Content-Length", "0"))
+            if length > MAX_REQUEST_BODY_BYTES:
+                raise NodeError("request body too large")
             if length <= 0:
                 return {}
             return json.loads(self.rfile.read(length).decode("utf-8"))

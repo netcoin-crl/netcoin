@@ -11,12 +11,30 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+- Optional JSON-RPC bearer-token authentication (`--rpc-token` / `NETCOIN_RPC_TOKEN`),
+  with a startup warning when bound to a non-local address without a token.
+- Request-body size cap on the node and RPC HTTP servers (`MAX_REQUEST_BODY_BYTES`)
+  to blunt trivial memory-DoS attempts.
+- Static testnet status dashboard generator (`tools/dashboard.py`) that renders the
+  monitor `status.json` into an auto-refreshing HTML page.
+- Tester guides: [docs/STARTER_KIT.md](docs/STARTER_KIT.md),
+  [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md), [docs/MINING.md](docs/MINING.md).
+- Release process and tooling: [docs/RELEASING.md](docs/RELEASING.md) and
+  `tools/make_release.sh` (reproducible archive + SHA256SUMS + optional GPG signature).
+
+### Security
+- Expanded automated tests to 41: added subsidy/halving-schedule coverage, RPC
+  auth (401/200), node body-size rejection, explorer-generation and dashboard
+  rendering (with HTML-escaping), and a fuzz suite for transaction/block parsing,
+  raw-transaction decoding, script parsing, and node endpoints.
+
 ### Planned
-- Signed release artifacts (SHA256SUMS + signatures).
+- Signed release artifacts published with each GitHub release (tooling now exists).
 - Monitoring alerts on seed downtime, tip mismatch, or faucet failure.
 - Peer discovery, persistence, and gossip beyond manually configured peers.
-- Public rate limiting / DoS protection for node, faucet, and explorer endpoints.
-- Fuzz testing for transactions, blocks, scripts, and node endpoints.
+- Stronger chain reorg handling (fork rollback, mempool revalidation).
+- Faucet CAPTCHA and per-minute throttling.
 
 ## [0.2.0] - 2026-06-20
 
