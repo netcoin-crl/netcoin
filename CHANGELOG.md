@@ -11,6 +11,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Planned
+- GPG-signed release artifacts published with each GitHub release (tooling exists).
+- Monitoring alerts on seed downtime, tip mismatch, or faucet failure.
+- Faucet CAPTCHA.
+
+## [0.3.0] - 2026-06-20
+
+Hardening, recovery, and P2P release: reorg handling, peer gossip, propagation,
+a searchable explorer, RPC auth, DoS caps, wallet safety, faucet hardening, tester
+guides, and a release process. 67 automated tests.
+
 ### Added
 - Optional JSON-RPC bearer-token authentication (`--rpc-token` / `NETCOIN_RPC_TOKEN`),
   with a startup warning when bound to a non-local address without a token.
@@ -51,11 +62,6 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   out-of-order connection, mempool revalidation), explorer/dashboard rendering
   with HTML-escaping, and a fuzz suite for transaction/block parsing,
   raw-transaction decoding, script parsing, and node endpoints.
-
-### Planned
-- Signed release artifacts published with each GitHub release (tooling now exists).
-- Monitoring alerts on seed downtime, tip mismatch, or faucet failure.
-- Faucet CAPTCHA.
 
 ## [0.2.0] - 2026-06-20
 
@@ -101,5 +107,6 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://example.com/netcoin/compare/v0.2.0...HEAD
-[0.2.0]: https://example.com/netcoin/releases/tag/v0.2.0
+[Unreleased]: https://github.com/Adoniyas1/netcoin/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Adoniyas1/netcoin/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/Adoniyas1/netcoin/releases/tag/v0.2.0
