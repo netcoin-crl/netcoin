@@ -25,23 +25,28 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   in-state abuse log, and a hot-wallet balance gate (all configurable via env vars).
 - Node peer persistence: discovered peers are saved to `peers.json` in the data
   directory and reloaded on restart so the node reconnects to known peers.
+- Stronger chain reorganization: `add_block` now keeps off-tip blocks in a bounded
+  fork pool and switches to the heaviest fully valid branch by cumulative work,
+  with rollback, automatic out-of-order (orphan) connection, and mempool
+  revalidation that returns transactions from disconnected blocks.
 - Tester guides: [docs/STARTER_KIT.md](docs/STARTER_KIT.md),
   [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md), [docs/MINING.md](docs/MINING.md).
 - Release process and tooling: [docs/RELEASING.md](docs/RELEASING.md) and
   `tools/make_release.sh` (reproducible archive + SHA256SUMS + optional GPG signature).
 
 ### Security
-- Expanded automated tests to 53: subsidy/halving schedule, RPC auth (401/200),
+- Expanded automated tests to 59: subsidy/halving schedule, RPC auth (401/200),
   node and faucet body/throttle limits, wallet recovery and encryption round-trips
-  (incl. tamper/wrong-passphrase rejection), peer persistence, explorer/dashboard
-  rendering with HTML-escaping, and a fuzz suite for transaction/block parsing,
+  (incl. tamper/wrong-passphrase rejection), peer persistence, chain reorg
+  (heavier-fork adoption, equal-work tie kept, invalid/bad-PoW fork rejection,
+  out-of-order connection, mempool revalidation), explorer/dashboard rendering
+  with HTML-escaping, and a fuzz suite for transaction/block parsing,
   raw-transaction decoding, script parsing, and node endpoints.
 
 ### Planned
 - Signed release artifacts published with each GitHub release (tooling now exists).
 - Monitoring alerts on seed downtime, tip mismatch, or faucet failure.
 - Peer gossip/auto-discovery beyond persisted manual peers.
-- Stronger chain reorg handling (fork rollback, mempool revalidation).
 - Faucet CAPTCHA.
 
 ## [0.2.0] - 2026-06-20

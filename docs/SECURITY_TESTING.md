@@ -40,6 +40,9 @@ The regression suite covers:
 - faucet hardening: body cap, per-minute burst throttle, abuse-log capping, and the
   wallet-balance gate
 - node peer persistence reloads known peers across restarts
+- chain reorg: adopts a heavier valid fork, keeps the first-seen tip on equal work,
+  rejects invalid and bad-proof-of-work forks, connects out-of-order blocks, and
+  returns disconnected-block transactions to the mempool
 - faucet invalid-address and IP cooldown logic
 
 ## Live Public Smoke Checks
