@@ -198,6 +198,31 @@ def cmd_wallet_recover_test(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_wallet_scan(args: argparse.Namespace) -> None:
+    if not verify_seed_phrase(args.from_mnemonic):
+        print_json({"ok": False, "error": "seed phrase is not valid"})
+        sys.exit(1)
+    chain = Blockchain(args.data)
+    accounts = []
+    active = 0
+    for index in range(args.gap + 1):
+        wallet = Wallet.create(seed_phrase=args.from_mnemonic, index=index)
+        balances = chain.balances_for_address(wallet.address)
+        tx_count = len(chain.address_index.get(wallet.address, set()))
+        is_active = balances["total"] > 0 or tx_count > 0
+        active += 1 if is_active else 0
+        accounts.append(
+            {
+                "index": index,
+                "address": wallet.address,
+                "total": sats_to_amount(balances["total"]),
+                "transactions": tx_count,
+                "active": is_active,
+            }
+        )
+    print_json({"ok": True, "gap": args.gap, "active_accounts": active, "accounts": accounts})
+
+
 def cmd_wallet_export_watch(args: argparse.Namespace) -> None:
     wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
     # public_dict carries the public key and every address type, but no secret.
@@ -631,6 +656,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase")
     p.add_argument("--out", required=True)
     p.set_defaults(func=cmd_wallet_export_watch)
+
+    p = sub.add_parser("wallet-scan", help="derive addresses 0..gap from a seed and report on-chain activity")
+    p.add_argument("--from-mnemonic", required=True)
+    p.add_argument("--gap", type=int, default=20, help="highest key index to scan (default 20)")
+    p.set_defaults(func=cmd_wallet_scan)
 
     p = sub.add_parser("wallet-unlock", help="verify an encrypted wallet opens; optionally write a decrypted copy")
     p.add_argument("--wallet", required=True)

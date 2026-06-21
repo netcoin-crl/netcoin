@@ -12,6 +12,19 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- `wallet-scan` (gap-limit): derive addresses `0..gap` from a seed and report
+  on-chain activity per index.
+
+### Changed
+- **Wallet KDF upgrade**: new encrypted wallets use 600k PBKDF2 iterations (was
+  250k) and `cipher` `netcoin-hmac-stream-v2`. Older 250k wallets still open
+  (the iteration count is read from the file); re-saving upgrades them.
+
+### Security
+- Mempool **ancestor limit**: a transaction with too many unconfirmed ancestors
+  (> `MAX_MEMPOOL_ANCESTORS`) is rejected.
+
+### Added (continued)
 - **Optional SQLite storage backend** (`netcoin/storage.py`) for blocks, the
   active-chain ordering, and the mempool. Select with `backend="sqlite"` or
   `NETCOIN_BACKEND=sqlite`; JSON remains the default. New `migrate-sqlite` command
@@ -78,7 +91,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   added the missing helper so watch-only wallet files work.
 
 ### Tests
-- Suite expanded to 146 (adds the SQLite backend: persistence, restart, reorg,
+- Suite expanded to 151 (adds KDF upgrade + legacy-wallet compatibility, mempool
+  ancestor limit, and gap-limit scan).
+- Earlier: 146 (adds the SQLite backend: persistence, restart, reorg,
   mempool, store unit, and migration).
 - Earlier: 141 (adds UTXO snapshot export/verify, multisig address,
   structured-log formatting, and the explorer mempool section).

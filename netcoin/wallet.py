@@ -111,10 +111,16 @@ def private_key_from_seed_phrase(phrase: str, index: int = 0) -> int:
         counter += 1
 
 
-def _derive_encryption_key(passphrase: str, salt: bytes) -> bytes:
+# KDF cost. v1 wallets used 250k PBKDF2 iterations; v2 raises this. Old files are
+# still readable because the iteration count is read back from the file.
+PBKDF2_ITERATIONS = 600_000
+LEGACY_PBKDF2_ITERATIONS = 250_000
+
+
+def _derive_encryption_key(passphrase: str, salt: bytes, iterations: int = PBKDF2_ITERATIONS) -> bytes:
     if not passphrase:
         raise WalletError("encrypted wallet requires a non-empty passphrase")
-    return hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), salt, 250_000, dklen=32)
+    return hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), salt, iterations, dklen=32)
 
 
 def _xor_stream(data: bytes, key: bytes, nonce: bytes) -> bytes:
@@ -130,14 +136,14 @@ def _xor_stream(data: bytes, key: bytes, nonce: bytes) -> bytes:
 def encrypt_private_key(private_key_hex: str, passphrase: str) -> Dict[str, str]:
     salt = secrets.token_bytes(16)
     nonce = secrets.token_bytes(16)
-    key = _derive_encryption_key(passphrase, salt)
+    key = _derive_encryption_key(passphrase, salt, PBKDF2_ITERATIONS)
     plaintext = private_key_hex.encode("ascii")
     ciphertext = _xor_stream(plaintext, key, nonce)
     mac = hmac.new(key, nonce + ciphertext, hashlib.sha256).digest()
     return {
-        "cipher": "netcoin-hmac-stream-v1",
+        "cipher": "netcoin-hmac-stream-v2",
         "kdf": "pbkdf2-hmac-sha256",
-        "iterations": "250000",
+        "iterations": str(PBKDF2_ITERATIONS),
         "salt": salt.hex(),
         "nonce": nonce.hex(),
         "ciphertext": ciphertext.hex(),
@@ -149,7 +155,9 @@ def decrypt_private_key(encrypted: Dict[str, str], passphrase: str) -> str:
     salt = bytes.fromhex(encrypted["salt"])
     nonce = bytes.fromhex(encrypted["nonce"])
     ciphertext = bytes.fromhex(encrypted["ciphertext"])
-    key = _derive_encryption_key(passphrase, salt)
+    # Honor the file's own iteration count so older (250k) wallets still open.
+    iterations = int(encrypted.get("iterations", LEGACY_PBKDF2_ITERATIONS))
+    key = _derive_encryption_key(passphrase, salt, iterations)
     mac = hmac.new(key, nonce + ciphertext, hashlib.sha256).digest()
     if not hmac.compare_digest(mac.hex(), encrypted.get("mac", "")):
         raise WalletError("wallet passphrase is incorrect or file was modified")
