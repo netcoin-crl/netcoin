@@ -1,5 +1,6 @@
 """Tests for generated artifacts: the static explorer and the status dashboard."""
 import importlib.util
+import json
 from pathlib import Path
 
 from netcoin.chain import Blockchain
@@ -36,6 +37,32 @@ def test_explorer_generation_produces_index_and_block_pages(tmp_path: Path):
     tip_page = out / f"block-{chain.tip_hash()}.html"
     assert tip_page.exists()
     assert chain.tip_hash() in tip_page.read_text()
+
+
+def test_explorer_embeds_searchable_index(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.address)
+
+    out = tmp_path / "explorer"
+    generate_explorer(chain, out)
+    html = (out / "index.html").read_text()
+
+    # The search UI and embedded index are present.
+    assert 'id="q"' in html
+    marker = 'id="netcoin-index" type="application/json">'
+    start = html.index(marker) + len(marker)
+    end = html.index("</script>", start)
+    index = json.loads(html[start:end])
+
+    heights = {b["height"] for b in index}
+    assert {0, 1} <= heights
+    assert any(b["hash"] == chain.tip_hash() for b in index)
+    # The coinbase payout address is indexed for address search.
+    assert any(miner.address in b["addresses"] for b in index)
+    # Every block lists its coinbase txid.
+    tip = next(b for b in index if b["hash"] == chain.tip_hash())
+    assert chain.tip().transactions[0].txid() in tip["txids"]
 
 
 def test_dashboard_renders_status_with_badges_and_escaping():

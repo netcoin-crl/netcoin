@@ -43,6 +43,8 @@ The regression suite covers:
 - chain reorg: adopts a heavier valid fork, keeps the first-seen tip on equal work,
   rejects invalid and bad-proof-of-work forks, connects out-of-order blocks, and
   returns disconnected-block transactions to the mempool
+- block relay de-duplication (echoed blocks are not re-broadcast) and tip relay
+- explorer embeds a searchable per-block index (height/hash/txid/address)
 - faucet invalid-address and IP cooldown logic
 
 ## Live Public Smoke Checks

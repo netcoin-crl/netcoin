@@ -37,6 +37,10 @@ class NetCoinNode:
         self.peers = set()
         self.orphans: Dict[str, Block] = {}
         self.persist = persist
+        # Bounded memory of recently relayed block hashes so a block is not
+        # re-broadcast in a relay loop when peers echo it back.
+        self._broadcast_seen: List[str] = []
+        self._broadcast_seen_set: set[str] = set()
         self.peers_path = Path(peers_path) if peers_path else (Path(chain.data_dir) / "peers.json")
         # Reload peers discovered on previous runs, then merge in any provided
         # via --peer so the node reconnects to known peers across restarts.
@@ -153,7 +157,21 @@ class NetCoinNode:
                 continue
         return delivered
 
-    def broadcast_block(self, block: Block) -> int:
+    def _mark_broadcast(self, block_hash: str) -> bool:
+        """Record a block hash as broadcast. Returns False if already seen."""
+        if block_hash in self._broadcast_seen_set:
+            return False
+        self._broadcast_seen_set.add(block_hash)
+        self._broadcast_seen.append(block_hash)
+        if len(self._broadcast_seen) > 1000:
+            oldest = self._broadcast_seen.pop(0)
+            self._broadcast_seen_set.discard(oldest)
+        return True
+
+    def broadcast_block(self, block: Block, force: bool = False) -> int:
+        # Skip blocks we have already relayed so echoed blocks do not loop.
+        if not force and not self._mark_broadcast(block.hash()):
+            return 0
         payload = block.to_dict()
         delivered = 0
         for peer in list(self.peers):
@@ -162,6 +180,15 @@ class NetCoinNode:
                 delivered += 1
             except Exception:
                 continue
+        return delivered
+
+    def relay_new_blocks(self, received: Block) -> int:
+        """Relay the received block and, if accepting it advanced the active
+        chain past it (e.g. a reorg connected orphans), the new tip too."""
+        delivered = self.broadcast_block(received)
+        tip = self.chain.tip()
+        if tip.hash() != received.hash():
+            delivered += self.broadcast_block(tip)
         return delivered
 
 
@@ -247,13 +274,13 @@ def make_handler(node: NetCoinNode):
                 elif parsed.path in ("/block", "/submitblock"):
                     block = Block.from_dict(data)
                     block_hash = node.accept_block(block)
-                    delivered = node.broadcast_block(block)
+                    delivered = node.relay_new_blocks(block)
                     self.send_json({"ok": True, "block_hash": block_hash, "relayed_to": delivered})
                 elif parsed.path == "/compact-block":
                     compact = CompactBlock.from_dict(data)
                     block = reconstruct_compact_block(compact, node.chain.mempool)
                     block_hash = node.accept_block(block)
-                    delivered = node.broadcast_block(block)
+                    delivered = node.relay_new_blocks(block)
                     self.send_json({"ok": True, "block_hash": block_hash, "relayed_to": delivered})
                 elif parsed.path == "/peers":
                     for peer in data.get("peers", []):

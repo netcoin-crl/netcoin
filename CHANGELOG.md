@@ -29,13 +29,18 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   fork pool and switches to the heaviest fully valid branch by cumulative work,
   with rollback, automatic out-of-order (orphan) connection, and mempool
   revalidation that returns transactions from disconnected blocks.
+- More reliable block propagation: relay de-duplication (a bounded memory of
+  broadcast hashes) prevents echoed blocks from looping, and accepting a block
+  that triggers a reorg also relays the new tip.
+- Searchable explorer: the generated `index.html` now embeds a per-block index and
+  a client-side search box for height, block hash, txid, and address (still static).
 - Tester guides: [docs/STARTER_KIT.md](docs/STARTER_KIT.md),
   [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md), [docs/MINING.md](docs/MINING.md).
 - Release process and tooling: [docs/RELEASING.md](docs/RELEASING.md) and
   `tools/make_release.sh` (reproducible archive + SHA256SUMS + optional GPG signature).
 
 ### Security
-- Expanded automated tests to 59: subsidy/halving schedule, RPC auth (401/200),
+- Expanded automated tests to 62: subsidy/halving schedule, RPC auth (401/200),
   node and faucet body/throttle limits, wallet recovery and encryption round-trips
   (incl. tamper/wrong-passphrase rejection), peer persistence, chain reorg
   (heavier-fork adoption, equal-work tie kept, invalid/bad-PoW fork rejection,
