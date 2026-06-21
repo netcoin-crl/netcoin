@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
 import sys
+import tempfile
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode
@@ -17,7 +21,7 @@ from .miner import block_summary, solve_template
 from .explorer import generate_explorer
 from .node import run_node
 from .p2p import Message, version_message
-from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_POOL_PORT, DEFAULT_RPC_PORT, NETWORKS, TICKER
+from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_POOL_PORT, DEFAULT_RPC_PORT, DEFAULT_TESTNET_SEEDS, NETWORKS, TICKER
 from .pool import run_pool
 from .psbt import PartiallySignedTransaction
 from .rpc import run_rpc
@@ -132,10 +136,64 @@ def cmd_wallet_info(args: argparse.Namespace) -> None:
     wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
     info = wallet.to_plain_dict()
     info["wallet_file"] = args.wallet
-    if not args.show_private:
+    if args.show_private:
+        # Guard private-key exposure behind an explicit acknowledgement so it is
+        # not printed by accident (e.g. in shared terminals or logs).
+        if not args.i_understand_export_risk:
+            raise WalletError(
+                "refusing to print the private key without --i-understand-export-risk; "
+                "anyone with this key controls the wallet"
+            )
+        info["export_warning"] = "PRIVATE KEY SHOWN. Never share it, paste it, or commit it."
+    else:
         info.pop("private_key_hex", None)
         info.pop("wif", None)
     print_json(info)
+
+
+def cmd_wallet_backup(args: argparse.Namespace) -> None:
+    src = Path(args.wallet)
+    if not src.exists():
+        raise WalletError(f"wallet file not found: {src}")
+    out_dir = Path(args.out_dir) if args.out_dir else src.parent
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    dest = out_dir / f"{src.stem}.backup-{stamp}.json"
+    shutil.copy2(src, dest)
+    os.chmod(dest, 0o600)
+    print_json({"ok": True, "wallet_file": str(src), "backup_file": str(dest)})
+
+
+def cmd_wallet_recover_test(args: argparse.Namespace) -> None:
+    if args.wallet:
+        expected = Wallet.load(args.wallet, passphrase=args.passphrase).address
+    elif args.address:
+        expected = args.address
+    else:
+        raise WalletError("provide --wallet or --address to compare against")
+    if not verify_seed_phrase(args.from_mnemonic):
+        print_json({"ok": False, "error": "seed phrase is not valid"})
+        sys.exit(1)
+    # Full round-trip: restore the phrase, save to a temp file, reload, compare.
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td) / "recovered.json"
+        recovered = Wallet.from_mnemonic(args.from_mnemonic)
+        recovered.save(tmp)
+        reloaded = Wallet.load(tmp)
+    ok = reloaded.address == expected
+    print_json({"ok": ok, "expected_address": expected, "recovered_address": recovered.address})
+    if not ok:
+        sys.exit(1)
+
+
+def cmd_wallet_export_watch(args: argparse.Namespace) -> None:
+    wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
+    # public_dict carries the public key and every address type, but no secret.
+    data = wallet.public_dict()
+    data["watch_only"] = True
+    data["encrypted"] = False
+    Path(args.out).write_text(json.dumps(data, indent=2, sort_keys=True))
+    print_json({"ok": True, "watch_only_file": args.out, "address": wallet.address})
 
 
 def cmd_balance(args: argparse.Namespace) -> None:
@@ -363,7 +421,10 @@ def cmd_script(args: argparse.Namespace) -> None:
 
 
 def cmd_node(args: argparse.Namespace) -> None:
-    run_node(data_dir=args.data, host=args.host, port=args.port, peers=args.peer or [], advertise=getattr(args, "advertise", None))
+    peers = list(args.peer or [])
+    if getattr(args, "seeds", False):
+        peers.extend(s for s in DEFAULT_TESTNET_SEEDS if s not in peers)
+    run_node(data_dir=args.data, host=args.host, port=args.port, peers=peers, advertise=getattr(args, "advertise", None))
 
 
 def cmd_rpc(args: argparse.Namespace) -> None:
@@ -437,7 +498,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--wallet", required=True)
     p.add_argument("--passphrase")
     p.add_argument("--show-private", action="store_true")
+    p.add_argument("--i-understand-export-risk", action="store_true", help="required to actually print the private key")
     p.set_defaults(func=cmd_wallet_info)
+
+    p = sub.add_parser("wallet-backup", help="copy a wallet file to a timestamped backup (chmod 600)")
+    p.add_argument("--wallet", required=True)
+    p.add_argument("--out-dir", help="directory for the backup (default: alongside the wallet)")
+    p.set_defaults(func=cmd_wallet_backup)
+
+    p = sub.add_parser("wallet-recover-test", help="restore a seed phrase into a temp wallet and verify the address")
+    p.add_argument("--from-mnemonic", required=True)
+    p.add_argument("--wallet", help="wallet file whose address the phrase should reproduce")
+    p.add_argument("--address", help="expected address (alternative to --wallet)")
+    p.add_argument("--passphrase", help="passphrase for an encrypted --wallet")
+    p.set_defaults(func=cmd_wallet_recover_test)
+
+    p = sub.add_parser("wallet-export-watch", help="export a watch-only wallet file (no private key) from a wallet")
+    p.add_argument("--wallet", required=True)
+    p.add_argument("--passphrase")
+    p.add_argument("--out", required=True)
+    p.set_defaults(func=cmd_wallet_export_watch)
 
     p = sub.add_parser("verify-mnemonic", help="check a seed phrase is valid and (optionally) controls a wallet")
     p.add_argument("--from-mnemonic", required=True, help="the NetCoin seed phrase to verify")
@@ -554,6 +634,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_NODE_PORT)
     p.add_argument("--peer", action="append", help="peer URL; can be repeated")
+    p.add_argument("--seeds", action="store_true", help="also connect to the built-in public testnet seeds")
     p.add_argument("--advertise", help="public URL to announce to peers for gossip discovery")
     p.set_defaults(func=cmd_node)
 

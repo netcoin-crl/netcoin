@@ -109,6 +109,14 @@ See [docs/SECURITY_TESTING.md](docs/SECURITY_TESTING.md) for malformed block, ba
 - [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md) — run your own independent full node and peer with the public seeds.
 - [docs/MINING.md](docs/MINING.md) — mine testnet blocks from your own machine and submit them.
 - [docs/RELEASING.md](docs/RELEASING.md) — versioning, signed release artifacts, and how users verify downloads.
+- [docs/UPGRADING.md](docs/UPGRADING.md) — update a node between releases without wiping data (with rollback).
+- [docs/SECURITY_REVIEW_PLAN.md](docs/SECURITY_REVIEW_PLAN.md) — the external-review checklist that gates any mainnet discussion.
+
+Operator tooling lives in `tools/`: `backup_node.sh` (backup), `deploy_seed.sh` (safe
+update with rollback), `dashboard.py` (public status page), `faucet_admin.py` (private
+faucet admin view), and `monitor_netcoin.py` (status + optional webhook alerts). The
+node also exposes explorer-style JSON: `/tx/<txid>`, `/latest?n=`, `/utxos?address=`,
+`/block/<hash>`, and `/mempool`.
 
 > The JSON-RPC server supports optional bearer-token auth: pass `--rpc-token` (or set
 > `NETCOIN_RPC_TOKEN`) and keep it bound to `127.0.0.1`. The node and RPC servers also

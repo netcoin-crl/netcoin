@@ -11,9 +11,45 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+- Node `/health` (height, tip, peers, version, uptime, services) and `/metrics`
+  (Prometheus text format) endpoints.
+- Version handshake: `/info` now reports `version`, `user_agent`, `network`, and
+  `genesis_hash`; peers are checked for genesis/network compatibility before sync.
+- Built-in public testnet seeds and a `node --seeds` flag to join without copying URLs.
+- Wallet commands: `wallet-backup` (timestamped copy), `wallet-recover-test`
+  (restore a seed into a temp wallet and verify the address), and
+  `wallet-export-watch` (watch-only export with no private key). `wallet-info
+  --show-private` now requires `--i-understand-export-risk`.
+- Community/repo files: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `BRAND.md`,
+  [docs/ROADMAP.md](docs/ROADMAP.md), [docs/LIMITATIONS.md](docs/LIMITATIONS.md),
+  and a GitHub Actions CI workflow (`.github/workflows/ci.yml`).
+- Explorer-style node JSON API: `GET /tx/<txid>` and `GET /latest?n=` (alongside the
+  existing `/block/<hash>`, `/utxos?address=`, and `/mempool`).
+- Monitoring alerts: the monitor compares against the previous status and posts
+  transition alerts (DOWN / RECOVERED / tip divergence) to a Discord/Slack-style
+  webhook (`NETCOIN_ALERT_WEBHOOK`).
+- `tools/faucet_admin.py` private admin dashboard (hot-wallet balance, granted
+  requests, abuse log) and `tools/backup_node.sh` / `tools/deploy_seed.sh` operator
+  scripts (backup; safe update with automatic rollback).
+- Docs: [docs/UPGRADING.md](docs/UPGRADING.md) and
+  [docs/SECURITY_REVIEW_PLAN.md](docs/SECURITY_REVIEW_PLAN.md); GitHub issue/PR
+  templates under `.github/`.
+
+### Fixed
+- `wallet-watch` was broken (`Wallet.watch_only` was referenced but never defined);
+  added the missing helper so watch-only wallet files work.
+
+### Tests
+- Suite expanded to 100: mempool attack policy (dust, low fee, duplicate inputs,
+  over-weight, RBF conflicts), peer-sync resilience (unreachable peers, restart
+  persistence, catch-up after downtime, peer loss, delayed blocks), node JSON API,
+  `/health` + `/metrics` + handshake + peer compatibility, wallet CLI (backup,
+  recovery test, watch-only export, export guard), and ops tooling (faucet admin
+  render, monitor alert transitions).
+
 ### Planned
 - GPG-signed release artifacts published with each GitHub release (tooling exists).
-- Monitoring alerts on seed downtime, tip mismatch, or faucet failure.
 - Faucet CAPTCHA.
 
 ## [0.3.0] - 2026-06-20
