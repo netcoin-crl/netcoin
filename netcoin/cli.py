@@ -287,6 +287,14 @@ def cmd_migrate_sqlite(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_prune(args: argparse.Namespace) -> None:
+    import os
+
+    os.environ.setdefault("NETCOIN_BACKEND", "sqlite")
+    chain = Blockchain(args.data, backend="sqlite")
+    print_json(chain.prune(keep_depth=args.keep))
+
+
 def cmd_utxo_snapshot(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     snapshot = chain.export_utxo_snapshot()
@@ -679,6 +687,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("migrate-sqlite", help="copy a JSON data directory into a SQLite database")
     p.set_defaults(func=cmd_migrate_sqlite)
+
+    p = sub.add_parser("prune", help="prune old block bodies (SQLite backend), keeping headers + a UTXO snapshot")
+    p.add_argument("--keep", type=int, default=2016, help="number of most-recent blocks to keep with full bodies")
+    p.set_defaults(func=cmd_prune)
 
     p = sub.add_parser("label", help="manage an address/peer/txid label book")
     p.add_argument("--file", help="labels JSON file (default: <data>/labels.json)")

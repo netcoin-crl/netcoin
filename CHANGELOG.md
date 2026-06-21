@@ -12,6 +12,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Persistent/incremental UTXO set**: `utxo_set()` now serves an authoritative
+  in-memory cache (kept in sync through mining and reorgs, verified against a full
+  recompute) instead of rescanning the whole chain on every call.
+- **Pruned mode** (SQLite backend): `prune` command / `Blockchain.prune(keep_depth)`
+  drops old block bodies from disk while keeping headers and a UTXO snapshot. A
+  reloaded pruned node trusts the snapshot, keeps the recent tail, and can keep
+  mining. (A pruned node can't deep-reorg below the pruned floor — the standard
+  pruned-node tradeoff; keep at least the 2016-block difficulty window.)
 - `wallet-scan` (gap-limit): derive addresses `0..gap` from a seed and report
   on-chain activity per index.
 
@@ -91,7 +99,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   added the missing helper so watch-only wallet files work.
 
 ### Tests
-- Suite expanded to 151 (adds KDF upgrade + legacy-wallet compatibility, mempool
+- Suite expanded to 159 (adds persistent-UTXO correctness through spends/reorgs and
+  pruned-mode round-trips: prune, reload, keep mining, balances).
+- Earlier: 151 (adds KDF upgrade + legacy-wallet compatibility, mempool
   ancestor limit, and gap-limit scan).
 - Earlier: 146 (adds the SQLite backend: persistence, restart, reorg,
   mempool, store unit, and migration).

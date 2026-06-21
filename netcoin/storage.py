@@ -40,6 +40,7 @@ class SqliteChainStore:
             CREATE TABLE IF NOT EXISTS active_chain(position INTEGER PRIMARY KEY, hash TEXT);
             CREATE TABLE IF NOT EXISTS mempool(txid TEXT PRIMARY KEY, data TEXT);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE IF NOT EXISTS utxo_snapshot(id INTEGER PRIMARY KEY CHECK(id=1), data TEXT);
             """
         )
         self.conn.execute(
@@ -70,10 +71,47 @@ class SqliteChainStore:
         self.conn.commit()
 
     def load_chain(self) -> List[Dict[str, Any]]:
+        # Skip pruned blocks (NULL body); only full block bodies are returned.
         rows = self.conn.execute(
-            "SELECT b.data FROM active_chain a JOIN blocks b ON a.hash = b.hash ORDER BY a.position"
+            "SELECT b.data FROM active_chain a JOIN blocks b ON a.hash = b.hash "
+            "WHERE b.data IS NOT NULL ORDER BY a.position"
         ).fetchall()
         return [json.loads(row[0]) for row in rows]
+
+    # -- meta / snapshot / pruning -----------------------------------------
+
+    def set_meta(self, key: str, value: str) -> None:
+        self.conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES(?,?)", (key, str(value)))
+        self.conn.commit()
+
+    def get_meta(self, key: str, default: Any = None) -> Any:
+        row = self.conn.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+        return row[0] if row else default
+
+    def save_utxo_snapshot(self, snapshot: Dict[str, Any]) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO utxo_snapshot(id, data) VALUES(1, ?)", (json.dumps(snapshot),)
+        )
+        self.conn.commit()
+
+    def load_utxo_snapshot(self) -> Dict[str, Any] | None:
+        row = self.conn.execute("SELECT data FROM utxo_snapshot WHERE id=1").fetchone()
+        return json.loads(row[0]) if row else None
+
+    def pruned_below(self) -> int:
+        return int(self.get_meta("pruned_below_height", "0"))
+
+    def is_pruned(self) -> bool:
+        return self.pruned_below() > 0
+
+    def prune_bodies(self, below_height: int) -> int:
+        """Drop block bodies (data) for blocks below below_height; keep headers."""
+        cur = self.conn.execute(
+            "UPDATE blocks SET data = NULL WHERE height < ? AND data IS NOT NULL", (below_height,)
+        )
+        self.conn.commit()
+        self.set_meta("pruned_below_height", str(below_height))
+        return cur.rowcount
 
     # -- mempool ------------------------------------------------------------
 
