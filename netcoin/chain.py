@@ -64,9 +64,19 @@ class Blockchain:
     and a small set of mempool policy rules.
     """
 
-    def __init__(self, data_dir: str | os.PathLike[str] = DEFAULT_DATA_DIR, autosave: bool = True):
+    def __init__(self, data_dir: str | os.PathLike[str] = DEFAULT_DATA_DIR, autosave: bool = True, backend: Optional[str] = None):
         self.data_dir = Path(data_dir)
         self.autosave = autosave
+        # Persistence backend: "json" (default) or "sqlite". Falls back to the
+        # NETCOIN_BACKEND env var so it threads through the whole CLI uniformly.
+        self.backend = (backend or os.environ.get("NETCOIN_BACKEND") or "json").lower()
+        self.store = None
+        if self.backend == "sqlite":
+            from .storage import SqliteChainStore
+
+            self.store = SqliteChainStore(self.data_dir / "netcoin.sqlite")
+        elif self.backend != "json":
+            raise ChainError(f"unknown storage backend: {self.backend}")
         self.chain: List[Block] = []
         self.mempool: List[Transaction] = []
         self.mempool_times: Dict[str, float] = {}
@@ -144,7 +154,14 @@ class Blockchain:
         return self.tip().hash()
 
     def load_or_create(self) -> None:
-        if self.chain_path.exists():
+        if self.store is not None:
+            if self.store.has_chain():
+                self.chain = [Block.from_dict(item) for item in self.store.load_chain()]
+                self.assert_valid_chain(self.chain)
+            else:
+                self.chain = [create_genesis_block()]
+                self.save_chain()
+        elif self.chain_path.exists():
             data = json.loads(self.chain_path.read_text())
             self.chain = [Block.from_dict(item) for item in data["blocks"]]
             self.assert_valid_chain(self.chain)
@@ -153,11 +170,16 @@ class Blockchain:
             self.save_chain()
         self.reindex()
 
-        if self.mempool_path.exists():
+        loaded_mempool: Optional[list] = None
+        if self.store is not None:
+            loaded_mempool = [Transaction.from_dict(item) for item in self.store.load_mempool()]
+        elif self.mempool_path.exists():
             data = json.loads(self.mempool_path.read_text())
-            loaded = [Transaction.from_dict(item) for item in data.get("transactions", [])]
+            loaded_mempool = [Transaction.from_dict(item) for item in data.get("transactions", [])]
+
+        if loaded_mempool is not None:
             self.mempool = []
-            for tx in loaded:
+            for tx in loaded_mempool:
                 try:
                     self.add_mempool_transaction(tx, save=False)
                 except (ChainError, TransactionError):
@@ -169,6 +191,9 @@ class Blockchain:
     def save_chain(self) -> None:
         if not self.autosave:
             return
+        if self.store is not None:
+            self.store.save_chain(self.chain)
+            return
         payload = {"blocks": [block.to_dict() for block in self.chain]}
         tmp = self.chain_path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(payload, indent=2, sort_keys=True))
@@ -176,6 +201,9 @@ class Blockchain:
 
     def save_mempool(self) -> None:
         if not self.autosave:
+            return
+        if self.store is not None:
+            self.store.save_mempool(self.mempool)
             return
         payload = {"transactions": [tx.to_dict(include_scripts=True, include_witness=True) for tx in self.mempool]}
         tmp = self.mempool_path.with_suffix(".json.tmp")

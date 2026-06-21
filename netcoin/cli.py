@@ -242,6 +242,26 @@ def cmd_multisig_address(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_migrate_sqlite(args: argparse.Namespace) -> None:
+    from .storage import SqliteChainStore
+
+    source = Blockchain(args.data, backend="json")
+    store = SqliteChainStore(Path(args.data) / "netcoin.sqlite")
+    store.save_chain(source.chain)
+    store.save_mempool(source.mempool)
+    store.close()
+    print_json(
+        {
+            "ok": True,
+            "data_dir": args.data,
+            "sqlite_file": str(Path(args.data) / "netcoin.sqlite"),
+            "blocks": len(source.chain),
+            "mempool": len(source.mempool),
+            "note": "Set NETCOIN_BACKEND=sqlite to run against the SQLite database.",
+        }
+    )
+
+
 def cmd_utxo_snapshot(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     snapshot = chain.export_utxo_snapshot()
@@ -626,6 +646,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("utxo-snapshot", help="export the current UTXO set (with digest) for bootstrap/verification")
     p.add_argument("--out", help="write the snapshot JSON to this file")
     p.set_defaults(func=cmd_utxo_snapshot)
+
+    p = sub.add_parser("migrate-sqlite", help="copy a JSON data directory into a SQLite database")
+    p.set_defaults(func=cmd_migrate_sqlite)
 
     p = sub.add_parser("label", help="manage an address/peer/txid label book")
     p.add_argument("--file", help="labels JSON file (default: <data>/labels.json)")
