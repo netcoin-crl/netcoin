@@ -12,6 +12,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Optional SQLite storage backend** (`netcoin/storage.py`) for blocks, the
+  active-chain ordering, and the mempool. Select with `backend="sqlite"` or
+  `NETCOIN_BACKEND=sqlite`; JSON remains the default. New `migrate-sqlite` command
+  converts an existing JSON data directory. Survives mining, reorgs, and restarts.
 - **UTXO snapshot** export/verify with a deterministic digest (`utxo-snapshot` CLI,
   `export_utxo_snapshot` / `verify_utxo_snapshot`).
 - **Multisig address** builder CLI (`multisig-address --required M --pubkey ...`).
@@ -74,7 +78,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   added the missing helper so watch-only wallet files work.
 
 ### Tests
-- Suite expanded to 141 (adds UTXO snapshot export/verify, multisig address,
+- Suite expanded to 146 (adds the SQLite backend: persistence, restart, reorg,
+  mempool, store unit, and migration).
+- Earlier: 141 (adds UTXO snapshot export/verify, multisig address,
   structured-log formatting, and the explorer mempool section).
 - Earlier: 134 (adds address index + /address endpoint, node config
   file parsing, and faucet public-history).
