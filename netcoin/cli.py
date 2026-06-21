@@ -25,7 +25,7 @@ from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_POOL_PORT, DEFA
 from .pool import run_pool
 from .psbt import PartiallySignedTransaction
 from .rpc import run_rpc
-from .script import describe_address
+from .script import describe_address, multisig_redeem_script, script_to_p2sh_address
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .tx import Transaction, amount_to_sats, sats_to_amount
 from .wallet import Wallet, WalletError, confirm_seed_phrase, verify_seed_phrase
@@ -223,6 +223,35 @@ def cmd_wallet_unlock(args: argparse.Namespace) -> None:
         result["decrypted_file"] = args.out
         result["warning"] = "Decrypted wallet written without a passphrase. Keep it private."
     print_json(result)
+
+
+def cmd_multisig_address(args: argparse.Namespace) -> None:
+    if args.required < 1 or args.required > len(args.pubkey):
+        raise WalletError("required signatures must be between 1 and the number of pubkeys")
+    redeem = multisig_redeem_script(args.required, args.pubkey)
+    address = script_to_p2sh_address(redeem)
+    print_json(
+        {
+            "ok": True,
+            "type": f"{args.required}-of-{len(args.pubkey)} multisig",
+            "address": address,
+            "required": args.required,
+            "pubkeys": args.pubkey,
+            "redeem_script": redeem,
+        }
+    )
+
+
+def cmd_utxo_snapshot(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    snapshot = chain.export_utxo_snapshot()
+    if args.out:
+        Path(args.out).write_text(json.dumps(snapshot, indent=2, sort_keys=True))
+    summary = {k: v for k, v in snapshot.items() if k != "utxos"}
+    summary["ok"] = True
+    if args.out:
+        summary["snapshot_file"] = args.out
+    print_json(summary)
 
 
 def cmd_label(args: argparse.Namespace) -> None:
@@ -588,6 +617,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase", help="passphrase (prompted if omitted on a TTY)")
     p.add_argument("--out", help="optional path to write a decrypted (unencrypted) wallet copy")
     p.set_defaults(func=cmd_wallet_unlock)
+
+    p = sub.add_parser("multisig-address", help="build an M-of-N P2SH multisig address from public keys")
+    p.add_argument("--required", type=int, required=True, help="M: required signatures")
+    p.add_argument("--pubkey", action="append", required=True, help="a signer public key hex (repeatable)")
+    p.set_defaults(func=cmd_multisig_address)
+
+    p = sub.add_parser("utxo-snapshot", help="export the current UTXO set (with digest) for bootstrap/verification")
+    p.add_argument("--out", help="write the snapshot JSON to this file")
+    p.set_defaults(func=cmd_utxo_snapshot)
 
     p = sub.add_parser("label", help="manage an address/peer/txid label book")
     p.add_argument("--file", help="labels JSON file (default: <data>/labels.json)")

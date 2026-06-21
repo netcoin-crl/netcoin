@@ -12,6 +12,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **UTXO snapshot** export/verify with a deterministic digest (`utxo-snapshot` CLI,
+  `export_utxo_snapshot` / `verify_utxo_snapshot`).
+- **Multisig address** builder CLI (`multisig-address --required M --pubkey ...`).
+- **Structured JSON logging** (`netcoin/logsetup.py`, `NETCOIN_LOG_JSON=1`); the node
+  emits propagation events as JSON lines.
+- Explorer **mempool section** (unconfirmed transactions with fee rates).
+- Operations guide (`docs/OPERATIONS.md`): structured logging, **log rotation**, and
+  **deploying tagged releases** with rollback.
 - **Address index** (`address_summary`) and a node `GET /address/<addr>` endpoint
   returning balance, UTXO count, and the transactions that touch an address.
 - **Node config file** (`netcoin.conf`, JSON or `key=value`) via `node --config`.
@@ -66,7 +74,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   added the missing helper so watch-only wallet files work.
 
 ### Tests
-- Suite expanded to 134 (adds address index + /address endpoint, node config
+- Suite expanded to 141 (adds UTXO snapshot export/verify, multisig address,
+  structured-log formatting, and the explorer mempool section).
+- Earlier: 134 (adds address index + /address endpoint, node config
   file parsing, and faucet public-history).
 - Earlier: 128 (adds block/tx index + chainstate integrity, peer
   banning/scoring + protocol negotiation, mempool eviction, coin-selection

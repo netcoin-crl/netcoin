@@ -18,6 +18,7 @@ from urllib.request import Request, urlopen
 from .block import Block
 from .chain import Blockchain
 from .compact import CompactBlock, make_compact_block, reconstruct_compact_block
+from .logsetup import emit
 from .params import (
     DEFAULT_NODE_PORT,
     MAX_REQUEST_BODY_BYTES,
@@ -312,11 +313,13 @@ class NetCoinNode:
         return "\n".join(lines) + "\n"
 
     def log_event(self, kind: str, **fields: Any) -> None:
-        """Record a propagation/lifecycle event in a bounded in-memory log."""
+        """Record a propagation/lifecycle event in a bounded in-memory log, and
+        emit a structured JSON log line when NETCOIN_LOG_JSON is enabled."""
         event = {"t": round(time.time(), 3), "event": kind, **fields}
         self.event_log.append(event)
         if len(self.event_log) > self.max_events:
             del self.event_log[: len(self.event_log) - self.max_events]
+        emit(kind, component="node", **fields)
 
     def recent_events(self, limit: int = 100) -> List[Dict[str, Any]]:
         return self.event_log[-limit:][::-1]

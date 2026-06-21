@@ -801,6 +801,35 @@ class Blockchain:
                         return tx, block
         return None
 
+    def utxo_snapshot_digest(self, utxos: Optional[Dict[str, SpendableOutput]] = None) -> str:
+        """Deterministic SHA-256 over the UTXO set, for snapshot/integrity checks."""
+        import hashlib
+
+        utxos = self.utxo_set() if utxos is None else utxos
+        items = sorted(
+            f"{outpoint}|{u.output.amount}|{u.output.address}|{int(u.coinbase)}|{u.height}"
+            for outpoint, u in utxos.items()
+        )
+        return hashlib.sha256("\n".join(items).encode("utf-8")).hexdigest()
+
+    def export_utxo_snapshot(self) -> Dict[str, Any]:
+        """Export the current UTXO set for faster bootstrap / external verification."""
+        utxos = self.utxo_set()
+        return {
+            "network": "NetCoin",
+            "height": self.height(),
+            "tip_hash": self.tip_hash(),
+            "utxo_count": len(utxos),
+            "digest": self.utxo_snapshot_digest(utxos),
+            "utxos": [u.to_dict() for u in utxos.values()],
+        }
+
+    def verify_utxo_snapshot(self, snapshot: Dict[str, Any]) -> bool:
+        """True if a snapshot matches this chain's current UTXO set and tip."""
+        if snapshot.get("tip_hash") != self.tip_hash():
+            return False
+        return snapshot.get("digest") == self.utxo_snapshot_digest()
+
     def verify_integrity(self) -> Dict[str, Any]:
         """Revalidate the chain and check index/UTXO consistency (chainstate check)."""
         self.assert_valid_chain(self.chain)
