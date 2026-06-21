@@ -470,10 +470,24 @@ def cmd_script(args: argparse.Namespace) -> None:
 
 
 def cmd_node(args: argparse.Namespace) -> None:
+    host, port, advertise = args.host, args.port, getattr(args, "advertise", None)
+    use_seeds = getattr(args, "seeds", False)
     peers = list(args.peer or [])
-    if getattr(args, "seeds", False):
+    if getattr(args, "config", None):
+        from .config import load_config
+
+        cfg = load_config(args.config)
+        peers.extend(p for p in cfg.get("peer", []) if p not in peers)
+        if host == "127.0.0.1" and cfg.get("host"):
+            host = cfg["host"]
+        if port == DEFAULT_NODE_PORT and cfg.get("port"):
+            port = cfg["port"]
+        if advertise is None and cfg.get("advertise"):
+            advertise = cfg["advertise"]
+        use_seeds = use_seeds or cfg.get("seeds", False)
+    if use_seeds:
         peers.extend(s for s in DEFAULT_TESTNET_SEEDS if s not in peers)
-    run_node(data_dir=args.data, host=args.host, port=args.port, peers=peers, advertise=getattr(args, "advertise", None))
+    run_node(data_dir=args.data, host=host, port=port, peers=peers, advertise=advertise)
 
 
 def cmd_rpc(args: argparse.Namespace) -> None:
@@ -701,6 +715,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--peer", action="append", help="peer URL; can be repeated")
     p.add_argument("--seeds", action="store_true", help="also connect to the built-in public testnet seeds")
     p.add_argument("--advertise", help="public URL to announce to peers for gossip discovery")
+    p.add_argument("--config", help="path to a netcoin.conf (JSON or key=value)")
     p.set_defaults(func=cmd_node)
 
     p = sub.add_parser("rpc", help="run JSON-RPC server")

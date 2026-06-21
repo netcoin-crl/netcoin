@@ -116,6 +116,16 @@ def rate_limited(ip: str, state: dict) -> tuple[bool, int]:
     return limited_until > now, max(0, limited_until - now)
 
 
+def public_history(state: dict, limit: int = 50) -> list:
+    """Recent faucet grants for a public JSON endpoint. Excludes client IPs."""
+    grants = state.get("requests", []) or []
+    recent = list(reversed(grants))[:limit]
+    return [
+        {"address": g.get("address"), "amount": g.get("amount"), "txid": g.get("txid"), "timestamp": g.get("timestamp")}
+        for g in recent
+    ]
+
+
 def body_too_large(length: int) -> bool:
     return length > MAX_BODY_BYTES
 
@@ -216,7 +226,16 @@ class FaucetHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path not in ("/", "/faucet"):
+        path = self.path.split("?", 1)[0]
+        if path == "/history":
+            body = json.dumps({"grants": public_history(load_state())}, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path not in ("/", "/faucet"):
             self.send_error(404)
             return
         self.render()
