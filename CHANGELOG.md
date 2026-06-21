@@ -12,6 +12,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Address index** (`address_summary`) and a node `GET /address/<addr>` endpoint
+  returning balance, UTXO count, and the transactions that touch an address.
+- **Node config file** (`netcoin.conf`, JSON or `key=value`) via `node --config`.
+- Faucet **public history API** (`GET /history`, recent grants without client IPs).
+- Metrics polish: added `netcoin_banned_peers` gauge.
 - Persistent block and transaction **indexes** for O(1) `/block` and `/tx` lookups
   (rebuilt on load and kept in sync through mining and reorgs), plus a
   `verify_integrity()` chainstate check.
@@ -61,7 +66,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   added the missing helper so watch-only wallet files work.
 
 ### Tests
-- Suite expanded to 128 (adds block/tx index + chainstate integrity, peer
+- Suite expanded to 134 (adds address index + /address endpoint, node config
+  file parsing, and faucet public-history).
+- Earlier: 128 (adds block/tx index + chainstate integrity, peer
   banning/scoring + protocol negotiation, mempool eviction, coin-selection
   strategies, and a monitor alert-payload test).
 - Earlier: suite expanded to 114 (adds node ops: event log, rate limiting, timeout/retry,

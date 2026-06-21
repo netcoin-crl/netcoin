@@ -74,24 +74,57 @@ class Blockchain:
         # Fast-lookup indexes (rebuilt from self.chain; O(1) block/tx lookup).
         self.block_index: Dict[str, Block] = {}
         self.tx_index: Dict[str, Dict[str, Any]] = {}
+        self.address_index: Dict[str, set] = {}
+        self._utxo_addr: Dict[str, str] = {}  # outpoint -> address, for the address index
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.load_or_create()
 
     def _index_block(self, block: Block) -> None:
         self.block_index[block.hash()] = block
         for position, tx in enumerate(block.transactions):
-            self.tx_index[tx.txid()] = {
+            txid = tx.txid()
+            self.tx_index[txid] = {
                 "block_hash": block.hash(),
                 "height": block.header.height,
                 "position": position,
             }
+            # Address index: a tx touches an address if it pays to it or spends
+            # one of its outputs.
+            if not tx.is_coinbase:
+                for txin in tx.inputs:
+                    spent_addr = self._utxo_addr.get(txin.outpoint())
+                    if spent_addr:
+                        self.address_index.setdefault(spent_addr, set()).add(txid)
+            for index, output in enumerate(tx.outputs):
+                if output.address:
+                    self.address_index.setdefault(output.address, set()).add(txid)
+                    self._utxo_addr[f"{txid}:{index}"] = output.address
+            if not tx.is_coinbase:
+                for txin in tx.inputs:
+                    self._utxo_addr.pop(txin.outpoint(), None)
 
     def reindex(self) -> None:
-        """Rebuild the block and transaction indexes from the active chain."""
+        """Rebuild the block, transaction, and address indexes from the chain."""
         self.block_index = {}
         self.tx_index = {}
+        self.address_index = {}
+        self._utxo_addr = {}
         for block in self.chain:
             self._index_block(block)
+
+    def address_summary(self, address: str) -> Dict[str, Any]:
+        if not validate_address(address):
+            raise ChainError("address is not a valid NetCoin address")
+        balances = self.balances_for_address(address)
+        utxos = self.utxos_for_address(address, include_immature=True)
+        txids = sorted(self.address_index.get(address, set()))
+        return {
+            "address": address,
+            "balance": balances,
+            "utxo_count": len(utxos),
+            "transaction_count": len(txids),
+            "transaction_ids": txids,
+        }
 
     @property
     def chain_path(self) -> Path:

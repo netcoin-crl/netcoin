@@ -296,6 +296,9 @@ class NetCoinNode:
             "# HELP netcoin_peers Connected/known peers.",
             "# TYPE netcoin_peers gauge",
             f"netcoin_peers {len(self.peers)}",
+            "# HELP netcoin_banned_peers Banned peers.",
+            "# TYPE netcoin_banned_peers gauge",
+            f"netcoin_banned_peers {len(self.banned)}",
             "# HELP netcoin_orphan_candidates Stored off-tip blocks.",
             "# TYPE netcoin_orphan_candidates gauge",
             f"netcoin_orphan_candidates {info['orphan_candidates']}",
@@ -540,6 +543,9 @@ def make_handler(node: NetCoinNode):
                             "tx": tx.to_dict(include_scripts=True, include_witness=True),
                         }
                         self.send_json(payload)
+                elif parsed.path.startswith("/address/"):
+                    address = parsed.path.split("/", 2)[2]
+                    self.send_json(node.chain.address_summary(address))
                 elif parsed.path == "/latest":
                     query = parse_qs(parsed.query)
                     n = max(1, min(int(query.get("n", [10])[0]), 100))
