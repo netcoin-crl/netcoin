@@ -12,6 +12,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- Coin control: `send --utxo TXID:VOUT` (repeatable) to spend specific UTXOs.
+- Wallet labels / address book (`netcoin/labels.py`, `label` CLI: `--set/--get/--remove/--list`).
+- `wallet-unlock` command (verify an encrypted wallet opens; optionally write a
+  decrypted copy) and `wallet-new --confirm-backup` (re-enter the seed to confirm backup).
+- Per-IP, per-endpoint **rate limiting** on POST endpoints (configurable, 429 on excess).
+- Block-propagation **event log** with a `GET /events` endpoint
+  (block received/accepted/rejected/relayed, orphan connected, tx received).
+- Configurable peer-fetch **timeout and retries**.
+- Private beta tester invite doc ([docs/BETA_INVITE.md](docs/BETA_INVITE.md)).
 - Node `/health` (height, tip, peers, version, uptime, services) and `/metrics`
   (Prometheus text format) endpoints.
 - Version handshake: `/info` now reports `version`, `user_agent`, `network`, and
@@ -41,7 +50,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   added the missing helper so watch-only wallet files work.
 
 ### Tests
-- Suite expanded to 100: mempool attack policy (dust, low fee, duplicate inputs,
+- Suite expanded to 114 (adds node ops: event log, rate limiting, timeout/retry,
+  multi-node mempool propagation; and wallet features: coin control, seed
+  confirmation, wallet unlock, label store).
+- Earlier in this line, suite expanded to 100: mempool attack policy (dust, low fee, duplicate inputs,
   over-weight, RBF conflicts), peer-sync resilience (unreachable peers, restart
   persistence, catch-up after downtime, peer loss, delayed blocks), node JSON API,
   `/health` + `/metrics` + handshake + peer compatibility, wallet CLI (backup,
