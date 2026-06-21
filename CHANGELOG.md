@@ -18,23 +18,31 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   to blunt trivial memory-DoS attempts.
 - Static testnet status dashboard generator (`tools/dashboard.py`) that renders the
   monitor `status.json` into an auto-refreshing HTML page.
+- `verify-mnemonic` CLI command to confirm a seed phrase is valid and (optionally)
+  regenerates a given wallet, backed by `wallet.verify_seed_phrase` and
+  `Wallet.matches_seed_phrase`.
+- Faucet hardening: request-body cap, a global per-minute burst throttle, an
+  in-state abuse log, and a hot-wallet balance gate (all configurable via env vars).
+- Node peer persistence: discovered peers are saved to `peers.json` in the data
+  directory and reloaded on restart so the node reconnects to known peers.
 - Tester guides: [docs/STARTER_KIT.md](docs/STARTER_KIT.md),
   [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md), [docs/MINING.md](docs/MINING.md).
 - Release process and tooling: [docs/RELEASING.md](docs/RELEASING.md) and
   `tools/make_release.sh` (reproducible archive + SHA256SUMS + optional GPG signature).
 
 ### Security
-- Expanded automated tests to 41: added subsidy/halving-schedule coverage, RPC
-  auth (401/200), node body-size rejection, explorer-generation and dashboard
-  rendering (with HTML-escaping), and a fuzz suite for transaction/block parsing,
+- Expanded automated tests to 53: subsidy/halving schedule, RPC auth (401/200),
+  node and faucet body/throttle limits, wallet recovery and encryption round-trips
+  (incl. tamper/wrong-passphrase rejection), peer persistence, explorer/dashboard
+  rendering with HTML-escaping, and a fuzz suite for transaction/block parsing,
   raw-transaction decoding, script parsing, and node endpoints.
 
 ### Planned
 - Signed release artifacts published with each GitHub release (tooling now exists).
 - Monitoring alerts on seed downtime, tip mismatch, or faucet failure.
-- Peer discovery, persistence, and gossip beyond manually configured peers.
+- Peer gossip/auto-discovery beyond persisted manual peers.
 - Stronger chain reorg handling (fork rollback, mempool revalidation).
-- Faucet CAPTCHA and per-minute throttling.
+- Faucet CAPTCHA.
 
 ## [0.2.0] - 2026-06-20
 

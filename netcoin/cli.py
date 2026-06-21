@@ -24,7 +24,7 @@ from .rpc import run_rpc
 from .script import describe_address
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .tx import Transaction, amount_to_sats, sats_to_amount
-from .wallet import Wallet, WalletError
+from .wallet import Wallet, WalletError, verify_seed_phrase
 
 
 def print_json(data: Any) -> None:
@@ -101,6 +101,31 @@ def cmd_wallet_watch(args: argparse.Namespace) -> None:
     data = Wallet.watch_only(args.address)
     Path(args.out).write_text(json.dumps(data, indent=2, sort_keys=True))
     print_json({"ok": True, "wallet_file": args.out, "watch_only": True, "address": args.address})
+
+
+def cmd_verify_mnemonic(args: argparse.Namespace) -> None:
+    phrase = args.from_mnemonic
+    valid = verify_seed_phrase(phrase)
+    result: Dict[str, Any] = {"ok": valid, "seed_phrase_valid": valid}
+    if not valid:
+        result["error"] = "seed phrase is not a valid NetCoin phrase (unknown word or bad checksum)"
+        print_json(result)
+        sys.exit(1)
+    if args.wallet:
+        wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
+        matches = wallet.matches_seed_phrase(phrase, index=args.index)
+        result["wallet_file"] = args.wallet
+        result["address"] = wallet.address
+        result["matches_wallet"] = matches
+        result["ok"] = matches
+        if not matches:
+            result["error"] = "seed phrase is valid but does not regenerate this wallet's key"
+            print_json(result)
+            sys.exit(1)
+    else:
+        # Without a wallet we can still show which address the phrase controls.
+        result["address"] = Wallet.create(seed_phrase=phrase, index=args.index).address
+    print_json(result)
 
 
 def cmd_wallet_info(args: argparse.Namespace) -> None:
@@ -413,6 +438,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase")
     p.add_argument("--show-private", action="store_true")
     p.set_defaults(func=cmd_wallet_info)
+
+    p = sub.add_parser("verify-mnemonic", help="check a seed phrase is valid and (optionally) controls a wallet")
+    p.add_argument("--from-mnemonic", required=True, help="the NetCoin seed phrase to verify")
+    p.add_argument("--wallet", help="optional wallet file the phrase should regenerate")
+    p.add_argument("--passphrase", help="passphrase for an encrypted wallet file")
+    p.add_argument("--index", type=int, default=0, help="key index (default 0)")
+    p.set_defaults(func=cmd_verify_mnemonic)
 
     p = sub.add_parser("balance", help="show address balance")
     p.add_argument("--wallet")
