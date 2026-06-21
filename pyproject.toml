@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netcoin"
+version = "0.2.0"
+description = "Educational Bitcoin-like cryptocurrency with Script, SegWit-style witness, Taproot-style Schnorr, RPC, and explorer"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "NetCoin educational project"}]
+license = {text = "MIT"}
+
+[project.scripts]
+netcoin = "netcoin.cli:main"
