@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from .crypto import double_sha256
-from .params import P2P_MAGIC, PROTOCOL_VERSION
+from .params import NETWORK_NAME, NODE_VERSION, P2P_MAGIC, PROTOCOL_VERSION
+from .serialization import block_from_binary, block_to_binary, tx_from_binary, tx_to_binary
 
 
 class P2PError(ValueError):
@@ -54,20 +55,97 @@ def json_payload(data: Dict[str, Any]) -> bytes:
     return json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
-def version_message(start_height: int, user_agent: str = "/NetCoin:0.2.0/") -> Message:
+def _json(message: Message) -> Dict[str, Any]:
+    return json.loads(message.payload or b"{}")
+
+
+def version_message(start_height: int, genesis_hash: str = "", user_agent: str = f"/NetCoin:{NODE_VERSION}/") -> Message:
     return Message(
         "version",
-        json_payload({"version": PROTOCOL_VERSION, "user_agent": user_agent, "start_height": start_height}),
+        json_payload(
+            {
+                "version": PROTOCOL_VERSION,
+                "network": NETWORK_NAME,
+                "user_agent": user_agent,
+                "start_height": start_height,
+                "genesis_hash": genesis_hash,
+            }
+        ),
     )
 
 
-def inv_message(kind: str, item_hash: str) -> Message:
-    return Message("inv", json_payload({"inventory": [{"type": kind, "hash": item_hash}]}))
+def verack_message() -> Message:
+    return Message("verack", b"")
+
+
+def ping_message(nonce: int) -> Message:
+    return Message("ping", json_payload({"nonce": int(nonce)}))
+
+
+def pong_message(nonce: int) -> Message:
+    return Message("pong", json_payload({"nonce": int(nonce)}))
+
+
+def inv_message(items: List[Dict[str, str]]) -> Message:
+    return Message("inv", json_payload({"inventory": list(items)}))
+
+
+def getdata_message(items: List[Dict[str, str]]) -> Message:
+    return Message("getdata", json_payload({"inventory": list(items)}))
 
 
 def getheaders_message(locator_hash: str) -> Message:
     return Message("getheaders", json_payload({"locator": locator_hash}))
 
 
-def headers_message(headers: list[dict]) -> Message:
+def headers_message(headers: List[Dict[str, Any]]) -> Message:
     return Message("headers", json_payload({"headers": headers}))
+
+
+def block_message(block: Any) -> Message:
+    return Message("block", block_to_binary(block))
+
+
+def tx_message(tx: Any) -> Message:
+    return Message("tx", tx_to_binary(tx))
+
+
+def read_block_message(message: Message) -> Any:
+    return block_from_binary(message.payload)
+
+
+def read_tx_message(message: Message) -> Any:
+    return tx_from_binary(message.payload)[0]
+
+
+def handle_message(message: Message, chain: Optional[Any] = None) -> Optional[Message]:
+    """Process an inbound message and return a response, Bitcoin-flow style:
+    version->verack, ping->pong, getheaders->headers, inv->getdata, getdata->block/tx.
+    Returns None when no response is warranted (e.g. verack, headers, block, tx)."""
+    command = message.command
+    if command == "version":
+        return verack_message()
+    if command == "ping":
+        return pong_message(_json(message).get("nonce", 0))
+    if command == "getheaders":
+        if chain is None:
+            return None
+        start = int(_json(message).get("start", 0))
+        return headers_message(chain.headers(start, 2000))
+    if command == "inv":
+        return getdata_message(_json(message).get("inventory", []))
+    if command == "getdata":
+        if chain is None:
+            return None
+        for item in _json(message).get("inventory", []):
+            item_hash, kind = item.get("hash", ""), item.get("type")
+            if kind == "block":
+                block = chain.get_block_by_hash(item_hash)
+                if block is not None:
+                    return block_message(block)
+            elif kind == "tx":
+                found = chain.get_transaction(item_hash)
+                if found is not None:
+                    return tx_message(found[0])
+        return None
+    return None

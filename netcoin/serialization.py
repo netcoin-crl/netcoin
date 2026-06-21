@@ -152,6 +152,118 @@ def block_to_raw_hex(block: Any, include_witness: bool = True) -> str:
     return serialize_block(block, include_witness=include_witness).hex()
 
 
+# ---------------------------------------------------------------------------
+# Lossless binary codec (round-trips full NetCoin objects, preserving txid/hash).
+# This is an optional compact binary mode alongside JSON; unlike the Bitcoin-style
+# raw hex above, it encodes every field (signatures, coinbase text, witness,
+# height) so deserialize(serialize(x)) == x.
+# ---------------------------------------------------------------------------
+
+def _ser_str(value: str) -> bytes:
+    raw = (value or "").encode("utf-8")
+    return ser_varint(len(raw)) + raw
+
+
+def _read_str(data: bytes, offset: int) -> Tuple[str, int]:
+    length, offset = read_varint(data, offset)
+    return data[offset : offset + length].decode("utf-8"), offset + length
+
+
+def tx_to_binary(tx: Any) -> bytes:
+    out = ser_int32(tx.version) + ser_uint32(tx.locktime)
+    out += ser_varint(len(tx.inputs))
+    for txin in tx.inputs:
+        out += bytes.fromhex(txin.txid)
+        out += int(txin.vout & 0xFFFFFFFF).to_bytes(4, "little")
+        out += ser_uint32(txin.sequence)
+        out += _ser_str(txin.signature) + _ser_str(txin.public_key)
+        out += _ser_str(txin.coinbase) + _ser_str(txin.script_sig)
+        out += ser_varint(len(txin.witness))
+        for item in txin.witness:
+            out += _ser_str(item)
+    out += ser_varint(len(tx.outputs))
+    for txout in tx.outputs:
+        out += ser_uint64(txout.amount)
+        out += _ser_str(txout.address) + _ser_str(txout.script_pubkey)
+    return out
+
+
+def tx_from_binary(data: bytes, offset: int = 0) -> Tuple[Any, int]:
+    from .tx import Transaction, TxInput, TxOutput
+
+    version = int.from_bytes(data[offset : offset + 4], "little", signed=True)
+    offset += 4
+    locktime = int.from_bytes(data[offset : offset + 4], "little")
+    offset += 4
+    vin_count, offset = read_varint(data, offset)
+    inputs = []
+    for _ in range(vin_count):
+        txid = data[offset : offset + 32].hex()
+        offset += 32
+        vout = int.from_bytes(data[offset : offset + 4], "little")
+        if vout == 0xFFFFFFFF:
+            vout = -1
+        offset += 4
+        sequence = int.from_bytes(data[offset : offset + 4], "little")
+        offset += 4
+        signature, offset = _read_str(data, offset)
+        public_key, offset = _read_str(data, offset)
+        coinbase, offset = _read_str(data, offset)
+        script_sig, offset = _read_str(data, offset)
+        wit_count, offset = read_varint(data, offset)
+        witness = []
+        for _ in range(wit_count):
+            item, offset = _read_str(data, offset)
+            witness.append(item)
+        inputs.append(TxInput(txid=txid, vout=vout, signature=signature, public_key=public_key,
+                              coinbase=coinbase, script_sig=script_sig, witness=witness, sequence=sequence))
+    vout_count, offset = read_varint(data, offset)
+    outputs = []
+    for _ in range(vout_count):
+        amount = int.from_bytes(data[offset : offset + 8], "little")
+        offset += 8
+        address, offset = _read_str(data, offset)
+        script_pubkey, offset = _read_str(data, offset)
+        outputs.append(TxOutput(amount=amount, address=address, script_pubkey=script_pubkey))
+    return Transaction(inputs=inputs, outputs=outputs, version=version, locktime=locktime), offset
+
+
+def block_to_binary(block: Any) -> bytes:
+    h = block.header
+    out = ser_int32(h.version) + bytes.fromhex(h.previous_hash) + bytes.fromhex(h.merkle_root)
+    out += ser_uint32(h.timestamp) + ser_uint32(h.bits) + ser_uint32(h.nonce) + ser_varint(h.height)
+    out += ser_varint(len(block.transactions))
+    for tx in block.transactions:
+        out += tx_to_binary(tx)
+    return out
+
+
+def block_from_binary(data: bytes, offset: int = 0) -> Any:
+    from .block import Block, BlockHeader
+
+    version = int.from_bytes(data[offset : offset + 4], "little", signed=True)
+    offset += 4
+    previous_hash = data[offset : offset + 32].hex()
+    offset += 32
+    merkle_root = data[offset : offset + 32].hex()
+    offset += 32
+    timestamp = int.from_bytes(data[offset : offset + 4], "little")
+    offset += 4
+    bits = int.from_bytes(data[offset : offset + 4], "little")
+    offset += 4
+    nonce = int.from_bytes(data[offset : offset + 4], "little")
+    offset += 4
+    height, offset = read_varint(data, offset)
+    tx_count, offset = read_varint(data, offset)
+    transactions = []
+    for _ in range(tx_count):
+        tx, offset = tx_from_binary(data, offset)
+        transactions.append(tx)
+    header = BlockHeader(version=version, previous_hash=previous_hash, merkle_root=merkle_root,
+                         timestamp=timestamp, bits=bits, nonce=nonce, height=height)
+    return Block(header=header, transactions=transactions)
+
+
 def decode_raw_transaction(raw_hex: str) -> Dict[str, Any]:
     data = bytes.fromhex(raw_hex)
     offset = 0
