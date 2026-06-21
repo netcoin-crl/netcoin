@@ -1,0 +1,581 @@
+"""Command-line interface for NetCoin."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any, Dict, Optional
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
+from .block import Block
+from .chain import Blockchain, ChainError
+from .crypto import validate_address
+from .miner import block_summary, solve_template
+from .explorer import generate_explorer
+from .node import run_node
+from .p2p import Message, version_message
+from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_POOL_PORT, DEFAULT_RPC_PORT, NETWORKS, TICKER
+from .pool import run_pool
+from .psbt import PartiallySignedTransaction
+from .rpc import run_rpc
+from .script import describe_address
+from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
+from .tx import Transaction, amount_to_sats, sats_to_amount
+from .wallet import Wallet, WalletError
+
+
+def print_json(data: Any) -> None:
+    print(json.dumps(data, indent=2, sort_keys=True))
+
+
+def load_address(wallet_path: Optional[str], address: Optional[str], *, address_type: str = "p2pkh", passphrase: Optional[str] = None) -> str:
+    if wallet_path:
+        return Wallet.load(wallet_path, passphrase=passphrase).address_for(address_type)
+    if address:
+        return address
+    raise WalletError("provide --wallet or --address")
+
+
+def post_json(url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    body = json.dumps(payload).encode("utf-8")
+    request = Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    with urlopen(request, timeout=10) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def get_json(url: str) -> Dict[str, Any]:
+    with urlopen(url, timeout=10) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def find_transaction(chain: Blockchain, txid: str) -> Optional[Transaction]:
+    for tx in chain.mempool:
+        if tx.txid() == txid:
+            return tx
+    for block in chain.chain:
+        for tx in block.transactions:
+            if tx.txid() == txid:
+                return tx
+    return None
+
+
+def cmd_init(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    print_json({"ok": True, "data_dir": str(chain.data_dir), "chain": chain.chain_info()})
+
+
+def cmd_wallet_new(args: argparse.Namespace) -> None:
+    path = Path(args.out)
+    if path.exists() and not args.force:
+        raise WalletError(f"wallet already exists: {path}; use --force to overwrite")
+    mnemonic = None
+    if args.from_mnemonic:
+        wallet = Wallet.from_mnemonic(args.from_mnemonic, passphrase=args.mnemonic_passphrase or "")
+    elif args.wif:
+        wallet = Wallet.from_wif(args.wif)
+    elif args.mnemonic:
+        wallet, mnemonic = Wallet.create_with_mnemonic()
+    else:
+        wallet = Wallet.create()
+    wallet.save(path, passphrase=args.passphrase if args.encrypt else None)
+    result = {
+        "ok": True,
+        "wallet_file": str(path),
+        "encrypted": bool(args.encrypt),
+        "address": wallet.address,
+        "segwit_address": wallet.segwit_address,
+        "taproot_address": wallet.taproot_address,
+        "p2sh_segwit_address": wallet.p2sh_segwit_address,
+        "public_key": wallet.public_key_hex,
+    }
+    if mnemonic:
+        result["mnemonic"] = mnemonic
+        result["backup_warning"] = "Write this phrase down now. It is not stored again unless you save it."
+    print_json(result)
+
+
+def cmd_wallet_watch(args: argparse.Namespace) -> None:
+    data = Wallet.watch_only(args.address)
+    Path(args.out).write_text(json.dumps(data, indent=2, sort_keys=True))
+    print_json({"ok": True, "wallet_file": args.out, "watch_only": True, "address": args.address})
+
+
+def cmd_wallet_info(args: argparse.Namespace) -> None:
+    wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
+    info = wallet.to_plain_dict()
+    info["wallet_file"] = args.wallet
+    if not args.show_private:
+        info.pop("private_key_hex", None)
+        info.pop("wif", None)
+    print_json(info)
+
+
+def cmd_balance(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
+    balances = chain.balances_for_address(address)
+    print_json(
+        {
+            "address": address,
+            "height": chain.height(),
+            "total_sats": balances["total"],
+            "spendable_sats": balances["spendable"],
+            "immature_sats": balances["immature"],
+            "total": sats_to_amount(balances["total"]),
+            "spendable": sats_to_amount(balances["spendable"]),
+            "immature": sats_to_amount(balances["immature"]),
+            "ticker": TICKER,
+        }
+    )
+
+
+def cmd_utxos(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
+    utxos = chain.utxos_for_address(address, include_immature=args.include_immature)
+    print_json({"address": address, "utxos": [utxo.to_dict() for utxo in utxos]})
+
+
+def cmd_mine(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
+    mined = []
+    for _ in range(args.blocks):
+        block = chain.mine_block(address)
+        mined.append(
+            {
+                "height": block.header.height,
+                "hash": block.hash(),
+                "txs": len(block.transactions),
+                "nonce": block.header.nonce,
+                "reward": sats_to_amount(block.transactions[0].total_output()),
+                "weight": block.weight(),
+            }
+        )
+    print_json({"ok": True, "mined": mined, "tip": chain.chain_info()})
+
+
+def cmd_send(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
+    source = args.from_address or wallet.address_for(args.from_type)
+    tx = wallet.create_transaction(
+        chain,
+        to_address=args.to,
+        amount=amount_to_sats(args.amount),
+        fee=amount_to_sats(args.fee),
+        from_address=source,
+        change_address=args.change_address or wallet.address_for(args.from_type),
+        rbf=args.rbf,
+    )
+    txid = chain.add_mempool_transaction(tx)
+    result: Dict[str, Any] = {
+        "ok": True,
+        "txid": txid,
+        "wtxid": tx.wtxid(),
+        "from": source,
+        "to": args.to,
+        "amount": args.amount,
+        "fee": args.fee,
+        "weight": tx.weight(),
+        "vsize": tx.vsize(),
+        "outputs": [output.to_dict() for output in tx.outputs],
+        "added_to_local_mempool": True,
+    }
+    if args.broadcast_to:
+        response = post_json(args.broadcast_to.rstrip("/") + "/tx", tx.to_dict(include_scripts=True, include_witness=True))
+        result["broadcast_response"] = response
+    print_json(result)
+
+
+def cmd_mempool(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    fees = chain.fee_lookup()
+    print_json(
+        {
+            "count": len(chain.mempool),
+            "transactions": [
+                {
+                    "txid": tx.txid(),
+                    "wtxid": tx.wtxid(),
+                    "inputs": len(tx.inputs),
+                    "outputs": len(tx.outputs),
+                    "fee": fees.get(tx.txid()),
+                    "weight": tx.weight(),
+                    "vsize": tx.vsize(),
+                    "signals_rbf": bool(tx.signals_rbf),
+                }
+                for tx in chain.mempool
+            ],
+        }
+    )
+
+
+def cmd_chain(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    blocks = chain.chain[-args.limit :] if args.limit else chain.chain
+    print_json(
+        {
+            "info": chain.chain_info(),
+            "blocks": [
+                {
+                    "height": block.header.height,
+                    "hash": block.hash(),
+                    "previous_hash": block.header.previous_hash,
+                    "timestamp": block.header.timestamp,
+                    "bits": block.header.bits,
+                    "nonce": block.header.nonce,
+                    "transactions": len(block.transactions),
+                    "weight": block.weight(),
+                }
+                for block in blocks
+            ],
+        }
+    )
+
+
+def cmd_validate(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    chain.assert_valid_chain(chain.chain)
+    print_json({"ok": True, "chain": chain.chain_info()})
+
+
+def cmd_export(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    print_json(chain.export_chain())
+
+
+def cmd_import(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    with open(args.file, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    blocks = chain.import_chain_data(data)
+    changed = chain.replace_chain(blocks)
+    print_json({"ok": True, "replaced": changed, "chain": chain.chain_info()})
+
+
+def cmd_headers(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    print_json({"headers": chain.header_list(args.start, args.limit)})
+
+
+def cmd_fee(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    sat_vb = chain.estimate_fee_rate(args.target)
+    print_json({"target_blocks": args.target, "feerate_sat_vb": sat_vb, "feerate_net_kvb": sats_to_amount(sat_vb * 1000)})
+
+
+def cmd_template(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase) if (args.wallet or args.address) else None
+    print_json(chain.get_block_template(miner_address=address))
+
+
+def cmd_submitblock(args: argparse.Namespace) -> None:
+    block = Block.from_dict(json.loads(Path(args.block).read_text()))
+    if args.node:
+        response = post_json(args.node.rstrip("/") + "/submitblock", block.to_dict())
+        print_json({"submitted_to": args.node, "response": response, "block": block_summary(block)})
+        return
+    chain = Blockchain(args.data)
+    block_hash = chain.add_block(block)
+    print_json({"ok": True, "block_hash": block_hash, "block": block_summary(block), "chain": chain.chain_info()})
+
+
+def cmd_miner(args: argparse.Namespace) -> None:
+    payout = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
+    node = args.node.rstrip("/")
+    mined = []
+    for _ in range(args.blocks):
+        query = urlencode({"address": payout})
+        template = get_json(f"{node}/blocktemplate?{query}")
+        block = solve_template(template, payout)
+        if args.save_blocks:
+            out_dir = Path(args.save_blocks)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            (out_dir / f"block-{block.header.height}-{block.hash()}.json").write_text(
+                json.dumps(block.to_dict(), indent=2, sort_keys=True)
+            )
+        response = post_json(f"{node}/submitblock", block.to_dict())
+        mined.append({"block": block_summary(block), "response": response})
+        if args.sync_after:
+            try:
+                post_json(f"{node}/sync", {})
+            except Exception:
+                pass
+    print_json({"ok": True, "node": node, "payout_address": payout, "mined": mined})
+
+
+def cmd_rawtx(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    tx = find_transaction(chain, args.txid)
+    if tx is None:
+        raise ChainError("transaction not found")
+    raw = tx_to_raw_hex(tx, include_witness=not args.no_witness)
+    print_json({"txid": tx.txid(), "wtxid": tx.wtxid(), "raw": raw, "decoded": decode_raw_transaction(raw) if args.decode else None})
+
+
+def cmd_rawblock(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    block = chain.tip() if args.block_hash == "tip" else chain.block_by_hash(args.block_hash)
+    if block is None:
+        raise ChainError("block not found")
+    print_json({"hash": block.hash(), "height": block.header.height, "raw": block_to_raw_hex(block, include_witness=not args.no_witness)})
+
+
+def cmd_decode_rawtx(args: argparse.Namespace) -> None:
+    print_json(decode_raw_transaction(args.raw_hex))
+
+
+def cmd_script(args: argparse.Namespace) -> None:
+    if not validate_address(args.address):
+        raise ChainError("invalid NetCoin address")
+    template = describe_address(args.address)
+    print_json({"address": args.address, "type": template.kind, "script_pubkey": template.script_pubkey.hex() if hasattr(template.script_pubkey, "hex") else template.script_pubkey, "description": template.description})
+
+
+def cmd_node(args: argparse.Namespace) -> None:
+    run_node(data_dir=args.data, host=args.host, port=args.port, peers=args.peer or [])
+
+
+def cmd_rpc(args: argparse.Namespace) -> None:
+    run_rpc(data_dir=args.data, host=args.host, port=args.port)
+
+
+def cmd_rpc_call(args: argparse.Namespace) -> None:
+    params = json.loads(args.params) if args.params else []
+    payload = {"jsonrpc": "2.0", "id": "netcoin-cli", "method": args.method, "params": params}
+    print_json(post_json(args.url, payload))
+
+
+def cmd_pool(args: argparse.Namespace) -> None:
+    address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
+    run_pool(data_dir=args.data, payout_address=address, host=args.host, port=args.port)
+
+
+def cmd_explorer(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data)
+    index = generate_explorer(chain, args.out)
+    print_json({"ok": True, "index": str(index), "blocks": len(chain.chain)})
+
+
+def cmd_networks(args: argparse.Namespace) -> None:
+    print_json({name: profile.__dict__ for name, profile in NETWORKS.items()})
+
+
+def cmd_p2p_message(args: argparse.Namespace) -> None:
+    if args.parse:
+        msg = Message.parse(bytes.fromhex(args.parse))
+        print_json({"command": msg.command, "payload_hex": msg.payload.hex(), "payload_text": msg.payload.decode("utf-8", errors="replace")})
+    else:
+        msg = version_message(args.height)
+        print_json({"command": msg.command, "message_hex": msg.serialize().hex()})
+
+
+def cmd_psbt_sign(args: argparse.Namespace) -> None:
+    wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
+    psbt = PartiallySignedTransaction.from_base64(Path(args.psbt).read_text().strip())
+    psbt.sign(wallet)
+    if args.out:
+        Path(args.out).write_text(psbt.to_base64())
+    print_json({"ok": True, "fully_signed": psbt.is_fully_signed(), "psbt": None if args.out else psbt.to_base64()})
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="netcoin", description="NetCoin: a Bitcoin-like cryptocurrency from scratch")
+    parser.add_argument("--data", default=DEFAULT_DATA_DIR, help="NetCoin data directory")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("init", help="create or load a NetCoin data directory")
+    p.set_defaults(func=cmd_init)
+
+    p = sub.add_parser("wallet-new", help="create a new wallet file")
+    p.add_argument("--out", required=True, help="wallet JSON path")
+    p.add_argument("--force", action="store_true", help="overwrite an existing wallet")
+    p.add_argument("--encrypt", action="store_true", help="encrypt private key material")
+    p.add_argument("--passphrase", help="wallet encryption passphrase")
+    p.add_argument("--mnemonic", action="store_true", help="create from a new NetCoin seed phrase")
+    p.add_argument("--from-mnemonic", help="restore from a NetCoin seed phrase")
+    p.add_argument("--mnemonic-passphrase", default="", help="optional seed phrase passphrase")
+    p.add_argument("--wif", help="import a NetCoin WIF private key")
+    p.set_defaults(func=cmd_wallet_new)
+
+    p = sub.add_parser("wallet-watch", help="create a watch-only wallet file")
+    p.add_argument("--address", required=True)
+    p.add_argument("--out", required=True)
+    p.set_defaults(func=cmd_wallet_watch)
+
+    p = sub.add_parser("wallet-info", help="show wallet public information")
+    p.add_argument("--wallet", required=True)
+    p.add_argument("--passphrase")
+    p.add_argument("--show-private", action="store_true")
+    p.set_defaults(func=cmd_wallet_info)
+
+    p = sub.add_parser("balance", help="show address balance")
+    p.add_argument("--wallet")
+    p.add_argument("--address")
+    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--passphrase")
+    p.set_defaults(func=cmd_balance)
+
+    p = sub.add_parser("utxos", help="list UTXOs for an address")
+    p.add_argument("--wallet")
+    p.add_argument("--address")
+    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--include-immature", action="store_true")
+    p.add_argument("--passphrase")
+    p.set_defaults(func=cmd_utxos)
+
+    p = sub.add_parser("mine", help="mine one or more blocks")
+    p.add_argument("--wallet")
+    p.add_argument("--address")
+    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--blocks", type=int, default=1)
+    p.add_argument("--passphrase")
+    p.set_defaults(func=cmd_mine)
+
+    p = sub.add_parser("send", help="create, sign, and queue a transaction")
+    p.add_argument("--wallet", required=True, help="sender wallet file")
+    p.add_argument("--passphrase")
+    p.add_argument("--from-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--from-address", help="explicit source address")
+    p.add_argument("--change-address")
+    p.add_argument("--to", required=True, help="destination NetCoin address")
+    p.add_argument("--amount", required=True, help="amount in NET, e.g. 1.25")
+    p.add_argument("--fee", default="0.001", help="fee in NET")
+    p.add_argument("--rbf", action="store_true", help="signal opt-in replace-by-fee")
+    p.add_argument("--broadcast-to", help="node URL, e.g. http://127.0.0.1:18444")
+    p.set_defaults(func=cmd_send)
+
+    p = sub.add_parser("mempool", help="show local mempool")
+    p.set_defaults(func=cmd_mempool)
+
+    p = sub.add_parser("chain", help="show chain summary")
+    p.add_argument("--limit", type=int, default=10, help="number of latest blocks to print; 0 prints all")
+    p.set_defaults(func=cmd_chain)
+
+    p = sub.add_parser("headers", help="show headers for headers-first syncing")
+    p.add_argument("--start", type=int, default=0)
+    p.add_argument("--limit", type=int, default=20)
+    p.set_defaults(func=cmd_headers)
+
+    p = sub.add_parser("fee", help="estimate local smart fee")
+    p.add_argument("--target", type=int, default=1)
+    p.set_defaults(func=cmd_fee)
+
+    p = sub.add_parser("template", help="show getblocktemplate-style mining data")
+    p.add_argument("--wallet")
+    p.add_argument("--address")
+    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--passphrase")
+    p.set_defaults(func=cmd_template)
+
+    p = sub.add_parser("submitblock", help="submit a solved block JSON locally or to a node")
+    p.add_argument("block", help="path to solved block JSON")
+    p.add_argument("--node", help="node URL, e.g. http://seed1.netcoin.online:28444")
+    p.set_defaults(func=cmd_submitblock)
+
+    p = sub.add_parser("miner", help="mine blocks using a remote node block template")
+    p.add_argument("--node", default="http://127.0.0.1:18444", help="node URL")
+    p.add_argument("--wallet", help="payout wallet file")
+    p.add_argument("--address", help="payout address")
+    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--passphrase")
+    p.add_argument("--blocks", type=int, default=1)
+    p.add_argument("--save-blocks", help="optional directory for solved block JSON files")
+    p.add_argument("--sync-after", action="store_true", help="ask the node to sync after each submission")
+    p.set_defaults(func=cmd_miner)
+
+    p = sub.add_parser("rawtx", help="export a transaction in Bitcoin-style raw hex")
+    p.add_argument("txid")
+    p.add_argument("--no-witness", action="store_true")
+    p.add_argument("--decode", action="store_true")
+    p.set_defaults(func=cmd_rawtx)
+
+    p = sub.add_parser("rawblock", help="export a block in Bitcoin-style raw hex")
+    p.add_argument("block_hash", nargs="?", default="tip")
+    p.add_argument("--no-witness", action="store_true")
+    p.set_defaults(func=cmd_rawblock)
+
+    p = sub.add_parser("decode-rawtx", help="decode Bitcoin-style raw transaction hex")
+    p.add_argument("raw_hex")
+    p.set_defaults(func=cmd_decode_rawtx)
+
+    p = sub.add_parser("script", help="show the scriptPubKey for an address")
+    p.add_argument("address")
+    p.set_defaults(func=cmd_script)
+
+    p = sub.add_parser("validate", help="validate the whole local chain")
+    p.set_defaults(func=cmd_validate)
+
+    p = sub.add_parser("export", help="export chain JSON")
+    p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("import", help="import a better-work chain from a JSON file")
+    p.add_argument("file")
+    p.set_defaults(func=cmd_import)
+
+    p = sub.add_parser("node", help="run an HTTP peer node")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=DEFAULT_NODE_PORT)
+    p.add_argument("--peer", action="append", help="peer URL; can be repeated")
+    p.set_defaults(func=cmd_node)
+
+    p = sub.add_parser("rpc", help="run JSON-RPC server")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=DEFAULT_RPC_PORT)
+    p.set_defaults(func=cmd_rpc)
+
+    p = sub.add_parser("rpc-call", help="call a NetCoin JSON-RPC server")
+    p.add_argument("method")
+    p.add_argument("--params", help="JSON list of params, e.g. '[true]'")
+    p.add_argument("--url", default=f"http://127.0.0.1:{DEFAULT_RPC_PORT}")
+    p.set_defaults(func=cmd_rpc_call)
+
+    p = sub.add_parser("pool", help="run educational mining-pool server")
+    p.add_argument("--wallet")
+    p.add_argument("--address")
+    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--passphrase")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=DEFAULT_POOL_PORT)
+    p.set_defaults(func=cmd_pool)
+
+    p = sub.add_parser("explorer", help="generate a static HTML block explorer")
+    p.add_argument("--out", default="explorer")
+    p.set_defaults(func=cmd_explorer)
+
+    p = sub.add_parser("networks", help="show main/testnet/signet/regtest profiles")
+    p.set_defaults(func=cmd_networks)
+
+    p = sub.add_parser("p2p-message", help="create or parse a Bitcoin-style P2P envelope")
+    p.add_argument("--height", type=int, default=0)
+    p.add_argument("--parse", help="parse message hex instead of creating a version message")
+    p.set_defaults(func=cmd_p2p_message)
+
+    p = sub.add_parser("psbt-sign", help="sign a NetCoin PSBT-like base64 file")
+    p.add_argument("--wallet", required=True)
+    p.add_argument("--passphrase")
+    p.add_argument("--psbt", required=True)
+    p.add_argument("--out")
+    p.set_defaults(func=cmd_psbt_sign)
+
+    return parser
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        args.func(args)
+        return 0
+    except (ChainError, WalletError, Exception) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
