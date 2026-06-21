@@ -12,6 +12,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Lossless binary codec** (`tx_to_binary`/`tx_from_binary`,
+  `block_to_binary`/`block_from_binary`): a compact binary encoding that round-trips
+  full transactions and blocks while preserving txid/wtxid/hash — complements the
+  existing Bitcoin-style raw-hex export.
+- **Bitcoin-style P2P message layer** (`netcoin/p2p.py`): `version`, `verack`,
+  `ping`, `pong`, `inv`, `getdata`, `getheaders`, `headers`, `block`, and `tx`
+  messages over the magic/command/length/checksum envelope, with a `handle_message`
+  flow (version→verack, ping→pong, getheaders→headers, inv→getdata, getdata→block/tx).
+  Block/tx messages carry the binary codec payload.
 - **Persistent/incremental UTXO set**: `utxo_set()` now serves an authoritative
   in-memory cache (kept in sync through mining and reorgs, verified against a full
   recompute) instead of rescanning the whole chain on every call.
@@ -99,7 +108,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   added the missing helper so watch-only wallet files work.
 
 ### Tests
-- Suite expanded to 159 (adds persistent-UTXO correctness through spends/reorgs and
+- Suite expanded to 171 (adds binary-codec round-trips for coinbase/signed/segwit
+  txs and blocks, and the P2P message layer: framing, binary block/tx payloads,
+  and handler flow).
+- Earlier: 159 (adds persistent-UTXO correctness through spends/reorgs and
   pruned-mode round-trips: prune, reload, keep mining, balances).
 - Earlier: 151 (adds KDF upgrade + legacy-wallet compatibility, mempool
   ancestor limit, and gap-limit scan).
