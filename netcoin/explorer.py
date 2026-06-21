@@ -137,6 +137,20 @@ def generate_explorer(chain: Blockchain, out_dir: str | Path) -> Path:
         (out / f"block-{bh}.html").write_text(page(f"NetCoin block {block.header.height}", block_body))
 
     info = chain.chain_info()
+    mempool = chain.mempool_info()
+    if mempool["entries"]:
+        rows = "".join(
+            f"<tr><td class='hash'>{esc(e['txid'])}</td><td>{e['vsize']}</td><td>{e['fee']}</td>"
+            f"<td>{e['fee_rate_per_kvb']}</td><td>{'yes' if e['rbf'] else 'no'}</td></tr>"
+            for e in mempool["entries"]
+        )
+        mempool_section = (
+            f"<h2>Mempool ({mempool['size']} unconfirmed, {mempool['bytes']} vbytes)</h2>"
+            "<table><tr><th>txid</th><th>vsize</th><th>fee (sats)</th><th>fee rate /kvB</th><th>rbf</th></tr>"
+            f"{rows}</table>"
+        )
+    else:
+        mempool_section = "<h2>Mempool</h2><p>No unconfirmed transactions.</p>"
     search_box = """
 <h2>Search</h2>
 <p><input id="q" type="search" placeholder="height, block hash, txid, or address" style="width:100%;max-width:560px;padding:.5rem"></p>
@@ -147,6 +161,7 @@ def generate_explorer(chain: Blockchain, out_dir: str | Path) -> Path:
 <h1>NetCoin Explorer</h1>
 <p>Height: <strong>{info['height']}</strong> | Tip: <code>{esc(info['tip_hash'])}</code> | Mempool: {info['mempool_transactions']}</p>
 {search_box}
+{mempool_section}
 <table><tr><th>height</th><th>hash</th><th>transactions</th><th>weight</th><th>timestamp</th></tr>{''.join(blocks_rows)}</table>
 {script}
 """
