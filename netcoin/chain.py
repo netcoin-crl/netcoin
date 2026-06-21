@@ -527,6 +527,8 @@ class Blockchain:
             self.apply_regular_transaction(existing, temp_utxos, spend_height)
         fee = self.validate_regular_transaction(tx, temp_utxos, spend_height)
         self.check_standard_transaction(tx, fee)
+        if self.mempool_ancestor_count(tx) >= MAX_MEMPOOL_ANCESTORS:
+            raise ChainError("transaction has too many unconfirmed ancestors")
         self.mempool.append(tx)
         self.mempool_times[txid] = time.time()
         if save:
@@ -568,6 +570,20 @@ class Blockchain:
             self.mempool_times.pop(txid, None)
         self.save_mempool()
         return len(dropped_ids)
+
+    def mempool_ancestor_count(self, tx: Transaction) -> int:
+        """Number of unconfirmed mempool transactions this tx (transitively) spends."""
+        mempool_by_id = {existing.txid(): existing for existing in self.mempool}
+        seen: set = set()
+        stack = [tx]
+        while stack:
+            current = stack.pop()
+            for txin in current.inputs:
+                parent = mempool_by_id.get(txin.txid)
+                if parent is not None and parent.txid() not in seen:
+                    seen.add(parent.txid())
+                    stack.append(parent)
+        return len(seen)
 
     def remove_mempool_transactions(self, txids: Iterable[str]) -> None:
         remove = set(txids)
