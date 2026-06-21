@@ -137,10 +137,14 @@ def test_rejects_block_with_wrong_previous_hash(tmp_path: Path):
     miner = Wallet.create()
     block = solve_template(chain.get_block_template(miner_address=miner.address), miner.address)
     block.header.previous_hash = "f" * 64
+    # Re-establish valid proof of work for the tampered header so this exercises
+    # the "does not connect" path rather than being rejected for bad PoW first.
+    mine_header(block.header)
 
     with pytest.raises(ChainError, match="does not connect|previous hash"):
         chain.add_block(block)
     assert chain.height() == 0
+    assert chain.tip().header.height == 0
 
 
 def test_rejects_bad_transaction_that_changes_outputs_after_signing(tmp_path: Path):

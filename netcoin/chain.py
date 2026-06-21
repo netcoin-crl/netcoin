@@ -562,19 +562,114 @@ class Blockchain:
     def add_block(self, block: Block) -> str:
         block_hash = block.hash()
         if self.block_by_hash(block_hash) is not None:
+            # Already part of the active chain: idempotent.
             return block_hash
-        if block.header.previous_hash != self.tip_hash():
-            # Store a future/orphan block for later. Real Bitcoin Core has a much
-            # more complete block index; this is a readable first step.
-            self.orphan_blocks[block_hash] = block
-            raise ChainError("block does not connect to current tip; stored as orphan candidate")
-        self.validate_block_against(block, self.tip(), self.utxo_set(), self.chain)
-        self.chain.append(block)
-        included = [tx.txid() for tx in block.transactions[1:]]
-        self.remove_mempool_transactions(included)
+
+        if block.header.previous_hash == self.tip_hash():
+            # Fast path: the block extends the current best tip.
+            self.validate_block_against(block, self.tip(), self.utxo_set(), self.chain)
+            self.chain.append(block)
+            included = [tx.txid() for tx in block.transactions[1:]]
+            self.remove_mempool_transactions(included)
+            self.purge_invalid_mempool()
+            self.save_chain()
+            # A new tip can let a previously-stored fork branch connect.
+            if self.orphan_blocks:
+                self._maybe_reorg()
+            return block_hash
+
+        # Otherwise the block is a fork branch or a future/orphan block. Reject
+        # cheap junk (bad proof of work) before storing anything, then keep it as
+        # a candidate and see whether a heavier valid branch now exists.
+        if not check_proof_of_work(block.header):
+            raise ChainError("block proof of work is invalid")
+        self._remember_orphan(block)
+        if self._maybe_reorg() and self.block_by_hash(block_hash) is not None:
+            return block_hash
+        raise ChainError("block does not connect to current tip; stored as fork/orphan candidate")
+
+    def _remember_orphan(self, block: Block) -> None:
+        # Bounded store of off-tip blocks (forks and future blocks). Real Bitcoin
+        # Core keeps a full block index; this is a readable, memory-capped step.
+        self.orphan_blocks[block.hash()] = block
+        max_orphans = 2000
+        while len(self.orphan_blocks) > max_orphans:
+            oldest = next(iter(self.orphan_blocks))
+            del self.orphan_blocks[oldest]
+
+    def _build_branch(self, tip_hash: str, known: Dict[str, Block]) -> Optional[List[Block]]:
+        """Walk parent links from tip_hash back to genesis using known blocks."""
+        branch: List[Block] = []
+        seen: set[str] = set()
+        current = tip_hash
+        while current in known:
+            if current in seen:  # cycle guard
+                return None
+            seen.add(current)
+            node = known[current]
+            branch.append(node)
+            if node.header.height == 0 or node.header.previous_hash == ZERO_HASH:
+                break
+            current = node.header.previous_hash
+        branch.reverse()
+        if not branch or branch[0].header.height != 0:
+            return None
+        return branch
+
+    def _maybe_reorg(self) -> bool:
+        """Switch to the heaviest fully valid branch if it beats the active tip.
+
+        Only a strictly greater cumulative work wins, so the first-seen tip is
+        kept on ties (matching Bitcoin's tie-breaking)."""
+        known: Dict[str, Block] = {b.hash(): b for b in self.chain}
+        known.update(self.orphan_blocks)
+        genesis_hash = self.chain[0].hash()
+        best_chain = self.chain
+        best_work = cumulative_work(self.chain)
+
+        for candidate_hash in list(known):
+            branch = self._build_branch(candidate_hash, known)
+            if branch is None or branch[0].hash() != genesis_hash:
+                continue
+            if branch[-1].hash() == self.tip_hash():
+                continue  # same tip as (a prefix of) the active chain
+            work = cumulative_work(branch)
+            if work <= best_work:
+                continue
+            if not self.is_valid_chain(branch):
+                continue
+            best_chain, best_work = branch, work
+
+        if best_chain is self.chain or best_chain[-1].hash() == self.tip_hash():
+            return False
+        self._switch_to(best_chain)
+        return True
+
+    def _switch_to(self, new_chain: Sequence[Block]) -> None:
+        new_hashes = {b.hash() for b in new_chain}
+        disconnected = [b for b in self.chain if b.hash() not in new_hashes]
+
+        self.chain = list(new_chain)
+        # Keep blocks that left the active chain as fork candidates, and drop the
+        # now-active blocks from the candidate pool.
+        for b in disconnected:
+            self.orphan_blocks[b.hash()] = b
+        for b in new_chain:
+            self.orphan_blocks.pop(b.hash(), None)
+
+        # Return transactions from disconnected blocks to the mempool, then drop
+        # anything no longer valid against the new chain.
+        for b in disconnected:
+            for tx in b.transactions[1:]:
+                try:
+                    self.add_mempool_transaction(tx, save=False)
+                except (ChainError, TransactionError):
+                    continue
+        included = {tx.txid() for b in new_chain for tx in b.transactions[1:]}
+        if included:
+            self.mempool = [tx for tx in self.mempool if tx.txid() not in included]
         self.purge_invalid_mempool()
         self.save_chain()
-        return block_hash
 
     def replace_chain(self, blocks: Sequence[Block]) -> bool:
         self.assert_valid_chain(blocks)
