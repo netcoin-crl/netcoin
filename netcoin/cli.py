@@ -28,7 +28,7 @@ from .rpc import run_rpc
 from .script import describe_address
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .tx import Transaction, amount_to_sats, sats_to_amount
-from .wallet import Wallet, WalletError, verify_seed_phrase
+from .wallet import Wallet, WalletError, confirm_seed_phrase, verify_seed_phrase
 
 
 def print_json(data: Any) -> None:
@@ -98,6 +98,18 @@ def cmd_wallet_new(args: argparse.Namespace) -> None:
     if mnemonic:
         result["mnemonic"] = mnemonic
         result["backup_warning"] = "Write this phrase down now. It is not stored again unless you save it."
+        if getattr(args, "confirm_backup", False):
+            if sys.stdin.isatty():
+                print("Re-enter your seed phrase to confirm you backed it up:", file=sys.stderr)
+                typed = sys.stdin.readline().strip()
+                if not confirm_seed_phrase(mnemonic, typed):
+                    path.unlink(missing_ok=True)
+                    raise WalletError("seed phrase confirmation did not match; wallet file removed")
+                result["backup_confirmed"] = True
+            else:
+                # Non-interactive: cannot prompt, so flag that confirmation is owed.
+                result["backup_confirmed"] = False
+                result["backup_confirmation_required"] = True
     print_json(result)
 
 
@@ -196,6 +208,41 @@ def cmd_wallet_export_watch(args: argparse.Namespace) -> None:
     print_json({"ok": True, "watch_only_file": args.out, "address": wallet.address})
 
 
+def cmd_wallet_unlock(args: argparse.Namespace) -> None:
+    # Verifies the passphrase opens the wallet; optionally writes a decrypted copy.
+    passphrase = args.passphrase
+    if passphrase is None and sys.stdin.isatty():
+        import getpass
+
+        passphrase = getpass.getpass("Wallet passphrase: ")
+    wallet = Wallet.load(args.wallet, passphrase=passphrase)
+    result: Dict[str, Any] = {"ok": True, "wallet_file": args.wallet, "address": wallet.address, "unlocked": True}
+    if args.out:
+        wallet.save(args.out, passphrase=None)
+        os.chmod(args.out, 0o600)
+        result["decrypted_file"] = args.out
+        result["warning"] = "Decrypted wallet written without a passphrase. Keep it private."
+    print_json(result)
+
+
+def cmd_label(args: argparse.Namespace) -> None:
+    from .labels import LabelStore
+
+    path = args.file or (Path(args.data) / "labels.json")
+    store = LabelStore(path)
+    if args.set is not None:
+        key, label = args.set
+        store.set(key, label)
+        print_json({"ok": True, "labels_file": str(path), "set": {key: label}})
+    elif args.remove is not None:
+        removed = store.remove(args.remove)
+        print_json({"ok": removed, "labels_file": str(path), "removed": args.remove})
+    elif args.get is not None:
+        print_json({"key": args.get, "label": store.get(args.get)})
+    else:
+        print_json({"labels_file": str(path), "labels": store.all()})
+
+
 def cmd_balance(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
@@ -253,6 +300,7 @@ def cmd_send(args: argparse.Namespace) -> None:
         from_address=source,
         change_address=args.change_address or wallet.address_for(args.from_type),
         rbf=args.rbf,
+        select_outpoints=getattr(args, "utxo", None),
     )
     txid = chain.add_mempool_transaction(tx)
     result: Dict[str, Any] = {
@@ -487,6 +535,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--from-mnemonic", help="restore from a NetCoin seed phrase")
     p.add_argument("--mnemonic-passphrase", default="", help="optional seed phrase passphrase")
     p.add_argument("--wif", help="import a NetCoin WIF private key")
+    p.add_argument("--confirm-backup", action="store_true", help="require re-entering the seed phrase to confirm backup")
     p.set_defaults(func=cmd_wallet_new)
 
     p = sub.add_parser("wallet-watch", help="create a watch-only wallet file")
@@ -518,6 +567,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase")
     p.add_argument("--out", required=True)
     p.set_defaults(func=cmd_wallet_export_watch)
+
+    p = sub.add_parser("wallet-unlock", help="verify an encrypted wallet opens; optionally write a decrypted copy")
+    p.add_argument("--wallet", required=True)
+    p.add_argument("--passphrase", help="passphrase (prompted if omitted on a TTY)")
+    p.add_argument("--out", help="optional path to write a decrypted (unencrypted) wallet copy")
+    p.set_defaults(func=cmd_wallet_unlock)
+
+    p = sub.add_parser("label", help="manage an address/peer/txid label book")
+    p.add_argument("--file", help="labels JSON file (default: <data>/labels.json)")
+    p.add_argument("--set", nargs=2, metavar=("KEY", "LABEL"), help="set a label")
+    p.add_argument("--get", metavar="KEY", help="show a label")
+    p.add_argument("--remove", metavar="KEY", help="remove a label")
+    p.set_defaults(func=cmd_label)
 
     p = sub.add_parser("verify-mnemonic", help="check a seed phrase is valid and (optionally) controls a wallet")
     p.add_argument("--from-mnemonic", required=True, help="the NetCoin seed phrase to verify")
@@ -559,6 +621,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--amount", required=True, help="amount in NET, e.g. 1.25")
     p.add_argument("--fee", default="0.001", help="fee in NET")
     p.add_argument("--rbf", action="store_true", help="signal opt-in replace-by-fee")
+    p.add_argument("--utxo", action="append", metavar="TXID:VOUT", help="coin control: spend specific UTXOs (repeatable)")
     p.add_argument("--broadcast-to", help="node URL, e.g. http://127.0.0.1:18444")
     p.set_defaults(func=cmd_send)
 

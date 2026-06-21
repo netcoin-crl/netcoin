@@ -33,6 +33,28 @@ class NodeError(ValueError):
     """Raised when node-level operations fail."""
 
 
+class RateLimiter:
+    """Simple per-key sliding-window rate limiter (per IP + endpoint)."""
+
+    def __init__(self, max_requests: int = 240, window_seconds: int = 60):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._hits: Dict[Any, List[float]] = {}
+
+    def allow(self, key: Any) -> bool:
+        if self.max_requests <= 0:
+            return True
+        now = time.time()
+        cutoff = now - self.window_seconds
+        bucket = [t for t in self._hits.get(key, []) if t >= cutoff]
+        if len(bucket) >= self.max_requests:
+            self._hits[key] = bucket
+            return False
+        bucket.append(now)
+        self._hits[key] = bucket
+        return True
+
+
 class NetCoinNode:
     def __init__(
         self,
@@ -42,6 +64,9 @@ class NetCoinNode:
         persist: bool = True,
         self_url: Optional[str] = None,
         max_peers: int = 128,
+        rate_limit_per_min: int = 240,
+        request_timeout: int = 5,
+        request_retries: int = 1,
     ):
         self.chain = chain
         self.peers = set()
@@ -49,6 +74,13 @@ class NetCoinNode:
         self.persist = persist
         self.max_peers = max_peers
         self.self_url = self._normalize_peer(self_url) if self_url else None
+        # Per-endpoint, per-IP rate limiting and configurable peer-fetch behavior.
+        self.rate_limiter = RateLimiter(max_requests=rate_limit_per_min, window_seconds=60)
+        self.request_timeout = request_timeout
+        self.request_retries = max(0, request_retries)
+        # Bounded event log for block-propagation visibility.
+        self.event_log: List[Dict[str, Any]] = []
+        self.max_events = 500
         # Bounded memory of recently relayed block hashes so a block is not
         # re-broadcast in a relay loop when peers echo it back.
         self._broadcast_seen: List[str] = []
@@ -210,15 +242,39 @@ class NetCoinNode:
         ]
         return "\n".join(lines) + "\n"
 
-    def fetch_json(self, url: str, timeout: int = 5) -> Dict[str, Any]:
-        with urlopen(url, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+    def log_event(self, kind: str, **fields: Any) -> None:
+        """Record a propagation/lifecycle event in a bounded in-memory log."""
+        event = {"t": round(time.time(), 3), "event": kind, **fields}
+        self.event_log.append(event)
+        if len(self.event_log) > self.max_events:
+            del self.event_log[: len(self.event_log) - self.max_events]
 
-    def post_json(self, url: str, payload: Dict[str, Any], timeout: int = 5) -> Dict[str, Any]:
+    def recent_events(self, limit: int = 100) -> List[Dict[str, Any]]:
+        return self.event_log[-limit:][::-1]
+
+    def fetch_json(self, url: str, timeout: Optional[int] = None) -> Dict[str, Any]:
+        timeout = self.request_timeout if timeout is None else timeout
+        last_exc: Optional[Exception] = None
+        for attempt in range(self.request_retries + 1):
+            try:
+                with urlopen(url, timeout=timeout) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except Exception as exc:  # retry transient network failures
+                last_exc = exc
+        raise last_exc if last_exc else NodeError("fetch failed")
+
+    def post_json(self, url: str, payload: Dict[str, Any], timeout: Optional[int] = None) -> Dict[str, Any]:
+        timeout = self.request_timeout if timeout is None else timeout
         body = json.dumps(payload).encode("utf-8")
-        request = Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
-        with urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+        last_exc: Optional[Exception] = None
+        for attempt in range(self.request_retries + 1):
+            try:
+                request = Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+                with urlopen(request, timeout=timeout) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except Exception as exc:
+                last_exc = exc
+        raise last_exc if last_exc else NodeError("post failed")
 
     def compatible_peer(self, remote: Dict[str, Any]) -> bool:
         """Reject peers on a different genesis or network before syncing from them.
@@ -259,12 +315,15 @@ class NetCoinNode:
         return adopted
 
     def accept_block(self, block: Block) -> str:
+        self.log_event("block_received", hash=block.hash(), height=block.header.height)
         try:
             block_hash = self.chain.add_block(block)
-        except Exception:
+        except Exception as exc:
             self.orphans[block.hash()] = block
+            self.log_event("block_rejected", hash=block.hash(), reason=str(exc))
             self.sync_all()
             raise
+        self.log_event("block_accepted", hash=block_hash, height=self.chain.height())
         progressed = True
         while progressed:
             progressed = False
@@ -273,6 +332,7 @@ class NetCoinNode:
                     try:
                         self.chain.add_block(orphan)
                         del self.orphans[orphan_hash]
+                        self.log_event("orphan_connected", hash=orphan_hash, height=self.chain.height())
                         progressed = True
                     except Exception:
                         pass
@@ -312,6 +372,7 @@ class NetCoinNode:
                 delivered += 1
             except Exception:
                 continue
+        self.log_event("block_relayed", hash=block.hash(), peers=delivered)
         return delivered
 
     def relay_new_blocks(self, received: Block) -> int:
@@ -367,6 +428,10 @@ def make_handler(node: NetCoinNode):
                     self.send_json(node.health())
                 elif parsed.path == "/metrics":
                     self.send_text(node.metrics_text())
+                elif parsed.path == "/events":
+                    query = parse_qs(parsed.query)
+                    limit = max(1, min(int(query.get("limit", [100])[0]), 500))
+                    self.send_json({"events": node.recent_events(limit)})
                 elif parsed.path == "/chain":
                     self.send_json(node.chain.export_chain())
                 elif parsed.path == "/headers":
@@ -437,13 +502,24 @@ def make_handler(node: NetCoinNode):
             except Exception as exc:
                 self.send_error_json(str(exc), status=400)
 
+        def client_ip(self) -> str:
+            forwarded = self.headers.get("X-Forwarded-For", "")
+            if forwarded:
+                return forwarded.split(",", 1)[0].strip()
+            return self.client_address[0] if self.client_address else "unknown"
+
         def do_POST(self) -> None:  # noqa: N802 - stdlib method name
             parsed = urlparse(self.path)
+            # Per-IP, per-endpoint rate limiting for write/relay endpoints.
+            if not node.rate_limiter.allow((self.client_ip(), parsed.path)):
+                self.send_error_json("rate limit exceeded", status=429)
+                return
             try:
                 data = self.read_json()
                 if parsed.path == "/tx":
                     tx = Transaction.from_dict(data)
                     txid = node.chain.add_mempool_transaction(tx)
+                    node.log_event("tx_received", txid=txid)
                     delivered = node.broadcast_transaction(tx)
                     self.send_json({"ok": True, "txid": txid, "relayed_to": delivered})
                 elif parsed.path in ("/block", "/submitblock"):

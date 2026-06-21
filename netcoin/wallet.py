@@ -59,6 +59,14 @@ def seed_phrase_to_entropy(phrase: str) -> bytes:
     return values
 
 
+def confirm_seed_phrase(original: str, typed: str) -> bool:
+    """True if `typed` matches `original` ignoring surrounding/extra whitespace.
+
+    Used by the seed-confirmation step so a wallet is only considered safely
+    backed up once the user can reproduce the phrase."""
+    return original.split() == typed.split() and bool(original.split())
+
+
 def verify_seed_phrase(phrase: str) -> bool:
     """Return True if the phrase is a well-formed NetCoin seed phrase.
 
@@ -261,6 +269,7 @@ class Wallet:
         change_type: str = "legacy",
         rbf: bool = False,
         locktime: int = 0,
+        select_outpoints: Optional[List[str]] = None,
     ) -> Transaction:
         if not validate_address(to_address):
             raise WalletError("destination is not a valid NetCoin address")
@@ -271,15 +280,30 @@ class Wallet:
         from_address = self.address_for(from_type)
         change_address = self.address_for(change_type)
         needed = amount + fee
-        selected: List[SpendableOutput] = []
-        selected_total = 0
-        for utxo in chain.utxos_for_address(from_address):
-            selected.append(utxo)
-            selected_total += utxo.output.amount
-            if selected_total >= needed:
-                break
-        if selected_total < needed:
-            raise WalletError("insufficient spendable NetCoin balance")
+        available = chain.utxos_for_address(from_address)
+
+        if select_outpoints:
+            # Coin control: spend exactly the chosen UTXOs (and only ours).
+            wanted = list(dict.fromkeys(select_outpoints))
+            by_outpoint = {u.outpoint(): u for u in available}
+            selected = []
+            for op in wanted:
+                if op not in by_outpoint:
+                    raise WalletError(f"outpoint not spendable by this wallet: {op}")
+                selected.append(by_outpoint[op])
+            selected_total = sum(u.output.amount for u in selected)
+            if selected_total < needed:
+                raise WalletError("selected UTXOs do not cover amount + fee")
+        else:
+            selected = []
+            selected_total = 0
+            for utxo in available:
+                selected.append(utxo)
+                selected_total += utxo.output.amount
+                if selected_total >= needed:
+                    break
+            if selected_total < needed:
+                raise WalletError("insufficient spendable NetCoin balance")
 
         sequence = 0xFFFFFFFD if rbf or locktime else 0xFFFFFFFF
         inputs = [TxInput(txid=utxo.txid, vout=utxo.vout, sequence=sequence) for utxo in selected]
@@ -405,6 +429,7 @@ def _create_transaction_extended(
     locktime: int = 0,
     from_address: Optional[str] = None,
     change_address: Optional[str] = None,
+    select_outpoints: Optional[List[str]] = None,
 ) -> Transaction:
     if from_address is None and change_address is None:
         return _original_create_transaction(
@@ -417,6 +442,7 @@ def _create_transaction_extended(
             change_type=change_type,
             rbf=rbf,
             locktime=locktime,
+            select_outpoints=select_outpoints,
         )
     if not validate_address(to_address):
         raise WalletError("destination is not a valid NetCoin address")
@@ -425,15 +451,27 @@ def _create_transaction_extended(
     if not validate_address(spend_from) or not validate_address(change_to):
         raise WalletError("source/change address is not valid")
     needed = amount + fee
-    selected: List[SpendableOutput] = []
-    selected_total = 0
-    for utxo in chain.utxos_for_address(spend_from):
-        selected.append(utxo)
-        selected_total += utxo.output.amount
-        if selected_total >= needed:
-            break
-    if selected_total < needed:
-        raise WalletError("insufficient spendable NetCoin balance")
+    available = chain.utxos_for_address(spend_from)
+    if select_outpoints:
+        by_outpoint = {u.outpoint(): u for u in available}
+        selected = []
+        for op in dict.fromkeys(select_outpoints):
+            if op not in by_outpoint:
+                raise WalletError(f"outpoint not spendable from {spend_from}: {op}")
+            selected.append(by_outpoint[op])
+        selected_total = sum(u.output.amount for u in selected)
+        if selected_total < needed:
+            raise WalletError("selected UTXOs do not cover amount + fee")
+    else:
+        selected = []
+        selected_total = 0
+        for utxo in available:
+            selected.append(utxo)
+            selected_total += utxo.output.amount
+            if selected_total >= needed:
+                break
+        if selected_total < needed:
+            raise WalletError("insufficient spendable NetCoin balance")
     sequence = 0xFFFFFFFD if rbf or locktime else 0xFFFFFFFF
     inputs = [TxInput(txid=utxo.txid, vout=utxo.vout, sequence=sequence) for utxo in selected]
     outputs = [TxOutput(amount=amount, address=to_address)]
