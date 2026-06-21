@@ -91,6 +91,23 @@ python -m netcoin --data ~/.netcoin-testnet node --host 0.0.0.0 --port 28444 --p
 > **Do not** expose the RPC port (28445) or the pool port (28446) to the internet.
 > Keep them bound to `127.0.0.1`. See [RPC authentication](#) notes in the README.
 
+### Let peers discover you (gossip)
+
+If your node has a public URL, advertise it so peers can dial you back and share
+it with others. On startup the node announces this URL to its peers and pulls
+their peer lists (gossip), so you only need to seed a few peers to join the mesh.
+
+```bash
+python -m netcoin --data ~/.netcoin-testnet node --host 0.0.0.0 --port 28444 \
+  --advertise http://YOUR_PUBLIC_HOST:28444 \
+  --peer http://seed1.netcoin.online:28444 \
+  --peer http://seed2.netcoin.online:28444 \
+  --peer http://seed3.netcoin.online:28444
+```
+
+Discovered peers are saved to `peers.json` in your data directory and reloaded on
+restart, so the node reconnects to the mesh automatically.
+
 ## 6. Keep it running (Linux/systemd)
 
 For an always-on node, see the systemd unit pattern in

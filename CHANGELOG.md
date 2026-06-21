@@ -34,13 +34,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   that triggers a reorg also relays the new tip.
 - Searchable explorer: the generated `index.html` now embeds a per-block index and
   a client-side search box for height, block hash, txid, and address (still static).
+- Peer gossip / auto-discovery: nodes pull peer lists from known peers
+  (`discover_peers`), announce an advertised URL so peers can dial back
+  (`announce_self`, `node --advertise`), and `bootstrap` combines announce +
+  discover + sync on startup. Self-exclusion and a peer cap bound growth.
 - Tester guides: [docs/STARTER_KIT.md](docs/STARTER_KIT.md),
   [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md), [docs/MINING.md](docs/MINING.md).
 - Release process and tooling: [docs/RELEASING.md](docs/RELEASING.md) and
   `tools/make_release.sh` (reproducible archive + SHA256SUMS + optional GPG signature).
 
 ### Security
-- Expanded automated tests to 62: subsidy/halving schedule, RPC auth (401/200),
+- Expanded automated tests to 67: subsidy/halving schedule, RPC auth (401/200),
   node and faucet body/throttle limits, wallet recovery and encryption round-trips
   (incl. tamper/wrong-passphrase rejection), peer persistence, chain reorg
   (heavier-fork adoption, equal-work tie kept, invalid/bad-PoW fork rejection,
@@ -51,7 +55,6 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ### Planned
 - Signed release artifacts published with each GitHub release (tooling now exists).
 - Monitoring alerts on seed downtime, tip mismatch, or faucet failure.
-- Peer gossip/auto-discovery beyond persisted manual peers.
 - Faucet CAPTCHA.
 
 ## [0.2.0] - 2026-06-20
