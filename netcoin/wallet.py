@@ -59,6 +59,25 @@ def seed_phrase_to_entropy(phrase: str) -> bytes:
     return values
 
 
+COIN_SELECTION_STRATEGIES = ("greedy", "largest-first", "smallest-first", "random")
+
+
+def order_utxos_for_strategy(utxos: List["SpendableOutput"], strategy: str) -> List["SpendableOutput"]:
+    """Order spendable outputs for a coin-selection strategy."""
+    s = (strategy or "greedy").lower()
+    if s in ("greedy", "default"):
+        return list(utxos)
+    if s == "largest-first":
+        return sorted(utxos, key=lambda u: u.output.amount, reverse=True)
+    if s == "smallest-first":
+        return sorted(utxos, key=lambda u: u.output.amount)
+    if s == "random":
+        shuffled = list(utxos)
+        secrets.SystemRandom().shuffle(shuffled)
+        return shuffled
+    raise WalletError(f"unknown coin-selection strategy: {strategy}")
+
+
 def confirm_seed_phrase(original: str, typed: str) -> bool:
     """True if `typed` matches `original` ignoring surrounding/extra whitespace.
 
@@ -270,6 +289,7 @@ class Wallet:
         rbf: bool = False,
         locktime: int = 0,
         select_outpoints: Optional[List[str]] = None,
+        strategy: str = "greedy",
     ) -> Transaction:
         if not validate_address(to_address):
             raise WalletError("destination is not a valid NetCoin address")
@@ -280,7 +300,7 @@ class Wallet:
         from_address = self.address_for(from_type)
         change_address = self.address_for(change_type)
         needed = amount + fee
-        available = chain.utxos_for_address(from_address)
+        available = order_utxos_for_strategy(chain.utxos_for_address(from_address), strategy)
 
         if select_outpoints:
             # Coin control: spend exactly the chosen UTXOs (and only ours).
@@ -430,6 +450,7 @@ def _create_transaction_extended(
     from_address: Optional[str] = None,
     change_address: Optional[str] = None,
     select_outpoints: Optional[List[str]] = None,
+    strategy: str = "greedy",
 ) -> Transaction:
     if from_address is None and change_address is None:
         return _original_create_transaction(
@@ -443,6 +464,7 @@ def _create_transaction_extended(
             rbf=rbf,
             locktime=locktime,
             select_outpoints=select_outpoints,
+            strategy=strategy,
         )
     if not validate_address(to_address):
         raise WalletError("destination is not a valid NetCoin address")
@@ -451,7 +473,7 @@ def _create_transaction_extended(
     if not validate_address(spend_from) or not validate_address(change_to):
         raise WalletError("source/change address is not valid")
     needed = amount + fee
-    available = chain.utxos_for_address(spend_from)
+    available = order_utxos_for_strategy(chain.utxos_for_address(spend_from), strategy)
     if select_outpoints:
         by_outpoint = {u.outpoint(): u for u in available}
         selected = []

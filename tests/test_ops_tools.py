@@ -64,3 +64,39 @@ def test_monitor_send_alerts_is_noop_without_webhook():
     mon = load_tool("monitor_netcoin.py", "netcoin_monitor3")
     assert mon.send_alerts(["DOWN: seed1"], webhook=None) == 0
     assert mon.send_alerts([], webhook="http://example.invalid/hook") == 0
+
+
+def test_monitor_send_alerts_payload(monkeypatch):
+    import json as _json
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    mon = load_tool("monitor_netcoin.py", "netcoin_monitor_payload")
+    captured = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            return
+
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            captured["body"] = _json.loads(self.rfile.read(length).decode())
+            self.send_response(200)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{server.server_address[1]}/hook"
+    try:
+        sent = mon.send_alerts(["DOWN: faucet", "WARN: seed tip hashes diverged"], webhook=url)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert sent == 2
+    # Discord uses "content", Slack uses "text"; we send both.
+    assert "DOWN: faucet" in captured["body"]["content"]
+    assert "diverged" in captured["body"]["text"]
