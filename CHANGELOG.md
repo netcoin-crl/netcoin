@@ -12,6 +12,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- Persistent block and transaction **indexes** for O(1) `/block` and `/tx` lookups
+  (rebuilt on load and kept in sync through mining and reorgs), plus a
+  `verify_integrity()` chainstate check.
+- **Peer reputation**: scoring (`score_peer`) and banning (`ban_peer`, persisted to
+  `banned_peers.json`) with auto-ban at a threshold; `/peers` reports scores/bans.
+- **Protocol-version negotiation**: peers on a different protocol version are rejected.
+- **Mempool eviction**: `evict_expired_mempool` (age) and `evict_mempool_to_size`
+  (lowest-fee-rate first).
+- **Coin-selection strategies** for spending: `send --coin-strategy`
+  (greedy / largest-first / smallest-first / random).
+- GitHub Actions **release workflow** (build + checksum + GitHub Release on tag).
 - Coin control: `send --utxo TXID:VOUT` (repeatable) to spend specific UTXOs.
 - Wallet labels / address book (`netcoin/labels.py`, `label` CLI: `--set/--get/--remove/--list`).
 - `wallet-unlock` command (verify an encrypted wallet opens; optionally write a
@@ -50,7 +61,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   added the missing helper so watch-only wallet files work.
 
 ### Tests
-- Suite expanded to 114 (adds node ops: event log, rate limiting, timeout/retry,
+- Suite expanded to 128 (adds block/tx index + chainstate integrity, peer
+  banning/scoring + protocol negotiation, mempool eviction, coin-selection
+  strategies, and a monitor alert-payload test).
+- Earlier: suite expanded to 114 (adds node ops: event log, rate limiting, timeout/retry,
   multi-node mempool propagation; and wallet features: coin control, seed
   confirmation, wallet unlock, label store).
 - Earlier in this line, suite expanded to 100: mempool attack policy (dust, low fee, duplicate inputs,

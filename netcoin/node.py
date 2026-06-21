@@ -67,6 +67,7 @@ class NetCoinNode:
         rate_limit_per_min: int = 240,
         request_timeout: int = 5,
         request_retries: int = 1,
+        ban_threshold: int = -5,
     ):
         self.chain = chain
         self.peers = set()
@@ -74,6 +75,12 @@ class NetCoinNode:
         self.persist = persist
         self.max_peers = max_peers
         self.self_url = self._normalize_peer(self_url) if self_url else None
+        # Peer reputation: scores adjust on good/bad behavior; reaching the ban
+        # threshold bans the peer. Bans persist to banned_peers.json.
+        self.peer_scores: Dict[str, int] = {}
+        self.banned: set = set()
+        self.ban_threshold = ban_threshold
+        self.banned_path = Path(chain.data_dir) / "banned_peers.json"
         # Per-endpoint, per-IP rate limiting and configurable peer-fetch behavior.
         self.rate_limiter = RateLimiter(max_requests=rate_limit_per_min, window_seconds=60)
         self.request_timeout = request_timeout
@@ -87,6 +94,7 @@ class NetCoinNode:
         self._broadcast_seen_set: set[str] = set()
         self.started_at = time.time()
         self.peers_path = Path(peers_path) if peers_path else (Path(chain.data_dir) / "peers.json")
+        self._load_banned()
         # Reload peers discovered on previous runs, then merge in any provided
         # via --peer so the node reconnects to known peers across restarts.
         self._load_peers()
@@ -101,14 +109,71 @@ class NetCoinNode:
 
     def add_peer(self, peer: str) -> None:
         normalized = self._normalize_peer(peer)
-        # Never add ourselves, and respect the peer cap so gossip cannot grow the
-        # peer set without bound (a simple DoS guard).
+        # Never add ourselves or a banned peer, and respect the peer cap so gossip
+        # cannot grow the peer set without bound (a simple DoS guard).
         if self.self_url and normalized == self.self_url:
+            return
+        if normalized in self.banned:
             return
         if normalized not in self.peers and len(self.peers) >= self.max_peers:
             return
         self.peers.add(normalized)
         self._save_peers()
+
+    def _load_banned(self) -> None:
+        try:
+            data = json.loads(self.banned_path.read_text())
+        except (FileNotFoundError, ValueError):
+            return
+        for peer in data.get("banned", []):
+            try:
+                self.banned.add(self._normalize_peer(str(peer)))
+            except NodeError:
+                continue
+
+    def _save_banned(self) -> None:
+        if not self.persist:
+            return
+        try:
+            self.banned_path.parent.mkdir(parents=True, exist_ok=True)
+            self.banned_path.write_text(json.dumps({"banned": sorted(self.banned)}, indent=2, sort_keys=True))
+        except OSError:
+            pass
+
+    def is_banned(self, peer: str) -> bool:
+        try:
+            return self._normalize_peer(peer) in self.banned
+        except NodeError:
+            return False
+
+    def ban_peer(self, peer: str, reason: str = "") -> None:
+        normalized = self._normalize_peer(peer)
+        self.banned.add(normalized)
+        self.peers.discard(normalized)
+        self.peer_scores.pop(normalized, None)
+        self._save_peers()
+        self._save_banned()
+        self.log_event("peer_banned", peer=normalized, reason=reason)
+
+    def unban_peer(self, peer: str) -> bool:
+        normalized = self._normalize_peer(peer)
+        existed = normalized in self.banned
+        self.banned.discard(normalized)
+        if existed:
+            self._save_banned()
+        return existed
+
+    def score_peer(self, peer: str, delta: int, reason: str = "") -> int:
+        """Adjust a peer's reputation; auto-ban when it hits the threshold."""
+        try:
+            normalized = self._normalize_peer(peer)
+        except NodeError:
+            return 0
+        score = self.peer_scores.get(normalized, 0) + delta
+        self.peer_scores[normalized] = score
+        if score <= self.ban_threshold:
+            self.ban_peer(normalized, reason=reason or "score below threshold")
+        return score
 
     def discover_peers(self) -> int:
         """Gossip pull: ask known peers for their peer lists and merge new ones."""
@@ -194,6 +259,7 @@ class NetCoinNode:
                 "genesis_hash": self.genesis_hash(),
                 "uptime_seconds": self.uptime_seconds(),
                 "peers": sorted(self.peers),
+                "banned": len(self.banned),
                 "orphans": len(self.orphans),
                 "services": self.SERVICES,
             }
@@ -286,6 +352,9 @@ class NetCoinNode:
         remote_network = remote.get("network")
         if remote_network and remote_network != NETWORK_NAME:
             return False
+        remote_protocol = remote.get("protocol_version")
+        if remote_protocol is not None and int(remote_protocol) != PROTOCOL_VERSION:
+            return False
         return True
 
     def sync_from_peer(self, peer: str) -> bool:
@@ -310,7 +379,9 @@ class NetCoinNode:
             try:
                 if self.sync_from_peer(peer):
                     adopted += 1
+                self.score_peer(peer, 1)  # reachable + compatible
             except Exception:
+                self.score_peer(peer, -1, reason="sync failure")  # unreachable/bad
                 continue
         return adopted
 
@@ -491,7 +562,11 @@ def make_handler(node: NetCoinNode):
                 elif parsed.path == "/mempool":
                     self.send_json(node.chain.export_mempool())
                 elif parsed.path == "/peers":
-                    self.send_json({"peers": sorted(node.peers)})
+                    self.send_json({
+                        "peers": sorted(node.peers),
+                        "scores": node.peer_scores,
+                        "banned": sorted(node.banned),
+                    })
                 elif parsed.path == "/utxos":
                     query = parse_qs(parsed.query)
                     address = query.get("address", [""])[0]

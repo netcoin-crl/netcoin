@@ -301,6 +301,7 @@ def cmd_send(args: argparse.Namespace) -> None:
         change_address=args.change_address or wallet.address_for(args.from_type),
         rbf=args.rbf,
         select_outpoints=getattr(args, "utxo", None),
+        strategy=getattr(args, "coin_strategy", "greedy"),
     )
     txid = chain.add_mempool_transaction(tx)
     result: Dict[str, Any] = {
@@ -622,6 +623,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fee", default="0.001", help="fee in NET")
     p.add_argument("--rbf", action="store_true", help="signal opt-in replace-by-fee")
     p.add_argument("--utxo", action="append", metavar="TXID:VOUT", help="coin control: spend specific UTXOs (repeatable)")
+    p.add_argument("--coin-strategy", default="greedy", choices=["greedy", "largest-first", "smallest-first", "random"], help="coin-selection strategy")
     p.add_argument("--broadcast-to", help="node URL, e.g. http://127.0.0.1:18444")
     p.set_defaults(func=cmd_send)
 

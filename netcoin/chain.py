@@ -69,9 +69,29 @@ class Blockchain:
         self.autosave = autosave
         self.chain: List[Block] = []
         self.mempool: List[Transaction] = []
+        self.mempool_times: Dict[str, float] = {}
         self.orphan_blocks: Dict[str, Block] = {}
+        # Fast-lookup indexes (rebuilt from self.chain; O(1) block/tx lookup).
+        self.block_index: Dict[str, Block] = {}
+        self.tx_index: Dict[str, Dict[str, Any]] = {}
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.load_or_create()
+
+    def _index_block(self, block: Block) -> None:
+        self.block_index[block.hash()] = block
+        for position, tx in enumerate(block.transactions):
+            self.tx_index[tx.txid()] = {
+                "block_hash": block.hash(),
+                "height": block.header.height,
+                "position": position,
+            }
+
+    def reindex(self) -> None:
+        """Rebuild the block and transaction indexes from the active chain."""
+        self.block_index = {}
+        self.tx_index = {}
+        for block in self.chain:
+            self._index_block(block)
 
     @property
     def chain_path(self) -> Path:
@@ -98,6 +118,7 @@ class Blockchain:
         else:
             self.chain = [create_genesis_block()]
             self.save_chain()
+        self.reindex()
 
         if self.mempool_path.exists():
             data = json.loads(self.mempool_path.read_text())
@@ -446,9 +467,46 @@ class Blockchain:
         fee = self.validate_regular_transaction(tx, temp_utxos, spend_height)
         self.check_standard_transaction(tx, fee)
         self.mempool.append(tx)
+        self.mempool_times[txid] = time.time()
         if save:
             self.save_mempool()
         return txid
+
+    def _safe_fee_rate(self, tx: Transaction) -> int:
+        try:
+            return self.fee_rate(tx)
+        except (ChainError, TransactionError):
+            return 0
+
+    def evict_expired_mempool(self, max_age_seconds: int, now: Optional[float] = None) -> int:
+        """Drop mempool transactions older than max_age_seconds. Returns count."""
+        now = time.time() if now is None else now
+        kept: List[Transaction] = []
+        evicted = 0
+        for tx in self.mempool:
+            added = self.mempool_times.get(tx.txid(), now)
+            if now - added > max_age_seconds:
+                self.mempool_times.pop(tx.txid(), None)
+                evicted += 1
+            else:
+                kept.append(tx)
+        if evicted:
+            self.mempool = kept
+            self.save_mempool()
+        return evicted
+
+    def evict_mempool_to_size(self, max_count: int) -> int:
+        """Evict lowest-fee-rate transactions until the mempool fits max_count."""
+        if len(self.mempool) <= max_count:
+            return 0
+        ranked = sorted(self.mempool, key=self._safe_fee_rate)
+        drop_count = len(self.mempool) - max_count
+        dropped_ids = {tx.txid() for tx in ranked[:drop_count]}
+        self.mempool = [tx for tx in self.mempool if tx.txid() not in dropped_ids]
+        for txid in dropped_ids:
+            self.mempool_times.pop(txid, None)
+        self.save_mempool()
+        return len(dropped_ids)
 
     def remove_mempool_transactions(self, txids: Iterable[str]) -> None:
         remove = set(txids)
@@ -554,6 +612,7 @@ class Blockchain:
                     raise ChainError("failed to mine a valid block after many coinbase nonces")
 
         self.chain.append(candidate)
+        self._index_block(candidate)
         self.remove_mempool_transactions(selected_txids)
         self.purge_invalid_mempool()
         self.save_chain()
@@ -569,6 +628,7 @@ class Blockchain:
             # Fast path: the block extends the current best tip.
             self.validate_block_against(block, self.tip(), self.utxo_set(), self.chain)
             self.chain.append(block)
+            self._index_block(block)
             included = [tx.txid() for tx in block.transactions[1:]]
             self.remove_mempool_transactions(included)
             self.purge_invalid_mempool()
@@ -650,6 +710,7 @@ class Blockchain:
         disconnected = [b for b in self.chain if b.hash() not in new_hashes]
 
         self.chain = list(new_chain)
+        self.reindex()
         # Keep blocks that left the active chain as fork candidates, and drop the
         # now-active blocks from the candidate pool.
         for b in disconnected:
@@ -680,27 +741,48 @@ class Blockchain:
         if candidate_work <= current_work:
             return False
         self.chain = list(blocks)
+        self.reindex()
         self.purge_invalid_mempool()
         self.save_chain()
         return True
 
     def get_block_by_hash(self, block_hash: str) -> Optional[Block]:
-        needle = block_hash.lower()
-        for block in self.chain:
-            if block.hash() == needle:
-                return block
-        return None
+        return self.block_index.get(block_hash.lower())
 
     def get_transaction(self, txid: str) -> Optional[Tuple[Transaction, Optional[Block]]]:
         needle = txid.lower()
-        for block in self.chain:
-            for tx in block.transactions:
-                if tx.txid() == needle or tx.wtxid() == needle:
-                    return tx, block
+        located = self.tx_index.get(needle)
+        if located is not None:
+            block = self.block_index.get(located["block_hash"])
+            if block is not None:
+                tx = block.transactions[located["position"]]
+                return tx, block
+        # Mempool and wtxid lookups fall back to a scan (small sets).
         for tx in self.mempool:
             if tx.txid() == needle or tx.wtxid() == needle:
                 return tx, None
+        if located is None:
+            for block in self.chain:
+                for tx in block.transactions:
+                    if tx.wtxid() == needle:
+                        return tx, block
         return None
+
+    def verify_integrity(self) -> Dict[str, Any]:
+        """Revalidate the chain and check index/UTXO consistency (chainstate check)."""
+        self.assert_valid_chain(self.chain)
+        expected_blocks = {b.hash() for b in self.chain}
+        index_consistent = set(self.block_index) == expected_blocks
+        utxos = self.utxo_set()
+        return {
+            "ok": index_consistent,
+            "height": self.height(),
+            "blocks": len(self.chain),
+            "indexed_blocks": len(self.block_index),
+            "indexed_txs": len(self.tx_index),
+            "utxos": len(utxos),
+            "index_consistent": index_consistent,
+        }
 
     def headers(self, start_height: int = 0, limit: int = 2000) -> List[Dict[str, Any]]:
         start_height = max(0, int(start_height))
