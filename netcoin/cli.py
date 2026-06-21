@@ -342,7 +342,7 @@ def cmd_node(args: argparse.Namespace) -> None:
 
 
 def cmd_rpc(args: argparse.Namespace) -> None:
-    run_rpc(data_dir=args.data, host=args.host, port=args.port)
+    run_rpc(data_dir=args.data, host=args.host, port=args.port, token=getattr(args, "rpc_token", None))
 
 
 def cmd_rpc_call(args: argparse.Namespace) -> None:
@@ -527,6 +527,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("rpc", help="run JSON-RPC server")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_RPC_PORT)
+    p.add_argument("--rpc-token", help="require this bearer token (else NETCOIN_RPC_TOKEN env var)")
     p.set_defaults(func=cmd_rpc)
 
     p = sub.add_parser("rpc-call", help="call a NetCoin JSON-RPC server")

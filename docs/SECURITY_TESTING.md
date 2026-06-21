@@ -29,6 +29,12 @@ The regression suite covers:
 - garbage block POST returns 400 and the node keeps serving `/info`
 - peer sync adopts a longer valid chain
 - peer sync ignores an invalid chain and lower/equal-work chains
+- node and RPC servers reject oversized request bodies
+- JSON-RPC requires a bearer token when one is configured (401 vs 200)
+- subsidy halving schedule (including zero past 64 halvings, negative-height guard)
+- explorer generation and status-dashboard rendering (with HTML escaping)
+- fuzz suite: transaction/block parsing, raw-tx decoding, script parsing, and node
+  endpoints survive random/garbage input without crashing
 - faucet invalid-address and IP cooldown logic
 
 ## Live Public Smoke Checks

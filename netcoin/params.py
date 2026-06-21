@@ -43,6 +43,12 @@ DEFAULT_POOL_PORT = 18446
 PROTOCOL_VERSION = 2
 P2P_MAGIC = bytes.fromhex("fabfb5da")
 
+# Maximum accepted HTTP request body for the node and RPC servers, in bytes.
+# Anything larger is rejected before it is read, to blunt trivial memory-DoS
+# attempts against public endpoints. A whole block (4M weight) serializes well
+# under this in NetCoin's JSON encoding.
+MAX_REQUEST_BODY_BYTES = 8 * 1024 * 1024
+
 ZERO_HASH = "00" * 32
 GENESIS_TIMESTAMP = 1_718_400_000
 GENESIS_MESSAGE = "NetCoin genesis - an educational Bitcoin-like chain, not Bitcoin"
