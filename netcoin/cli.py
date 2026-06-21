@@ -363,7 +363,7 @@ def cmd_script(args: argparse.Namespace) -> None:
 
 
 def cmd_node(args: argparse.Namespace) -> None:
-    run_node(data_dir=args.data, host=args.host, port=args.port, peers=args.peer or [])
+    run_node(data_dir=args.data, host=args.host, port=args.port, peers=args.peer or [], advertise=getattr(args, "advertise", None))
 
 
 def cmd_rpc(args: argparse.Namespace) -> None:
@@ -554,6 +554,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_NODE_PORT)
     p.add_argument("--peer", action="append", help="peer URL; can be repeated")
+    p.add_argument("--advertise", help="public URL to announce to peers for gossip discovery")
     p.set_defaults(func=cmd_node)
 
     p = sub.add_parser("rpc", help="run JSON-RPC server")

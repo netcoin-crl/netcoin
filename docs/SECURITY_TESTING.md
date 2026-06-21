@@ -45,6 +45,8 @@ The regression suite covers:
   returns disconnected-block transactions to the mempool
 - block relay de-duplication (echoed blocks are not re-broadcast) and tip relay
 - explorer embeds a searchable per-block index (height/hash/txid/address)
+- peer gossip: discover peers by pull, announce self by push, exclude self, and
+  cap the peer set to bound growth
 - faucet invalid-address and IP cooldown logic
 
 ## Live Public Smoke Checks

@@ -32,11 +32,15 @@ class NetCoinNode:
         peers: Optional[Iterable[str]] = None,
         peers_path: Optional[str] = None,
         persist: bool = True,
+        self_url: Optional[str] = None,
+        max_peers: int = 128,
     ):
         self.chain = chain
         self.peers = set()
         self.orphans: Dict[str, Block] = {}
         self.persist = persist
+        self.max_peers = max_peers
+        self.self_url = self._normalize_peer(self_url) if self_url else None
         # Bounded memory of recently relayed block hashes so a block is not
         # re-broadcast in a relay loop when peers echo it back.
         self._broadcast_seen: List[str] = []
@@ -55,8 +59,56 @@ class NetCoinNode:
         return peer
 
     def add_peer(self, peer: str) -> None:
-        self.peers.add(self._normalize_peer(peer))
+        normalized = self._normalize_peer(peer)
+        # Never add ourselves, and respect the peer cap so gossip cannot grow the
+        # peer set without bound (a simple DoS guard).
+        if self.self_url and normalized == self.self_url:
+            return
+        if normalized not in self.peers and len(self.peers) >= self.max_peers:
+            return
+        self.peers.add(normalized)
         self._save_peers()
+
+    def discover_peers(self) -> int:
+        """Gossip pull: ask known peers for their peer lists and merge new ones."""
+        learned = 0
+        for peer in list(self.peers):
+            try:
+                data = self.fetch_json(f"{peer}/peers")
+            except Exception:
+                continue
+            for candidate in data.get("peers", []):
+                try:
+                    normalized = self._normalize_peer(str(candidate))
+                except NodeError:
+                    continue
+                if normalized == self.self_url or normalized in self.peers:
+                    continue
+                before = len(self.peers)
+                self.add_peer(normalized)
+                if len(self.peers) > before:
+                    learned += 1
+        return learned
+
+    def announce_self(self) -> int:
+        """Gossip push: tell known peers our advertised URL so they can dial back."""
+        if not self.self_url:
+            return 0
+        delivered = 0
+        for peer in list(self.peers):
+            try:
+                self.post_json(f"{peer}/peers", {"peers": [self.self_url]})
+                delivered += 1
+            except Exception:
+                continue
+        return delivered
+
+    def bootstrap(self) -> Dict[str, int]:
+        """Announce ourselves, learn new peers, then sync chains."""
+        announced = self.announce_self()
+        learned = self.discover_peers()
+        adopted = self.sync_all()
+        return {"announced": announced, "learned": learned, "adopted_chains": adopted}
 
     def _load_peers(self) -> None:
         if not self.persist:
@@ -297,12 +349,21 @@ def make_handler(node: NetCoinNode):
     return Handler
 
 
-def run_node(data_dir: str, host: str = "127.0.0.1", port: int = DEFAULT_NODE_PORT, peers: Optional[List[str]] = None) -> None:
+def run_node(
+    data_dir: str,
+    host: str = "127.0.0.1",
+    port: int = DEFAULT_NODE_PORT,
+    peers: Optional[List[str]] = None,
+    advertise: Optional[str] = None,
+) -> None:
     chain = Blockchain(data_dir=data_dir)
-    node = NetCoinNode(chain, peers=peers or [])
-    node.sync_all()
+    node = NetCoinNode(chain, peers=peers or [], self_url=advertise)
+    result = node.bootstrap()
     server = ThreadingHTTPServer((host, port), make_handler(node))
     print(f"NetCoin node listening on http://{host}:{port}")
+    if advertise:
+        print(f"advertising as {advertise}")
+    print(f"peers={len(node.peers)} learned={result['learned']} adopted_chains={result['adopted_chains']}")
     print(f"height={chain.height()} tip={chain.tip_hash()}")
     try:
         server.serve_forever()
