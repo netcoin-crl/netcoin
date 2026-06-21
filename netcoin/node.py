@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
@@ -25,18 +26,55 @@ class NodeError(ValueError):
 
 
 class NetCoinNode:
-    def __init__(self, chain: Blockchain, peers: Optional[Iterable[str]] = None):
+    def __init__(
+        self,
+        chain: Blockchain,
+        peers: Optional[Iterable[str]] = None,
+        peers_path: Optional[str] = None,
+        persist: bool = True,
+    ):
         self.chain = chain
         self.peers = set()
         self.orphans: Dict[str, Block] = {}
+        self.persist = persist
+        self.peers_path = Path(peers_path) if peers_path else (Path(chain.data_dir) / "peers.json")
+        # Reload peers discovered on previous runs, then merge in any provided
+        # via --peer so the node reconnects to known peers across restarts.
+        self._load_peers()
         for peer in peers or []:
             self.add_peer(peer)
 
-    def add_peer(self, peer: str) -> None:
+    def _normalize_peer(self, peer: str) -> str:
         peer = peer.rstrip("/")
         if not peer.startswith(("http://", "https://")):
             raise NodeError("peer must start with http:// or https://")
-        self.peers.add(peer)
+        return peer
+
+    def add_peer(self, peer: str) -> None:
+        self.peers.add(self._normalize_peer(peer))
+        self._save_peers()
+
+    def _load_peers(self) -> None:
+        if not self.persist:
+            return
+        try:
+            data = json.loads(self.peers_path.read_text())
+        except (FileNotFoundError, ValueError):
+            return
+        for peer in data.get("peers", []):
+            try:
+                self.peers.add(self._normalize_peer(str(peer)))
+            except NodeError:
+                continue
+
+    def _save_peers(self) -> None:
+        if not self.persist:
+            return
+        try:
+            self.peers_path.parent.mkdir(parents=True, exist_ok=True)
+            self.peers_path.write_text(json.dumps({"peers": sorted(self.peers)}, indent=2, sort_keys=True))
+        except OSError:
+            pass
 
     def info(self) -> Dict[str, Any]:
         data = self.chain.chain_info()

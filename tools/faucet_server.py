@@ -19,6 +19,7 @@ from pathlib import Path
 from urllib.parse import parse_qs
 
 from netcoin.crypto import validate_address
+from netcoin.tx import amount_to_sats
 
 
 HOST = os.environ.get("NETCOIN_FAUCET_HOST", "127.0.0.1")
@@ -31,6 +32,10 @@ STATE_FILE = Path(os.environ.get("NETCOIN_FAUCET_STATE", "/opt/netcoin/faucet/st
 AMOUNT = os.environ.get("NETCOIN_FAUCET_AMOUNT", "5")
 FEE = os.environ.get("NETCOIN_FAUCET_FEE", "0.01")
 COOLDOWN_SECONDS = int(os.environ.get("NETCOIN_FAUCET_COOLDOWN_SECONDS", str(24 * 60 * 60)))
+# Hardening knobs.
+MAX_BODY_BYTES = int(os.environ.get("NETCOIN_FAUCET_MAX_BODY", "4096"))
+MAX_REQUESTS_PER_MINUTE = int(os.environ.get("NETCOIN_FAUCET_MAX_PER_MINUTE", "5"))
+MAX_ABUSE_LOG = int(os.environ.get("NETCOIN_FAUCET_MAX_ABUSE_LOG", "200"))
 
 
 PAGE = """<!doctype html>
@@ -111,6 +116,61 @@ def rate_limited(ip: str, state: dict) -> tuple[bool, int]:
     return limited_until > now, max(0, limited_until - now)
 
 
+def body_too_large(length: int) -> bool:
+    return length > MAX_BODY_BYTES
+
+
+def burst_limited(state: dict, now: int | None = None) -> bool:
+    """True if the faucet has served too many requests in the last 60 seconds.
+
+    A global per-minute throttle protects the hot wallet and node from a rapid
+    drain even when requests come from many different IPs (the 24h cooldown is
+    per-IP and does not bound short bursts)."""
+    now = int(time.time()) if now is None else now
+    recent = [item for item in state.get("requests", []) if now - int(item.get("timestamp", 0)) < 60]
+    return len(recent) >= MAX_REQUESTS_PER_MINUTE
+
+
+def record_abuse(state: dict, ip: str, reason: str, now: int | None = None) -> None:
+    """Append a rejected attempt to a capped in-state abuse log for later review."""
+    now = int(time.time()) if now is None else now
+    log = state.setdefault("abuse", [])
+    log.append({"ip": ip, "reason": reason, "timestamp": now})
+    if len(log) > MAX_ABUSE_LOG:
+        del log[: len(log) - MAX_ABUSE_LOG]
+
+
+def sufficient_funds(spendable_sats: int | None, amount: str, fee: str) -> bool:
+    """True if the faucet wallet can cover amount+fee. Unknown balance -> True
+    (best-effort: never block legitimate users just because the balance query
+    failed)."""
+    if spendable_sats is None:
+        return True
+    try:
+        return int(spendable_sats) >= amount_to_sats(amount) + amount_to_sats(fee)
+    except (TypeError, ValueError):
+        return True
+
+
+def faucet_spendable_sats() -> int | None:
+    """Best-effort query of the faucet wallet's spendable balance, in sats.
+
+    Returns None if the balance cannot be determined (so the caller does not
+    block on a transient failure)."""
+    try:
+        result = subprocess.run(
+            [PYTHON, "-m", "netcoin", "--data", DATA_DIR, "balance", "--wallet", WALLET],
+            text=True,
+            capture_output=True,
+            timeout=20,
+        )
+        if result.returncode != 0:
+            return None
+        return int(json.loads(result.stdout)["spendable_sats"])
+    except Exception:
+        return None
+
+
 def send_faucet(address: str) -> dict:
     command = [
         PYTHON,
@@ -166,17 +226,35 @@ class FaucetHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         length = int(self.headers.get("Content-Length", "0"))
+        ip = client_ip(self)
+        if body_too_large(length):
+            state = load_state()
+            record_abuse(state, ip, "body-too-large")
+            save_state(state)
+            self.render(message_box("Request too large.", error=True))
+            return
         form = parse_qs(self.rfile.read(length).decode("utf-8"))
         address = form.get("address", [""])[0].strip()
-        ip = client_ip(self)
+        state = load_state()
         if not validate_address(address):
+            record_abuse(state, ip, "invalid-address")
+            save_state(state)
             self.render(message_box("Invalid NetCoin address.", error=True))
             return
-        state = load_state()
         limited, remaining = rate_limited(ip, state)
         if limited:
+            record_abuse(state, ip, "rate-limited")
+            save_state(state)
             hours = max(1, (remaining + 3599) // 3600)
             self.render(message_box(f"Rate limit active. Try again in about {hours} hour(s).", error=True))
+            return
+        if burst_limited(state):
+            record_abuse(state, ip, "burst")
+            save_state(state)
+            self.render(message_box("Faucet is busy. Please wait a minute and try again.", error=True))
+            return
+        if not sufficient_funds(faucet_spendable_sats(), AMOUNT, FEE):
+            self.render(message_box("Faucet is temporarily empty. Please try again later.", error=True))
             return
         try:
             sent = send_faucet(address)

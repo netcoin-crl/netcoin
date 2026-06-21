@@ -369,6 +369,23 @@ def test_replace_chain_adopts_greater_work(tmp_path: Path):
     assert short.tip_hash() == longer.tip_hash()
 
 
+def test_node_persists_and_reloads_peers(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    node = NetCoinNode(chain, peers=["http://seed1.example:28444/"])
+    node.add_peer("http://seed2.example:28444")
+
+    # A fresh node on the same data directory reloads peers from disk.
+    reloaded = NetCoinNode(Blockchain(tmp_path / "chain"))
+    assert reloaded.peers == {"http://seed1.example:28444", "http://seed2.example:28444"}
+
+
+def test_node_peer_persistence_can_be_disabled(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    NetCoinNode(chain, peers=["http://seed1.example:28444"], persist=False)
+    reloaded = NetCoinNode(Blockchain(tmp_path / "chain"))
+    assert reloaded.peers == set()
+
+
 def test_sync_adopts_longer_valid_chain_from_peer(tmp_path: Path):
     remote = Blockchain(tmp_path / "remote")
     miner = Wallet.create()

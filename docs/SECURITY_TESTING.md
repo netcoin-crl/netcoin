@@ -35,6 +35,11 @@ The regression suite covers:
 - explorer generation and status-dashboard rendering (with HTML escaping)
 - fuzz suite: transaction/block parsing, raw-tx decoding, script parsing, and node
   endpoints survive random/garbage input without crashing
+- wallet seed-phrase verification, recovery round-trips, encrypted save/load with
+  wrong-passphrase and tamper rejection, and key/address mismatch rejection
+- faucet hardening: body cap, per-minute burst throttle, abuse-log capping, and the
+  wallet-balance gate
+- node peer persistence reloads known peers across restarts
 - faucet invalid-address and IP cooldown logic
 
 ## Live Public Smoke Checks

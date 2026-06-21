@@ -59,6 +59,19 @@ def seed_phrase_to_entropy(phrase: str) -> bytes:
     return values
 
 
+def verify_seed_phrase(phrase: str) -> bool:
+    """Return True if the phrase is a well-formed NetCoin seed phrase.
+
+    Checks that every word is known and the checksum word matches. Use this to
+    confirm a written-down backup is valid before relying on it. Never raises.
+    """
+    try:
+        seed_phrase_to_entropy(phrase)
+        return True
+    except WalletError:
+        return False
+
+
 def private_key_from_seed_phrase(phrase: str, index: int = 0) -> int:
     entropy = seed_phrase_to_entropy(phrase)
     seed = hashlib.pbkdf2_hmac("sha256", entropy, b"NetCoin seed phrase", 100_000, dklen=32)
@@ -153,6 +166,20 @@ class Wallet:
     @property
     def taproot_address(self) -> str:
         return public_key_to_taproot_address(private_key_to_xonly_public_key(self.private_key))
+
+    def matches_seed_phrase(self, phrase: str, index: int = 0) -> bool:
+        """Return True if the seed phrase regenerates this wallet's key.
+
+        Lets a tester confirm a backup phrase actually controls this wallet
+        before trusting it for recovery. Returns False for an invalid phrase
+        rather than raising.
+        """
+        if not verify_seed_phrase(phrase):
+            return False
+        try:
+            return private_key_from_seed_phrase(phrase, index=index) == self.private_key
+        except WalletError:
+            return False
 
     def address_for(self, address_type: str = "legacy") -> str:
         normalized = address_type.lower()
