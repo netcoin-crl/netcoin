@@ -1,12 +1,14 @@
-# NetCoin v0.2
+# NetCoin
 
 NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in pure Python. It is **not Bitcoin**, does not connect to the Bitcoin network, and should not be used as real money software.
 
-This v0.2 package adds many of the Bitcoin-like systems missing from the first NetCoin build while keeping the project readable and runnable on a Mac.
+It runs anywhere Python 3.10+ runs — **macOS, Linux, and Windows** — with **no third-party dependencies** (standard library only). The public testnet seeds run it on Ubuntu Linux.
 
-## What v0.2 adds
+> **Current release: v0.4.1.** See the [CHANGELOG](CHANGELOG.md) for what each release added and [docs/UPGRADING.md](docs/UPGRADING.md) for updating a node between releases.
 
-Implemented in code:
+## What's implemented
+
+Core chain and consensus (since v0.2):
 
 - UTXO chain validation
 - Proof-of-work mining
@@ -42,6 +44,22 @@ Implemented in code:
 - P2P message envelope framing helpers and experimental TCP P2P server/client
 - PSBT-like signing container
 
+Added in v0.3–v0.4:
+
+- Persistent/incremental UTXO set (no full rescan per query)
+- Pruned mode (drop old block bodies, keep headers + UTXO snapshot)
+- Persistent block / transaction / address indexes
+- Optional SQLite storage backend (`NETCOIN_BACKEND=sqlite`) with `migrate-sqlite`
+- Cumulative-work fork choice with reorg, rollback, and mempool revalidation
+- Headers-first sync, relay queue, and peer inventory cache over the TCP transport
+- Fuller Script VM (conditionals, arithmetic, stack ops, crypto opcodes, strict errors)
+- Full PSBT flow (create / sign / combine / finalize / extract)
+- Descriptor wallets (`wallet-descriptor`, `descriptor-address`)
+- Wallet format versioning + migration (`wallet-migrate`) and a stronger KDF
+- Coin control / selection strategies, gap-limit scan, labels, change-address rotation, auto-lock
+- Faucet hardening (rate limits, abuse log, send queue, hot-wallet isolation)
+- Versioned release process with reproducible artifacts + `SHA256SUMS`
+
 Still not something code alone can create:
 
 - Real global hashpower
@@ -54,29 +72,34 @@ Still not something code alone can create:
 
 Those require people, infrastructure, review, miners, users, and time.
 
-## Run on Mac
+## Get the code & run it
 
-NetCoin has no external Python package dependencies. After unzipping, run it from the **outer** project folder that contains `pyproject.toml`:
+NetCoin has no external Python package dependencies. Clone the repo and run it from the project root (the folder that contains `pyproject.toml`):
 
 ```bash
-cd ~/Downloads/netcoin-v2
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
 python3 -m netcoin --help
 ```
 
-Optional virtual environment setup:
+Optional virtual environment (recommended):
 
 ```bash
-cd ~/Downloads/netcoin-v2
+cd netcoin
 python3 -m venv .venv
-. .venv/bin/activate
+. .venv/bin/activate          # Windows: .venv\Scripts\activate
 python -m netcoin --help
 ```
 
-Do not `cd netcoin` again after `cd ~/Downloads/netcoin-v2`; the inner `netcoin` folder is the Python package.
+The inner `netcoin/` folder is the Python package — run commands from the project root, not from inside it.
+
+> Works on macOS, Linux, and Windows. The CLI is pure Python; the `tools/*.sh` operator
+> scripts are bash (macOS/Linux/WSL) and the systemd units are Linux-only. A few examples
+> below use the macOS `open` command — substitute `xdg-open` (Linux) or `start` (Windows).
 
 ## Public testnet status
 
-NetCoin v0.2 is ready for a small **testnet-only** launch. Testnet NET has no real-money value, bugs are expected, and seed nodes should expose only the public peer port.
+NetCoin is in a **testnet-only** phase. Testnet NET has no real-money value, bugs are expected, and seed nodes should expose only the public peer port.
 
 Default public testnet ports:
 
