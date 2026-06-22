@@ -4,9 +4,12 @@ NetCoin is experimental testnet software. It is educational code, not hardened p
 
 Please do not publicly disclose serious security bugs before maintainers have a chance to review and fix them.
 
-Report security issues to:
+Report security issues by email to:
 
-security@YOURDOMAIN.com
+netcoin2026@gmail.com
+
+(You may also use GitHub's private "Report a vulnerability" advisory feature on the
+repository once it is public.)
 
 Include:
 
