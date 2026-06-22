@@ -45,11 +45,20 @@ Open the faucet and paste your address:
 The faucet sends **5 test NET** (one request per IP per 24 hours). Watch it arrive:
 
 ```bash
+python -m netcoin balance \
+  --node http://18.220.89.128:28444 \
+  --address <YOUR_ADDRESS>
+```
+
+This asks a public seed for the address balance. You can also use your own synced
+local data directory:
+
+```bash
 python -m netcoin --data ~/.netcoin-testnet balance --address <YOUR_ADDRESS>
 ```
 
-(Your node or a public explorer must have the transaction mined for the balance to
-show. See the [explorer](http://18.220.89.128/).)
+The transaction must be mined before the balance changes. See the
+[explorer](http://18.220.89.128/).
 
 ## 4. Point a local data dir at the network
 
@@ -113,7 +122,8 @@ privately.
 |---|---|
 | New wallet | `wallet-new --out my-wallet.json --mnemonic` |
 | Wallet info | `wallet-info --wallet my-wallet.json` |
-| Balance | `--data ~/.netcoin-testnet balance --address <ADDR>` |
+| Balance from public seed | `balance --node http://18.220.89.128:28444 --address <ADDR>` |
+| Balance from local chain | `--data ~/.netcoin-testnet balance --address <ADDR>` |
 | Run node | `--data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 --peer ...` |
 | Send | `send --wallet my-wallet.json --to <ADDR> --amount 1 --fee 0.01 --broadcast-to <node>` |
 | Mine | `miner --node <node> --wallet my-wallet.json --blocks 1` |

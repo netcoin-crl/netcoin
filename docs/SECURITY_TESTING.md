@@ -37,8 +37,8 @@ The regression suite covers:
   endpoints survive random/garbage input without crashing
 - wallet seed-phrase verification, recovery round-trips, encrypted save/load with
   wrong-passphrase and tamper rejection, and key/address mismatch rejection
-- faucet hardening: body cap, per-minute burst throttle, abuse-log capping, and the
-  wallet-balance gate
+- faucet hardening: body cap, per-minute burst throttle, abuse-log capping, the
+  wallet-balance gate, queued payout helpers, and hot-wallet refill status
 - node peer persistence reloads known peers across restarts
 - chain reorg: adopts a heavier valid fork, keeps the first-seen tip on equal work,
   rejects invalid and bad-proof-of-work forks, connects out-of-order blocks, and
@@ -48,6 +48,8 @@ The regression suite covers:
 - peer gossip: discover peers by pull, announce self by push, exclude self, and
   cap the peer set to bound growth
 - faucet invalid-address and IP cooldown logic
+- node/explorer public endpoint throttling returns `429` after the configured
+  per-IP/per-path limit
 
 ## Live Public Smoke Checks
 
@@ -122,6 +124,8 @@ Safe local tests:
 - form post to wrong path
 - unavailable node behind faucet
 - faucet wallet with insufficient funds
+- queued faucet requests while the hot wallet needs refill
+- unauthorized faucet queue-drain attempts
 
 Expected:
 
@@ -216,4 +220,3 @@ Before calling the network production-like:
 - release artifact is signed
 - node, faucet, and explorer have rate limits
 - no wallet mnemonic or private key is published
-

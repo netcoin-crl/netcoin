@@ -36,6 +36,11 @@ COOLDOWN_SECONDS = int(os.environ.get("NETCOIN_FAUCET_COOLDOWN_SECONDS", str(24 
 MAX_BODY_BYTES = int(os.environ.get("NETCOIN_FAUCET_MAX_BODY", "4096"))
 MAX_REQUESTS_PER_MINUTE = int(os.environ.get("NETCOIN_FAUCET_MAX_PER_MINUTE", "5"))
 MAX_ABUSE_LOG = int(os.environ.get("NETCOIN_FAUCET_MAX_ABUSE_LOG", "200"))
+QUEUE_MODE = os.environ.get("NETCOIN_FAUCET_QUEUE_MODE", "sync").strip().lower()
+MAX_QUEUE_ITEMS = int(os.environ.get("NETCOIN_FAUCET_MAX_QUEUE", "100"))
+ADMIN_TOKEN = os.environ.get("NETCOIN_FAUCET_ADMIN_TOKEN", "")
+MIN_SPENDABLE_SATS = int(os.environ.get("NETCOIN_FAUCET_MIN_SPENDABLE_SATS", "1000000000"))
+REFILL_ADDRESS = os.environ.get("NETCOIN_FAUCET_REFILL_ADDRESS", "")
 
 
 PAGE = """<!doctype html>
@@ -81,9 +86,12 @@ PAGE = """<!doctype html>
 
 def load_state() -> dict:
     try:
-        return json.loads(STATE_FILE.read_text())
+        state = json.loads(STATE_FILE.read_text())
     except FileNotFoundError:
-        return {"requests": []}
+        state = {}
+    state.setdefault("requests", [])
+    state.setdefault("queue", [])
+    return state
 
 
 def save_state(state: dict) -> None:
@@ -113,6 +121,12 @@ def rate_limited(ip: str, state: dict) -> tuple[bool, int]:
             if item.get("ip") == ip:
                 limited_until = max(limited_until, ts + COOLDOWN_SECONDS)
     state["requests"] = recent
+    for item in state.get("queue", []):
+        if item.get("status") != "queued":
+            continue
+        ts = int(item.get("timestamp", 0))
+        if now - ts < COOLDOWN_SECONDS and item.get("ip") == ip:
+            limited_until = max(limited_until, ts + COOLDOWN_SECONDS)
     return limited_until > now, max(0, limited_until - now)
 
 
@@ -123,6 +137,24 @@ def public_history(state: dict, limit: int = 50) -> list:
     return [
         {"address": g.get("address"), "amount": g.get("amount"), "txid": g.get("txid"), "timestamp": g.get("timestamp")}
         for g in recent
+    ]
+
+
+def public_queue(state: dict, limit: int = 50) -> list:
+    """Queued faucet grants for public JSON. Excludes client IPs."""
+    queue = state.get("queue", []) or []
+    recent = list(reversed(queue))[:limit]
+    return [
+        {
+            "id": item.get("id"),
+            "address": item.get("address"),
+            "amount": item.get("amount"),
+            "status": item.get("status"),
+            "txid": item.get("txid"),
+            "timestamp": item.get("timestamp"),
+            "updated_at": item.get("updated_at"),
+        }
+        for item in recent
     ]
 
 
@@ -139,6 +171,73 @@ def burst_limited(state: dict, now: int | None = None) -> bool:
     now = int(time.time()) if now is None else now
     recent = [item for item in state.get("requests", []) if now - int(item.get("timestamp", 0)) < 60]
     return len(recent) >= MAX_REQUESTS_PER_MINUTE
+
+
+def queue_full(state: dict) -> bool:
+    pending = [item for item in state.get("queue", []) if item.get("status") == "queued"]
+    return len(pending) >= MAX_QUEUE_ITEMS
+
+
+def queue_grant(state: dict, ip: str, address: str, now: int | None = None) -> dict:
+    now = int(time.time()) if now is None else now
+    queue = state.setdefault("queue", [])
+    grant = {
+        "id": f"{now}-{len(queue) + 1}",
+        "ip": ip,
+        "address": address,
+        "amount": AMOUNT,
+        "status": "queued",
+        "timestamp": now,
+        "updated_at": now,
+    }
+    queue.append(grant)
+    return grant
+
+
+def mark_grant_sent(state: dict, grant: dict, sent: dict, now: int | None = None) -> None:
+    now = int(time.time()) if now is None else now
+    txid = sent.get("txid")
+    grant.update({"status": "sent", "txid": txid, "updated_at": now})
+    state.setdefault("requests", []).append(
+        {
+            "ip": grant.get("ip"),
+            "address": grant.get("address"),
+            "timestamp": now,
+            "txid": txid,
+            "amount": grant.get("amount", AMOUNT),
+        }
+    )
+
+
+def mark_grant_failed(grant: dict, error: str, now: int | None = None) -> None:
+    now = int(time.time()) if now is None else now
+    grant.update({"status": "failed", "error": error[:500], "updated_at": now})
+
+
+def process_queue(state: dict, limit: int = 1) -> dict:
+    processed = 0
+    sent_count = 0
+    failed_count = 0
+    errors = []
+    for grant in state.get("queue", []):
+        if processed >= limit:
+            break
+        if grant.get("status") != "queued":
+            continue
+        processed += 1
+        if not sufficient_funds(faucet_spendable_sats(), AMOUNT, FEE):
+            errors.append({"id": grant.get("id"), "error": "insufficient-funds"})
+            break
+        try:
+            sent = send_faucet(str(grant.get("address", "")))
+        except Exception as exc:
+            failed_count += 1
+            mark_grant_failed(grant, str(exc))
+            errors.append({"id": grant.get("id"), "error": str(exc)})
+            continue
+        sent_count += 1
+        mark_grant_sent(state, grant, sent)
+    return {"processed": processed, "sent": sent_count, "failed": failed_count, "errors": errors}
 
 
 def record_abuse(state: dict, ip: str, reason: str, now: int | None = None) -> None:
@@ -160,6 +259,21 @@ def sufficient_funds(spendable_sats: int | None, amount: str, fee: str) -> bool:
         return int(spendable_sats) >= amount_to_sats(amount) + amount_to_sats(fee)
     except (TypeError, ValueError):
         return True
+
+
+def hot_wallet_status(spendable_sats: int | None) -> dict:
+    if spendable_sats is None:
+        state = "unknown"
+    elif spendable_sats < MIN_SPENDABLE_SATS:
+        state = "needs_refill"
+    else:
+        state = "ok"
+    return {
+        "state": state,
+        "spendable_sats": spendable_sats,
+        "min_spendable_sats": MIN_SPENDABLE_SATS,
+        "refill_address": REFILL_ADDRESS,
+    }
 
 
 def faucet_spendable_sats() -> int | None:
@@ -225,15 +339,39 @@ class FaucetHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def write_json(self, payload: dict, status: int = 200) -> None:
+        body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def admin_allowed(self) -> bool:
+        if not ADMIN_TOKEN:
+            return False
+        auth = self.headers.get("Authorization", "")
+        return auth == f"Bearer {ADMIN_TOKEN}"
+
     def do_GET(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
         if path == "/history":
-            body = json.dumps({"grants": public_history(load_state())}, indent=2).encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self.write_json({"grants": public_history(load_state())})
+            return
+        if path == "/queue":
+            self.write_json({"queue": public_queue(load_state())})
+            return
+        if path == "/status":
+            state = load_state()
+            queued = sum(1 for item in state.get("queue", []) if item.get("status") == "queued")
+            self.write_json(
+                {
+                    "ok": True,
+                    "queue_mode": QUEUE_MODE,
+                    "queued": queued,
+                    "hot_wallet": hot_wallet_status(faucet_spendable_sats()),
+                }
+            )
             return
         if path not in ("/", "/faucet"):
             self.send_error(404)
@@ -241,6 +379,15 @@ class FaucetHandler(BaseHTTPRequestHandler):
         self.render()
 
     def do_POST(self) -> None:  # noqa: N802
+        if self.path == "/admin/process-queue":
+            if not self.admin_allowed():
+                self.write_json({"ok": False, "error": "unauthorized"}, status=401)
+                return
+            state = load_state()
+            result = process_queue(state, limit=MAX_REQUESTS_PER_MINUTE)
+            save_state(state)
+            self.write_json({"ok": True, **result})
+            return
         if self.path != "/faucet":
             self.send_error(404)
             return
@@ -272,26 +419,33 @@ class FaucetHandler(BaseHTTPRequestHandler):
             save_state(state)
             self.render(message_box("Faucet is busy. Please wait a minute and try again.", error=True))
             return
+        if queue_full(state):
+            record_abuse(state, ip, "queue-full")
+            save_state(state)
+            self.render(message_box("Faucet queue is full. Please try again later.", error=True))
+            return
         if not sufficient_funds(faucet_spendable_sats(), AMOUNT, FEE):
             self.render(message_box("Faucet is temporarily empty. Please try again later.", error=True))
             return
-        try:
-            sent = send_faucet(address)
-        except Exception as exc:
-            self.render(message_box(html.escape(str(exc)), error=True))
+        grant = queue_grant(state, ip, address)
+        if QUEUE_MODE == "sync":
+            result = process_queue(state, limit=1)
+            if result["failed"]:
+                save_state(state)
+                error = result["errors"][0]["error"] if result["errors"] else "faucet send failed"
+                self.render(message_box(html.escape(error), error=True))
+                return
+            if result["sent"] < 1:
+                save_state(state)
+                self.render(message_box("Faucet is temporarily empty. Please try again later.", error=True))
+                return
+            txid = html.escape(str(grant.get("txid", "")))
+            save_state(state)
+            self.render(message_box(f"Sent {html.escape(AMOUNT)} test NET. Txid: <code>{txid}</code>"))
             return
-        state.setdefault("requests", []).append(
-            {
-                "ip": ip,
-                "address": address,
-                "timestamp": int(time.time()),
-                "txid": sent.get("txid"),
-                "amount": AMOUNT,
-            }
-        )
         save_state(state)
-        txid = html.escape(str(sent.get("txid", "")))
-        self.render(message_box(f"Sent {html.escape(AMOUNT)} test NET. Txid: <code>{txid}</code>"))
+        grant_id = html.escape(str(grant.get("id", "")))
+        self.render(message_box(f"Request queued. Grant id: <code>{grant_id}</code>"))
 
 
 def main() -> None:

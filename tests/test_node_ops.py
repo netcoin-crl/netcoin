@@ -73,6 +73,16 @@ def test_events_endpoint_over_http(tmp_path: Path):
     assert any(e["event"] == "block_accepted" for e in events)
 
 
+def test_relay_endpoint_reports_queue(tmp_path: Path):
+    node = NetCoinNode(Blockchain(tmp_path / "chain"), peers=["http://127.0.0.1:1"], persist=False)
+    node.enqueue_relay("tx", "/tx", "abc", {"version": 1})
+    with served(node) as s:
+        with urlopen(f"{s.url}/relay", timeout=5) as r:
+            data = json.loads(r.read().decode())
+    assert data["queue"] == 1
+    assert data["items"][0]["kind"] == "tx"
+
+
 def test_post_endpoint_rate_limited(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     node = NetCoinNode(chain, persist=False, rate_limit_per_min=2)
@@ -88,6 +98,20 @@ def test_post_endpoint_rate_limited(tmp_path: Path):
     # First two pass the limiter (then fail validation as 400); third is 429.
     assert codes[2] == 429
     assert codes[0] in (200, 400) and codes[1] in (200, 400)
+
+
+def test_get_endpoint_rate_limited(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    node = NetCoinNode(chain, persist=False, rate_limit_per_min=2)
+    with served(node) as s:
+        codes = []
+        for _ in range(3):
+            try:
+                urlopen(f"{s.url}/info", timeout=5).read()
+                codes.append(200)
+            except HTTPError as exc:
+                codes.append(exc.code)
+    assert codes == [200, 200, 429]
 
 
 def test_request_retry_and_timeout_are_configurable(tmp_path: Path):

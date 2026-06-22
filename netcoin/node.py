@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import json
 import time
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Event, Thread
 from typing import Any, Dict, Iterable, List, Optional
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
@@ -56,6 +58,18 @@ class RateLimiter:
         return True
 
 
+@dataclass
+class RelayItem:
+    kind: str
+    path: str
+    inventory_id: str
+    payload: Dict[str, Any]
+    peers: List[str]
+    attempts: int = 0
+    next_try_at: float = 0.0
+    created_at: float = field(default_factory=time.time)
+
+
 class NetCoinNode:
     def __init__(
         self,
@@ -93,6 +107,16 @@ class NetCoinNode:
         # re-broadcast in a relay loop when peers echo it back.
         self._broadcast_seen: List[str] = []
         self._broadcast_seen_set: set[str] = set()
+        # Bounded inventory cache + relay queue. Inventory keeps echoed tx/block
+        # announcements from being re-enqueued repeatedly; failed deliveries stay
+        # queued with exponential backoff for a later drain.
+        self._relay_inventory: List[str] = []
+        self._relay_inventory_set: set[str] = set()
+        self._relay_queue: List[RelayItem] = []
+        self.max_relay_inventory = 2000
+        self.max_relay_queue = 1000
+        self.relay_max_attempts = 3
+        self.relay_backoff_seconds = 2.0
         self.started_at = time.time()
         self.peers_path = Path(peers_path) if peers_path else (Path(chain.data_dir) / "peers.json")
         self._load_banned()
@@ -217,6 +241,31 @@ class NetCoinNode:
         adopted = self.sync_all()
         return {"announced": announced, "learned": learned, "adopted_chains": adopted}
 
+    def start_background_sync(self, interval_seconds: int) -> tuple[Event, Thread]:
+        """Start a lightweight recurring peer discovery + sync loop.
+
+        Returns a stop event and thread so tests and embedding callers can shut
+        it down cleanly. An interval <= 0 is intentionally invalid here; callers
+        should simply not start the loop in that case.
+        """
+        interval = int(interval_seconds)
+        if interval <= 0:
+            raise NodeError("background sync interval must be positive")
+
+        stop = Event()
+
+        def loop() -> None:
+            while not stop.wait(interval):
+                try:
+                    self.bootstrap()
+                    self.log_event("background_sync", ok=True)
+                except Exception as exc:
+                    self.log_event("background_sync", ok=False, reason=str(exc))
+
+        thread = Thread(target=loop, name="netcoin-background-sync", daemon=True)
+        thread.start()
+        return stop, thread
+
     def _load_peers(self) -> None:
         if not self.persist:
             return
@@ -280,6 +329,7 @@ class NetCoinNode:
             "mempool": chain_info["mempool_transactions"],
             "peers": len(self.peers),
             "orphans": len(self.orphans),
+            "relay_queue": len(self._relay_queue),
             "uptime_seconds": self.uptime_seconds(),
             "services": self.SERVICES,
         }
@@ -303,6 +353,9 @@ class NetCoinNode:
             "# HELP netcoin_orphan_candidates Stored off-tip blocks.",
             "# TYPE netcoin_orphan_candidates gauge",
             f"netcoin_orphan_candidates {info['orphan_candidates']}",
+            "# HELP netcoin_relay_queue_items Pending relay queue items.",
+            "# TYPE netcoin_relay_queue_items gauge",
+            f"netcoin_relay_queue_items {len(self._relay_queue)}",
             "# HELP netcoin_cumulative_work Cumulative chain work.",
             "# TYPE netcoin_cumulative_work gauge",
             f"netcoin_cumulative_work {info['cumulative_work']}",
@@ -417,39 +470,99 @@ class NetCoinNode:
 
     def broadcast_transaction(self, tx: Transaction) -> int:
         payload = tx.to_dict(include_scripts=True, include_witness=True)
-        delivered = 0
-        for peer in list(self.peers):
-            try:
-                self.post_json(f"{peer}/tx", payload)
-                delivered += 1
-            except Exception:
-                continue
-        return delivered
+        txid = tx.txid()
+        if not self.enqueue_relay("tx", "/tx", txid, payload):
+            return 0
+        return self.drain_relay_queue()
+
+    def _remember_inventory(self, inventory_key: str) -> bool:
+        """Record an inventory key. Returns False if it was already seen."""
+        if inventory_key in self._relay_inventory_set:
+            return False
+        self._relay_inventory_set.add(inventory_key)
+        self._relay_inventory.append(inventory_key)
+        if len(self._relay_inventory) > self.max_relay_inventory:
+            oldest = self._relay_inventory.pop(0)
+            self._relay_inventory_set.discard(oldest)
+        return True
 
     def _mark_broadcast(self, block_hash: str) -> bool:
-        """Record a block hash as broadcast. Returns False if already seen."""
+        """Backward-compatible block relay marker used by existing tests."""
         if block_hash in self._broadcast_seen_set:
             return False
         self._broadcast_seen_set.add(block_hash)
         self._broadcast_seen.append(block_hash)
-        if len(self._broadcast_seen) > 1000:
+        if len(self._broadcast_seen) > self.max_relay_inventory:
             oldest = self._broadcast_seen.pop(0)
             self._broadcast_seen_set.discard(oldest)
+        return self._remember_inventory(f"block:{block_hash}")
+
+    def enqueue_relay(
+        self,
+        kind: str,
+        path: str,
+        inventory_id: str,
+        payload: Dict[str, Any],
+        *,
+        peers: Optional[Iterable[str]] = None,
+        force: bool = False,
+    ) -> bool:
+        inventory_key = f"{kind}:{inventory_id}"
+        if not force and not self._remember_inventory(inventory_key):
+            return False
+        targets = [peer for peer in (peers or sorted(self.peers)) if peer not in self.banned]
+        if not targets:
+            return False
+        if len(self._relay_queue) >= self.max_relay_queue:
+            dropped = self._relay_queue.pop(0)
+            self.log_event("relay_dropped", item_kind=dropped.kind, inventory_id=dropped.inventory_id, reason="queue full")
+        self._relay_queue.append(RelayItem(kind=kind, path=path, inventory_id=inventory_id, payload=payload, peers=targets))
+        self.log_event("relay_queued", item_kind=kind, inventory_id=inventory_id, peers=len(targets), queue=len(self._relay_queue))
         return True
+
+    def drain_relay_queue(self) -> int:
+        now = time.time()
+        delivered = 0
+        remaining: List[RelayItem] = []
+        for item in self._relay_queue:
+            if item.next_try_at > now:
+                remaining.append(item)
+                continue
+            item.attempts += 1
+            failed: List[str] = []
+            for peer in item.peers:
+                try:
+                    self.post_json(f"{peer}{item.path}", item.payload)
+                    delivered += 1
+                    self.score_peer(peer, 1)
+                except Exception:
+                    failed.append(peer)
+                    self.score_peer(peer, -1, reason=f"{item.kind} relay failure")
+            if failed and item.attempts < self.relay_max_attempts:
+                item.peers = failed
+                item.next_try_at = now + self.relay_backoff_seconds * (2 ** (item.attempts - 1))
+                remaining.append(item)
+            elif failed:
+                self.log_event(
+                    "relay_failed",
+                    item_kind=item.kind,
+                    inventory_id=item.inventory_id,
+                    peers=len(failed),
+                    attempts=item.attempts,
+                )
+            else:
+                self.log_event("relay_delivered", item_kind=item.kind, inventory_id=item.inventory_id, attempts=item.attempts)
+        self._relay_queue = remaining
+        return delivered
 
     def broadcast_block(self, block: Block, force: bool = False) -> int:
         # Skip blocks we have already relayed so echoed blocks do not loop.
-        if not force and not self._mark_broadcast(block.hash()):
+        block_hash = block.hash()
+        if not force and not self._mark_broadcast(block_hash):
             return 0
-        payload = block.to_dict()
-        delivered = 0
-        for peer in list(self.peers):
-            try:
-                self.post_json(f"{peer}/block", payload)
-                delivered += 1
-            except Exception:
-                continue
-        self.log_event("block_relayed", hash=block.hash(), peers=delivered)
+        queued = self.enqueue_relay("block", "/block", block_hash, block.to_dict(), force=True)
+        delivered = self.drain_relay_queue() if queued else 0
+        self.log_event("block_relayed", hash=block_hash, peers=delivered, queue=len(self._relay_queue))
         return delivered
 
     def relay_new_blocks(self, received: Block) -> int:
@@ -498,6 +611,9 @@ def make_handler(node: NetCoinNode):
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib method name
             parsed = urlparse(self.path)
+            if not node.rate_limiter.allow((self.client_ip(), "GET", parsed.path)):
+                self.send_error_json("rate limit exceeded", status=429)
+                return
             try:
                 if parsed.path in ("/", "/info"):
                     self.send_json({"ok": True, "node": node.info()})
@@ -505,6 +621,23 @@ def make_handler(node: NetCoinNode):
                     self.send_json(node.health())
                 elif parsed.path == "/metrics":
                     self.send_text(node.metrics_text())
+                elif parsed.path == "/relay":
+                    self.send_json(
+                        {
+                            "queue": len(node._relay_queue),
+                            "inventory": len(node._relay_inventory),
+                            "items": [
+                                {
+                                    "kind": item.kind,
+                                    "inventory_id": item.inventory_id,
+                                    "peers": len(item.peers),
+                                    "attempts": item.attempts,
+                                    "next_try_at": int(item.next_try_at),
+                                }
+                                for item in node._relay_queue
+                            ],
+                        }
+                    )
                 elif parsed.path == "/events":
                     query = parse_qs(parsed.query)
                     limit = max(1, min(int(query.get("limit", [100])[0]), 500))
@@ -549,6 +682,9 @@ def make_handler(node: NetCoinNode):
                 elif parsed.path.startswith("/address/"):
                     address = parsed.path.split("/", 2)[2]
                     self.send_json(node.chain.address_summary(address))
+                elif parsed.path.startswith("/balance/"):
+                    address = parsed.path.split("/", 2)[2]
+                    self.send_json(node.chain.address_balance_summary(address))
                 elif parsed.path == "/latest":
                     query = parse_qs(parsed.query)
                     n = max(1, min(int(query.get("n", [10])[0]), 100))
@@ -595,7 +731,7 @@ def make_handler(node: NetCoinNode):
         def do_POST(self) -> None:  # noqa: N802 - stdlib method name
             parsed = urlparse(self.path)
             # Per-IP, per-endpoint rate limiting for write/relay endpoints.
-            if not node.rate_limiter.allow((self.client_ip(), parsed.path)):
+            if not node.rate_limiter.allow((self.client_ip(), "POST", parsed.path)):
                 self.send_error_json("rate limit exceeded", status=429)
                 return
             try:
@@ -624,6 +760,9 @@ def make_handler(node: NetCoinNode):
                 elif parsed.path == "/sync":
                     adopted = node.sync_all()
                     self.send_json({"ok": True, "adopted_chains": adopted, "info": node.info()})
+                elif parsed.path == "/relay":
+                    delivered = node.drain_relay_queue()
+                    self.send_json({"ok": True, "delivered": delivered, "queue": len(node._relay_queue)})
                 else:
                     self.send_error_json("not found", status=404)
             except Exception as exc:
@@ -638,17 +777,29 @@ def run_node(
     port: int = DEFAULT_NODE_PORT,
     peers: Optional[List[str]] = None,
     advertise: Optional[str] = None,
+    sync_interval: int = 0,
+    rate_limit_per_min: int = 240,
 ) -> None:
     chain = Blockchain(data_dir=data_dir)
-    node = NetCoinNode(chain, peers=peers or [], self_url=advertise)
+    node = NetCoinNode(chain, peers=peers or [], self_url=advertise, rate_limit_per_min=rate_limit_per_min)
     result = node.bootstrap()
+    sync_stop: Optional[Event] = None
+    sync_thread: Optional[Thread] = None
+    if sync_interval > 0:
+        sync_stop, sync_thread = node.start_background_sync(sync_interval)
     server = ThreadingHTTPServer((host, port), make_handler(node))
     print(f"NetCoin node listening on http://{host}:{port}")
     if advertise:
         print(f"advertising as {advertise}")
+    if sync_interval > 0:
+        print(f"background sync every {sync_interval}s")
     print(f"peers={len(node.peers)} learned={result['learned']} adopted_chains={result['adopted_chains']}")
     print(f"height={chain.height()} tip={chain.tip_hash()}")
     try:
         server.serve_forever()
     finally:
+        if sync_stop is not None:
+            sync_stop.set()
+        if sync_thread is not None:
+            sync_thread.join(timeout=5)
         server.server_close()

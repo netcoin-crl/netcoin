@@ -9,11 +9,13 @@ is ready to back a socket-based transport later.
 from __future__ import annotations
 
 import json
+import socket
+from socketserver import BaseRequestHandler, ThreadingTCPServer
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from .crypto import double_sha256
-from .params import NETWORK_NAME, NODE_VERSION, P2P_MAGIC, PROTOCOL_VERSION
+from .params import DEFAULT_P2P_PORT, MAX_REQUEST_BODY_BYTES, NETWORK_NAME, NODE_VERSION, P2P_MAGIC, PROTOCOL_VERSION
 from .serialization import block_from_binary, block_to_binary, tx_from_binary, tx_to_binary
 
 
@@ -49,6 +51,41 @@ class Message:
         if double_sha256(payload)[:4] != checksum:
             raise P2PError("invalid payload checksum")
         return cls(command=command, payload=payload)
+
+
+def _recv_exact(sock: socket.socket, length: int) -> bytes:
+    chunks = bytearray()
+    while len(chunks) < length:
+        chunk = sock.recv(length - len(chunks))
+        if not chunk:
+            raise P2PError("socket closed before full message was read")
+        chunks.extend(chunk)
+    return bytes(chunks)
+
+
+def read_message(sock: socket.socket) -> Message:
+    header = _recv_exact(sock, 24)
+    if header[:4] != P2P_MAGIC:
+        raise P2PError("message magic does not match NetCoin")
+    length = int.from_bytes(header[16:20], "little")
+    if length > MAX_REQUEST_BODY_BYTES:
+        raise P2PError("P2P payload too large")
+    payload = _recv_exact(sock, length)
+    return Message.parse(header + payload)
+
+
+def write_message(sock: socket.socket, message: Message) -> None:
+    sock.sendall(message.serialize())
+
+
+def request_message(host: str, port: int, message: Message, timeout: int = 10) -> Optional[Message]:
+    with socket.create_connection((host, int(port)), timeout=timeout) as sock:
+        sock.settimeout(timeout)
+        write_message(sock, message)
+        try:
+            return read_message(sock)
+        except (socket.timeout, P2PError):
+            return None
 
 
 def json_payload(data: Dict[str, Any]) -> bytes:
@@ -148,4 +185,52 @@ def handle_message(message: Message, chain: Optional[Any] = None) -> Optional[Me
                 if found is not None:
                     return tx_message(found[0])
         return None
+    if command == "block":
+        if chain is None:
+            return None
+        block = read_block_message(message)
+        chain.add_block(block)
+        return inv_message([{"type": "block", "hash": block.hash()}])
+    if command == "tx":
+        if chain is None:
+            return None
+        tx = read_tx_message(message)
+        txid = chain.add_mempool_transaction(tx)
+        return inv_message([{"type": "tx", "hash": txid}])
     return None
+
+
+class P2PRequestHandler(BaseRequestHandler):
+    def handle(self) -> None:
+        server = self.server  # type: ignore[assignment]
+        try:
+            message = read_message(self.request)
+            response = handle_message(message, getattr(server, "chain", None))
+            if response is not None:
+                write_message(self.request, response)
+        except Exception:
+            # Socket peers should not crash the node. Full structured peer
+            # scoring belongs in the HTTP node for now; the transport fails
+            # closed by dropping malformed connections.
+            return
+
+
+class NetCoinP2PServer(ThreadingTCPServer):
+    allow_reuse_address = True
+
+    def __init__(self, server_address: tuple[str, int], chain: Any):
+        self.chain = chain
+        super().__init__(server_address, P2PRequestHandler)
+
+
+def run_p2p_server(data_dir: str, host: str = "127.0.0.1", port: int = DEFAULT_P2P_PORT) -> None:
+    from .chain import Blockchain
+
+    chain = Blockchain(data_dir=data_dir)
+    server = NetCoinP2PServer((host, int(port)), chain)
+    print(f"NetCoin P2P listening on {host}:{port}")
+    print(f"height={chain.height()} tip={chain.tip_hash()}")
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()

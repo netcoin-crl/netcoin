@@ -1,11 +1,15 @@
 """CLI wallet commands: backup, recovery test, watch-only export, key-export guard."""
 import argparse
 import json
+from http.server import ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
 
 import pytest
 
 from netcoin import cli
+from netcoin.chain import Blockchain
+from netcoin.node import NetCoinNode, make_handler
 from netcoin.wallet import Wallet, WalletError, new_seed_phrase
 
 
@@ -75,3 +79,31 @@ def test_wallet_info_shows_private_key_with_ack(tmp_path: Path, capsys):
     result = json.loads(capsys.readouterr().out)
     assert result["private_key_hex"] == wallet.private_key_hex
     assert "export_warning" in result
+
+
+def test_balance_can_query_remote_node(tmp_path: Path, capsys):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.address)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(NetCoinNode(chain, persist=False)))
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        cli.cmd_balance(
+            argparse.Namespace(
+                data=str(tmp_path / "unused"),
+                wallet=None,
+                address=miner.address,
+                address_type="p2pkh",
+                passphrase=None,
+                node=f"http://127.0.0.1:{server.server_address[1]}",
+            )
+        )
+        result = json.loads(capsys.readouterr().out)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+    assert result["address"] == miner.address
+    assert result["height"] == 1
+    assert result["total"] == "50.00000000"

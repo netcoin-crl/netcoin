@@ -59,3 +59,95 @@ def test_sufficient_funds_gate():
     assert faucet.sufficient_funds(None, "5", "0.01") is True
     # Malformed amounts default to not-blocking rather than crashing.
     assert faucet.sufficient_funds(0, "not-a-number", "0.01") is True
+
+
+def test_public_queue_excludes_ips():
+    faucet = load_faucet_module()
+    state = {
+        "queue": [
+            {
+                "id": "1",
+                "ip": "203.0.113.10",
+                "address": "Naddr",
+                "amount": "5",
+                "status": "queued",
+                "timestamp": 1000,
+            }
+        ]
+    }
+    public = faucet.public_queue(state)
+    assert public == [
+        {
+            "id": "1",
+            "address": "Naddr",
+            "amount": "5",
+            "status": "queued",
+            "txid": None,
+            "timestamp": 1000,
+            "updated_at": None,
+        }
+    ]
+    assert "ip" not in public[0]
+
+
+def test_queue_full_counts_pending_only(monkeypatch):
+    faucet = load_faucet_module()
+    monkeypatch.setattr(faucet, "MAX_QUEUE_ITEMS", 2)
+    state = {
+        "queue": [
+            {"status": "queued"},
+            {"status": "sent"},
+            {"status": "queued"},
+        ]
+    }
+    assert faucet.queue_full(state) is True
+    state["queue"][0]["status"] = "failed"
+    assert faucet.queue_full(state) is False
+
+
+def test_queued_request_rate_limits_same_ip(monkeypatch):
+    faucet = load_faucet_module()
+    monkeypatch.setattr(faucet, "COOLDOWN_SECONDS", 60)
+    now = int(time.time())
+    monkeypatch.setattr(faucet.time, "time", lambda: now)
+    state = {"requests": [], "queue": [{"ip": "203.0.113.10", "timestamp": now - 5, "status": "queued"}]}
+    limited, remaining = faucet.rate_limited("203.0.113.10", state)
+    assert limited is True
+    assert remaining == 55
+    other_limited, _ = faucet.rate_limited("203.0.113.11", state)
+    assert other_limited is False
+
+
+def test_process_queue_marks_sent_and_records_request(monkeypatch):
+    faucet = load_faucet_module()
+    state = {"requests": [], "queue": []}
+    grant = faucet.queue_grant(state, "203.0.113.10", "Naddr", now=1000)
+    monkeypatch.setattr(faucet, "faucet_spendable_sats", lambda: 1_000_000_000)
+    monkeypatch.setattr(faucet, "send_faucet", lambda address: {"txid": f"tx-{address}"})
+    result = faucet.process_queue(state, limit=1)
+    assert result == {"processed": 1, "sent": 1, "failed": 0, "errors": []}
+    assert grant["status"] == "sent"
+    assert grant["txid"] == "tx-Naddr"
+    assert state["requests"][0]["ip"] == "203.0.113.10"
+    assert state["requests"][0]["txid"] == "tx-Naddr"
+
+
+def test_process_queue_pauses_when_wallet_needs_refill(monkeypatch):
+    faucet = load_faucet_module()
+    state = {"requests": [], "queue": [{"id": "1", "address": "Naddr", "status": "queued", "timestamp": 1000}]}
+    monkeypatch.setattr(faucet, "faucet_spendable_sats", lambda: 1)
+    result = faucet.process_queue(state, limit=1)
+    assert result["sent"] == 0
+    assert result["errors"] == [{"id": "1", "error": "insufficient-funds"}]
+    assert state["queue"][0]["status"] == "queued"
+
+
+def test_hot_wallet_status_refill_signal(monkeypatch):
+    faucet = load_faucet_module()
+    monkeypatch.setattr(faucet, "MIN_SPENDABLE_SATS", 1_000)
+    monkeypatch.setattr(faucet, "REFILL_ADDRESS", "Nrefill")
+    assert faucet.hot_wallet_status(None)["state"] == "unknown"
+    low = faucet.hot_wallet_status(999)
+    assert low["state"] == "needs_refill"
+    assert low["refill_address"] == "Nrefill"
+    assert faucet.hot_wallet_status(1000)["state"] == "ok"
