@@ -1,3 +1,5 @@
 """NetCoin educational Bitcoin-like cryptocurrency."""
 
-__version__ = "0.2.0"
+from .params import NODE_VERSION as __version__
+
+__all__ = ["__version__"]

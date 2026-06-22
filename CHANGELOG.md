@@ -18,6 +18,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   and deployment smoke testing.
 - **Deterministic fuzz smoke runner** (`python -m netcoin fuzz`) exercises parser
   and public endpoint surfaces; CI now runs it under Python dev mode.
+- **Remote-node compatibility warning.** `balance --node` and `miner --node` now
+  check the seed's `/info` first and print a clear warning when it looks like an
+  older/mismatched NetCoin (no `version` field, protocol mismatch, or a missing
+  service) instead of failing with only a raw `HTTP 400/404`. Also fixed the
+  stale `__version__` (`0.2.0`) and `NODE_VERSION` (`0.4.1`) so the client and
+  node both report `0.4.2`.
 - **Crash-safe chain persistence + reindex.** The JSON backend now writes
   `chain.json`/`mempool.json` via fsync'd temp files, atomic `os.replace`, and a
   `.bak` mirror of the last committed state. On load, a corrupt live file is
