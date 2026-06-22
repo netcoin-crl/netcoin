@@ -16,6 +16,12 @@ Before a networking release, also run a local multi-node soak:
 python -m netcoin soak --nodes 3 --rounds 5 --transactions-per-round 2
 ```
 
+For deterministic parser/endpoint fuzz smoke:
+
+```bash
+python -X dev -m netcoin fuzz --target all --iterations 1000 --max-bytes 256
+```
+
 The regression suite covers:
 
 - malformed block with a bad merkle root is rejected
@@ -39,8 +45,8 @@ The regression suite covers:
 - JSON-RPC requires a bearer token when one is configured (401 vs 200)
 - subsidy halving schedule (including zero past 64 halvings, negative-height guard)
 - explorer generation and status-dashboard rendering (with HTML escaping)
-- fuzz suite: transaction/block parsing, raw-tx decoding, script parsing, and node
-  endpoints survive random/garbage input without crashing
+- fuzz runner: transaction/block parsing, raw-tx decoding, script parsing, and node
+  endpoints survive deterministic random/garbage input without crashing
 - wallet seed-phrase verification, recovery round-trips, encrypted save/load with
   wrong-passphrase and tamper rejection, and key/address mismatch rejection
 - faucet hardening: body cap, per-minute burst throttle, abuse-log capping, the

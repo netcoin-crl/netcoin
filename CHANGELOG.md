@@ -16,6 +16,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   multiple in-process HTTP nodes, connects them as peers, mines mature funds,
   relays transactions/blocks, syncs tips, and reports convergence for release
   and deployment smoke testing.
+- **Deterministic fuzz smoke runner** (`python -m netcoin fuzz`) exercises parser
+  and public endpoint surfaces; CI now runs it under Python dev mode.
 
 ## [0.4.2] - 2026-06-22
 
