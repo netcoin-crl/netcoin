@@ -20,6 +20,7 @@ from .crypto import validate_address
 from .miner import block_summary, solve_template
 from .explorer import generate_explorer
 from .explorer_server import run_explorer_server
+from .fuzz import FuzzConfig, run_fuzz
 from .node import run_node
 from .p2p import Message, getheaders_message, ping_message, request_message, run_p2p_server, version_message
 from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_P2P_PORT, DEFAULT_POOL_PORT, DEFAULT_RPC_PORT, DEFAULT_TESTNET_SEEDS, NETWORKS, TICKER
@@ -728,6 +729,11 @@ def cmd_soak(args: argparse.Namespace) -> None:
     print_json(report)
 
 
+def cmd_fuzz(args: argparse.Namespace) -> None:
+    report = run_fuzz(FuzzConfig(target=args.target, iterations=args.iterations, seed=args.seed, max_bytes=args.max_bytes))
+    print_json(report)
+
+
 def cmd_psbt_sign(args: argparse.Namespace) -> None:
     wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
     psbt = PartiallySignedTransaction.from_base64(Path(args.psbt).read_text().strip())
@@ -1026,6 +1032,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fee", default="0.01")
     p.add_argument("--dir", help="optional directory for soak node data; default uses a temp dir")
     p.set_defaults(func=cmd_soak)
+
+    p = sub.add_parser("fuzz", help="run deterministic parser/endpoint fuzz smoke tests")
+    p.add_argument("--target", default="all", choices=["all", "tx-dict", "block-dict", "rawtx", "script", "node-http"])
+    p.add_argument("--iterations", type=int, default=500)
+    p.add_argument("--seed", type=int, default=1234567)
+    p.add_argument("--max-bytes", type=int, default=256)
+    p.set_defaults(func=cmd_fuzz)
 
     p = sub.add_parser("psbt-sign", help="sign a NetCoin PSBT-like base64 file")
     p.add_argument("--wallet", required=True)

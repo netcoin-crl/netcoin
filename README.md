@@ -60,6 +60,7 @@ Added in v0.3–v0.4:
 - Faucet hardening (rate limits, abuse log, send queue, hot-wallet isolation)
 - Versioned release process with reproducible artifacts + `SHA256SUMS`
 - Local multi-node soak/stress harness (`soak`) for relay/sync convergence checks
+- Deterministic parser/endpoint fuzz smoke runner (`fuzz`)
 
 Still not something code alone can create:
 

@@ -93,4 +93,16 @@ python -m netcoin soak --nodes 3 --rounds 5 --transactions-per-round 2
 For a longer manual run, increase `--rounds` and optionally keep data with
 `--dir /tmp/netcoin-soak-run`.
 
+## Local fuzz smoke
+
+Run deterministic parser and endpoint fuzz smoke under Python dev mode before a
+release candidate:
+
+```bash
+python -X dev -m netcoin fuzz --target all --iterations 1000 --max-bytes 256
+```
+
+CI runs a shorter `fuzz-smoke` job. This is a lightweight safety net, not a
+replacement for deep coverage-guided fuzzing or native sanitizer infrastructure.
+
 See [docs/UPGRADING.md](UPGRADING.md) for the full upgrade/rollback flow.
