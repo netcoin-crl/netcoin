@@ -15,6 +15,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - **Wallet file format versioning + migration**: wallet files now carry a
   `wallet_version`; `wallet-migrate` upgrades older files to the current format and
   re-encrypts at the upgraded KDF cost (backing up the original first).
+- **Output descriptors** (`netcoin/descriptors.py`): `pkh`/`wpkh`/`tr`/`sh(wpkh)` and
+  `sh(multi(...))` descriptors; `wallet-descriptor` exports a wallet's descriptors and
+  `descriptor-address` resolves a descriptor to its address (watch-only, no keys).
 - **Full PSBT workflow**: `PartiallySignedTransaction.create` (build an unsigned
   PSBT from inputs/outputs) and `combine` (merge signatures from multiple parties,
   each signing the inputs it owns), plus `combine_psbts` and `finalize`/`extract`
