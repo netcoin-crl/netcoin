@@ -67,6 +67,9 @@ if [ ! -d "$VENV" ]; then
 fi
 "$VENV/bin/python" -m pip install -q --upgrade pip
 "$VENV/bin/python" -m pip install -q -e "$SRC_DIR"
+# The venv lives inside $SRC_DIR and is recreated on each deploy, so the test
+# dependency must be (re)installed here or the test gate below cannot run.
+"$VENV/bin/python" -m pip install -q pytest
 
 echo "==> Running tests"
 if ! ( cd "$SRC_DIR" && "$VENV/bin/python" -m pytest -q ); then
