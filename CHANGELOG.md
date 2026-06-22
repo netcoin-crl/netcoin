@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.1 - remaining code-upgrade bundle
+
+- Added real headers-first HTTP sync: nodes validate remote headers first, then fetch missing blocks by hash, with legacy /chain fallback.
+- Added TCP P2P headers-first sync helper over getheaders -> headers -> getdata(block) -> block.
+- Upgraded compact-block relay with missing-transaction detection and a /compact-block-missing endpoint.
+- Added SegWit-style witness commitment support for blocks containing witness transactions.
+- Added wallet change-address rotation via send --rotate-change and persisted change_index metadata.
+- Added in-memory wallet auto-lock sessions and wallet-unlock --ttl-seconds reporting.
+- Added faucet CAPTCHA hooks for simple private-beta challenge, Cloudflare Turnstile, and hCaptcha.
+- Added explorer API pagination for latest blocks and address transaction history.
+- Added tests covering the remaining code upgrades.
+
+
 All notable changes to NetCoin are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

@@ -19,7 +19,7 @@ from urllib.request import Request, urlopen
 
 from .block import Block
 from .chain import Blockchain
-from .compact import CompactBlock, make_compact_block, reconstruct_compact_block
+from .compact import CompactBlock, CompactBlockError, compact_missing_payload, make_compact_block, missing_transactions, reconstruct_compact_block
 from .logsetup import emit
 from .params import (
     DEFAULT_NODE_PORT,
@@ -417,17 +417,39 @@ class NetCoinNode:
         return True
 
     def sync_from_peer(self, peer: str) -> bool:
+        """Synchronize from a peer using headers first, then block bodies by hash.
+
+        This keeps the old /chain fallback for compatibility, but the primary path
+        now validates a header segment before downloading each missing block.
+        """
         peer = peer.rstrip("/")
+        remote = self.fetch_json(f"{peer}/info").get("node", {})
+        if not self.compatible_peer(remote):
+            self.score_peer(peer, -2, reason="incompatible peer")
+            return False
+        remote_height = int(remote.get("height", 0))
+        if remote_height <= self.chain.height():
+            return False
+
+        start = self.chain.height() + 1
         try:
-            remote = self.fetch_json(f"{peer}/info").get("node", {})
-            if not self.compatible_peer(remote):
-                return False
-            if int(remote.get("height", 0)) <= self.chain.height():
-                return False
-            # Headers-first shape: inspect remote headers before full block download.
-            self.fetch_json(f"{peer}/headers?start=0&limit=5000")
-        except Exception:
-            pass
+            data = self.fetch_json(f"{peer}/headers?start={start}&limit=2000")
+            headers = data.get("headers", [])
+            self.chain.validate_headers_from_tip(headers)
+            adopted = False
+            for header in headers:
+                block_hash = header["hash"]
+                block_data = self.fetch_json(f"{peer}/block/{block_hash}")
+                block = Block.from_dict(block_data)
+                self.chain.add_block(block)
+                adopted = True
+            if adopted:
+                self.log_event("headers_first_sync", peer=peer, blocks=len(headers), height=self.chain.height())
+                return True
+        except Exception as exc:
+            self.log_event("headers_first_sync_fallback", peer=peer, reason=str(exc))
+
+        # Compatibility fallback for older NetCoin nodes.
         data = self.fetch_json(f"{peer}/chain")
         blocks = self.chain.import_chain_data(data)
         return self.chain.replace_chain(blocks)
@@ -656,6 +678,17 @@ def make_handler(node: NetCoinNode):
                         self.send_error_json("block not found", status=404)
                     else:
                         self.send_json(block.to_dict() | {"hash": block.hash(), "weight": block.weight()})
+                elif parsed.path.startswith("/compact-block-missing/"):
+                    block_hash = parsed.path.split("/", 2)[2]
+                    block = node.chain.block_by_hash(block_hash)
+                    if block is None:
+                        self.send_error_json("block not found", status=404)
+                    else:
+                        query = parse_qs(parsed.query)
+                        have = []
+                        for value in query.get("have", []):
+                            have.extend([item for item in value.split(",") if item])
+                        self.send_json(compact_missing_payload(block, have))
                 elif parsed.path.startswith("/compact-block/"):
                     block_hash = parsed.path.split("/", 2)[2]
                     block = node.chain.block_by_hash(block_hash)
@@ -748,8 +781,17 @@ def make_handler(node: NetCoinNode):
                     delivered = node.relay_new_blocks(block)
                     self.send_json({"ok": True, "block_hash": block_hash, "relayed_to": delivered})
                 elif parsed.path == "/compact-block":
-                    compact = CompactBlock.from_dict(data)
-                    block = reconstruct_compact_block(compact, node.chain.mempool)
+                    if "compact" in data:
+                        compact = CompactBlock.from_dict(data["compact"])
+                        extra = [Transaction.from_dict(item) for item in data.get("transactions", [])]
+                    else:
+                        compact = CompactBlock.from_dict(data)
+                        extra = []
+                    try:
+                        block = reconstruct_compact_block(compact, node.chain.mempool, extra_transactions=extra)
+                    except CompactBlockError:
+                        self.send_json({"ok": False, "missing": missing_transactions(compact, node.chain.mempool)}, status=202)
+                        return
                     block_hash = node.accept_block(block)
                     delivered = node.relay_new_blocks(block)
                     self.send_json({"ok": True, "block_hash": block_hash, "relayed_to": delivered})
