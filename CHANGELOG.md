@@ -11,7 +11,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Wallet file format versioning + migration**: wallet files now carry a
+  `wallet_version`; `wallet-migrate` upgrades older files to the current format and
+  re-encrypts at the upgraded KDF cost (backing up the original first).
 
 ## [0.4.0] - 2026-06-21
 

@@ -116,6 +116,25 @@ def private_key_from_seed_phrase(phrase: str, index: int = 0) -> int:
 PBKDF2_ITERATIONS = 600_000
 LEGACY_PBKDF2_ITERATIONS = 250_000
 
+# Wallet file format version. v1 = original files with no version field (and 250k
+# KDF for encrypted ones); v2 = stamped version + 600k KDF. Loaders tolerate v1.
+WALLET_FORMAT_VERSION = 2
+
+
+def wallet_file_version(data: Dict[str, Any]) -> int:
+    return int(data.get("wallet_version", 1))
+
+
+def wallet_needs_migration(data: Dict[str, Any]) -> bool:
+    """True if a wallet dict is below the current format or uses an old KDF cost."""
+    if wallet_file_version(data) < WALLET_FORMAT_VERSION:
+        return True
+    if data.get("encrypted"):
+        iterations = int(data.get("encrypted_private_key", {}).get("iterations", LEGACY_PBKDF2_ITERATIONS))
+        if iterations < PBKDF2_ITERATIONS:
+            return True
+    return False
+
 
 def _derive_encryption_key(passphrase: str, salt: bytes, iterations: int = PBKDF2_ITERATIONS) -> bytes:
     if not passphrase:
@@ -244,6 +263,7 @@ class Wallet:
 
     def to_dict(self, passphrase: Optional[str] = None) -> Dict[str, Any]:
         data = self.public_dict()
+        data["wallet_version"] = WALLET_FORMAT_VERSION
         if passphrase:
             data["encrypted"] = True
             data["encrypted_private_key"] = encrypt_private_key(self.private_key_hex, passphrase)
