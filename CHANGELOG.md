@@ -11,7 +11,26 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.4.0] - 2026-06-21
+
+Networking, storage, and protocol-depth release: TCP P2P transport, relay queue +
+inventory cache, background sync, SQLite backend + pruned mode, a persistent UTXO
+set, a lossless binary codec, an API-backed explorer, and faucet hardening.
+192 automated tests.
+
 ### Added
+- **TCP P2P transport** (`p2p-server` / `p2p-call`, `DEFAULT_P2P_PORT=18447`) running
+  the P2P message layer over real sockets; HTTP remains the stable public seed API.
+- **Relay queue + tx/block inventory cache** (retry/backoff) with `GET`/`POST /relay`
+  and a background sync loop; `/health` adds `relay_queue`, `/metrics` adds
+  `netcoin_relay_queue_items`.
+- **API-backed explorer service** (`netcoin/explorer_server.py`, `explorer-server`):
+  live HTML pages plus `/api/latest|block|tx|address|search`.
+- **Faucet send queue + hot-wallet isolation/refill** (queued mode, `/queue`,
+  `/status`, admin `process-queue`, configurable via env vars).
+- **GET + POST per-IP/per-path rate limiting** (`--rate-limit-per-min`; `0` disables).
 - **Lossless binary codec** (`tx_to_binary`/`tx_from_binary`,
   `block_to_binary`/`block_from_binary`): a compact binary encoding that round-trips
   full transactions and blocks while preserving txid/wtxid/hash — complements the
@@ -229,6 +248,7 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://github.com/Adoniyas1/netcoin/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Adoniyas1/netcoin/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Adoniyas1/netcoin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Adoniyas1/netcoin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Adoniyas1/netcoin/releases/tag/v0.2.0
