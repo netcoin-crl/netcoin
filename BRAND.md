@@ -20,7 +20,7 @@ affiliation with Bitcoin.
 
 ## Official resources
 
-- Source repository: https://github.com/Adoniyas1/netcoin
+- Source repository: https://github.com/netcoin-crl/netcoin
 - Public testnet seeds: `seed1.netcoin.online`, `seed2.netcoin.online`,
   `seed3.netcoin.online` (port 28444)
 - Explorer / faucet / status: served from the seed1 host (see the README)
