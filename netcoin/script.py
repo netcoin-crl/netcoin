@@ -8,6 +8,7 @@ and Taproot-like key path spends handled by the transaction verifier.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from typing import List, Sequence
@@ -155,11 +156,57 @@ class ScriptContext:
     sequence: int = 0xFFFFFFFF
 
 
+def _push_bool(stack: List[str], value: bool) -> None:
+    stack.append("01" if value else "00")
+
+
+def _is_hex(value: str) -> bool:
+    if len(value) % 2 != 0 or not value:
+        return False
+    try:
+        bytes.fromhex(value)
+        return True
+    except ValueError:
+        return False
+
+
 def execute_script(script: str, stack: List[str], context: ScriptContext) -> List[str]:
-    """Execute a small Script subset and return the resulting stack."""
+    """Execute a Script subset and return the resulting stack.
+
+    Supports data pushes, hashing, equality/verify, alt-stack, timelocks,
+    signature checks, conditionals (OP_IF/NOTIF/ELSE/ENDIF), stack manipulation,
+    and numeric opcodes. Integers are decimal strings; booleans are 01/00."""
     alt_stack: List[str] = []
+    exec_stack: List[bool] = []  # conditional-execution flags (OP_IF/ELSE/ENDIF)
     tokens = tokenize(script)
+
+    def executing() -> bool:
+        return all(exec_stack)
+
     for token in tokens:
+        # Conditionals are processed even inside a skipped branch (to keep nesting).
+        if token in ("OP_IF", "OP_NOTIF"):
+            condition = False
+            if executing():
+                if not stack:
+                    raise ScriptError(f"{token} on empty stack")
+                value = cast_to_bool(stack.pop())
+                condition = value if token == "OP_IF" else not value
+            exec_stack.append(condition)
+            continue
+        if token == "OP_ELSE":
+            if not exec_stack:
+                raise ScriptError("OP_ELSE without OP_IF")
+            exec_stack[-1] = not exec_stack[-1]
+            continue
+        if token == "OP_ENDIF":
+            if not exec_stack:
+                raise ScriptError("OP_ENDIF without OP_IF")
+            exec_stack.pop()
+            continue
+        if not executing():
+            continue  # in a dead branch: skip everything except conditionals
+
         if token == "OP_DUP":
             if not stack:
                 raise ScriptError("OP_DUP on empty stack")
@@ -169,6 +216,122 @@ def execute_script(script: str, stack: List[str], context: ScriptContext) -> Lis
                 raise ScriptError("OP_HASH160 on empty stack")
             data = bytes.fromhex(stack.pop())
             stack.append(hash160(data).hex())
+        elif token == "OP_SHA256":
+            if not stack:
+                raise ScriptError("OP_SHA256 on empty stack")
+            stack.append(hashlib.sha256(bytes.fromhex(stack.pop())).hexdigest())
+        elif token == "OP_HASH256":
+            if not stack:
+                raise ScriptError("OP_HASH256 on empty stack")
+            stack.append(double_sha256(bytes.fromhex(stack.pop())).hex())
+        elif token == "OP_RIPEMD160":
+            if not stack:
+                raise ScriptError("OP_RIPEMD160 on empty stack")
+            stack.append(hashlib.new("ripemd160", bytes.fromhex(stack.pop())).hexdigest())
+        elif token == "OP_SIZE":
+            if not stack:
+                raise ScriptError("OP_SIZE on empty stack")
+            stack.append(str(len(bytes.fromhex(stack[-1])) if _is_hex(stack[-1]) else len(stack[-1])))
+        elif token == "OP_SWAP":
+            if len(stack) < 2:
+                raise ScriptError("OP_SWAP needs two items")
+            stack[-1], stack[-2] = stack[-2], stack[-1]
+        elif token == "OP_OVER":
+            if len(stack) < 2:
+                raise ScriptError("OP_OVER needs two items")
+            stack.append(stack[-2])
+        elif token == "OP_NIP":
+            if len(stack) < 2:
+                raise ScriptError("OP_NIP needs two items")
+            del stack[-2]
+        elif token == "OP_TUCK":
+            if len(stack) < 2:
+                raise ScriptError("OP_TUCK needs two items")
+            stack.insert(-2, stack[-1])
+        elif token == "OP_ROT":
+            if len(stack) < 3:
+                raise ScriptError("OP_ROT needs three items")
+            stack[-3], stack[-2], stack[-1] = stack[-2], stack[-1], stack[-3]
+        elif token == "OP_2DUP":
+            if len(stack) < 2:
+                raise ScriptError("OP_2DUP needs two items")
+            stack.extend(stack[-2:])
+        elif token == "OP_DEPTH":
+            stack.append(str(len(stack)))
+        elif token == "OP_IFDUP":
+            if not stack:
+                raise ScriptError("OP_IFDUP on empty stack")
+            if cast_to_bool(stack[-1]):
+                stack.append(stack[-1])
+        elif token in ("OP_ADD", "OP_SUB", "OP_MIN", "OP_MAX", "OP_BOOLAND", "OP_BOOLOR",
+                       "OP_NUMEQUAL", "OP_NUMEQUALVERIFY", "OP_NUMNOTEQUAL", "OP_LESSTHAN",
+                       "OP_GREATERTHAN", "OP_LESSTHANOREQUAL", "OP_GREATERTHANOREQUAL"):
+            if len(stack) < 2:
+                raise ScriptError(f"{token} needs two items")
+            b = _as_int(stack.pop())
+            a = _as_int(stack.pop())
+            if token == "OP_ADD":
+                stack.append(str(a + b))
+            elif token == "OP_SUB":
+                stack.append(str(a - b))
+            elif token == "OP_MIN":
+                stack.append(str(min(a, b)))
+            elif token == "OP_MAX":
+                stack.append(str(max(a, b)))
+            elif token == "OP_BOOLAND":
+                _push_bool(stack, a != 0 and b != 0)
+            elif token == "OP_BOOLOR":
+                _push_bool(stack, a != 0 or b != 0)
+            elif token == "OP_NUMEQUAL":
+                _push_bool(stack, a == b)
+            elif token == "OP_NUMEQUALVERIFY":
+                if a != b:
+                    raise ScriptError("OP_NUMEQUALVERIFY failed")
+            elif token == "OP_NUMNOTEQUAL":
+                _push_bool(stack, a != b)
+            elif token == "OP_LESSTHAN":
+                _push_bool(stack, a < b)
+            elif token == "OP_GREATERTHAN":
+                _push_bool(stack, a > b)
+            elif token == "OP_LESSTHANOREQUAL":
+                _push_bool(stack, a <= b)
+            elif token == "OP_GREATERTHANOREQUAL":
+                _push_bool(stack, a >= b)
+        elif token in ("OP_NEGATE", "OP_ABS", "OP_NOT", "OP_0NOTEQUAL", "OP_1ADD", "OP_1SUB"):
+            if not stack:
+                raise ScriptError(f"{token} on empty stack")
+            a = _as_int(stack.pop())
+            if token == "OP_NEGATE":
+                stack.append(str(-a))
+            elif token == "OP_ABS":
+                stack.append(str(abs(a)))
+            elif token == "OP_NOT":
+                _push_bool(stack, a == 0)
+            elif token == "OP_0NOTEQUAL":
+                _push_bool(stack, a != 0)
+            elif token == "OP_1ADD":
+                stack.append(str(a + 1))
+            elif token == "OP_1SUB":
+                stack.append(str(a - 1))
+        elif token == "OP_WITHIN":
+            if len(stack) < 3:
+                raise ScriptError("OP_WITHIN needs three items")
+            maximum = _as_int(stack.pop())
+            minimum = _as_int(stack.pop())
+            value = _as_int(stack.pop())
+            _push_bool(stack, minimum <= value < maximum)
+        elif token == "OP_1NEGATE":
+            stack.append("-1")
+        elif token == "OP_RETURN":
+            raise ScriptError("OP_RETURN encountered")
+        elif token == "OP_CHECKSIGVERIFY":
+            stack = execute_script("OP_CHECKSIG", stack, context)
+            if not stack or not cast_to_bool(stack.pop()):
+                raise ScriptError("OP_CHECKSIGVERIFY failed")
+        elif token == "OP_CHECKMULTISIGVERIFY":
+            stack = execute_script("OP_CHECKMULTISIG", stack, context)
+            if not stack or not cast_to_bool(stack.pop()):
+                raise ScriptError("OP_CHECKMULTISIGVERIFY failed")
         elif token == "OP_EQUAL":
             if len(stack) < 2:
                 raise ScriptError("OP_EQUAL needs two stack items")
@@ -251,6 +414,8 @@ def execute_script(script: str, stack: List[str], context: ScriptContext) -> Lis
             # Data push. NetCoin script assembly represents pushed byte strings as
             # hex and small integers as decimal strings.
             stack.append(token)
+    if exec_stack:
+        raise ScriptError("unbalanced OP_IF / OP_ENDIF")
     return stack
 
 
