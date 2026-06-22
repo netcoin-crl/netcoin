@@ -177,6 +177,40 @@ def cmd_wallet_backup(args: argparse.Namespace) -> None:
     print_json({"ok": True, "wallet_file": str(src), "backup_file": str(dest)})
 
 
+def cmd_wallet_migrate(args: argparse.Namespace) -> None:
+    from .wallet import WALLET_FORMAT_VERSION, wallet_file_version, wallet_needs_migration
+
+    src = Path(args.wallet)
+    if not src.exists():
+        raise WalletError(f"wallet file not found: {src}")
+    data = json.loads(src.read_text())
+    old_version = wallet_file_version(data)
+    if not wallet_needs_migration(data):
+        print_json({"ok": True, "migrated": False, "wallet_version": old_version, "note": "already current"})
+        return
+    # Load (decrypting if needed), back up the original, then re-save in the
+    # current format (re-encrypts at the upgraded KDF and stamps the version).
+    wallet = Wallet.load(src, passphrase=args.passphrase)
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    backup = src.with_name(f"{src.stem}.pre-migrate-{stamp}.json")
+    shutil.copy2(src, backup)
+    os.chmod(backup, 0o600)
+    was_encrypted = bool(data.get("encrypted"))
+    wallet.save(src, passphrase=args.passphrase if was_encrypted else None)
+    os.chmod(src, 0o600)
+    print_json(
+        {
+            "ok": True,
+            "migrated": True,
+            "from_version": old_version,
+            "to_version": WALLET_FORMAT_VERSION,
+            "encrypted": was_encrypted,
+            "backup_file": str(backup),
+            "address": wallet.address,
+        }
+    )
+
+
 def cmd_wallet_recover_test(args: argparse.Namespace) -> None:
     if args.wallet:
         expected = Wallet.load(args.wallet, passphrase=args.passphrase).address
@@ -688,6 +722,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--wallet", required=True)
     p.add_argument("--out-dir", help="directory for the backup (default: alongside the wallet)")
     p.set_defaults(func=cmd_wallet_backup)
+
+    p = sub.add_parser("wallet-migrate", help="upgrade a wallet file to the current format/KDF (backs up the original)")
+    p.add_argument("--wallet", required=True)
+    p.add_argument("--passphrase", help="passphrase for an encrypted wallet")
+    p.set_defaults(func=cmd_wallet_migrate)
 
     p = sub.add_parser("wallet-recover-test", help="restore a seed phrase into a temp wallet and verify the address")
     p.add_argument("--from-mnemonic", required=True)
