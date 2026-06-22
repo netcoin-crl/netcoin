@@ -1,6 +1,6 @@
 # Upgrading NetCoin
 
-How to update a node from one release to the next (e.g. v0.3.0 → v0.3.1) without
+How to update a node from one release to the next (e.g. v0.4.0 → v0.4.1) without
 wiping chain data or wallets.
 
 > NetCoin uses Semantic Versioning. PATCH and MINOR upgrades keep existing testnet
@@ -78,5 +78,19 @@ touching chain data.
 ## Protocol/version bumps
 
 If a release changes `PROTOCOL_VERSION` or the chain/wallet format, this section
-will list the exact migration steps. As of v0.3.0 no such migration is required
-between 0.2.x and 0.3.x.
+lists the exact migration steps.
+
+- **Chain data:** no migration is required across the 0.2.x → 0.4.x line — the
+  genesis block and `PROTOCOL_VERSION` are unchanged, so existing `--data`
+  directories keep working. (Optionally switch a node to the SQLite backend with
+  `migrate-sqlite`; see docs/OPERATIONS.md.)
+- **Wallet files (v0.4.x):** wallet files now carry a `wallet_version`, and
+  encrypted wallets use a stronger KDF. Older wallets still open as-is. To upgrade
+  one in place (re-encrypt at the new KDF cost, stamp the version, back up the
+  original first):
+  ```bash
+  python -m netcoin wallet-migrate --wallet my-wallet.json --passphrase '<your pass>'
+  ```
+- **Blocks with witness data (v0.4.1):** SegWit-style witness commitment applies
+  only to blocks that contain witness transactions; no action is needed for
+  existing data.
