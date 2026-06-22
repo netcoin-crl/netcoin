@@ -53,6 +53,23 @@ into a single private `.tar.gz`. Schedule it from cron:
 0 3 * * * /opt/netcoin/netcoin-v2/tools/backup_node.sh /opt/netcoin/backups
 ```
 
+## Crash safety & recovery
+
+The default JSON backend writes `chain.json` / `mempool.json` crash-safely: each
+save goes to an fsync'd temp file, is atomically renamed into place, and a `.bak`
+mirror of the last committed state is kept. On startup a corrupt live file is
+recovered from `.bak` (or a leftover `.tmp`) without losing the most recent block;
+a corrupt `mempool.json` is simply dropped (the mempool is non-consensus state).
+
+To rebuild the indexes and UTXO set from block data — e.g. after a forced kill,
+disk scare, or moving data between machines — run a reindex, which also runs a
+chainstate integrity check:
+
+```
+python -m netcoin --data <DATA_DIR> reindex
+# {"ok": true, "reindexed": true, "integrity": {"index_consistent": true, ...}}
+```
+
 ## Deploying a tagged release (not the working tree)
 
 Build a release artifact from a tag, copy it to the seed, then deploy it with

@@ -219,10 +219,8 @@ class Blockchain:
             else:
                 self.chain = [create_genesis_block()]
                 self.save_chain()
-        elif self.chain_path.exists():
-            data = json.loads(self.chain_path.read_text())
-            self.chain = [Block.from_dict(item) for item in data["blocks"]]
-            self.assert_valid_chain(self.chain)
+        elif self._chain_files_exist():
+            self.chain = self._load_chain_with_recovery()
         else:
             self.chain = [create_genesis_block()]
             self.save_chain()
@@ -232,8 +230,13 @@ class Blockchain:
         if self.store is not None:
             loaded_mempool = [Transaction.from_dict(item) for item in self.store.load_mempool()]
         elif self.mempool_path.exists():
-            data = json.loads(self.mempool_path.read_text())
-            loaded_mempool = [Transaction.from_dict(item) for item in data.get("transactions", [])]
+            try:
+                data = json.loads(self.mempool_path.read_text())
+                loaded_mempool = [Transaction.from_dict(item) for item in data.get("transactions", [])]
+            except (ValueError, OSError, KeyError, TypeError):
+                # The mempool is ephemeral and non-consensus: a corrupt file is
+                # never worth refusing to start over. Drop it and continue empty.
+                loaded_mempool = []
 
         if loaded_mempool is not None:
             self.mempool = []
@@ -246,16 +249,44 @@ class Blockchain:
             self.mempool = []
             self.save_mempool()
 
+    def _atomic_write_json(self, path: Path, payload: Dict[str, Any]) -> None:
+        """Crash-safe JSON write.
+
+        Write to a temp file and fsync it, keep the previous good file as a
+        ``.bak`` copy, then atomically ``os.replace`` it into place and fsync the
+        directory. A crash at any point leaves either the old file, the new file,
+        or a recoverable ``.tmp``/``.bak`` — never a half-written live file.
+        """
+        text = json.dumps(payload, indent=2, sort_keys=True)
+        tmp = path.parent / (path.name + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+        try:
+            dir_fd = os.open(str(path.parent), os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except OSError:
+            pass  # directory fsync is best-effort (not supported everywhere)
+        # Mirror the just-written good file as a backup. Copying *after* the
+        # replace keeps .bak at the latest committed state, so recovery from a
+        # corrupt live file does not lose the most recent write.
+        try:
+            (path.parent / (path.name + ".bak")).write_bytes(path.read_bytes())
+        except OSError:
+            pass  # a missing backup is not fatal; the live file is already committed
+
     def save_chain(self) -> None:
         if not self.autosave:
             return
         if self.store is not None:
             self.store.save_chain(self.chain)
             return
-        payload = {"blocks": [block.to_dict() for block in self.chain]}
-        tmp = self.chain_path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(payload, indent=2, sort_keys=True))
-        tmp.replace(self.chain_path)
+        self._atomic_write_json(self.chain_path, {"blocks": [block.to_dict() for block in self.chain]})
 
     def save_mempool(self) -> None:
         if not self.autosave:
@@ -264,9 +295,45 @@ class Blockchain:
             self.store.save_mempool(self.mempool)
             return
         payload = {"transactions": [tx.to_dict(include_scripts=True, include_witness=True) for tx in self.mempool]}
-        tmp = self.mempool_path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(payload, indent=2, sort_keys=True))
-        tmp.replace(self.mempool_path)
+        self._atomic_write_json(self.mempool_path, payload)
+
+    def _chain_files_exist(self) -> bool:
+        """True if a live chain file or any recoverable copy is present."""
+        return any(
+            (self.chain_path.parent / (self.chain_path.name + suffix)).exists()
+            for suffix in ("", ".bak", ".tmp")
+        )
+
+    def _load_chain_with_recovery(self) -> List[Block]:
+        """Load the chain, tolerating a corrupt live file.
+
+        Tries the live ``chain.json`` first, then the ``.bak`` backup, then a
+        leftover ``.tmp`` from an interrupted write. The first copy that both
+        parses and passes full chain validation wins; if recovery used a backup
+        copy, the canonical file is rewritten so the node heals itself on start.
+        """
+        candidates = [
+            self.chain_path,
+            self.chain_path.parent / (self.chain_path.name + ".bak"),
+            self.chain_path.parent / (self.chain_path.name + ".tmp"),
+        ]
+        errors: List[str] = []
+        for source in candidates:
+            if not source.exists():
+                continue
+            try:
+                data = json.loads(source.read_text())
+                candidate = [Block.from_dict(item) for item in data["blocks"]]
+                self.assert_valid_chain(candidate)
+            except (ValueError, KeyError, TypeError, BlockError, ChainError, OSError) as exc:
+                errors.append(f"{source.name}: {exc}")
+                continue
+            self.chain = candidate
+            if source != self.chain_path:
+                # Recovered from a backup/temp copy — restore the canonical file.
+                self.save_chain()
+            return candidate
+        raise ChainError("chain data is corrupt or unreadable (" + "; ".join(errors) + ")")
 
     def save(self) -> None:
         self.save_chain()
