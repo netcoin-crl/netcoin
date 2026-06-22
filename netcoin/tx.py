@@ -13,6 +13,7 @@ from .crypto import (
     double_sha256,
     ecdsa_sign,
     ecdsa_verify,
+    hash160,
     hex_to_bytes,
     private_key_to_public_key,
     private_key_to_xonly_public_key,
@@ -24,7 +25,15 @@ from .crypto import (
     validate_address,
 )
 from .params import COIN, MAX_MONEY, ZERO_HASH
-from .script import ScriptContext, address_to_script_pubkey, classify_script, p2pkh_script, verify_script
+from .script import (
+    ScriptContext,
+    address_to_script_pubkey,
+    classify_script,
+    p2pkh_script,
+    p2wpkh_script,
+    script_hash160,
+    verify_script,
+)
 
 
 class TransactionError(ValueError):
@@ -254,6 +263,20 @@ class Transaction:
             txin.public_key = ""
             return
 
+        # Nested P2SH-SegWit (P2SH-P2WPKH): the redeem script is a P2WPKH witness
+        # program committed to by the P2SH scriptPubKey. The scriptSig carries the
+        # redeem script; the signature and pubkey live in the witness.
+        if kind == "p2sh" or (prevout.output.address and address_type(prevout.output.address) == "p2sh"):
+            redeem_script = p2wpkh_script(hash160(public_key).hex())
+            committed_hash = script_pubkey.split()[1]
+            if script_hash160(redeem_script).hex() == committed_hash:
+                txin.witness = [bytes_to_hex(ecdsa_sign(private_key, digest)), bytes_to_hex(public_key)]
+                txin.script_sig = redeem_script
+                txin.signature = ""
+                txin.public_key = ""
+                return
+            raise TransactionError("private key does not control the selected P2SH-SegWit UTXO")
+
         # Legacy P2PKH-compatible path. This preserves the original NetCoin fields.
         expected_address = public_key_to_address(public_key)
         if prevout.output.address and expected_address != prevout.output.address:
@@ -299,6 +322,25 @@ class Transaction:
                 return False
 
         if kind == "p2sh":
+            # Nested P2SH-SegWit (P2SH-P2WPKH): the scriptSig is the P2WPKH redeem
+            # script and the signature/pubkey are in the witness. Other P2SH spends
+            # (e.g. multisig) keep the classic redeem-script execution path.
+            redeem_script = txin.script_sig
+            if classify_script(redeem_script) == "p2wpkh":
+                from .crypto import hash160
+
+                if script_hash160(redeem_script).hex() != script_pubkey.split()[1]:
+                    return False
+                if len(txin.witness) != 2:
+                    return False
+                try:
+                    signature = bytes.fromhex(txin.witness[0])
+                    public_key = bytes.fromhex(txin.witness[1])
+                except ValueError:
+                    return False
+                if hash160(public_key).hex() != redeem_script.split()[1]:
+                    return False
+                return ecdsa_verify(public_key, digest, signature)
             return verify_script(txin.script_sig, script_pubkey, context)
 
         if txin.script_sig:
