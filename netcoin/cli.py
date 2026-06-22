@@ -268,6 +268,19 @@ def cmd_wallet_export_watch(args: argparse.Namespace) -> None:
     print_json({"ok": True, "watch_only_file": args.out, "address": wallet.address})
 
 
+def cmd_wallet_descriptor(args: argparse.Namespace) -> None:
+    from .descriptors import describe_wallet
+
+    wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
+    print_json({"ok": True, "address": wallet.address, "descriptors": describe_wallet(wallet)})
+
+
+def cmd_descriptor_address(args: argparse.Namespace) -> None:
+    from .descriptors import descriptor_to_address
+
+    print_json({"ok": True, "descriptor": args.descriptor, "address": descriptor_to_address(args.descriptor)})
+
+
 def cmd_wallet_unlock(args: argparse.Namespace) -> None:
     # Verifies the passphrase opens the wallet; optionally writes a decrypted copy.
     passphrase = args.passphrase
@@ -740,6 +753,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase")
     p.add_argument("--out", required=True)
     p.set_defaults(func=cmd_wallet_export_watch)
+
+    p = sub.add_parser("wallet-descriptor", help="show output descriptors (pkh/wpkh/tr/sh-wpkh) for a wallet")
+    p.add_argument("--wallet", required=True)
+    p.add_argument("--passphrase")
+    p.set_defaults(func=cmd_wallet_descriptor)
+
+    p = sub.add_parser("descriptor-address", help="resolve an output descriptor to its NetCoin address")
+    p.add_argument("--descriptor", required=True)
+    p.set_defaults(func=cmd_descriptor_address)
 
     p = sub.add_parser("wallet-scan", help="derive addresses 0..gap from a seed and report on-chain activity")
     p.add_argument("--from-mnemonic", required=True)
