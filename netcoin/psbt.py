@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
-from .tx import SpendableOutput, Transaction
+from .tx import SpendableOutput, Transaction, TxInput, TxOutput
 
 
 class PSBTError(ValueError):
@@ -24,6 +24,15 @@ class PSBTError(ValueError):
 class PartiallySignedTransaction:
     tx: Transaction
     prevouts: List[SpendableOutput]
+
+    @classmethod
+    def create(cls, prevouts: List[SpendableOutput], outputs: List[TxOutput], *, version: int = 1, locktime: int = 0) -> "PartiallySignedTransaction":
+        """Build an unsigned PSBT from inputs (prevouts) and outputs."""
+        if not prevouts:
+            raise PSBTError("a PSBT needs at least one input")
+        inputs = [TxInput(txid=p.txid, vout=p.vout) for p in prevouts]
+        tx = Transaction(inputs=inputs, outputs=list(outputs), version=version, locktime=locktime)
+        return cls(tx=tx, prevouts=list(prevouts))
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -63,8 +72,34 @@ class PartiallySignedTransaction:
                 continue
         return self
 
+    def _skeleton(self) -> tuple:
+        """Identity of the unsigned tx: input outpoints + outputs (no signatures).
+        Two PSBTs are combinable iff their skeletons match."""
+        inputs = tuple(txin.outpoint() for txin in self.tx.inputs)
+        outputs = tuple((o.amount, o.address, o.script_pubkey) for o in self.tx.outputs)
+        return (self.tx.version, self.tx.locktime, inputs, outputs)
+
+    def combine(self, other: "PartiallySignedTransaction") -> "PartiallySignedTransaction":
+        """Merge signatures/witnesses from another PSBT of the same unsigned tx.
+        Used for multi-party signing where each party signs the inputs it owns."""
+        if self._skeleton() != other._skeleton():
+            raise PSBTError("cannot combine PSBTs of different transactions")
+        for mine, theirs in zip(self.tx.inputs, other.tx.inputs):
+            mine_signed = mine.signature or mine.script_sig or mine.witness
+            theirs_signed = theirs.signature or theirs.script_sig or theirs.witness
+            if not mine_signed and theirs_signed:
+                mine.signature = theirs.signature
+                mine.public_key = theirs.public_key
+                mine.script_sig = theirs.script_sig
+                mine.witness = list(theirs.witness)
+        return self
+
     def is_fully_signed(self) -> bool:
-        return all(txin.signature or txin.witness for txin in self.tx.inputs)
+        return all(txin.signature or txin.witness or txin.script_sig for txin in self.tx.inputs)
+
+    def finalize(self) -> Transaction:
+        """Finalize (signatures are applied inline by sign); same as extract."""
+        return self.extract()
 
     def extract(self) -> Transaction:
         if not self.is_fully_signed():
@@ -95,3 +130,14 @@ def sign_psbt(psbt_text: str, wallet: Any) -> str:
 def finalize_psbt(psbt_text: str) -> Transaction:
     psbt = PartiallySignedTransaction.from_base64(psbt_text)
     return psbt.extract()
+
+
+def combine_psbts(psbt_texts: List[str]) -> str:
+    """Combine two or more PSBTs of the same unsigned tx into one, merging
+    signatures, and return the netpsbt: base64 string."""
+    if not psbt_texts:
+        raise PSBTError("nothing to combine")
+    combined = PartiallySignedTransaction.from_base64(psbt_texts[0])
+    for text in psbt_texts[1:]:
+        combined.combine(PartiallySignedTransaction.from_base64(text))
+    return "netpsbt:" + combined.to_base64()

@@ -15,6 +15,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - **Wallet file format versioning + migration**: wallet files now carry a
   `wallet_version`; `wallet-migrate` upgrades older files to the current format and
   re-encrypts at the upgraded KDF cost (backing up the original first).
+- **Full PSBT workflow**: `PartiallySignedTransaction.create` (build an unsigned
+  PSBT from inputs/outputs) and `combine` (merge signatures from multiple parties,
+  each signing the inputs it owns), plus `combine_psbts` and `finalize`/`extract`
+  — completing create → sign → combine → finalize → extract.
 - **Fuller Script VM**: the script engine gains conditionals (`OP_IF`/`OP_NOTIF`/
   `OP_ELSE`/`OP_ENDIF`), arithmetic/comparison opcodes (`OP_ADD`, `OP_SUB`, `OP_MIN`/
   `MAX`, `OP_WITHIN`, `OP_NUMEQUAL(VERIFY)`, `OP_LESSTHAN`/`GREATERTHAN`, …), stack
