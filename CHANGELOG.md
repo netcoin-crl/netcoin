@@ -11,7 +11,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Local multi-node soak/stress harness** (`python -m netcoin soak`) starts
+  multiple in-process HTTP nodes, connects them as peers, mines mature funds,
+  relays transactions/blocks, syncs tips, and reports convergence for release
+  and deployment smoke testing.
 
 ## [0.4.2] - 2026-06-22
 

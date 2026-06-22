@@ -10,6 +10,12 @@ Run:
 python -m pytest
 ```
 
+Before a networking release, also run a local multi-node soak:
+
+```bash
+python -m netcoin soak --nodes 3 --rounds 5 --transactions-per-round 2
+```
+
 The regression suite covers:
 
 - malformed block with a bad merkle root is rejected
@@ -50,6 +56,7 @@ The regression suite covers:
 - faucet invalid-address and IP cooldown logic
 - node/explorer public endpoint throttling returns `429` after the configured
   per-IP/per-path limit
+- local multi-node soak harness catches relay/sync divergence across HTTP peers
 
 ## Live Public Smoke Checks
 
