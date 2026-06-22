@@ -23,7 +23,7 @@ from .explorer_server import run_explorer_server
 from .fuzz import FuzzConfig, run_fuzz
 from .node import run_node
 from .p2p import Message, getheaders_message, ping_message, request_message, run_p2p_server, version_message
-from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_P2P_PORT, DEFAULT_POOL_PORT, DEFAULT_RPC_PORT, DEFAULT_TESTNET_SEEDS, NETWORKS, TICKER
+from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_P2P_PORT, DEFAULT_POOL_PORT, DEFAULT_RPC_PORT, DEFAULT_TESTNET_SEEDS, NETWORKS, NODE_VERSION, PROTOCOL_VERSION, TICKER
 from .pool import run_pool
 from .psbt import PartiallySignedTransaction
 from .rpc import run_rpc
@@ -56,6 +56,37 @@ def post_json(url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 def get_json(url: str) -> Dict[str, Any]:
     with urlopen(url, timeout=10) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def warn_if_node_incompatible(node_url: str, *, need_service: Optional[str] = None) -> None:
+    """Best-effort compatibility check for a remote ``--node``.
+
+    Fetches ``/info`` and prints a warning (without raising) when the node looks
+    like it is running an older or mismatched NetCoin: a missing ``version`` field
+    (the node predates the version handshake, e.g. pre-v0.4.x seeds), a different
+    protocol version, or a missing service the command needs. Network/parse errors
+    are swallowed so the real request still surfaces them with its own message.
+    """
+    try:
+        info = get_json(node_url.rstrip("/") + "/info").get("node", {})
+    except Exception:
+        return
+    problems = []
+    remote_proto = info.get("protocol_version")
+    if remote_proto is not None and remote_proto != PROTOCOL_VERSION:
+        problems.append(f"protocol v{remote_proto}, this client speaks v{PROTOCOL_VERSION}")
+    if not info.get("version"):
+        problems.append("node reports no version (predates v0.4.x)")
+    services = info.get("services") or []
+    if need_service and need_service not in services:
+        problems.append(f"missing '{need_service}' service")
+    if problems:
+        print(
+            f"warning: node {node_url} may be incompatible with this client (v{NODE_VERSION}): "
+            + "; ".join(problems)
+            + ". If you control the seed, update it (see docs/UPGRADING.md).",
+            file=sys.stderr,
+        )
 
 
 def find_transaction(chain: Blockchain, txid: str) -> Optional[Transaction]:
@@ -383,6 +414,7 @@ def cmd_label(args: argparse.Namespace) -> None:
 def cmd_balance(args: argparse.Namespace) -> None:
     address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
     if args.node:
+        warn_if_node_incompatible(args.node)
         response = get_json(args.node.rstrip("/") + f"/balance/{address}")
         print_json(response)
         return
@@ -575,6 +607,7 @@ def cmd_submitblock(args: argparse.Namespace) -> None:
 def cmd_miner(args: argparse.Namespace) -> None:
     payout = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
     node = args.node.rstrip("/")
+    warn_if_node_incompatible(node, need_service="block-template")
     mined = []
     for _ in range(args.blocks):
         query = urlencode({"address": payout})
