@@ -131,8 +131,11 @@ def getdata_message(items: List[Dict[str, str]]) -> Message:
     return Message("getdata", json_payload({"inventory": list(items)}))
 
 
-def getheaders_message(locator_hash: str) -> Message:
-    return Message("getheaders", json_payload({"locator": locator_hash}))
+def getheaders_message(locator_hash: str, start: int | None = None) -> Message:
+    payload = {"locator": locator_hash}
+    if start is not None:
+        payload["start"] = int(start)
+    return Message("getheaders", json_payload(payload))
 
 
 def headers_message(headers: List[Dict[str, Any]]) -> Message:
@@ -167,7 +170,11 @@ def handle_message(message: Message, chain: Optional[Any] = None) -> Optional[Me
     if command == "getheaders":
         if chain is None:
             return None
-        start = int(_json(message).get("start", 0))
+        payload = _json(message)
+        # Backward-compatible default: no explicit start returns from genesis,
+        # matching the original educational p2p-message behavior. Real sync
+        # callers pass start=local_height+1.
+        start = int(payload.get("start", 0))
         return headers_message(chain.headers(start, 2000))
     if command == "inv":
         return getdata_message(_json(message).get("inventory", []))
@@ -198,6 +205,34 @@ def handle_message(message: Message, chain: Optional[Any] = None) -> Optional[Me
         txid = chain.add_mempool_transaction(tx)
         return inv_message([{"type": "tx", "hash": txid}])
     return None
+
+
+def sync_headers_first(host: str, port: int, chain: Any, timeout: int = 10, limit: int = 2000) -> int:
+    """Synchronize one TCP P2P peer using headers first and getdata block bodies.
+
+    Returns the number of blocks accepted. This is intentionally small, but it
+    exercises a real Bitcoin-shaped flow over the TCP transport: getheaders ->
+    headers -> getdata(block) -> block.
+    """
+    locator = chain.tip_hash() if hasattr(chain, "tip_hash") else "0" * 64
+    response = request_message(host, port, getheaders_message(locator, start=chain.height() + 1), timeout=timeout)
+    if response is None or response.command != "headers":
+        return 0
+    remote_headers = json.loads(response.payload or b"{}") .get("headers", [])
+    if hasattr(chain, "validate_headers_from_tip"):
+        remote_headers = chain.validate_headers_from_tip(remote_headers[:limit])
+    accepted = 0
+    for header in remote_headers[:limit]:
+        block_hash = header.get("hash")
+        if not block_hash:
+            continue
+        block_response = request_message(host, port, getdata_message([{"type": "block", "hash": block_hash}]), timeout=timeout)
+        if block_response is None or block_response.command != "block":
+            break
+        block = read_block_message(block_response)
+        chain.add_block(block)
+        accepted += 1
+    return accepted
 
 
 class P2PRequestHandler(BaseRequestHandler):

@@ -351,13 +351,28 @@ def canonical_json(data: Any) -> bytes:
     return json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
-def create_coinbase_transaction(height: int, address: str, amount: int, extra_nonce: int = 0) -> Transaction:
+def create_coinbase_transaction(
+    height: int,
+    address: str,
+    amount: int,
+    extra_nonce: int = 0,
+    witness_commitment: str | None = None,
+) -> Transaction:
     if amount < 0 or amount > MAX_MONEY:
         raise TransactionError("coinbase amount is outside allowed range")
     if amount > 0 and not validate_address(address):
         raise TransactionError("coinbase address is not a valid NetCoin address")
     coinbase_text = f"NetCoin block {height} coinbase {extra_nonce}"
     outputs = [] if amount == 0 else [TxOutput(amount=amount, address=address)]
+    if witness_commitment:
+        if len(witness_commitment) != 64 or any(c not in "0123456789abcdefABCDEF" for c in witness_commitment):
+            raise TransactionError("witness commitment must be a 32-byte hex string")
+        outputs.append(
+            TxOutput(
+                amount=0,
+                script_pubkey=f"OP_RETURN NETCOIN_WITNESS_COMMITMENT {witness_commitment.lower()}",
+            )
+        )
     return Transaction(inputs=[TxInput(txid=ZERO_HASH, vout=-1, coinbase=coinbase_text)], outputs=outputs)
 
 

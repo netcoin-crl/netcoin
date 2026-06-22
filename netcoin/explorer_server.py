@@ -70,14 +70,36 @@ def transaction_payload(chain: Blockchain, txid: str) -> dict[str, Any] | None:
     }
 
 
-def latest_payload(chain: Blockchain, limit: int = 20) -> dict[str, Any]:
+def latest_payload(chain: Blockchain, limit: int = 20, page: int = 1) -> dict[str, Any]:
     limit = max(1, min(int(limit), 100))
+    page = max(1, int(page))
+    ordered = list(reversed(chain.chain))
+    total = len(ordered)
+    offset = (page - 1) * limit
+    page_blocks = ordered[offset : offset + limit]
     return {
         "height": chain.height(),
         "tip_hash": chain.tip_hash(),
-        "blocks": [block_summary(block) for block in chain.chain[-limit:][::-1]],
+        "page": page,
+        "limit": limit,
+        "total_blocks": total,
+        "has_next": offset + limit < total,
+        "blocks": [block_summary(block) for block in page_blocks],
         "mempool": chain.mempool_info(),
     }
+
+
+def address_payload(chain: Blockchain, address: str, limit: int = 50, offset: int = 0) -> dict[str, Any]:
+    limit = max(1, min(int(limit), 200))
+    offset = max(0, int(offset))
+    summary = chain.address_summary(address)
+    txids = summary.get("transaction_ids", [])
+    summary["all_transaction_count"] = len(txids)
+    summary["limit"] = limit
+    summary["offset"] = offset
+    summary["has_next"] = offset + limit < len(txids)
+    summary["transaction_ids"] = txids[offset : offset + limit]
+    return summary
 
 
 def search_payload(chain: Blockchain, query: str) -> dict[str, Any]:
@@ -150,8 +172,10 @@ def make_handler(chain: Blockchain, rate_limit_per_min: int = 240):
                 return
             try:
                 if parsed.path in ("/api/latest", "/api/blocks"):
-                    n = int(parse_qs(parsed.query).get("n", [20])[0])
-                    self.send_json(latest_payload(chain, n))
+                    query = parse_qs(parsed.query)
+                    n = int(query.get("n", query.get("limit", [20]))[0])
+                    page_num = int(query.get("page", [1])[0])
+                    self.send_json(latest_payload(chain, n, page=page_num))
                 elif parsed.path.startswith("/api/block/"):
                     block_hash = parsed.path.split("/", 3)[3]
                     block = chain.get_block_by_hash(block_hash)
@@ -168,7 +192,10 @@ def make_handler(chain: Blockchain, rate_limit_per_min: int = 240):
                         self.send_json(payload)
                 elif parsed.path.startswith("/api/address/"):
                     address = parsed.path.split("/", 3)[3]
-                    self.send_json(chain.address_summary(address))
+                    query = parse_qs(parsed.query)
+                    limit = int(query.get("limit", [50])[0])
+                    offset = int(query.get("offset", [0])[0])
+                    self.send_json(address_payload(chain, address, limit=limit, offset=offset))
                 elif parsed.path == "/api/search":
                     q = parse_qs(parsed.query).get("q", [""])[0]
                     self.send_json(search_payload(chain, q))

@@ -17,6 +17,8 @@ from .block import (
     cumulative_work,
     make_block,
     merkle_root,
+    validate_witness_commitment,
+    witness_commitment,
     target_to_bits,
 )
 from .crypto import validate_address
@@ -470,6 +472,8 @@ class Blockchain:
             raise ChainError("block bits do not match expected difficulty target")
         if block.header.merkle_root != merkle_root(block.transactions):
             raise ChainError("block merkle root does not match its transactions")
+        if not validate_witness_commitment(block):
+            raise ChainError("block witness commitment is missing or invalid")
         if not check_proof_of_work(block.header):
             raise ChainError("block proof of work is invalid")
         if block.header.timestamp > int(time.time()) + 2 * 60 * 60:
@@ -743,9 +747,17 @@ class Blockchain:
 
         reward = self.subsidy(height) + fees
         extra_nonce = 0
+        needs_witness_commitment = any(tx.has_witness for tx in selected)
         while True:
             coinbase = create_coinbase_transaction(height, miner_address, reward, extra_nonce=extra_nonce)
-            candidate = make_block(previous_hash, height, bits, [coinbase] + selected)
+            txs = [coinbase] + selected
+            if needs_witness_commitment:
+                commit = witness_commitment(txs)
+                coinbase = create_coinbase_transaction(
+                    height, miner_address, reward, extra_nonce=extra_nonce, witness_commitment=commit
+                )
+                txs = [coinbase] + selected
+            candidate = make_block(previous_hash, height, bits, txs)
             try:
                 self.validate_block_against(candidate, self.tip(), self.utxo_set(), self.chain)
                 break
@@ -997,6 +1009,38 @@ class Blockchain:
         start_height = max(0, int(start_height))
         limit = max(0, min(int(limit), 2000))
         return [block.header.to_dict() | {"hash": block.hash(), "work": cumulative_work([block])} for block in self.chain[start_height : start_height + limit]]
+
+    def validate_headers_from_tip(self, headers: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Validate a consecutive headers-first sync segment extending our tip.
+
+        This performs the cheap checks before block-body download: height, parent
+        link, difficulty bits, header hash, and proof-of-work. Full block
+        validation still happens after each body is downloaded.
+        """
+        accepted: List[Dict[str, Any]] = []
+        previous_hash = self.tip_hash()
+        prefix = list(self.chain)
+        expected_height = self.height() + 1
+        for raw in headers:
+            header = BlockHeader.from_dict(raw)
+            advertised_hash = str(raw.get("hash", header.hash())).lower()
+            if advertised_hash != header.hash():
+                raise ChainError("header hash does not match advertised hash")
+            if header.height != expected_height:
+                raise ChainError("headers are not height-consecutive")
+            if header.previous_hash != previous_hash:
+                raise ChainError("headers do not connect to local tip")
+            if header.bits != self.expected_bits_for_height(header.height, prefix):
+                raise ChainError("header bits do not match expected difficulty")
+            if not check_proof_of_work(header):
+                raise ChainError("header proof of work is invalid")
+            accepted.append(raw | {"hash": advertised_hash})
+            # Only the existing prefix is needed for current retarget windows. A
+            # lightweight placeholder would work for deep segments, but NetCoin
+            # sync windows are small and each real block is fetched immediately.
+            previous_hash = advertised_hash
+            expected_height += 1
+        return accepted
 
     def compact_block(self, block_hash: str) -> Dict[str, Any]:
         block = self.get_block_by_hash(block_hash)

@@ -16,7 +16,8 @@ import tempfile
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlencode
+from urllib.request import Request, urlopen
 
 from netcoin.crypto import validate_address
 from netcoin.tx import amount_to_sats
@@ -41,6 +42,16 @@ MAX_QUEUE_ITEMS = int(os.environ.get("NETCOIN_FAUCET_MAX_QUEUE", "100"))
 ADMIN_TOKEN = os.environ.get("NETCOIN_FAUCET_ADMIN_TOKEN", "")
 MIN_SPENDABLE_SATS = int(os.environ.get("NETCOIN_FAUCET_MIN_SPENDABLE_SATS", "1000000000"))
 REFILL_ADDRESS = os.environ.get("NETCOIN_FAUCET_REFILL_ADDRESS", "")
+# CAPTCHA integration. Provider choices:
+#   none       disabled (default)
+#   simple     local text challenge for private beta / offline tests
+#   turnstile  Cloudflare Turnstile siteverify
+#   hcaptcha   hCaptcha siteverify
+CAPTCHA_PROVIDER = os.environ.get("NETCOIN_FAUCET_CAPTCHA_PROVIDER", "none").strip().lower()
+CAPTCHA_SITEKEY = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SITEKEY", "")
+CAPTCHA_SECRET = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SECRET", "")
+CAPTCHA_SIMPLE_QUESTION = os.environ.get("NETCOIN_FAUCET_CAPTCHA_QUESTION", "Type netcoin")
+CAPTCHA_SIMPLE_ANSWER = os.environ.get("NETCOIN_FAUCET_CAPTCHA_ANSWER", "netcoin").strip().lower()
 
 
 PAGE = """<!doctype html>
@@ -76,6 +87,7 @@ PAGE = """<!doctype html>
     <form method="post" action="/faucet">
       <label for="address">NetCoin address</label>
       <input id="address" name="address" autocomplete="off" required placeholder="N... or net1...">
+      {captcha}
       <button type="submit">Send test NET</button>
     </form>
   </main>
@@ -320,6 +332,67 @@ def send_faucet(address: str) -> dict:
     return json.loads(result.stdout)
 
 
+def captcha_enabled() -> bool:
+    return CAPTCHA_PROVIDER not in ("", "none", "off", "disabled")
+
+
+def captcha_html() -> str:
+    if not captcha_enabled():
+        return ""
+    if CAPTCHA_PROVIDER == "simple":
+        return (
+            f'<label for="captcha">{html.escape(CAPTCHA_SIMPLE_QUESTION)}</label>'
+            '<input id="captcha" name="captcha" autocomplete="off" required>'
+        )
+    if CAPTCHA_PROVIDER == "turnstile" and CAPTCHA_SITEKEY:
+        return (
+            '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>'
+            f'<div class="cf-turnstile" data-sitekey="{html.escape(CAPTCHA_SITEKEY)}"></div>'
+        )
+    if CAPTCHA_PROVIDER == "hcaptcha" and CAPTCHA_SITEKEY:
+        return (
+            '<script src="https://js.hcaptcha.com/1/api.js" async defer></script>'
+            f'<div class="h-captcha" data-sitekey="{html.escape(CAPTCHA_SITEKEY)}"></div>'
+        )
+    return '<p class="err">CAPTCHA is configured but missing a site key.</p>'
+
+
+def verify_captcha(form: dict, remote_ip: str) -> tuple[bool, str]:
+    """Validate CAPTCHA token. Network providers are best-effort stdlib calls.
+
+    This function is intentionally isolated so tests can exercise the local
+    provider and deployments can switch provider by environment variables.
+    """
+    if not captcha_enabled():
+        return True, "disabled"
+    if CAPTCHA_PROVIDER == "simple":
+        answer = (form.get("captcha", [""])[0] or "").strip().lower()
+        return (answer == CAPTCHA_SIMPLE_ANSWER, "simple")
+
+    if not CAPTCHA_SECRET:
+        return False, "missing captcha secret"
+
+    if CAPTCHA_PROVIDER == "turnstile":
+        token = form.get("cf-turnstile-response", [""])[0]
+        url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+    elif CAPTCHA_PROVIDER == "hcaptcha":
+        token = form.get("h-captcha-response", [""])[0]
+        url = "https://hcaptcha.com/siteverify"
+    else:
+        return False, f"unsupported captcha provider: {CAPTCHA_PROVIDER}"
+
+    if not token:
+        return False, "missing captcha token"
+    body = urlencode({"secret": CAPTCHA_SECRET, "response": token, "remoteip": remote_ip}).encode("utf-8")
+    try:
+        request = Request(url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"}, method="POST")
+        with urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        return bool(payload.get("success")), CAPTCHA_PROVIDER
+    except Exception as exc:
+        return False, f"captcha verification failed: {exc}"
+
+
 def message_box(message: str, error: bool = False) -> str:
     cls = "msg err" if error else "msg"
     return f'<div class="{cls}">{message}</div>'
@@ -332,7 +405,7 @@ class FaucetHandler(BaseHTTPRequestHandler):
         return
 
     def render(self, message: str = "") -> None:
-        body = PAGE.format(amount=html.escape(AMOUNT), message=message).encode("utf-8")
+        body = PAGE.format(amount=html.escape(AMOUNT), message=message, captcha=captcha_html()).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -368,6 +441,7 @@ class FaucetHandler(BaseHTTPRequestHandler):
                 {
                     "ok": True,
                     "queue_mode": QUEUE_MODE,
+                    "captcha": {"enabled": captcha_enabled(), "provider": CAPTCHA_PROVIDER},
                     "queued": queued,
                     "hot_wallet": hot_wallet_status(faucet_spendable_sats()),
                 }
@@ -406,6 +480,12 @@ class FaucetHandler(BaseHTTPRequestHandler):
             record_abuse(state, ip, "invalid-address")
             save_state(state)
             self.render(message_box("Invalid NetCoin address.", error=True))
+            return
+        captcha_ok, captcha_reason = verify_captcha(form, ip)
+        if not captcha_ok:
+            record_abuse(state, ip, f"captcha:{captcha_reason}")
+            save_state(state)
+            self.render(message_box("CAPTCHA verification failed. Please try again.", error=True))
             return
         limited, remaining = rate_limited(ip, state)
         if limited:

@@ -157,6 +157,73 @@ def witness_merkle_root(transactions: Iterable[Transaction]) -> str:
         layer = next_layer
     return layer[0].hex()
 
+
+WITNESS_RESERVED_VALUE = "00" * 32
+WITNESS_COMMITMENT_PREFIX = "OP_RETURN NETCOIN_WITNESS_COMMITMENT"
+
+
+def witness_commitment_root(transactions: Iterable[Transaction]) -> str:
+    """Return the witness merkle root used for NetCoin's SegWit-style commitment.
+
+    Like Bitcoin's witness commitment idea, the coinbase witness hash is treated
+    as zero so the commitment can be placed inside the coinbase without becoming
+    circular. Non-coinbase transactions use their wtxid values.
+    """
+    txs = list(transactions)
+    if not txs:
+        return ZERO_HASH
+    tx_hashes = [bytes.fromhex(ZERO_HASH)]
+    tx_hashes.extend(bytes.fromhex(tx.wtxid()) for tx in txs[1:])
+    layer = tx_hashes
+    while len(layer) > 1:
+        if len(layer) % 2 == 1:
+            layer.append(layer[-1])
+        next_layer = []
+        for i in range(0, len(layer), 2):
+            next_layer.append(double_sha256(layer[i] + layer[i + 1]))
+        layer = next_layer
+    return layer[0].hex()
+
+
+def witness_commitment(transactions: Iterable[Transaction], reserved_value_hex: str = WITNESS_RESERVED_VALUE) -> str:
+    """Commit to all transaction witnesses using root || reserved_value.
+
+    This is an educational BIP141-shaped rule, not byte-for-byte Bitcoin: the
+    commitment is encoded as a zero-value coinbase OP_RETURN script:
+    OP_RETURN NETCOIN_WITNESS_COMMITMENT <hex>.
+    """
+    reserved = bytes.fromhex(reserved_value_hex)
+    if len(reserved) != 32:
+        raise BlockError("witness reserved value must be 32 bytes")
+    return double_sha256(bytes.fromhex(witness_commitment_root(transactions)) + reserved).hex()
+
+
+def coinbase_witness_commitment(block: "Block") -> str | None:
+    """Extract the last NetCoin witness commitment from the coinbase, if present."""
+    if not block.transactions:
+        return None
+    for output in reversed(block.transactions[0].outputs):
+        script = getattr(output, "script_pubkey", "") or ""
+        if script.startswith(WITNESS_COMMITMENT_PREFIX + " "):
+            parts = script.split()
+            if len(parts) == 3 and len(parts[2]) == 64:
+                return parts[2].lower()
+    return None
+
+
+def block_requires_witness_commitment(block: "Block") -> bool:
+    """True when a block includes non-coinbase witness data."""
+    return any(tx.has_witness for tx in block.transactions[1:])
+
+
+def validate_witness_commitment(block: "Block") -> bool:
+    if not block_requires_witness_commitment(block):
+        return True
+    found = coinbase_witness_commitment(block)
+    if found is None:
+        return False
+    return found == witness_commitment(block.transactions)
+
 def bits_to_target(bits: int) -> int:
     exponent = bits >> 24
     mantissa = bits & 0x007FFFFF

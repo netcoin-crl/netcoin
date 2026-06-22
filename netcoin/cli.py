@@ -29,7 +29,7 @@ from .rpc import run_rpc
 from .script import describe_address, multisig_redeem_script, script_to_p2sh_address
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .tx import Transaction, amount_to_sats, sats_to_amount
-from .wallet import Wallet, WalletError, confirm_seed_phrase, verify_seed_phrase
+from .wallet import AutoLockWalletSession, Wallet, WalletError, confirm_seed_phrase, verify_seed_phrase
 
 
 def print_json(data: Any) -> None:
@@ -288,8 +288,13 @@ def cmd_wallet_unlock(args: argparse.Namespace) -> None:
         import getpass
 
         passphrase = getpass.getpass("Wallet passphrase: ")
-    wallet = Wallet.load(args.wallet, passphrase=passphrase)
-    result: Dict[str, Any] = {"ok": True, "wallet_file": args.wallet, "address": wallet.address, "unlocked": True}
+    if getattr(args, "ttl_seconds", None):
+        session = AutoLockWalletSession(args.wallet, passphrase=passphrase, ttl_seconds=args.ttl_seconds)
+        wallet = session.get_wallet()
+        result: Dict[str, Any] = {"ok": True, "wallet_file": args.wallet, "address": wallet.address, "unlocked": True, "auto_lock": session.status()}
+    else:
+        wallet = Wallet.load(args.wallet, passphrase=passphrase)
+        result: Dict[str, Any] = {"ok": True, "wallet_file": args.wallet, "address": wallet.address, "unlocked": True}
     if args.out:
         wallet.save(args.out, passphrase=None)
         os.chmod(args.out, 0o600)
@@ -415,18 +420,33 @@ def cmd_send(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
     source = args.from_address or wallet.address_for(args.from_type)
+    change_address = args.change_address or wallet.address_for(args.from_type)
+    rotated_change = False
+    if getattr(args, "rotate_change", False) and not args.change_address:
+        wallet_path = Path(args.wallet)
+        wallet_data = json.loads(wallet_path.read_text())
+        address_types = ["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"]
+        counter = int(wallet_data.get("change_index", 0))
+        change_address = wallet.address_for(address_types[counter % len(address_types)])
+        rotated_change = True
     tx = wallet.create_transaction(
         chain,
         to_address=args.to,
         amount=amount_to_sats(args.amount),
         fee=amount_to_sats(args.fee),
         from_address=source,
-        change_address=args.change_address or wallet.address_for(args.from_type),
+        change_address=change_address,
         rbf=args.rbf,
         select_outpoints=getattr(args, "utxo", None),
         strategy=getattr(args, "coin_strategy", "greedy"),
     )
     txid = chain.add_mempool_transaction(tx)
+    if rotated_change:
+        wallet_path = Path(args.wallet)
+        wallet_data = json.loads(wallet_path.read_text())
+        wallet_data["change_index"] = int(wallet_data.get("change_index", 0)) + 1
+        wallet_data["last_change_address"] = change_address
+        wallet_path.write_text(json.dumps(wallet_data, indent=2, sort_keys=True))
     result: Dict[str, Any] = {
         "ok": True,
         "txid": txid,
@@ -435,6 +455,8 @@ def cmd_send(args: argparse.Namespace) -> None:
         "to": args.to,
         "amount": args.amount,
         "fee": args.fee,
+        "change_address": change_address,
+        "change_rotated": rotated_change,
         "weight": tx.weight(),
         "vsize": tx.vsize(),
         "outputs": [output.to_dict() for output in tx.outputs],
@@ -772,6 +794,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--wallet", required=True)
     p.add_argument("--passphrase", help="passphrase (prompted if omitted on a TTY)")
     p.add_argument("--out", help="optional path to write a decrypted (unencrypted) wallet copy")
+    p.add_argument("--ttl-seconds", type=int, help="report an auto-lock expiry for daemon/interactive integrations")
     p.set_defaults(func=cmd_wallet_unlock)
 
     p = sub.add_parser("multisig-address", help="build an M-of-N P2SH multisig address from public keys")
@@ -840,6 +863,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--rbf", action="store_true", help="signal opt-in replace-by-fee")
     p.add_argument("--utxo", action="append", metavar="TXID:VOUT", help="coin control: spend specific UTXOs (repeatable)")
     p.add_argument("--coin-strategy", default="greedy", choices=["greedy", "largest-first", "smallest-first", "random"], help="coin-selection strategy")
+    p.add_argument("--rotate-change", action="store_true", help="rotate change across wallet-controlled address types and persist change_index")
     p.add_argument("--broadcast-to", help="node URL, e.g. http://127.0.0.1:18444")
     p.set_defaults(func=cmd_send)
 

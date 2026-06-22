@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -328,7 +329,11 @@ class Wallet:
         from_address = self.address_for(from_type)
         change_address = self.address_for(change_type)
         needed = amount + fee
-        available = order_utxos_for_strategy(chain.utxos_for_address(from_address), strategy)
+        available = chain.utxos_for_address(from_address)
+        if not rbf:
+            mempool_spent = {txin.outpoint() for tx in chain.mempool for txin in tx.inputs}
+            available = [u for u in available if u.outpoint() not in mempool_spent]
+        available = order_utxos_for_strategy(available, strategy)
 
         if select_outpoints:
             # Coin control: spend exactly the chosen UTXOs (and only ours).
@@ -371,6 +376,50 @@ class Wallet:
     def create_multisig_address(self, required: int, public_keys_hex: List[str]) -> Dict[str, str]:
         redeem_script = multisig_redeem_script(required, public_keys_hex)
         return {"address": script_to_p2sh_address(redeem_script), "redeem_script": redeem_script}
+
+
+class AutoLockWalletSession:
+    """In-memory wallet unlock session with a TTL.
+
+    This does not create a background thread; callers check `get_wallet()` before
+    each sensitive operation. Once expired, the private-key reference is dropped
+    and future access raises WalletError. It gives CLI/daemon code a simple
+    primitive for auto-locking decrypted wallet material.
+    """
+
+    def __init__(self, path: str | Path, passphrase: Optional[str] = None, ttl_seconds: int = 300):
+        if ttl_seconds <= 0:
+            raise WalletError("auto-lock ttl must be positive")
+        self.path = str(path)
+        self.unlocked_at = time.time()
+        self.expires_at = self.unlocked_at + int(ttl_seconds)
+        self._wallet: Optional[Wallet] = Wallet.load(path, passphrase=passphrase)
+
+    @property
+    def locked(self) -> bool:
+        if self._wallet is None:
+            return True
+        if time.time() >= self.expires_at:
+            self.lock()
+            return True
+        return False
+
+    def lock(self) -> None:
+        self._wallet = None
+
+    def get_wallet(self) -> "Wallet":
+        if self.locked or self._wallet is None:
+            raise WalletError("wallet session is locked")
+        return self._wallet
+
+    def status(self) -> Dict[str, Any]:
+        return {
+            "wallet_file": self.path,
+            "locked": self.locked,
+            "unlocked_at": int(self.unlocked_at),
+            "expires_at": int(self.expires_at),
+            "seconds_remaining": max(0, int(self.expires_at - time.time())) if not self.locked else 0,
+        }
 
 # ---------------------------------------------------------------------------
 # Compatibility helpers for the expanded v2 CLI.
@@ -501,7 +550,11 @@ def _create_transaction_extended(
     if not validate_address(spend_from) or not validate_address(change_to):
         raise WalletError("source/change address is not valid")
     needed = amount + fee
-    available = order_utxos_for_strategy(chain.utxos_for_address(spend_from), strategy)
+    available = chain.utxos_for_address(spend_from)
+    if not rbf:
+        mempool_spent = {txin.outpoint() for tx in chain.mempool for txin in tx.inputs}
+        available = [u for u in available if u.outpoint() not in mempool_spent]
+    available = order_utxos_for_strategy(available, strategy)
     if select_outpoints:
         by_outpoint = {u.outpoint(): u for u in available}
         selected = []
