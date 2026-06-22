@@ -1,0 +1,5 @@
+title: NetCoin
+description: An educational, from-scratch, Bitcoin-like cryptocurrency in pure Python. Testnet only — not real money.
+theme: jekyll-theme-cayman
+show_downloads: false
+# Served via GitHub Pages from /docs on the main branch.
