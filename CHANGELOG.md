@@ -15,6 +15,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - **Wallet file format versioning + migration**: wallet files now carry a
   `wallet_version`; `wallet-migrate` upgrades older files to the current format and
   re-encrypts at the upgraded KDF cost (backing up the original first).
+- **Fuller Script VM**: the script engine gains conditionals (`OP_IF`/`OP_NOTIF`/
+  `OP_ELSE`/`OP_ENDIF`), arithmetic/comparison opcodes (`OP_ADD`, `OP_SUB`, `OP_MIN`/
+  `MAX`, `OP_WITHIN`, `OP_NUMEQUAL(VERIFY)`, `OP_LESSTHAN`/`GREATERTHAN`, …), stack
+  ops (`OP_SWAP`/`OVER`/`ROT`/`NIP`/`TUCK`/`2DUP`/`DEPTH`/`IFDUP`), more hashing
+  (`OP_SHA256`/`HASH256`/`RIPEMD160`), `OP_SIZE`, `OP_RETURN`, `OP_CHECKSIGVERIFY`/
+  `OP_CHECKMULTISIGVERIFY`, with strict errors and unbalanced-conditional detection.
 
 ## [0.4.0] - 2026-06-21
 
