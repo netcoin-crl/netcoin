@@ -18,7 +18,8 @@ you can follow to try the public testnet in about 10 minutes.
 ## Steps
 
 ```bash
-# 1. Install
+# 1. Get the code & install (needs Python 3.10+; works on macOS/Linux/Windows)
+git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
 python -m pip install -e .
 
