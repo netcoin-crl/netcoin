@@ -43,8 +43,17 @@ def test_segwit_p2wpkh_spend(tmp_path: Path):
     assert chain.mempool_info()["size"] == 1
 
 
-# Note: spending *from* a P2SH-SegWit address is not wired in sign_input yet
-# (only address generation is); that's a known gap, intentionally not tested here.
+def test_p2sh_segwit_spend(tmp_path: Path):
+    chain, miner, receiver = funded(tmp_path, "p2sh_segwit_address")
+    tx = miner.create_transaction(
+        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="p2sh-segwit"
+    )
+    # Nested P2SH-P2WPKH: sig+pubkey in the witness, P2WPKH redeem script in scriptSig.
+    assert len(tx.inputs[0].witness) == 2
+    assert tx.inputs[0].script_sig.startswith("OP_0 ")
+    chain.add_mempool_transaction(tx)
+    chain.mine_block(miner.address)
+    assert chain.balances_for_address(receiver.address)["total"] == amount_to_sats("1")
 
 
 # --- witness tampering is rejected ---
@@ -62,6 +71,17 @@ def test_tampered_segwit_pubkey_rejected(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path, "segwit_address")
     tx = miner.create_transaction(chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="segwit")
     # Replace the witness pubkey with a different wallet's key (hash160 won't match).
+    tx.inputs[0].witness[1] = Wallet.create().public_key_hex
+    with pytest.raises(ChainError, match="signature"):
+        chain.add_mempool_transaction(tx)
+
+
+def test_tampered_p2sh_segwit_pubkey_rejected(tmp_path: Path):
+    chain, miner, receiver = funded(tmp_path, "p2sh_segwit_address")
+    tx = miner.create_transaction(
+        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="p2sh-segwit"
+    )
+    # Swap in a different wallet's pubkey: its hash160 won't match the redeem script.
     tx.inputs[0].witness[1] = Wallet.create().public_key_hex
     with pytest.raises(ChainError, match="signature"):
         chain.add_mempool_transaction(tx)

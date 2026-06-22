@@ -11,7 +11,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Spending from P2SH-SegWit (P2SH-P2WPKH) addresses** is now wired into
+  `sign_input`/`verify_input`: the nested P2WPKH redeem script goes in the
+  scriptSig and the signature + pubkey go in the witness, matching how a wrapped
+  SegWit input is spent. Closes the only remaining known gap from v0.4.1.
+  (`create_transaction ... from_type="p2sh-segwit"`; 2 new tests, 233 total.)
 
 ## [0.4.1] - 2026-06-21
 
@@ -49,21 +54,8 @@ output descriptors, change-address rotation, wallet auto-lock, and migration.
   `OP_CHECKMULTISIGVERIFY`, with strict errors and unbalanced-conditional detection.
 
 ### Known gaps
-- Spending *from* a P2SH-SegWit address is not yet wired in `sign_input` (only
-  address generation is supported).
-- **Output descriptors** (`netcoin/descriptors.py`): `pkh`/`wpkh`/`tr`/`sh(wpkh)` and
-  `sh(multi(...))` descriptors; `wallet-descriptor` exports a wallet's descriptors and
-  `descriptor-address` resolves a descriptor to its address (watch-only, no keys).
-- **Full PSBT workflow**: `PartiallySignedTransaction.create` (build an unsigned
-  PSBT from inputs/outputs) and `combine` (merge signatures from multiple parties,
-  each signing the inputs it owns), plus `combine_psbts` and `finalize`/`extract`
-  — completing create → sign → combine → finalize → extract.
-- **Fuller Script VM**: the script engine gains conditionals (`OP_IF`/`OP_NOTIF`/
-  `OP_ELSE`/`OP_ENDIF`), arithmetic/comparison opcodes (`OP_ADD`, `OP_SUB`, `OP_MIN`/
-  `MAX`, `OP_WITHIN`, `OP_NUMEQUAL(VERIFY)`, `OP_LESSTHAN`/`GREATERTHAN`, …), stack
-  ops (`OP_SWAP`/`OVER`/`ROT`/`NIP`/`TUCK`/`2DUP`/`DEPTH`/`IFDUP`), more hashing
-  (`OP_SHA256`/`HASH256`/`RIPEMD160`), `OP_SIZE`, `OP_RETURN`, `OP_CHECKSIGVERIFY`/
-  `OP_CHECKMULTISIGVERIFY`, with strict errors and unbalanced-conditional detection.
+- Spending *from* a P2SH-SegWit address was not yet wired in `sign_input` (only
+  address generation was supported). _Resolved in [Unreleased]._
 
 ## [0.4.0] - 2026-06-21
 
