@@ -87,6 +87,15 @@ python -m netcoin template --wallet miner.json
 ## 5. Check your rewards
 
 ```bash
+python -m netcoin balance \
+  --node http://18.220.89.128:28444 \
+  --address <YOUR_ADDRESS>
+```
+
+This can query any public seed. If you run your own synced node/data directory, this
+also works locally:
+
+```bash
 python -m netcoin --data ~/.netcoin-testnet balance --address <YOUR_ADDRESS>
 ```
 

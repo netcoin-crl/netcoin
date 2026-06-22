@@ -14,7 +14,7 @@ from typing import Any, Dict
 
 _LIST_KEYS = {"peer", "peers"}
 _BOOL_KEYS = {"seeds"}
-_INT_KEYS = {"port", "rate_limit_per_min", "request_timeout", "request_retries"}
+_INT_KEYS = {"port", "rate_limit_per_min", "request_timeout", "request_retries", "sync_interval"}
 
 
 def _coerce(key: str, value: Any) -> Any:

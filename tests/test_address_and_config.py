@@ -49,6 +49,7 @@ def test_address_index_tracks_outputs(tmp_path: Path):
     # 3 coinbase txs paid this address.
     assert summary["transaction_count"] == 3
     assert summary["balance"]["total"] > 0
+    assert summary["balance_net"]["total"] == "150.00000000"
 
 
 def test_address_index_rebuilds_after_restart(tmp_path: Path):
@@ -76,12 +77,14 @@ def test_address_endpoint_over_http(tmp_path: Path):
 def test_load_config_json(tmp_path: Path):
     p = tmp_path / "netcoin.json"
     p.write_text(json.dumps({"host": "0.0.0.0", "port": 28444, "seeds": True,
-                             "peers": ["http://a:28444", "http://b:28444"]}))
+                             "peers": ["http://a:28444", "http://b:28444"],
+                             "sync_interval": 30}))
     cfg = load_config(p)
     assert cfg["host"] == "0.0.0.0"
     assert cfg["port"] == 28444
     assert cfg["seeds"] is True
     assert cfg["peer"] == ["http://a:28444", "http://b:28444"]
+    assert cfg["sync_interval"] == 30
 
 
 def test_load_config_keyvalue(tmp_path: Path):
@@ -91,6 +94,7 @@ def test_load_config_keyvalue(tmp_path: Path):
         "host = 0.0.0.0\n"
         "port = 28444\n"
         "seeds = true\n"
+        "sync_interval = 30\n"
         "peer = http://a:28444\n"
         "peer = http://b:28444\n"
     )
@@ -99,6 +103,7 @@ def test_load_config_keyvalue(tmp_path: Path):
     assert cfg["port"] == 28444
     assert cfg["seeds"] is True
     assert cfg["peer"] == ["http://a:28444", "http://b:28444"]
+    assert cfg["sync_interval"] == 30
 
 
 # --- 40 faucet history ---

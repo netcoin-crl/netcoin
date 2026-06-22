@@ -91,3 +91,17 @@ def test_utxos_endpoint_for_address(tmp_path: Path):
     assert data["address"] == miner.address
     # Coinbase is immature at height 1, so utxos_for_address returns none yet.
     assert isinstance(data["utxos"], list)
+
+
+def test_balance_endpoint_for_address(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.address)
+
+    with served(NetCoinNode(chain, persist=False)) as s:
+        data = get(f"{s.url}/balance/{miner.address}")
+    assert data["address"] == miner.address
+    assert data["height"] == 1
+    assert data["total_sats"] > 0
+    assert data["total"] == "50.00000000"
+    assert data["spendable"] == "0.00000000"

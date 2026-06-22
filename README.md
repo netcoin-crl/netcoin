@@ -34,11 +34,12 @@ Implemented in code:
 - JSON-RPC server
 - Mining-pool template server
 - Static HTML block explorer generator
+- API-backed explorer server
 - Encrypted wallet files
 - Deterministic NetCoin seed phrases
 - Watch-only wallet files
 - Main/testnet/signet/regtest profile descriptions
-- P2P message envelope framing helpers
+- P2P message envelope framing helpers and experimental TCP P2P server/client
 - PSBT-like signing container
 
 Still not something code alone can create:
@@ -82,6 +83,7 @@ Default public testnet ports:
 - Peer/node HTTP: `28444`
 - JSON-RPC: `28445` local/private only
 - Pool/template server: `28446` local/private only
+- Experimental TCP P2P: `28447`
 
 The first public milestone is a single seed node that returns JSON:
 
@@ -115,12 +117,17 @@ See [docs/SECURITY_TESTING.md](docs/SECURITY_TESTING.md) for malformed block, ba
 Operator tooling lives in `tools/`: `backup_node.sh` (backup), `deploy_seed.sh` (safe
 update with rollback), `dashboard.py` (public status page), `faucet_admin.py` (private
 faucet admin view), and `monitor_netcoin.py` (status + optional webhook alerts). The
-node also exposes explorer-style JSON: `/tx/<txid>`, `/latest?n=`, `/utxos?address=`,
-`/block/<hash>`, and `/mempool`.
+faucet exposes `/history`, `/queue`, `/status`, and an admin-token-protected
+`/admin/process-queue` endpoint for queued payouts and hot-wallet refill checks.
+The node also exposes explorer-style JSON: `/tx/<txid>`, `/address/<address>`,
+`/balance/<address>`, `/latest?n=`, `/utxos?address=`, `/block/<hash>`,
+`/mempool`, and `/relay` for relay-queue visibility.
 
 > The JSON-RPC server supports optional bearer-token auth: pass `--rpc-token` (or set
 > `NETCOIN_RPC_TOKEN`) and keep it bound to `127.0.0.1`. The node and RPC servers also
-> cap request body size to blunt trivial memory-DoS attempts.
+> cap request body size to blunt trivial memory-DoS attempts. Public node and explorer
+> HTTP endpoints support `--rate-limit-per-min` (`0` disables) for per-IP/per-path
+> throttling.
 
 ## Quick start
 
@@ -130,6 +137,14 @@ python -m netcoin wallet-new --out miner.json --mnemonic
 python -m netcoin wallet-new --out alice.json
 python -m netcoin --data demo-chain mine --wallet miner.json --blocks 101
 python -m netcoin --data demo-chain balance --wallet miner.json
+```
+
+Check any address against a public seed:
+
+```bash
+python -m netcoin balance \
+  --node http://18.220.89.128:28444 \
+  --address <NETCOIN_ADDRESS>
 ```
 
 Send to Alice's SegWit-style address:
@@ -190,6 +205,13 @@ Generate a static explorer:
 ```bash
 python -m netcoin --data demo-chain explorer --out explorer
 open explorer/index.html
+```
+
+Run the live API-backed explorer:
+
+```bash
+python -m netcoin --data demo-chain explorer-server --host 127.0.0.1 --port 8080
+open http://127.0.0.1:8080/
 ```
 
 Run a local peer node:

@@ -3,6 +3,7 @@ downtime, peer loss mid-sync, and delayed (out-of-order) block delivery."""
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+import time
 
 from netcoin.chain import Blockchain
 from netcoin.miner import solve_template
@@ -114,3 +115,26 @@ def test_delayed_block_then_parent_connects(tmp_path: Path):
     node.accept_block(block2)
     assert target_chain.height() == 3
     assert target_chain.tip_hash() == source.tip_hash()
+
+
+def test_background_sync_loop_catches_up(tmp_path: Path):
+    miner = Wallet.create()
+    remote_chain = Blockchain(tmp_path / "remote")
+    for _ in range(2):
+        remote_chain.mine_block(miner.address)
+    remote = NetCoinNode(remote_chain, persist=False)
+
+    with served(remote) as s:
+        local_chain = Blockchain(tmp_path / "local")
+        local = NetCoinNode(local_chain, peers=[s.url], persist=False)
+        stop, thread = local.start_background_sync(1)
+        try:
+            deadline = time.time() + 5
+            while time.time() < deadline and local_chain.height() < 2:
+                time.sleep(0.1)
+        finally:
+            stop.set()
+            thread.join(timeout=5)
+
+    assert local_chain.height() == 2
+    assert local_chain.tip_hash() == remote_chain.tip_hash()

@@ -28,6 +28,8 @@ to launch.
 
 - [ ] DoS review of all node endpoints (body size, rate, connection limits).
 - [ ] Peer gossip reviewed for poisoning, eclipse, and amplification.
+- [ ] TCP P2P transport reviewed for malformed frames, slowloris, connection
+      limits, and resource exhaustion.
 - [ ] Sync logic reviewed for resource exhaustion (huge chains, slowloris).
 - [ ] No trust placed in unauthenticated `X-Forwarded-For` beyond a trusted proxy.
 - [ ] TLS / transport security for any non-local traffic.

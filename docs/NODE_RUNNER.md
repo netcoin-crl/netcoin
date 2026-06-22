@@ -59,6 +59,23 @@ Raw-IP fallback:
 
 On startup the node prints its height and tip, then syncs from peers.
 
+To keep discovering peers and syncing without manually calling `/sync`, add a
+background sync interval:
+
+```bash
+python -m netcoin --data ~/.netcoin-testnet node \
+  --host 127.0.0.1 \
+  --port 28444 \
+  --rate-limit-per-min 240 \
+  --sync-interval 60 \
+  --peer http://seed1.netcoin.online:28444 \
+  --peer http://seed2.netcoin.online:28444 \
+  --peer http://seed3.netcoin.online:28444
+```
+
+`--rate-limit-per-min` is a per-IP/per-path public HTTP throttle for both reads
+and writes. Set it to `0` only on private development nodes.
+
 ## 4. Confirm you are in sync
 
 In a second terminal:
@@ -78,6 +95,17 @@ They should match once your node finishes syncing. You can also force a sync:
 ```bash
 curl -X POST http://127.0.0.1:28444/sync
 ```
+
+Check pending relay work:
+
+```bash
+curl http://127.0.0.1:28444/relay
+curl -X POST http://127.0.0.1:28444/relay
+```
+
+The first command shows queued block/transaction relay attempts. The second drains
+the queue immediately; otherwise failed relays retry with backoff when new relay
+work or operator actions trigger a drain.
 
 ## 5. (Optional) Accept inbound peers
 
@@ -121,6 +149,7 @@ After=network-online.target
 [Service]
 ExecStart=/path/to/python -m netcoin --data /home/youruser/.netcoin-testnet node \
   --host 0.0.0.0 --port 28444 \
+  --sync-interval 60 \
   --peer http://seed1.netcoin.online:28444 \
   --peer http://seed2.netcoin.online:28444 \
   --peer http://seed3.netcoin.online:28444

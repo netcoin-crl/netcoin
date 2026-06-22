@@ -48,6 +48,7 @@ from .tx import (
     TxInput,
     create_coinbase_transaction,
     ensure_unique_inputs,
+    sats_to_amount,
 )
 
 
@@ -146,9 +147,34 @@ class Blockchain:
         return {
             "address": address,
             "balance": balances,
+            "balance_net": {
+                "total": sats_to_amount(balances["total"]),
+                "spendable": sats_to_amount(balances["spendable"]),
+                "immature": sats_to_amount(balances["immature"]),
+            },
             "utxo_count": len(utxos),
             "transaction_count": len(txids),
             "transaction_ids": txids,
+        }
+
+    def address_balance_summary(self, address: str) -> Dict[str, Any]:
+        if not validate_address(address):
+            raise ChainError("address is not a valid NetCoin address")
+        balances = self.balances_for_address(address)
+        utxos = self.utxos_for_address(address, include_immature=True)
+        txids = sorted(self.address_index.get(address, set()))
+        return {
+            "address": address,
+            "height": self.height(),
+            "tip_hash": self.tip_hash(),
+            "total_sats": balances["total"],
+            "spendable_sats": balances["spendable"],
+            "immature_sats": balances["immature"],
+            "total": sats_to_amount(balances["total"]),
+            "spendable": sats_to_amount(balances["spendable"]),
+            "immature": sats_to_amount(balances["immature"]),
+            "utxo_count": len(utxos),
+            "transaction_count": len(txids),
         }
 
     @property

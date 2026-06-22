@@ -19,9 +19,10 @@ from .chain import Blockchain, ChainError
 from .crypto import validate_address
 from .miner import block_summary, solve_template
 from .explorer import generate_explorer
+from .explorer_server import run_explorer_server
 from .node import run_node
-from .p2p import Message, version_message
-from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_POOL_PORT, DEFAULT_RPC_PORT, DEFAULT_TESTNET_SEEDS, NETWORKS, TICKER
+from .p2p import Message, getheaders_message, ping_message, request_message, run_p2p_server, version_message
+from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_P2P_PORT, DEFAULT_POOL_PORT, DEFAULT_RPC_PORT, DEFAULT_TESTNET_SEEDS, NETWORKS, TICKER
 from .pool import run_pool
 from .psbt import PartiallySignedTransaction
 from .rpc import run_rpc
@@ -326,22 +327,15 @@ def cmd_label(args: argparse.Namespace) -> None:
 
 
 def cmd_balance(args: argparse.Namespace) -> None:
-    chain = Blockchain(args.data)
     address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
-    balances = chain.balances_for_address(address)
-    print_json(
-        {
-            "address": address,
-            "height": chain.height(),
-            "total_sats": balances["total"],
-            "spendable_sats": balances["spendable"],
-            "immature_sats": balances["immature"],
-            "total": sats_to_amount(balances["total"]),
-            "spendable": sats_to_amount(balances["spendable"]),
-            "immature": sats_to_amount(balances["immature"]),
-            "ticker": TICKER,
-        }
-    )
+    if args.node:
+        response = get_json(args.node.rstrip("/") + f"/balance/{address}")
+        print_json(response)
+        return
+    chain = Blockchain(args.data)
+    result = chain.address_balance_summary(address)
+    result["ticker"] = TICKER
+    print_json(result)
 
 
 def cmd_utxos(args: argparse.Namespace) -> None:
@@ -554,6 +548,8 @@ def cmd_script(args: argparse.Namespace) -> None:
 def cmd_node(args: argparse.Namespace) -> None:
     host, port, advertise = args.host, args.port, getattr(args, "advertise", None)
     use_seeds = getattr(args, "seeds", False)
+    sync_interval = getattr(args, "sync_interval", 0)
+    rate_limit_per_min = getattr(args, "rate_limit_per_min", 240)
     peers = list(args.peer or [])
     if getattr(args, "config", None):
         from .config import load_config
@@ -566,10 +562,22 @@ def cmd_node(args: argparse.Namespace) -> None:
             port = cfg["port"]
         if advertise is None and cfg.get("advertise"):
             advertise = cfg["advertise"]
+        if not sync_interval and cfg.get("sync_interval") is not None:
+            sync_interval = int(cfg["sync_interval"])
+        if cfg.get("rate_limit_per_min") is not None and rate_limit_per_min == 240:
+            rate_limit_per_min = int(cfg["rate_limit_per_min"])
         use_seeds = use_seeds or cfg.get("seeds", False)
     if use_seeds:
         peers.extend(s for s in DEFAULT_TESTNET_SEEDS if s not in peers)
-    run_node(data_dir=args.data, host=host, port=port, peers=peers, advertise=advertise)
+    run_node(
+        data_dir=args.data,
+        host=host,
+        port=port,
+        peers=peers,
+        advertise=advertise,
+        sync_interval=sync_interval,
+        rate_limit_per_min=rate_limit_per_min,
+    )
 
 
 def cmd_rpc(args: argparse.Namespace) -> None:
@@ -593,6 +601,10 @@ def cmd_explorer(args: argparse.Namespace) -> None:
     print_json({"ok": True, "index": str(index), "blocks": len(chain.chain)})
 
 
+def cmd_explorer_server(args: argparse.Namespace) -> None:
+    run_explorer_server(data_dir=args.data, host=args.host, port=args.port, rate_limit_per_min=args.rate_limit_per_min)
+
+
 def cmd_networks(args: argparse.Namespace) -> None:
     print_json({name: profile.__dict__ for name, profile in NETWORKS.items()})
 
@@ -604,6 +616,31 @@ def cmd_p2p_message(args: argparse.Namespace) -> None:
     else:
         msg = version_message(args.height)
         print_json({"command": msg.command, "message_hex": msg.serialize().hex()})
+
+
+def cmd_p2p_server(args: argparse.Namespace) -> None:
+    run_p2p_server(data_dir=args.data, host=args.host, port=args.port)
+
+
+def cmd_p2p_call(args: argparse.Namespace) -> None:
+    if args.command == "version":
+        message = version_message(args.height, genesis_hash=args.genesis_hash or "")
+    elif args.command == "ping":
+        message = ping_message(args.nonce)
+    elif args.command == "getheaders":
+        message = getheaders_message(args.locator)
+    else:
+        raise ChainError("unsupported p2p-call command")
+    response = request_message(args.host, args.port, message, timeout=args.timeout)
+    if response is None:
+        print_json({"ok": False, "response": None})
+        return
+    payload_text = response.payload.decode("utf-8", errors="replace")
+    try:
+        payload: Any = json.loads(payload_text) if payload_text else {}
+    except json.JSONDecodeError:
+        payload = {"hex": response.payload.hex()}
+    print_json({"ok": True, "command": response.command, "payload": payload})
 
 
 def cmd_psbt_sign(args: argparse.Namespace) -> None:
@@ -711,6 +748,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--address")
     p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
     p.add_argument("--passphrase")
+    p.add_argument("--node", help="query a remote node instead of local chain data")
     p.set_defaults(func=cmd_balance)
 
     p = sub.add_parser("utxos", help="list UTXOs for an address")
@@ -819,6 +857,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seeds", action="store_true", help="also connect to the built-in public testnet seeds")
     p.add_argument("--advertise", help="public URL to announce to peers for gossip discovery")
     p.add_argument("--config", help="path to a netcoin.conf (JSON or key=value)")
+    p.add_argument("--sync-interval", type=int, default=0, help="background peer discovery/sync interval in seconds; 0 disables")
+    p.add_argument("--rate-limit-per-min", type=int, default=240, help="per-IP/per-path HTTP request limit; 0 disables")
     p.set_defaults(func=cmd_node)
 
     p = sub.add_parser("rpc", help="run JSON-RPC server")
@@ -846,6 +886,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", default="explorer")
     p.set_defaults(func=cmd_explorer)
 
+    p = sub.add_parser("explorer-server", help="run API-backed explorer web service")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8080)
+    p.add_argument("--rate-limit-per-min", type=int, default=240, help="per-IP/per-path request limit; 0 disables")
+    p.set_defaults(func=cmd_explorer_server)
+
     p = sub.add_parser("networks", help="show main/testnet/signet/regtest profiles")
     p.set_defaults(func=cmd_networks)
 
@@ -853,6 +899,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--height", type=int, default=0)
     p.add_argument("--parse", help="parse message hex instead of creating a version message")
     p.set_defaults(func=cmd_p2p_message)
+
+    p = sub.add_parser("p2p-server", help="run experimental TCP P2P message server")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=DEFAULT_P2P_PORT)
+    p.set_defaults(func=cmd_p2p_server)
+
+    p = sub.add_parser("p2p-call", help="send one TCP P2P message and print the response")
+    p.add_argument("command", choices=["version", "ping", "getheaders"])
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=DEFAULT_P2P_PORT)
+    p.add_argument("--timeout", type=int, default=10)
+    p.add_argument("--height", type=int, default=0, help="start height for version")
+    p.add_argument("--genesis-hash", default="", help="genesis hash for version")
+    p.add_argument("--nonce", type=int, default=1, help="nonce for ping")
+    p.add_argument("--locator", default="0" * 64, help="locator hash for getheaders")
+    p.set_defaults(func=cmd_p2p_call)
 
     p = sub.add_parser("psbt-sign", help="sign a NetCoin PSBT-like base64 file")
     p.add_argument("--wallet", required=True)

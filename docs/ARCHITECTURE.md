@@ -30,6 +30,9 @@ Current node port policy:
 - `80`: public explorer/faucet/status on seed1
 - `22`: SSH admin only
 
+Public HTTP services use per-IP/per-path throttling (`--rate-limit-per-min`) and
+request body caps where they accept POST bodies.
+
 ## 2. High-Level Layout
 
 ```text
@@ -56,6 +59,10 @@ seed1 also hosts:
 
 The three seed nodes are peers. Each node knows the other two by DNS name. Blocks submitted to one node can relay to the others, and each seed can sync from its peers.
 
+Relay uses a bounded inventory cache and relay queue. Recently seen block/tx
+inventory is not re-enqueued repeatedly, successful deliveries are removed, and
+failed peer deliveries remain queued with backoff for a later drain.
+
 ## 3. Code Architecture
 
 Core blockchain modules:
@@ -78,7 +85,7 @@ Network and service modules:
 - `netcoin/node.py`: public HTTP node API on port `28444`
 - `netcoin/rpc.py`: private JSON-RPC server on port `28445`
 - `netcoin/pool.py`: private pool/template server on port `28446`
-- `netcoin/p2p.py`: message envelope helpers
+- `netcoin/p2p.py`: message envelope helpers and experimental TCP P2P transport
 - `netcoin/compact.py`: compact block summary helpers
 
 User tools:
@@ -86,6 +93,7 @@ User tools:
 - `netcoin/cli.py`: command-line interface
 - `netcoin/miner.py`: external miner workflow helpers
 - `netcoin/explorer.py`: static explorer generator
+- `netcoin/explorer_server.py`: API-backed explorer service
 - `tools/faucet_server.py`: faucet web app
 - `tools/monitor_netcoin.py`: public status monitor
 
@@ -121,6 +129,18 @@ node validates policy
 node stores in mempool
 miner includes mempool txs in next block
 ```
+
+Experimental TCP P2P:
+
+```text
+python -m netcoin p2p-server --host 127.0.0.1 --port 18447
+python -m netcoin p2p-call ping --host 127.0.0.1 --port 18447
+```
+
+The TCP transport uses the Bitcoin-style envelope in `netcoin/p2p.py` and handles
+`version`, `verack`, `ping`, `pong`, `getheaders`, `headers`, `inv`, `getdata`,
+`block`, and `tx` messages. The HTTP API remains the stable public seed API while
+TCP P2P matures.
 
 Sync:
 
@@ -175,7 +195,9 @@ The chain state lives on disk per node. The seed nodes are intentionally simple:
 
 ## 7. Explorer Architecture
 
-The explorer is static HTML generated from the seed1 chain data.
+NetCoin supports two explorer modes.
+
+Static mode generates plain HTML from a chain data directory:
 
 Flow:
 
@@ -194,6 +216,21 @@ Nginx port 80
 
 It refreshes by cron every two minutes. This keeps the explorer simple and safer than a dynamic database-backed explorer at this stage.
 
+Live API-backed mode serves pages and JSON directly from local chain data:
+
+```text
+python -m netcoin explorer-server --host 127.0.0.1 --port 8080
+GET /
+GET /api/latest
+GET /api/block/<hash>
+GET /api/tx/<txid>
+GET /api/address/<address>
+GET /api/search?q=<query>
+```
+
+This is the path toward a fuller explorer backend without requiring a separate
+database service yet.
+
 ## 8. Faucet Architecture
 
 The faucet is a small HTTP app on seed1 behind Nginx.
@@ -207,7 +244,10 @@ user enters address
 faucet app validates address
     |
     v
-faucet wallet creates transaction
+faucet app queues a grant
+    |
+    v
+faucet worker/admin drain creates transaction
     |
     v
 transaction broadcasts to local seed1 node
@@ -219,8 +259,26 @@ Current faucet policy:
 - uses `0.01` NET fee
 - one request per IP per 24 hours
 - uses a hot testnet wallet on seed1
+- supports immediate `sync` mode or safer queued payout mode
+- exposes refill status based on `NETCOIN_FAUCET_MIN_SPENDABLE_SATS`
 
 The faucet wallet is only for testnet coins.
+
+Useful faucet endpoints:
+
+```text
+GET  /history
+GET  /queue
+GET  /status
+POST /admin/process-queue
+```
+
+`/history` and `/queue` are public JSON and intentionally omit client IPs.
+`/admin/process-queue` requires `Authorization: Bearer <NETCOIN_FAUCET_ADMIN_TOKEN>`.
+Set `NETCOIN_FAUCET_QUEUE_MODE=queue` to accept requests without sending during
+the public HTTP request; an operator can then drain the queue from a private
+terminal or cron job. The default `sync` mode keeps the original immediate-send
+behavior for the small public testnet.
 
 ## 9. Monitoring Architecture
 
@@ -345,4 +403,3 @@ Next:
 - add release checksums and signatures
 - start security testing
 - split explorer/faucet away from seed1 when the network grows
-
