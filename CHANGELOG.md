@@ -1,18 +1,5 @@
 # Changelog
 
-## v0.4.1 - remaining code-upgrade bundle
-
-- Added real headers-first HTTP sync: nodes validate remote headers first, then fetch missing blocks by hash, with legacy /chain fallback.
-- Added TCP P2P headers-first sync helper over getheaders -> headers -> getdata(block) -> block.
-- Upgraded compact-block relay with missing-transaction detection and a /compact-block-missing endpoint.
-- Added SegWit-style witness commitment support for blocks containing witness transactions.
-- Added wallet change-address rotation via send --rotate-change and persisted change_index metadata.
-- Added in-memory wallet auto-lock sessions and wallet-unlock --ttl-seconds reporting.
-- Added faucet CAPTCHA hooks for simple private-beta challenge, Cloudflare Turnstile, and hCaptcha.
-- Added explorer API pagination for latest blocks and address transaction history.
-- Added tests covering the remaining code upgrades.
-
-
 All notable changes to NetCoin are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
@@ -24,10 +11,46 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.4.1] - 2026-06-21
+
+Protocol-depth and wallet release: real headers-first sync, compact-block relay
+with missing-tx requests, SegWit witness commitment, fuller Script VM, full PSBT,
+output descriptors, change-address rotation, wallet auto-lock, and migration.
+231 automated tests.
+
 ### Added
+- **Real headers-first sync**: nodes validate remote headers, then fetch missing
+  blocks by hash (with a legacy `/chain` fallback); a TCP P2P helper does the same
+  over `getheaders → headers → getdata(block) → block`.
+- **Compact-block relay** with missing-transaction detection and a
+  `/compact-block-missing` endpoint.
+- **SegWit-style witness commitment** for blocks containing witness transactions.
+- **Change-address rotation** (`send --rotate-change`, persisted `change_index`).
+- **Wallet auto-lock** sessions (`wallet-unlock --ttl-seconds`).
+- **Faucet CAPTCHA hooks** (simple challenge / Cloudflare Turnstile / hCaptcha).
+- **Explorer API pagination** for latest blocks and address history.
 - **Wallet file format versioning + migration**: wallet files now carry a
   `wallet_version`; `wallet-migrate` upgrades older files to the current format and
   re-encrypts at the upgraded KDF cost (backing up the original first).
+- **Output descriptors** (`netcoin/descriptors.py`): `pkh`/`wpkh`/`tr`/`sh(wpkh)` and
+  `sh(multi(...))` descriptors; `wallet-descriptor` exports a wallet's descriptors and
+  `descriptor-address` resolves a descriptor to its address (watch-only, no keys).
+- **Full PSBT workflow**: `PartiallySignedTransaction.create` (build an unsigned
+  PSBT from inputs/outputs) and `combine` (merge signatures from multiple parties,
+  each signing the inputs it owns), plus `combine_psbts` and `finalize`/`extract`
+  — completing create → sign → combine → finalize → extract.
+- **Fuller Script VM**: the script engine gains conditionals (`OP_IF`/`OP_NOTIF`/
+  `OP_ELSE`/`OP_ENDIF`), arithmetic/comparison opcodes (`OP_ADD`, `OP_SUB`, `OP_MIN`/
+  `MAX`, `OP_WITHIN`, `OP_NUMEQUAL(VERIFY)`, `OP_LESSTHAN`/`GREATERTHAN`, …), stack
+  ops (`OP_SWAP`/`OVER`/`ROT`/`NIP`/`TUCK`/`2DUP`/`DEPTH`/`IFDUP`), more hashing
+  (`OP_SHA256`/`HASH256`/`RIPEMD160`), `OP_SIZE`, `OP_RETURN`, `OP_CHECKSIGVERIFY`/
+  `OP_CHECKMULTISIGVERIFY`, with strict errors and unbalanced-conditional detection.
+
+### Known gaps
+- Spending *from* a P2SH-SegWit address is not yet wired in `sign_input` (only
+  address generation is supported).
 - **Output descriptors** (`netcoin/descriptors.py`): `pkh`/`wpkh`/`tr`/`sh(wpkh)` and
   `sh(multi(...))` descriptors; `wallet-descriptor` exports a wallet's descriptors and
   `descriptor-address` resolves a descriptor to its address (watch-only, no keys).
@@ -277,7 +300,8 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://github.com/Adoniyas1/netcoin/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Adoniyas1/netcoin/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/Adoniyas1/netcoin/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Adoniyas1/netcoin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Adoniyas1/netcoin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Adoniyas1/netcoin/releases/tag/v0.2.0
