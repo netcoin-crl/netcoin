@@ -61,17 +61,30 @@ shasum -a 256 -c SHA256SUMS     # macOS
 gpg --verify SHA256SUMS.asc SHA256SUMS
 ```
 
-Publish the signing public key (and its fingerprint) in the GitHub release notes
-and/or the project website so users can import it:
+The signing public key is published in this repo at
+[`netcoin-signing-key.asc`](netcoin-signing-key.asc). Import it before verifying:
 
 ```bash
-gpg --import netcoin-signing-key.pub
+gpg --import docs/netcoin-signing-key.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS
+```
+
+A good signature reads:
+
+```
+gpg: Good signature from "NetCoin <netcoin2026@gmail.com>"
 ```
 
 ## Signing key
 
-- Generate a dedicated signing key (`gpg --full-generate-key`) and keep the
-  private key offline / out of this repo.
-- Set `NETCOIN_SIGNING_KEY=<key-id>` before running `make_release.sh` to select
-  it, or rely on your default GPG key.
+- **Identity:** `NetCoin <netcoin2026@gmail.com>`
+- **Type:** Ed25519 (EdDSA), sign-only
+- **Fingerprint:** `84F7 F2B9 50C9 D16F A628  AC67 5546 3C98 D439 9B90`
+- **Short key id:** `55463C98D4399B90`
+- Public key committed at `docs/netcoin-signing-key.asc`; the private key stays
+  in the maintainer's local keyring and is **never** committed.
+- To sign a release, set the key id and run the release script:
+  ```bash
+  NETCOIN_SIGNING_KEY=55463C98D4399B90 tools/make_release.sh vX.Y.Z
+  ```
 - Never commit private keys. `.gitignore` already blocks `*.key` / `*.pem`.
