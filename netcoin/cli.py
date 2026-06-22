@@ -522,6 +522,14 @@ def cmd_validate(args: argparse.Namespace) -> None:
     print_json({"ok": True, "chain": chain.chain_info()})
 
 
+def cmd_reindex(args: argparse.Namespace) -> None:
+    # Loading the chain already recovers from a corrupt live file if needed
+    # (.bak / .tmp fallback) and rebuilds the indexes and UTXO set from blocks.
+    chain = Blockchain(args.data)
+    chain.reindex()
+    print_json({"ok": True, "reindexed": True, "integrity": chain.verify_integrity()})
+
+
 def cmd_export(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     print_json(chain.export_chain())
@@ -949,6 +957,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("validate", help="validate the whole local chain")
     p.set_defaults(func=cmd_validate)
+
+    p = sub.add_parser("reindex", help="rebuild indexes and the UTXO set from block data (recovers a corrupt chain file)")
+    p.set_defaults(func=cmd_reindex)
 
     p = sub.add_parser("export", help="export chain JSON")
     p.set_defaults(func=cmd_export)

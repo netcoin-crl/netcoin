@@ -18,6 +18,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   and deployment smoke testing.
 - **Deterministic fuzz smoke runner** (`python -m netcoin fuzz`) exercises parser
   and public endpoint surfaces; CI now runs it under Python dev mode.
+- **Crash-safe chain persistence + reindex.** The JSON backend now writes
+  `chain.json`/`mempool.json` via fsync'd temp files, atomic `os.replace`, and a
+  `.bak` mirror of the last committed state. On load, a corrupt live file is
+  recovered from the backup (or a leftover `.tmp`) without losing the most recent
+  block, and a corrupt mempool is dropped rather than blocking startup. New
+  `python -m netcoin reindex` rebuilds the indexes and UTXO set from block data
+  and reports a chainstate integrity check.
 
 ## [0.4.2] - 2026-06-22
 
