@@ -80,4 +80,17 @@ tree so every seed runs an identical, verifiable build.
 - `curl http://127.0.0.1:28444/metrics` — Prometheus metrics.
 - `curl http://127.0.0.1:28444/events` — recent block-propagation events.
 
+## Local soak/stress checks
+
+Before tagging or deploying a networking change, run the bounded in-process soak
+harness. It starts multiple local HTTP nodes, connects them as peers, mines mature
+funds, relays transactions and blocks, forces sync, and fails if tips diverge:
+
+```bash
+python -m netcoin soak --nodes 3 --rounds 5 --transactions-per-round 2
+```
+
+For a longer manual run, increase `--rounds` and optionally keep data with
+`--dir /tmp/netcoin-soak-run`.
+
 See [docs/UPGRADING.md](UPGRADING.md) for the full upgrade/rollback flow.

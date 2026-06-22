@@ -4,7 +4,7 @@ NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in 
 
 It runs anywhere Python 3.10+ runs — **macOS, Linux, and Windows** — with **no third-party dependencies** (standard library only). The public testnet seeds run it on Ubuntu Linux.
 
-> **Current release: v0.4.1.** See the [CHANGELOG](CHANGELOG.md) for what each release added and [docs/UPGRADING.md](docs/UPGRADING.md) for updating a node between releases.
+> **Current release: v0.4.2.** See the [CHANGELOG](CHANGELOG.md) for what each release added and [docs/UPGRADING.md](docs/UPGRADING.md) for updating a node between releases.
 
 ## What's implemented
 
@@ -59,6 +59,7 @@ Added in v0.3–v0.4:
 - Coin control / selection strategies, gap-limit scan, labels, change-address rotation, auto-lock
 - Faucet hardening (rate limits, abuse log, send queue, hot-wallet isolation)
 - Versioned release process with reproducible artifacts + `SHA256SUMS`
+- Local multi-node soak/stress harness (`soak`) for relay/sync convergence checks
 
 Still not something code alone can create:
 

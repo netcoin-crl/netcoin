@@ -28,6 +28,7 @@ from .psbt import PartiallySignedTransaction
 from .rpc import run_rpc
 from .script import describe_address, multisig_redeem_script, script_to_p2sh_address
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
+from .soak import SoakConfig, run_soak
 from .tx import Transaction, amount_to_sats, sats_to_amount
 from .wallet import AutoLockWalletSession, Wallet, WalletError, confirm_seed_phrase, verify_seed_phrase
 
@@ -712,6 +713,21 @@ def cmd_p2p_call(args: argparse.Namespace) -> None:
     print_json({"ok": True, "command": response.command, "payload": payload})
 
 
+def cmd_soak(args: argparse.Namespace) -> None:
+    report = run_soak(
+        SoakConfig(
+            nodes=args.nodes,
+            rounds=args.rounds,
+            transactions_per_round=args.transactions_per_round,
+            bootstrap_blocks=args.bootstrap_blocks,
+            amount=args.amount,
+            fee=args.fee,
+        ),
+        base_dir=args.dir,
+    )
+    print_json(report)
+
+
 def cmd_psbt_sign(args: argparse.Namespace) -> None:
     wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
     psbt = PartiallySignedTransaction.from_base64(Path(args.psbt).read_text().strip())
@@ -1000,6 +1016,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--nonce", type=int, default=1, help="nonce for ping")
     p.add_argument("--locator", default="0" * 64, help="locator hash for getheaders")
     p.set_defaults(func=cmd_p2p_call)
+
+    p = sub.add_parser("soak", help="run a local multi-node relay/sync soak test")
+    p.add_argument("--nodes", type=int, default=3, help="number of local HTTP nodes")
+    p.add_argument("--rounds", type=int, default=3, help="relay/mine/sync rounds after bootstrap")
+    p.add_argument("--transactions-per-round", type=int, default=1)
+    p.add_argument("--bootstrap-blocks", type=int, default=101, help="initial blocks mined before spending")
+    p.add_argument("--amount", default="1")
+    p.add_argument("--fee", default="0.01")
+    p.add_argument("--dir", help="optional directory for soak node data; default uses a temp dir")
+    p.set_defaults(func=cmd_soak)
 
     p = sub.add_parser("psbt-sign", help="sign a NetCoin PSBT-like base64 file")
     p.add_argument("--wallet", required=True)
