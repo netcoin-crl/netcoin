@@ -20,6 +20,7 @@ from .crypto import validate_address
 from .miner import block_summary, solve_template
 from .explorer import generate_explorer
 from .explorer_server import run_explorer_server
+from .webwallet import run_web_wallet
 from .fuzz import FuzzConfig, run_fuzz
 from .node import run_node
 from .p2p import Message, getheaders_message, ping_message, request_message, run_p2p_server, version_message
@@ -717,6 +718,10 @@ def cmd_explorer_server(args: argparse.Namespace) -> None:
     run_explorer_server(data_dir=args.data, host=args.host, port=args.port, rate_limit_per_min=args.rate_limit_per_min)
 
 
+def cmd_web(args: argparse.Namespace) -> None:
+    run_web_wallet(node_url=args.node, faucet_url=args.faucet, host=args.host, port=args.port)
+
+
 def cmd_networks(args: argparse.Namespace) -> None:
     print_json({name: profile.__dict__ for name, profile in NETWORKS.items()})
 
@@ -1042,6 +1047,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=8080)
     p.add_argument("--rate-limit-per-min", type=int, default=240, help="per-IP/per-path request limit; 0 disables")
     p.set_defaults(func=cmd_explorer_server)
+
+    p = sub.add_parser("web", help="local web wallet + faucet + explorer page (open in a browser)")
+    p.add_argument("--node", default="http://seed1.netcoin.online:28444", help="NetCoin node to query/broadcast through")
+    p.add_argument("--faucet", default="http://18.220.89.128/faucet", help="faucet URL to link to (set empty to hide)")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8088)
+    p.set_defaults(func=cmd_web)
 
     p = sub.add_parser("networks", help="show main/testnet/signet/regtest profiles")
     p.set_defaults(func=cmd_networks)

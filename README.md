@@ -239,6 +239,17 @@ python -m netcoin --data demo-chain explorer-server --host 127.0.0.1 --port 8080
 open http://127.0.0.1:8080/
 ```
 
+Open the web wallet (browser UI: wallet, faucet, explorer — no CLI needed):
+
+```bash
+python -m netcoin web --node http://seed1.netcoin.online:28444
+open http://127.0.0.1:8088/
+```
+
+> The web wallet is a **local** tool: your keys stay on your machine, signing
+> happens locally, and only the signed transaction is sent to the node. Keep it
+> bound to `127.0.0.1` — it is not a hosted/custodial wallet.
+
 Run a local peer node:
 
 ```bash

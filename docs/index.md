@@ -20,6 +20,14 @@ python3 -m pip install -e .
 python3 -m netcoin --help
 ```
 
+Prefer a browser to the command line? Launch the local web wallet (wallet,
+faucet, and explorer in one page — keys stay on your machine):
+
+```bash
+python3 -m netcoin web --node http://seed1.netcoin.online:28444
+# then open http://127.0.0.1:8088/
+```
+
 ## Verify a download
 
 Releases are signed with the NetCoin signing key
