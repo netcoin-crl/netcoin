@@ -11,6 +11,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.4.4] - 2026-06-22
+
 ### Added
 - **Signed messages** (Bitcoin-style `signmessage` / `verifymessage`): sign a
   message with a wallet key to prove address control. Produces a base64
@@ -358,7 +362,8 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.4.4...HEAD
+[0.4.4]: https://github.com/netcoin-crl/netcoin/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/netcoin-crl/netcoin/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/netcoin-crl/netcoin/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/netcoin-crl/netcoin/compare/v0.4.0...v0.4.1
