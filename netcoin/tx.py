@@ -35,6 +35,30 @@ from .script import (
     verify_script,
 )
 
+# SIGHASH flags (Bitcoin-style). ALL is the default and keeps the legacy digest
+# byte-for-byte, so existing signatures and chain data stay valid. NONE/SINGLE and
+# the ANYONECANPAY modifier carry a one-byte flag appended to the signature.
+SIGHASH_ALL = 0x01
+SIGHASH_NONE = 0x02
+SIGHASH_SINGLE = 0x03
+SIGHASH_ANYONECANPAY = 0x80
+
+
+def _split_sighash(signature: bytes) -> tuple[bytes, int]:
+    """Split a signature into (raw 64-byte sig, sighash flag). A bare 64-byte
+    signature has no flag and is treated as SIGHASH_ALL for backward compat."""
+    if len(signature) == 65:
+        return signature[:64], signature[64]
+    return signature, SIGHASH_ALL
+
+
+def _append_sighash(signature: bytes, sighash_type: int) -> bytes:
+    """Append the flag byte unless this is the default ALL (which stays 64 bytes
+    so the on-wire form is unchanged from before sighash types existed)."""
+    if sighash_type == SIGHASH_ALL:
+        return signature
+    return signature + bytes([sighash_type & 0xFF])
+
 
 class TransactionError(ValueError):
     """Raised when a transaction is malformed or invalid."""
@@ -215,31 +239,74 @@ class Transaction:
     def total_output(self) -> int:
         return sum(output.amount for output in self.outputs)
 
-    def sighash(self, input_index: int, prevout: "SpendableOutput") -> bytes:
+    def sighash(self, input_index: int, prevout: "SpendableOutput", sighash_type: int = SIGHASH_ALL) -> bytes:
         if input_index < 0 or input_index >= len(self.inputs):
             raise TransactionError("input index out of range")
         if self.is_coinbase:
             raise TransactionError("coinbase transactions are not signed")
+        prevout_commit = {
+            "txid": prevout.txid,
+            "vout": prevout.vout,
+            "amount": prevout.output.amount,
+            "address": prevout.output.address,
+            "script_pubkey": prevout.output.effective_script_pubkey(),
+        }
+        # SIGHASH_ALL: keep the original digest byte-for-byte (back-compat).
+        if sighash_type == SIGHASH_ALL:
+            payload = {
+                "version": self.version,
+                "inputs": [txin.to_dict(include_scripts=False, include_witness=False) for txin in self.inputs],
+                "outputs": [txout.to_dict() for txout in self.outputs],
+                "locktime": self.locktime,
+                "signing_input_index": input_index,
+                "prevout": prevout_commit,
+                "sighash_type": "NETCOIN_ALL",
+            }
+            return double_sha256(canonical_json(payload))
+
+        base = sighash_type & 0x1F
+        anyonecanpay = bool(sighash_type & SIGHASH_ANYONECANPAY)
+        if base not in (SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE):
+            raise TransactionError(f"unknown sighash type: {sighash_type}")
+        if base == SIGHASH_SINGLE and input_index >= len(self.outputs):
+            raise TransactionError("SIGHASH_SINGLE has no matching output")
+
+        # Which inputs are committed. ANYONECANPAY commits only to this input
+        # (anchored by `prevout`), so other inputs can be freely added/removed.
+        if anyonecanpay:
+            inputs = []
+        else:
+            inputs = []
+            for i, txin in enumerate(self.inputs):
+                item = txin.to_dict(include_scripts=False, include_witness=False)
+                # NONE/SINGLE do not commit to other inputs' sequence numbers.
+                if base in (SIGHASH_NONE, SIGHASH_SINGLE) and i != input_index:
+                    item["sequence"] = 0
+                inputs.append(item)
+
+        # Which outputs are committed.
+        if base == SIGHASH_NONE:
+            outputs = []
+        elif base == SIGHASH_SINGLE:
+            outputs = [self.outputs[input_index].to_dict()]
+        else:  # ALL (with ANYONECANPAY)
+            outputs = [txout.to_dict() for txout in self.outputs]
+
         payload = {
             "version": self.version,
-            "inputs": [txin.to_dict(include_scripts=False, include_witness=False) for txin in self.inputs],
-            "outputs": [txout.to_dict() for txout in self.outputs],
+            "inputs": inputs,
+            "outputs": outputs,
             "locktime": self.locktime,
-            "signing_input_index": input_index,
-            "prevout": {
-                "txid": prevout.txid,
-                "vout": prevout.vout,
-                "amount": prevout.output.amount,
-                "address": prevout.output.address,
-                "script_pubkey": prevout.output.effective_script_pubkey(),
-            },
-            "sighash_type": "NETCOIN_ALL",
+            "prevout": prevout_commit,
+            "sighash_type": int(sighash_type),
         }
+        if base == SIGHASH_SINGLE:
+            payload["single_output_index"] = input_index
         return double_sha256(canonical_json(payload))
 
-    def sign_input(self, input_index: int, private_key: int, prevout: "SpendableOutput") -> None:
+    def sign_input(self, input_index: int, private_key: int, prevout: "SpendableOutput", sighash_type: int = SIGHASH_ALL) -> None:
         public_key = private_key_to_public_key(private_key, compressed=True)
-        digest = self.sighash(input_index, prevout)
+        digest = self.sighash(input_index, prevout, sighash_type)
         script_pubkey = prevout.output.effective_script_pubkey()
         kind = classify_script(script_pubkey)
         txin = self.inputs[input_index]
@@ -248,7 +315,8 @@ class Transaction:
             expected_address = public_key_to_p2wpkh_address(public_key)
             if prevout.output.address and expected_address != prevout.output.address:
                 raise TransactionError("private key does not control the selected P2WPKH UTXO")
-            txin.witness = [bytes_to_hex(ecdsa_sign(private_key, digest)), bytes_to_hex(public_key)]
+            sig = _append_sighash(ecdsa_sign(private_key, digest), sighash_type)
+            txin.witness = [bytes_to_hex(sig), bytes_to_hex(public_key)]
             txin.signature = ""
             txin.public_key = ""
             return
@@ -258,7 +326,8 @@ class Transaction:
             expected_address = public_key_to_taproot_address(xonly)
             if prevout.output.address and expected_address != prevout.output.address:
                 raise TransactionError("private key does not control the selected Taproot UTXO")
-            txin.witness = [bytes_to_hex(schnorr_sign(private_key, digest))]
+            sig = _append_sighash(schnorr_sign(private_key, digest), sighash_type)
+            txin.witness = [bytes_to_hex(sig)]
             txin.signature = ""
             txin.public_key = ""
             return
@@ -270,7 +339,8 @@ class Transaction:
             redeem_script = p2wpkh_script(hash160(public_key).hex())
             committed_hash = script_pubkey.split()[1]
             if script_hash160(redeem_script).hex() == committed_hash:
-                txin.witness = [bytes_to_hex(ecdsa_sign(private_key, digest)), bytes_to_hex(public_key)]
+                sig = _append_sighash(ecdsa_sign(private_key, digest), sighash_type)
+                txin.witness = [bytes_to_hex(sig), bytes_to_hex(public_key)]
                 txin.script_sig = redeem_script
                 txin.signature = ""
                 txin.public_key = ""
@@ -281,7 +351,7 @@ class Transaction:
         expected_address = public_key_to_address(public_key)
         if prevout.output.address and expected_address != prevout.output.address:
             raise TransactionError("private key does not control the selected UTXO")
-        signature = ecdsa_sign(private_key, digest)
+        signature = _append_sighash(ecdsa_sign(private_key, digest), sighash_type)
         txin.public_key = bytes_to_hex(public_key)
         txin.signature = bytes_to_hex(signature)
         txin.script_sig = f"{txin.signature} {txin.public_key}"
@@ -307,7 +377,8 @@ class Transaction:
 
                 if hash160(public_key).hex() != expected_hash:
                     return False
-                return ecdsa_verify(public_key, digest, signature)
+                sig64, flag = _split_sighash(signature)
+                return ecdsa_verify(public_key, self.sighash(input_index, prevout, flag), sig64)
             except (ValueError, IndexError):
                 return False
 
@@ -317,7 +388,8 @@ class Transaction:
                     return False
                 signature = bytes.fromhex(txin.witness[0])
                 xonly = bytes.fromhex(script_pubkey.split()[1])
-                return schnorr_verify(xonly, digest, signature)
+                sig64, flag = _split_sighash(signature)
+                return schnorr_verify(xonly, self.sighash(input_index, prevout, flag), sig64)
             except (ValueError, IndexError):
                 return False
 
@@ -340,8 +412,28 @@ class Transaction:
                     return False
                 if hash160(public_key).hex() != redeem_script.split()[1]:
                     return False
-                return ecdsa_verify(public_key, digest, signature)
+                sig64, flag = _split_sighash(signature)
+                return ecdsa_verify(public_key, self.sighash(input_index, prevout, flag), sig64)
             return verify_script(txin.script_sig, script_pubkey, context)
+
+        # Legacy P2PKH with a non-default sighash flag: the 65-byte signature
+        # carries a flag the text Script VM cannot use to recompute the digest, so
+        # verify it directly here. Default ALL (64-byte sig) still flows through
+        # verify_script below, byte-for-byte unchanged.
+        if kind == "p2pkh" and txin.public_key and txin.signature:
+            try:
+                signature = hex_to_bytes(txin.signature)
+            except ValueError:
+                signature = b""
+            if len(signature) == 65:
+                try:
+                    public_key = hex_to_bytes(txin.public_key)
+                except ValueError:
+                    return False
+                if public_key_to_address(public_key) != prevout.output.address:
+                    return False
+                sig64, flag = _split_sighash(signature)
+                return ecdsa_verify(public_key, self.sighash(input_index, prevout, flag), sig64)
 
         if txin.script_sig:
             return verify_script(txin.script_sig, script_pubkey, context)
@@ -354,7 +446,8 @@ class Transaction:
             return False
         if public_key_to_address(public_key) != prevout.output.address:
             return False
-        return ecdsa_verify(public_key, digest, signature)
+        sig64, flag = _split_sighash(signature)
+        return ecdsa_verify(public_key, self.sighash(input_index, prevout, flag), sig64)
 
 
 @dataclass(frozen=True)
