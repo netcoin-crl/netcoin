@@ -19,6 +19,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   signed transaction is sent to the node. Turns "clone the repo and run the CLI"
   into "open a URL."
 
+### Fixed
+- **Node starts serving immediately (listen-first).** `node` previously ran
+  bootstrap (announce + peer discovery + initial sync) *before* binding the HTTP
+  server, so a slow or unreachable peer could delay or prevent the node from ever
+  listening. The server now binds first and bootstrap runs in a background thread.
+
 ## [0.4.3] - 2026-06-22
 
 ### Added
