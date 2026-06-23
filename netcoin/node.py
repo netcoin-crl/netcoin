@@ -824,19 +824,30 @@ def run_node(
 ) -> None:
     chain = Blockchain(data_dir=data_dir)
     node = NetCoinNode(chain, peers=peers or [], self_url=advertise, rate_limit_per_min=rate_limit_per_min)
-    result = node.bootstrap()
-    sync_stop: Optional[Event] = None
-    sync_thread: Optional[Thread] = None
-    if sync_interval > 0:
-        sync_stop, sync_thread = node.start_background_sync(sync_interval)
+
+    # Bind and serve immediately, then bootstrap (announce + peer discovery +
+    # initial sync) in a background thread. A slow or unreachable peer must never
+    # delay — or prevent — the node from listening and accepting connections.
     server = ThreadingHTTPServer((host, port), make_handler(node))
     print(f"NetCoin node listening on http://{host}:{port}")
     if advertise:
         print(f"advertising as {advertise}")
+
+    def _bootstrap() -> None:
+        result = node.bootstrap()
+        print(
+            f"bootstrap: peers={len(node.peers)} learned={result['learned']} "
+            f"adopted_chains={result['adopted_chains']} height={chain.height()} tip={chain.tip_hash()}"
+        )
+
+    Thread(target=_bootstrap, daemon=True).start()
+
+    sync_stop: Optional[Event] = None
+    sync_thread: Optional[Thread] = None
     if sync_interval > 0:
+        sync_stop, sync_thread = node.start_background_sync(sync_interval)
         print(f"background sync every {sync_interval}s")
-    print(f"peers={len(node.peers)} learned={result['learned']} adopted_chains={result['adopted_chains']}")
-    print(f"height={chain.height()} tip={chain.tip_hash()}")
+
     try:
         server.serve_forever()
     finally:
