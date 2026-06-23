@@ -11,7 +11,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **BIP21-style payment URIs** (`netcoin:<address>?amount=&label=&message=`):
+  encode a payment request into one shareable string. New `netcoin/paymenturi.py`
+  (`build_uri`/`parse_uri`), CLI `payment-uri` (build or `--decode`), and web-wallet
+  integration — a "Request payment" link generator plus a "paste a payment link"
+  field that pre-fills the Send form.
 
 ## [0.4.4] - 2026-06-22
 

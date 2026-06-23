@@ -678,6 +678,18 @@ def cmd_verifymessage(args: argparse.Namespace) -> None:
     print_json({"valid": verify_message(args.address, args.message, args.signature)})
 
 
+def cmd_payment_uri(args: argparse.Namespace) -> None:
+    from .paymenturi import build_uri, parse_uri
+
+    if args.decode:
+        print_json(parse_uri(args.decode))
+        return
+    if not args.address:
+        print_json({"ok": False, "error": "provide --address (or --decode <uri>)"})
+        return
+    print_json({"uri": build_uri(args.address, amount=args.amount, label=args.label, message=args.message)})
+
+
 def cmd_export(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     print_json(chain.export_chain())
@@ -1119,6 +1131,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase", help="optional BIP39 passphrase")
     p.add_argument("--path", default="m/44'/0'/0'/0/0", help="derivation path (default m/44'/0'/0'/0/0)")
     p.set_defaults(func=cmd_hd_derive)
+
+    p = sub.add_parser("payment-uri", help="build or decode a netcoin: payment URI (BIP21-style)")
+    p.add_argument("--address", help="address to request payment to")
+    p.add_argument("--amount", help="requested amount in NET")
+    p.add_argument("--label", help="payee label")
+    p.add_argument("--message", help="payment message")
+    p.add_argument("--decode", help="decode an existing netcoin: URI instead of building one")
+    p.set_defaults(func=cmd_payment_uri)
 
     p = sub.add_parser("signmessage", help="sign a message with a wallet key (proves address control)")
     p.add_argument("--wallet", required=True)

@@ -174,6 +174,7 @@ PAGE = """<!doctype html>
 
   <div class="card hide" id="sendCard">
    <h2>Send</h2>
+   <label>Paste a payment link (optional)</label><input id="payLink" placeholder="netcoin:Nc...?amount=..." oninput="applyPayLink()">
    <label>To address</label><input id="sendTo" placeholder="Nc... / net1...">
    <div class="row">
     <div><label>Amount (NET)</label><input id="sendAmt" type="number" step="0.00000001" placeholder="1.0"></div>
@@ -181,6 +182,17 @@ PAGE = """<!doctype html>
    </div>
    <button class="act" onclick="send()">Send</button>
    <div id="sendOut" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card hide" id="receiveCard">
+   <h2>Request payment</h2>
+   <p class="muted">Create a shareable payment link for your address.</p>
+   <div class="row">
+    <div><label>Amount (NET, optional)</label><input id="reqAmt" type="number" step="0.00000001" placeholder="any"></div>
+    <div><label>Label (optional)</label><input id="reqLabel" placeholder="e.g. Coffee"></div>
+   </div>
+   <button class="act" onclick="makePayLink()">Create payment link</button>
+   <div id="reqOut" style="margin-top:10px"></div>
   </div>
  </section>
 
@@ -215,7 +227,7 @@ async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG
   const w=await api('/api/wallet/current');if(w.address)showWallet(w);}
 function showWallet(w){ADDRS=w.addresses;const sel=$('#typeSel');sel.innerHTML='';
   Object.keys(ADDRS).forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
-  $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');
+  $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');
   if(w.mnemonic){$('#mnemonicBox').innerHTML='<div class="warn"><b>Recovery phrase (shown once):</b><div class="mono">'+w.mnemonic+'</div>Write it down. <a href="data:application/json,'+encodeURIComponent(JSON.stringify(w.wallet_file))+'" download="wallet.json">Download wallet.json</a></div>';}
   switchType();}
 function switchType(){curType=$('#typeSel').value||'legacy';$('#addrType').textContent=curType;
@@ -228,6 +240,17 @@ function copyAddr(){navigator.clipboard.writeText(ADDRS[curType]);}
 async function refreshBalance(){try{const b=await api('/api/balance?address='+ADDRS[curType]);
   $('#balSpendable').innerHTML=(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+CFG.ticker+'</span>';
   $('#balDetail').textContent='immature '+(b.immature||'0')+' · total '+(b.total||'0')+' · '+(b.utxo_count||0)+' UTXOs';}catch(e){$('#balDetail').textContent=e.message;}}
+async function makePayLink(){const out=$('#reqOut');try{
+  const p=new URLSearchParams({address:ADDRS[curType]});
+  if($('#reqAmt').value)p.set('amount',$('#reqAmt').value);
+  if($('#reqLabel').value)p.set('label',$('#reqLabel').value);
+  const d=await api('/api/payment-uri?'+p.toString());
+  out.innerHTML=`<div class="muted">Share this link:</div><div class="mono" id="payUriOut">${d.uri}</div><button class="ghost" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('payUriOut').textContent)">Copy link</button>`;
+}catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
+async function applyPayLink(){const v=$('#payLink').value.trim();if(!v.toLowerCase().startsWith('netcoin:'))return;try{
+  const d=await api('/api/parse-uri?uri='+encodeURIComponent(v));
+  $('#sendTo').value=d.address;if(d.amount)$('#sendAmt').value=d.amount;
+}catch(e){}}
 async function send(){const out=$('#sendOut');out.textContent='Sending…';try{
   const j=await api('/api/wallet/send',{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType})});
@@ -315,6 +338,18 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     self._send(_node_get(node_url, f"/latest?n={int(n)}"))
                 elif parsed.path == "/api/search":
                     self._send(self._search(parse_qs(parsed.query).get("q", [""])[0]))
+                elif parsed.path == "/api/payment-uri":
+                    from .paymenturi import build_uri
+                    q = parse_qs(parsed.query)
+                    self._send({"uri": build_uri(
+                        q.get("address", [""])[0],
+                        amount=q.get("amount", [None])[0] or None,
+                        label=q.get("label", [None])[0] or None,
+                        message=q.get("message", [None])[0] or None,
+                    )})
+                elif parsed.path == "/api/parse-uri":
+                    from .paymenturi import parse_uri
+                    self._send(parse_uri(parse_qs(parsed.query).get("uri", [""])[0]))
                 else:
                     self._send({"error": "not found"}, status=404)
             except HTTPError as exc:
