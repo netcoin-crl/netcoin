@@ -264,6 +264,14 @@ python -m netcoin scan-filters --node http://seed1.netcoin.online:28444 --wallet
 python -m netcoin blockfilter --node http://seed1.netcoin.online:28444 --height 100
 ```
 
+HD wallet (BIP32): one mnemonic derives unlimited keys; export an `xpub` for
+watch-only address generation without exposing private keys:
+
+```bash
+python -m netcoin hd-derive --mnemonic "net100 net200 net300" --path "m/44'/0'/0'/0/0"
+python -m netcoin hd-address --xpub <account-xpub> --change 0 --index 0   # watch-only
+```
+
 Mine through a running node instead of writing directly to a local chain:
 
 ```bash

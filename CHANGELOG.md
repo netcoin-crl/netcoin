@@ -12,6 +12,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **BIP32 HD wallets** (`netcoin/hd.py`), validated against the official BIP32
+  test vectors: one mnemonic/seed derives an unlimited tree of keys, with standard
+  `xprv`/`xpub` extended keys and hardened + watch-only (xpub→xpub) derivation.
+  BIP39-style seed (`mnemonic_to_seed`, PBKDF2-HMAC-SHA512). New CLI: `hd-derive`
+  (mnemonic + path → NetCoin addresses, WIF, xprv, xpub) and `hd-address`
+  (watch-only receive address from an account xpub, no private key).
 - **BIP158-style compact block filters** (`netcoin/blockfilter.py`): each block
   gets a small Golomb-Coded-Set filter summarizing its output scripts. A light
   client downloads filters (bytes, not full blocks), tests its addresses, and only
