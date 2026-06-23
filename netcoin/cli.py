@@ -630,6 +630,40 @@ def cmd_scan_filters(args: argparse.Namespace) -> None:
     })
 
 
+def cmd_hd_derive(args: argparse.Namespace) -> None:
+    from .hd import HDKey
+
+    leaf = HDKey.from_mnemonic(args.mnemonic, passphrase=args.passphrase or "").derive_path(args.path)
+    wallet = Wallet(private_key=leaf.key)
+    print_json({
+        "path": args.path,
+        "addresses": {t: wallet.address_for(t) for t in ("legacy", "segwit", "taproot", "p2sh-segwit")},
+        "wif": wallet.wif,
+        "xprv": leaf.extended_private_key(),
+        "xpub": leaf.neuter().extended_public_key(),
+        "warning": "Educational HD wallet. Keep the mnemonic/xprv secret.",
+    })
+
+
+def cmd_hd_address(args: argparse.Namespace) -> None:
+    """Watch-only: derive a receive address from an account xpub (no private key)."""
+    from .hd import HDKey
+    from .crypto import public_key_to_address, public_key_to_p2wpkh_address, public_key_to_taproot_address
+
+    account = HDKey.from_extended_key(args.xpub)
+    child = account.derive(args.change).derive(args.index)
+    pub = child.public_key
+    print_json({
+        "path": f".../{args.change}/{args.index}",
+        "watch_only": True,
+        "addresses": {
+            "legacy": public_key_to_address(pub),
+            "segwit": public_key_to_p2wpkh_address(pub),
+            "taproot": public_key_to_taproot_address(pub[1:]),
+        },
+    })
+
+
 def cmd_export(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     print_json(chain.export_chain())
@@ -1065,6 +1099,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("reindex", help="rebuild indexes and the UTXO set from block data (recovers a corrupt chain file)")
     p.set_defaults(func=cmd_reindex)
+
+    p = sub.add_parser("hd-derive", help="derive an HD (BIP32) key + NetCoin addresses from a mnemonic at a path")
+    p.add_argument("--mnemonic", required=True, help="seed phrase")
+    p.add_argument("--passphrase", help="optional BIP39 passphrase")
+    p.add_argument("--path", default="m/44'/0'/0'/0/0", help="derivation path (default m/44'/0'/0'/0/0)")
+    p.set_defaults(func=cmd_hd_derive)
+
+    p = sub.add_parser("hd-address", help="watch-only: derive a receive address from an account xpub (no private key)")
+    p.add_argument("--xpub", required=True, help="account extended public key")
+    p.add_argument("--change", type=int, default=0, help="change branch (0=receive, 1=change)")
+    p.add_argument("--index", type=int, default=0, help="address index")
+    p.set_defaults(func=cmd_hd_address)
 
     p = sub.add_parser("blockfilter", help="compute or fetch a block's BIP158-style compact filter")
     p.add_argument("--node", help="fetch the filter from a node instead of the local chain")
