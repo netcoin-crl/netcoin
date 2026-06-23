@@ -12,6 +12,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Multiple SIGHASH types** (`SIGHASH_ALL` / `NONE` / `SINGLE` + `ANYONECANPAY`):
+  `sign_input`/`verify_input` accept a `sighash_type` so a signature can commit to a
+  subset of the transaction — NONE leaves outputs free, SINGLE pins only the
+  same-index output, ANYONECANPAY commits to only its own input (others can be
+  added). A one-byte flag rides on the signature; `ALL` stays the default and
+  byte-identical, so existing signatures and chain data are unaffected.
+  (Consensus Item 1 of docs/CONSENSUS_PLAN.md.)
 - **Web wallet transaction history**: the Wallet tab now shows a "Recent activity"
   list of the loaded address's transactions (via `/api/history`), each clickable
   to open it in the Explorer.

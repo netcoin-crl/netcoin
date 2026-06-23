@@ -26,7 +26,14 @@ don't collide or introduce consensus bugs.
    valid. New behavior is opt-in via an explicit flag and defaults to today's
    semantics.
 
-## Item 1 — Multiple SIGHASH types (do first; most bounded)
+## Item 1 — Multiple SIGHASH types (do first; most bounded)  ✅ DONE (2026-06-22)
+
+> Landed: `sighash_type` plumbed through `Transaction.sighash`/`sign_input`/
+> `verify_input`; ALL/NONE/SINGLE + ANYONECANPAY; 1-byte flag on the signature;
+> ALL kept byte-identical (full suite unchanged). Legacy P2PKH with a flag verifies
+> directly in `tx.py` (the text Script VM can't recompute a per-flag digest); ALL
+> still flows through `verify_script`. 9 tests in `tests/test_sighash.py`.
+
 
 Today every input is signed with one implicit mode (`NETCOIN_ALL`). Add the
 standard set so partial/flexible signing works:
