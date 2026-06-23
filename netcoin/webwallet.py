@@ -241,7 +241,7 @@ function searchFor(q){$('#q').value=q;search();$('#searchOut').scrollIntoView({b
 function renderResult(d){
   if(!d||d.error)return '<div class="err">'+((d&&d.error)||'no result')+'</div>';
   if(d.type==='address'){const r=d.result,b=r.balance_net||{};
-    const txs=(r.transaction_ids||[]).slice(0,30).map(t=>'<div class="lnk mono" onclick="searchFor(\''+t+'\')">'+short(t)+'</div>').join('');
+    const txs=(r.transaction_ids||[]).slice(0,30).map(t=>`<div class="lnk mono" onclick="searchFor('${t}')">${short(t)}</div>`).join('');
     return card('Address','<div class="mono sub">'+r.address+'</div>'+
       kv('Spendable','<b>'+(b.spendable||'0')+'</b> '+CFG.ticker)+kv('Immature',(b.immature||'0')+' '+CFG.ticker)+
       kv('Total',(b.total||'0')+' '+CFG.ticker)+kv('Transactions',r.transaction_count||0)+kv('UTXOs',r.utxo_count||0)+
@@ -250,18 +250,18 @@ function renderResult(d){
     return card('Transaction','<div class="mono sub">'+(r.txid||'')+'</div>'+
       kv('Status',r.confirmed?'confirmed ✓':'unconfirmed')+kv('Block',r.block_height!=null?('#'+r.block_height):'mempool')+
       kv('Inputs',(tx.inputs||[]).length)+kv('Outputs',(tx.outputs||[]).length)+
-      (r.block_hash?'<div class="lnk mono" onclick="searchFor(\''+r.block_hash+'\')">in block '+short(r.block_hash)+'</div>':''));}
+      (r.block_hash?`<div class="lnk mono" onclick="searchFor('${r.block_hash}')">in block ${short(r.block_hash)}</div>`:''));}
   if(d.type==='block'){const r=d.result,h=r.header||{};
     return card('Block #'+h.height,'<div class="mono sub">'+(r.hash||'')+'</div>'+
       kv('Time',fmtTime(h.timestamp))+kv('Transactions',(r.transactions||[]).length)+kv('Weight',r.weight||'')+
-      (h.previous_hash?'<div class="lnk mono" onclick="searchFor(\''+h.previous_hash+'\')">↑ previous '+short(h.previous_hash)+'</div>':''));}
+      (h.previous_hash?`<div class="lnk mono" onclick="searchFor('${h.previous_hash}')">↑ previous ${short(h.previous_hash)}</div>`:''));}
   return '<pre class="mono">'+JSON.stringify(d,null,2)+'</pre>';}
 async function search(){const out=$('#searchOut');if(!$('#q').value.trim()){out.innerHTML='';return;}out.innerHTML='<span class="muted">Searching…</span>';
   try{out.innerHTML=renderResult(await api('/api/search?q='+encodeURIComponent($('#q').value.trim())));}
   catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
 async function loadLatest(){const tb=$('#latest').querySelector('tbody');tb.innerHTML='<tr><td class="muted">Loading…</td></tr>';
   try{const d=await api('/api/latest?n=15');tb.innerHTML='<tr><th>Height</th><th>Hash</th><th>Txns</th><th>Time</th></tr>'+
-    d.blocks.map(b=>'<tr class="lnk" onclick="searchFor(\''+b.hash+'\')"><td>#'+b.height+'</td><td class="mono">'+short(b.hash)+'</td><td>'+b.transactions+'</td><td class="muted">'+fmtTime(b.timestamp)+'</td></tr>').join('');}
+    d.blocks.map(b=>`<tr class="lnk" onclick="searchFor('${b.hash}')"><td>#${b.height}</td><td class="mono">${short(b.hash)}</td><td>${b.transactions}</td><td class="muted">${fmtTime(b.timestamp)}</td></tr>`).join('');}
   catch(e){tb.innerHTML='<tr><td class="err">'+e.message+'</td></tr>';}}
 boot();
 </script></body></html>"""
