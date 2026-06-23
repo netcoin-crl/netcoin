@@ -563,6 +563,73 @@ def cmd_reindex(args: argparse.Namespace) -> None:
     print_json({"ok": True, "reindexed": True, "integrity": chain.verify_integrity()})
 
 
+def cmd_blockfilter(args: argparse.Namespace) -> None:
+    from .blockfilter import build_block_filter, filter_hash
+
+    if args.node:
+        node = args.node.rstrip("/")
+        block_hash = args.block or get_json(f"{node}/headers?start={args.height or 0}&limit=1")["headers"][0]["hash"]
+        print_json(get_json(f"{node}/cfilter/{block_hash}"))
+        return
+    chain = Blockchain(args.data)
+    if args.block:
+        block = chain.block_by_hash(args.block)
+    else:
+        height = args.height if args.height is not None else chain.height()
+        block = chain.chain[height] if 0 <= height < len(chain.chain) else None
+    if block is None:
+        print_json({"ok": False, "error": "block not found"})
+        return
+    data = build_block_filter(block)
+    print_json({"block_hash": block.hash(), "height": block.header.height, "filter": data.hex(),
+                "filter_hash": filter_hash(data), "bytes": len(data)})
+
+
+def cmd_scan_filters(args: argparse.Namespace) -> None:
+    """Light-client scan: download per-block filters and only flag matching blocks."""
+    from .blockfilter import block_filter_match
+    from .script import address_to_script_pubkey
+
+    node = args.node.rstrip("/")
+    if args.address:
+        addresses = [args.address]
+    elif args.wallet:
+        w = Wallet.load(args.wallet, passphrase=args.passphrase)
+        addresses = [w.address_for(t) for t in ("legacy", "segwit", "taproot", "p2sh-segwit")]
+    else:
+        print_json({"ok": False, "error": "provide --wallet or --address"})
+        return
+    scripts = {a: address_to_script_pubkey(a) for a in addresses}
+
+    tip = get_json(f"{node}/info")["node"]["height"]
+    start = max(0, args.start)
+    end = tip if args.end is None else min(args.end, tip)
+    matches: List[Dict[str, Any]] = []
+    filter_bytes = 0
+    scanned = 0
+    height = start
+    while height <= end:
+        headers = get_json(f"{node}/headers?start={height}&limit={min(2000, end - height + 1)}")["headers"]
+        if not headers:
+            break
+        for hdr in headers:
+            cf = get_json(f"{node}/cfilter/{hdr['hash']}")
+            raw = bytes.fromhex(cf["filter"])
+            filter_bytes += len(raw)
+            scanned += 1
+            hit = [a for a, spk in scripts.items() if block_filter_match(raw, hdr["hash"], spk)]
+            if hit:
+                matches.append({"height": hdr["height"], "hash": hdr["hash"], "addresses": hit})
+        height = headers[-1]["height"] + 1
+    print_json({
+        "addresses": addresses,
+        "scanned_blocks": scanned,
+        "filter_bytes_downloaded": filter_bytes,
+        "matched_blocks": matches,
+        "note": "fetch only the matched blocks in full to read the payments",
+    })
+
+
 def cmd_export(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     print_json(chain.export_chain())
@@ -998,6 +1065,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("reindex", help="rebuild indexes and the UTXO set from block data (recovers a corrupt chain file)")
     p.set_defaults(func=cmd_reindex)
+
+    p = sub.add_parser("blockfilter", help="compute or fetch a block's BIP158-style compact filter")
+    p.add_argument("--node", help="fetch the filter from a node instead of the local chain")
+    p.add_argument("--height", type=int, help="block height (default: tip)")
+    p.add_argument("--block", help="block hash (overrides --height)")
+    p.set_defaults(func=cmd_blockfilter)
+
+    p = sub.add_parser("scan-filters", help="light-client scan: download compact filters and flag only matching blocks")
+    p.add_argument("--node", required=True, help="node serving /cfilter and /headers")
+    p.add_argument("--wallet", help="scan all of a wallet's address types")
+    p.add_argument("--address", help="scan a single address")
+    p.add_argument("--passphrase", help="wallet passphrase if encrypted")
+    p.add_argument("--start", type=int, default=0, help="start height (default 0)")
+    p.add_argument("--end", type=int, default=None, help="end height (default: tip)")
+    p.set_defaults(func=cmd_scan_filters)
 
     p = sub.add_parser("export", help="export chain JSON")
     p.set_defaults(func=cmd_export)

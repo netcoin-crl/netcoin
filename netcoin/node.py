@@ -288,7 +288,7 @@ class NetCoinNode:
         except OSError:
             pass
 
-    SERVICES = ["network", "headers", "compact-blocks", "mempool", "block-template", "explorer-api"]
+    SERVICES = ["network", "headers", "compact-blocks", "mempool", "block-template", "explorer-api", "compact-filters"]
 
     def uptime_seconds(self) -> int:
         return int(time.time() - self.started_at)
@@ -678,6 +678,20 @@ def make_handler(node: NetCoinNode):
                         self.send_error_json("block not found", status=404)
                     else:
                         self.send_json(block.to_dict() | {"hash": block.hash(), "weight": block.weight()})
+                elif parsed.path.startswith("/cfilter/"):
+                    block_hash = parsed.path.split("/", 2)[2]
+                    block = node.chain.block_by_hash(block_hash)
+                    if block is None:
+                        self.send_error_json("block not found", status=404)
+                    else:
+                        from .blockfilter import build_block_filter, filter_hash
+                        data = build_block_filter(block)
+                        self.send_json({
+                            "block_hash": block.hash(),
+                            "height": block.header.height,
+                            "filter": data.hex(),
+                            "filter_hash": filter_hash(data),
+                        })
                 elif parsed.path.startswith("/compact-block-missing/"):
                     block_hash = parsed.path.split("/", 2)[2]
                     block = node.chain.block_by_hash(block_hash)
