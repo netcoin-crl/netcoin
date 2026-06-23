@@ -1,9 +1,16 @@
 """Local web wallet/faucet/explorer page (#web): page serves, and the remote
 send path produces a chain-valid, broadcastable transaction."""
 import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
 import threading
 from http.server import ThreadingHTTPServer
 from urllib.request import urlopen
+
+import pytest
 
 import netcoin.webwallet as ww
 from netcoin.chain import Blockchain
@@ -14,6 +21,27 @@ from netcoin.wallet import Wallet
 def test_page_contains_app():
     assert b"NetCoin Wallet" in ww.PAGE.encode("utf-8")
     assert b"/api/wallet/send" in ww.PAGE.encode("utf-8")
+
+
+def test_page_javascript_is_valid():
+    """A JS syntax error in the embedded page kills every button, so guard it.
+
+    Catches the Python-escaped-quote pitfall (\\' inside the page string collapses
+    to ', producing searchFor('' ...) ) both statically and, if node is present,
+    with a real syntax check."""
+    assert "searchFor(''" not in ww.PAGE  # signature of the collapsed-escape bug
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not available for a full JS syntax check")
+    js = re.search(r"<script>(.*)</script>", ww.PAGE, re.S).group(1)
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as handle:
+        handle.write(js)
+        path = handle.name
+    try:
+        result = subprocess.run([node, "--check", path], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+    finally:
+        os.unlink(path)
 
 
 def test_build_and_broadcast_produces_valid_tx(tmp_path, monkeypatch):
