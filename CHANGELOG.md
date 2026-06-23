@@ -11,6 +11,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.4.3] - 2026-06-22
+
 ### Added
 - **Local multi-node soak/stress harness** (`python -m netcoin soak`) starts
   multiple in-process HTTP nodes, connects them as peers, mines mature funds,
@@ -22,8 +26,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   check the seed's `/info` first and print a clear warning when it looks like an
   older/mismatched NetCoin (no `version` field, protocol mismatch, or a missing
   service) instead of failing with only a raw `HTTP 400/404`. Also fixed the
-  stale `__version__` (`0.2.0`) and `NODE_VERSION` (`0.4.1`) so the client and
-  node both report `0.4.2`.
+  stale `__version__` (`0.2.0`) and `NODE_VERSION` so the client and node report a
+  consistent version (now sourced from one constant).
 - **Crash-safe chain persistence + reindex.** The JSON backend now writes
   `chain.json`/`mempool.json` via fsync'd temp files, atomic `os.replace`, and a
   `.bak` mirror of the last committed state. On load, a corrupt live file is
@@ -31,6 +35,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   block, and a corrupt mempool is dropped rather than blocking startup. New
   `python -m netcoin reindex` rebuilds the indexes and UTXO set from block data
   and reports a chainstate integrity check.
+- **Seed log-growth cap** (`tools/harden_logging.sh`): bounds journald to 200M and
+  rotates rsyslog logs daily/100M (checked hourly), so a chatty service can no
+  longer fill a seed's root disk.
+
+### Fixed
+- **`deploy_seed.sh`** now installs `pytest` into the recreated venv before the
+  test gate. The venv lives inside the swapped source dir and is wiped on each
+  deploy, so the fresh venv lacked test deps and the gate aborted into a rollback.
 
 ## [0.4.2] - 2026-06-22
 
@@ -315,7 +327,8 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/netcoin-crl/netcoin/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/netcoin-crl/netcoin/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/netcoin-crl/netcoin/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/netcoin-crl/netcoin/compare/v0.3.0...v0.4.0
