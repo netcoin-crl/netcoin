@@ -354,7 +354,13 @@ def make_handler(node_url: str, faucet_url: str = ""):
             if not raw_json.strip():
                 raise ValueError("paste your wallet JSON")
             # Validate it parses, then load via the standard (encryption-aware) path.
-            json.loads(raw_json)
+            try:
+                json.loads(raw_json)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"that isn't valid wallet JSON ({exc.msg}). Paste the full contents "
+                    f"of your wallet .json file (an address goes in the Explorer, not here)."
+                ) from exc
             with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
                 handle.write(raw_json)
                 path = handle.name
