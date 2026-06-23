@@ -127,6 +127,13 @@ PAGE = """<!doctype html>
  .warn{background:#3a2a08;border:1px solid #6b4d12;color:#f0c674;padding:10px;border-radius:8px;font-size:13px;margin-top:10px}
  table{width:100%;border-collapse:collapse;font-size:13px} td,th{text-align:left;padding:6px 4px;border-bottom:1px solid var(--bd)}
  .hide{display:none} a{color:var(--acc)}
+ .rcard{background:#0e131a;border:1px solid var(--bd);border-radius:10px;padding:14px}
+ .rtitle{color:var(--acc);font-weight:700;margin-bottom:8px;font-size:15px}
+ .sub{margin-bottom:10px;color:var(--mut)}
+ .kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--bd)}
+ .kv:last-child{border-bottom:0}
+ .lnk{cursor:pointer;color:var(--acc);padding:3px 0}.lnk:hover{text-decoration:underline}
+ #latest th{color:var(--mut);font-weight:600}
 </style></head><body>
 <header><span class="big" style="color:var(--acc)">◈</span><h1>NetCoin Wallet</h1><span class="tag" id="netinfo">testnet</span></header>
 <div class="wrap">
@@ -204,6 +211,7 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   if(b.dataset.tab==='explorer')loadLatest();
 });
 async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG.network+' · node '+CFG.node;
+  $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')search();});
   const w=await api('/api/wallet/current');if(w.address)showWallet(w);}
 function showWallet(w){ADDRS=w.addresses;const sel=$('#typeSel');sel.innerHTML='';
   Object.keys(ADDRS).forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
@@ -225,10 +233,36 @@ async function send(){const out=$('#sendOut');out.textContent='Sending…';try{
    body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType})});
   out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+j.txid+'</span>';refreshBalance();}
   catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
-async function loadLatest(){try{const d=await api('/api/latest?n=15');
-  $('#latest').querySelector('tbody').innerHTML=d.blocks.map(b=>'<tr><td>#'+b.height+'</td><td class="mono">'+b.hash.slice(0,20)+'…</td><td>'+b.transactions+' tx</td></tr>').join('');}catch(e){}}
-async function search(){const out=$('#searchOut');out.textContent='…';try{const d=await api('/api/search?q='+encodeURIComponent($('#q').value.trim()));
-  out.innerHTML='<pre class="mono">'+JSON.stringify(d,null,2)+'</pre>';}catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
+function fmtTime(ts){return ts?new Date(ts*1000).toLocaleString():'';}
+function short(h){return h?(h.length>26?h.slice(0,14)+'…'+h.slice(-8):h):'';}
+function card(t,b){return '<div class="rcard"><div class="rtitle">'+t+'</div>'+b+'</div>';}
+function kv(k,v){return '<div class="kv"><span class="muted">'+k+'</span><span>'+v+'</span></div>';}
+function searchFor(q){$('#q').value=q;search();$('#searchOut').scrollIntoView({behavior:'smooth',block:'center'});}
+function renderResult(d){
+  if(!d||d.error)return '<div class="err">'+((d&&d.error)||'no result')+'</div>';
+  if(d.type==='address'){const r=d.result,b=r.balance_net||{};
+    const txs=(r.transaction_ids||[]).slice(0,30).map(t=>'<div class="lnk mono" onclick="searchFor(\''+t+'\')">'+short(t)+'</div>').join('');
+    return card('Address','<div class="mono sub">'+r.address+'</div>'+
+      kv('Spendable','<b>'+(b.spendable||'0')+'</b> '+CFG.ticker)+kv('Immature',(b.immature||'0')+' '+CFG.ticker)+
+      kv('Total',(b.total||'0')+' '+CFG.ticker)+kv('Transactions',r.transaction_count||0)+kv('UTXOs',r.utxo_count||0)+
+      (txs?'<div class="muted" style="margin:10px 0 4px">Transaction IDs</div>'+txs:''));}
+  if(d.type==='transaction'){const r=d.result,tx=r.tx||{};
+    return card('Transaction','<div class="mono sub">'+(r.txid||'')+'</div>'+
+      kv('Status',r.confirmed?'confirmed ✓':'unconfirmed')+kv('Block',r.block_height!=null?('#'+r.block_height):'mempool')+
+      kv('Inputs',(tx.inputs||[]).length)+kv('Outputs',(tx.outputs||[]).length)+
+      (r.block_hash?'<div class="lnk mono" onclick="searchFor(\''+r.block_hash+'\')">in block '+short(r.block_hash)+'</div>':''));}
+  if(d.type==='block'){const r=d.result,h=r.header||{};
+    return card('Block #'+h.height,'<div class="mono sub">'+(r.hash||'')+'</div>'+
+      kv('Time',fmtTime(h.timestamp))+kv('Transactions',(r.transactions||[]).length)+kv('Weight',r.weight||'')+
+      (h.previous_hash?'<div class="lnk mono" onclick="searchFor(\''+h.previous_hash+'\')">↑ previous '+short(h.previous_hash)+'</div>':''));}
+  return '<pre class="mono">'+JSON.stringify(d,null,2)+'</pre>';}
+async function search(){const out=$('#searchOut');if(!$('#q').value.trim()){out.innerHTML='';return;}out.innerHTML='<span class="muted">Searching…</span>';
+  try{out.innerHTML=renderResult(await api('/api/search?q='+encodeURIComponent($('#q').value.trim())));}
+  catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
+async function loadLatest(){const tb=$('#latest').querySelector('tbody');tb.innerHTML='<tr><td class="muted">Loading…</td></tr>';
+  try{const d=await api('/api/latest?n=15');tb.innerHTML='<tr><th>Height</th><th>Hash</th><th>Txns</th><th>Time</th></tr>'+
+    d.blocks.map(b=>'<tr class="lnk" onclick="searchFor(\''+b.hash+'\')"><td>#'+b.height+'</td><td class="mono">'+short(b.hash)+'</td><td>'+b.transactions+'</td><td class="muted">'+fmtTime(b.timestamp)+'</td></tr>').join('');}
+  catch(e){tb.innerHTML='<tr><td class="err">'+e.message+'</td></tr>';}}
 boot();
 </script></body></html>"""
 
@@ -347,9 +381,9 @@ def make_handler(node_url: str, faucet_url: str = ""):
                 return {"error": "empty query"}
             # Try, in order: height -> block, txid, address.
             if query.isdigit():
-                latest = _node_get(node_url, "/latest?n=1")
-                if int(query) <= latest.get("height", -1):
-                    return {"type": "height", "height": int(query)}
+                headers = _node_get(node_url, f"/headers?start={int(query)}&limit=1").get("headers", [])
+                if headers and int(headers[0].get("height", -1)) == int(query):
+                    return {"type": "block", "result": _node_get(node_url, f"/block/{headers[0]['hash']}")}
             for path, kind in ((f"/tx/{query}", "transaction"), (f"/address/{query}", "address"), (f"/block/{query}", "block")):
                 try:
                     return {"type": kind, "result": _node_get(node_url, path)}
