@@ -194,6 +194,11 @@ PAGE = """<!doctype html>
    <button class="act" onclick="makePayLink()">Create payment link</button>
    <div id="reqOut" style="margin-top:10px"></div>
   </div>
+
+  <div class="card hide" id="historyCard">
+   <h2>Recent activity</h2>
+   <div id="historyOut" class="muted">—</div>
+  </div>
  </section>
 
  <section id="tab-faucet" class="hide">
@@ -227,13 +232,22 @@ async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG
   const w=await api('/api/wallet/current');if(w.address)showWallet(w);}
 function showWallet(w){ADDRS=w.addresses;const sel=$('#typeSel');sel.innerHTML='';
   Object.keys(ADDRS).forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
-  $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');
+  $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');$('#historyCard').classList.remove('hide');
   if(w.mnemonic){$('#mnemonicBox').innerHTML='<div class="warn"><b>Recovery phrase (shown once):</b><div class="mono">'+w.mnemonic+'</div>Write it down. <a href="data:application/json,'+encodeURIComponent(JSON.stringify(w.wallet_file))+'" download="wallet.json">Download wallet.json</a></div>';}
   switchType();}
 function switchType(){curType=$('#typeSel').value||'legacy';$('#addrType').textContent=curType;
   $('#addr').textContent=ADDRS[curType];$('#faucetAddr').textContent=ADDRS[curType];
   $('#faucetLink').innerHTML=CFG.faucet?'<a class="act" style="display:inline-block;text-decoration:none" href="'+CFG.faucet+'" target="_blank">Open faucet ↗</a> <span class="muted">paste the address above</span>':'<span class="muted">No faucet configured.</span>';
-  refreshBalance();}
+  refreshBalance();loadHistory();}
+function openTx(t){document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+  const eb=document.querySelector('.tabs button[data-tab="explorer"]');eb.classList.add('on');
+  ['wallet','faucet','explorer'].forEach(tb=>$('#tab-'+tb).classList.toggle('hide',tb!=='explorer'));
+  loadLatest();searchFor(t);}
+async function loadHistory(){const out=$('#historyOut');try{
+  const d=await api('/api/history?address='+ADDRS[curType]);
+  const ids=(d.transaction_ids||[]).slice(-15).reverse();
+  out.innerHTML=ids.length?(`<div class="muted">${d.transaction_count} total · newest first</div>`+ids.map(t=>`<div class="lnk mono" onclick="openTx('${t}')">${short(t)}</div>`).join('')):'<span class="muted">No transactions yet for this address.</span>';
+}catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
 async function newWallet(){try{const w=await api('/api/wallet/new',{method:'POST'});showWallet(w);}catch(e){alert(e.message)}}
 async function loadWallet(){try{const w=await api('/api/wallet/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({json:$('#loadJson').value,passphrase:$('#loadPass').value})});showWallet(w);}catch(e){alert(e.message)}}
 function copyAddr(){navigator.clipboard.writeText(ADDRS[curType]);}
@@ -333,6 +347,9 @@ def make_handler(node_url: str, faucet_url: str = ""):
                 elif parsed.path == "/api/balance":
                     address = parse_qs(parsed.query).get("address", [""])[0]
                     self._send(_node_get(node_url, f"/balance/{address}"))
+                elif parsed.path == "/api/history":
+                    address = parse_qs(parsed.query).get("address", [""])[0]
+                    self._send(_node_get(node_url, f"/address/{address}"))
                 elif parsed.path == "/api/latest":
                     n = parse_qs(parsed.query).get("n", ["15"])[0]
                     self._send(_node_get(node_url, f"/latest?n={int(n)}"))

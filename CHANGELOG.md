@@ -12,6 +12,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Web wallet transaction history**: the Wallet tab now shows a "Recent activity"
+  list of the loaded address's transactions (via `/api/history`), each clickable
+  to open it in the Explorer.
 - **BIP21-style payment URIs** (`netcoin:<address>?amount=&label=&message=`):
   encode a payment request into one shareable string. New `netcoin/paymenturi.py`
   (`build_uri`/`parse_uri`), CLI `payment-uri` (build or `--decode`), and web-wallet

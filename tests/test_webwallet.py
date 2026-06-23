@@ -98,3 +98,15 @@ def test_server_serves_page_and_config():
         assert current["address"] is None
     finally:
         server.shutdown()
+
+
+def test_history_endpoint_proxies_address_summary(monkeypatch):
+    monkeypatch.setattr(ww, "_node_get", lambda url, path, timeout=15: {"transaction_count": 2, "transaction_ids": ["aa", "bb"]})
+    server = ThreadingHTTPServer(("127.0.0.1", 0), ww.make_handler("http://node.example"))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        data = json.loads(urlopen(base + "/api/history?address=Ncabc").read())
+        assert data["transaction_count"] == 2 and data["transaction_ids"] == ["aa", "bb"]
+    finally:
+        server.shutdown()
