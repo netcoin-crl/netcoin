@@ -11,6 +11,8 @@ use well-reviewed constant-time libraries.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import hmac
 import secrets
@@ -377,6 +379,91 @@ def script_hash_to_p2sh_address(script_hash: bytes) -> str:
     if len(script_hash) != 20:
         raise ValueError("P2SH script hash must be HASH160 length")
     return base58check_encode(P2SH_ADDRESS_VERSION + script_hash)
+
+
+# ---------------------------------------------------------------------------
+# Signed messages (Bitcoin-style signmessage / verifymessage)
+# ---------------------------------------------------------------------------
+
+# 0x18 == len("NetCoin Signed Message:\n"); mirrors Bitcoin's magic prefix.
+MESSAGE_MAGIC = b"\x18NetCoin Signed Message:\n"
+
+
+def _message_varint(value: int) -> bytes:
+    if value < 0xFD:
+        return bytes([value])
+    if value <= 0xFFFF:
+        return b"\xfd" + value.to_bytes(2, "little")
+    if value <= 0xFFFFFFFF:
+        return b"\xfe" + value.to_bytes(4, "little")
+    return b"\xff" + value.to_bytes(8, "little")
+
+
+def message_digest(message: str) -> bytes:
+    body = message.encode("utf-8")
+    return double_sha256(MESSAGE_MAGIC + _message_varint(len(body)) + body)
+
+
+def _recover_public_point(digest: bytes, r: int, s: int, recid: int) -> Optional[Point]:
+    x = r + (recid // 2) * N
+    if x >= P:
+        return None
+    alpha = (pow(x, 3, P) + A * x + B) % P
+    beta = pow(alpha, (P + 1) // 4, P)
+    y = beta if (beta % 2) == (recid % 2) else (P - beta)
+    candidate = (x, y)
+    if not is_on_curve(candidate):
+        return None
+    e = int.from_bytes(digest, "big")
+    r_inv = inverse_mod(r, N)
+    s_r = scalar_mult(s, candidate)
+    e_g = scalar_mult(e, G)
+    neg_e_g = None if e_g is None else (e_g[0], (-e_g[1]) % P)
+    return scalar_mult(r_inv, point_add(s_r, neg_e_g))
+
+
+def _point_to_compressed(point: Point) -> bytes:
+    x, y = point
+    return (b"\x03" if (y & 1) else b"\x02") + x.to_bytes(32, "big")
+
+
+def sign_message(private_key: int, message: str) -> str:
+    """Sign a message, returning a base64 recoverable signature (no pubkey needed
+    to verify) — the same shape as Bitcoin Core's signmessage."""
+    digest = message_digest(message)
+    signature = ecdsa_sign(private_key, digest)
+    r = int.from_bytes(signature[:32], "big")
+    s = int.from_bytes(signature[32:], "big")
+    target = decode_public_key(private_key_to_public_key(private_key, compressed=True))
+    for recid in range(4):
+        if _recover_public_point(digest, r, s, recid) == target:
+            return base64.b64encode(bytes([27 + recid + 4]) + signature).decode("ascii")
+    raise ValueError("unable to produce a recoverable signature")
+
+
+def verify_message(address: str, message: str, signature_b64: str) -> bool:
+    """Verify a signed message against an address (legacy or P2WPKH)."""
+    try:
+        raw = base64.b64decode(signature_b64, validate=True)
+    except (binascii.Error, ValueError):
+        return False
+    if len(raw) != 65 or not (27 <= raw[0] <= 34):
+        return False
+    recid = (raw[0] - 27) & 0x03
+    r = int.from_bytes(raw[1:33], "big")
+    s = int.from_bytes(raw[33:65], "big")
+    if not (0 < r < N and 0 < s < N):
+        return False
+    point = _recover_public_point(message_digest(message), r, s, recid)
+    if point is None:
+        return False
+    pub = _point_to_compressed(point)
+    candidates = {public_key_to_address(pub)}
+    try:
+        candidates.add(public_key_to_p2wpkh_address(pub))
+    except ValueError:
+        pass
+    return address in candidates
 
 
 def decode_address(address: str) -> Dict[str, object]:

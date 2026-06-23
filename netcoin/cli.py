@@ -664,6 +664,20 @@ def cmd_hd_address(args: argparse.Namespace) -> None:
     })
 
 
+def cmd_signmessage(args: argparse.Namespace) -> None:
+    from .crypto import sign_message
+
+    wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
+    signature = sign_message(wallet.private_key, args.message)
+    print_json({"address": wallet.address_for("legacy"), "message": args.message, "signature": signature})
+
+
+def cmd_verifymessage(args: argparse.Namespace) -> None:
+    from .crypto import verify_message
+
+    print_json({"valid": verify_message(args.address, args.message, args.signature)})
+
+
 def cmd_export(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     print_json(chain.export_chain())
@@ -1105,6 +1119,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase", help="optional BIP39 passphrase")
     p.add_argument("--path", default="m/44'/0'/0'/0/0", help="derivation path (default m/44'/0'/0'/0/0)")
     p.set_defaults(func=cmd_hd_derive)
+
+    p = sub.add_parser("signmessage", help="sign a message with a wallet key (proves address control)")
+    p.add_argument("--wallet", required=True)
+    p.add_argument("--message", required=True)
+    p.add_argument("--passphrase", help="wallet passphrase if encrypted")
+    p.set_defaults(func=cmd_signmessage)
+
+    p = sub.add_parser("verifymessage", help="verify a signed message against an address")
+    p.add_argument("--address", required=True)
+    p.add_argument("--message", required=True)
+    p.add_argument("--signature", required=True)
+    p.set_defaults(func=cmd_verifymessage)
 
     p = sub.add_parser("hd-address", help="watch-only: derive a receive address from an account xpub (no private key)")
     p.add_argument("--xpub", required=True, help="account extended public key")
