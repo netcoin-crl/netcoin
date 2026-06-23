@@ -12,6 +12,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **BIP158-style compact block filters** (`netcoin/blockfilter.py`): each block
+  gets a small Golomb-Coded-Set filter summarizing its output scripts. A light
+  client downloads filters (bytes, not full blocks), tests its addresses, and only
+  fetches blocks that might match. New node endpoint `GET /cfilter/<blockhash>`
+  (advertised as the `compact-filters` service), filter-header chaining (BIP157),
+  and CLI: `blockfilter` (compute/fetch a filter) and `scan-filters` (light-client
+  scan of a wallet/address over a height range). ~1/M false-positive rate, no
+  false negatives.
 - **Local web wallet / faucet / explorer page** (`python -m netcoin web`): a
   single-page browser UI on `127.0.0.1` that wraps the CLI — create/load a wallet,
   view balance, send (built, signed locally, broadcast to a remote node), open the

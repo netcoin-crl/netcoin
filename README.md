@@ -256,6 +256,14 @@ Run a local peer node:
 python -m netcoin --data node-a node --host 127.0.0.1 --port 18444
 ```
 
+Light-client scan with compact block filters (download tiny per-block filters
+instead of full blocks; only flag blocks that might pay your address):
+
+```bash
+python -m netcoin scan-filters --node http://seed1.netcoin.online:28444 --wallet miner.json
+python -m netcoin blockfilter --node http://seed1.netcoin.online:28444 --height 100
+```
+
 Mine through a running node instead of writing directly to a local chain:
 
 ```bash
