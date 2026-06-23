@@ -12,6 +12,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Signed messages** (Bitcoin-style `signmessage` / `verifymessage`): sign a
+  message with a wallet key to prove address control. Produces a base64
+  recoverable signature that verifies against a legacy or P2WPKH address with no
+  public key needed (`crypto.sign_message` / `verify_message`, CLI `signmessage`
+  and `verifymessage`).
 - **BIP32 HD wallets** (`netcoin/hd.py`), validated against the official BIP32
   test vectors: one mnemonic/seed derives an unlimited tree of keys, with standard
   `xprv`/`xpub` extended keys and hardened + watch-only (xpub→xpub) derivation.
