@@ -1,0 +1,72 @@
+"""Local web wallet/faucet/explorer page (#web): page serves, and the remote
+send path produces a chain-valid, broadcastable transaction."""
+import json
+import threading
+from http.server import ThreadingHTTPServer
+from urllib.request import urlopen
+
+import netcoin.webwallet as ww
+from netcoin.chain import Blockchain
+from netcoin.tx import Transaction
+from netcoin.wallet import Wallet
+
+
+def test_page_contains_app():
+    assert b"NetCoin Wallet" in ww.PAGE.encode("utf-8")
+    assert b"/api/wallet/send" in ww.PAGE.encode("utf-8")
+
+
+def test_build_and_broadcast_produces_valid_tx(tmp_path, monkeypatch):
+    chain = Blockchain(tmp_path / "c")
+    wallet = Wallet.create()
+    addr = wallet.address_for("legacy")
+    for _ in range(102):  # fund + mature the first coinbase
+        chain.mine_block(addr)
+
+    def fake_get(node_url, path, timeout=15):
+        if path == "/info":
+            return {"node": {"height": chain.height()}}
+        if path.startswith("/utxos"):
+            return {"utxos": [u.to_dict() for u in chain.utxos_for_address(addr)]}
+        raise AssertionError(f"unexpected GET {path}")
+
+    captured = {}
+
+    def fake_post(node_url, path, payload, timeout=15):
+        assert path == "/tx"
+        tx = Transaction.from_dict(payload)
+        captured["txid"] = chain.add_mempool_transaction(tx)  # full consensus validation
+        return {"txid": captured["txid"], "ok": True}
+
+    monkeypatch.setattr(ww, "_node_get", fake_get)
+    monkeypatch.setattr(ww, "_node_post", fake_post)
+
+    dest = Wallet.create().address_for("segwit")
+    out = ww.build_and_broadcast(wallet, dest, amount_sats=100_000_000, fee_sats=1_000_000, from_type="legacy", node_url="http://x")
+    assert out["txid"] == captured["txid"]
+    assert chain.mempool_info()["size"] == 1
+
+
+def test_insufficient_funds_rejected(tmp_path, monkeypatch):
+    wallet = Wallet.create()
+    monkeypatch.setattr(ww, "_node_get", lambda u, p, timeout=15: {"node": {"height": 0}} if p == "/info" else {"utxos": []})
+    try:
+        ww.build_and_broadcast(wallet, "Ncdest", 100, 1, "legacy", "http://x")
+        assert False, "expected failure"
+    except ValueError as exc:
+        assert "spendable" in str(exc) or "mature" in str(exc)
+
+
+def test_server_serves_page_and_config():
+    server = ThreadingHTTPServer(("127.0.0.1", 0), ww.make_handler("http://node.example", faucet_url="http://faucet.example"))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        page = urlopen(base + "/").read()
+        assert b"NetCoin Wallet" in page
+        cfg = json.loads(urlopen(base + "/api/config").read())
+        assert cfg["node"] == "http://node.example" and cfg["faucet"] == "http://faucet.example"
+        current = json.loads(urlopen(base + "/api/wallet/current").read())
+        assert current["address"] is None
+    finally:
+        server.shutdown()

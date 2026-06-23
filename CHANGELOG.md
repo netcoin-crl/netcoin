@@ -11,7 +11,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Local web wallet / faucet / explorer page** (`python -m netcoin web`): a
+  single-page browser UI on `127.0.0.1` that wraps the CLI — create/load a wallet,
+  view balance, send (built, signed locally, broadcast to a remote node), open the
+  faucet, and browse/search the chain. Keys never leave the machine; only the
+  signed transaction is sent to the node. Turns "clone the repo and run the CLI"
+  into "open a URL."
 
 ## [0.4.3] - 2026-06-22
 
