@@ -58,7 +58,14 @@ input be added without breaking the first signature; tamper cases.
 
 Risk: medium. Touches `tx.py` sign/verify only; no networking. **Claude leads.**
 
-## Item 2 — Taproot script-path spends (BIP341/342)
+## Item 2 — Taproot script-path spends (BIP341/342)  ✅ DONE (2026-06-22)
+
+> Landed: `netcoin/taproot.py` (TapLeaf/TapBranch/TapTweak, merkle root + proof,
+> key tweak validated against the BIP341 vector, control-block build/verify) and a
+> witness-v1 script-path branch in `tx.py` `verify_input` (verifies the commitment,
+> runs the leaf via the Script VM). Key-path unchanged. CLI `taproot-tree`.
+> 7 tests in `tests/test_taproot_scriptpath.py`. 287 total.
+
 
 Today Taproot is key-path only. Add script-path:
 

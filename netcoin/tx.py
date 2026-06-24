@@ -27,8 +27,11 @@ from .crypto import (
 from .params import COIN, MAX_MONEY, ZERO_HASH
 from .script import (
     ScriptContext,
+    ScriptError,
     address_to_script_pubkey,
+    cast_to_bool,
     classify_script,
+    execute_script,
     p2pkh_script,
     p2wpkh_script,
     script_hash160,
@@ -383,13 +386,33 @@ class Transaction:
                 return False
 
         if kind == "p2tr":
+            output_xonly_hex = script_pubkey.split()[1]
+            # Script-path spend (BIP341): witness is
+            # [..script stack items.., leaf_script_hex, control_block_hex].
+            if len(txin.witness) >= 2:
+                from .taproot import verify_script_path
+
+                try:
+                    control = bytes.fromhex(txin.witness[-1])
+                    leaf_bytes = bytes.fromhex(txin.witness[-2])
+                except ValueError:
+                    return False
+                if not verify_script_path(bytes.fromhex(output_xonly_hex), leaf_bytes, control):
+                    return False
+                try:
+                    leaf_script = leaf_bytes.decode("utf-8")
+                    stack = list(txin.witness[:-2])
+                    result = execute_script(leaf_script, stack, context)
+                    return bool(result and cast_to_bool(result[-1]))
+                except (ScriptError, ValueError):
+                    return False
+            # Key-path spend: a single Schnorr signature.
             try:
                 if len(txin.witness) != 1:
                     return False
                 signature = bytes.fromhex(txin.witness[0])
-                xonly = bytes.fromhex(script_pubkey.split()[1])
                 sig64, flag = _split_sighash(signature)
-                return schnorr_verify(xonly, self.sighash(input_index, prevout, flag), sig64)
+                return schnorr_verify(bytes.fromhex(output_xonly_hex), self.sighash(input_index, prevout, flag), sig64)
             except (ValueError, IndexError):
                 return False
 

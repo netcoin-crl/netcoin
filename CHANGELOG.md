@@ -12,6 +12,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Taproot script-path spends** (BIP341/342-style, `netcoin/taproot.py`): commit a
+  tree of alternative tapscripts to a Taproot output by tweaking the internal key
+  with the tree's merkle root, then spend by revealing one leaf + a merkle proof
+  (control block). The key tweak is validated against the official BIP341 test
+  vector. `tx.py` gains a witness-v1 script-path branch (verifies the commitment,
+  then runs the leaf via the Script VM); key-path Taproot is unchanged. CLI
+  `taproot-tree` builds a script-tree address + control blocks. (Consensus Item 2.)
 - **Multiple SIGHASH types** (`SIGHASH_ALL` / `NONE` / `SINGLE` + `ANYONECANPAY`):
   `sign_input`/`verify_input` accept a `sighash_type` so a signature can commit to a
   subset of the transaction — NONE leaves outputs free, SINGLE pins only the
