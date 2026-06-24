@@ -678,6 +678,21 @@ def cmd_verifymessage(args: argparse.Namespace) -> None:
     print_json({"valid": verify_message(args.address, args.message, args.signature)})
 
 
+def cmd_taproot_tree(args: argparse.Namespace) -> None:
+    from .taproot import taproot_output
+    from .crypto import private_key_to_xonly_public_key
+
+    if args.wallet:
+        wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
+        internal = private_key_to_xonly_public_key(wallet.private_key)
+    elif args.internal:
+        internal = bytes.fromhex(args.internal)
+    else:
+        print_json({"ok": False, "error": "provide --wallet or --internal <xonly-hex>"})
+        return
+    print_json(taproot_output(internal, args.script or []))
+
+
 def cmd_payment_uri(args: argparse.Namespace) -> None:
     from .paymenturi import build_uri, parse_uri
 
@@ -1131,6 +1146,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase", help="optional BIP39 passphrase")
     p.add_argument("--path", default="m/44'/0'/0'/0/0", help="derivation path (default m/44'/0'/0'/0/0)")
     p.set_defaults(func=cmd_hd_derive)
+
+    p = sub.add_parser("taproot-tree", help="build a Taproot script-tree (BIP341) address + control blocks")
+    p.add_argument("--wallet", help="use this wallet's key as the internal key")
+    p.add_argument("--internal", help="internal x-only pubkey hex (instead of --wallet)")
+    p.add_argument("--passphrase", help="wallet passphrase if encrypted")
+    p.add_argument("--script", action="append", help="a leaf script (repeatable)")
+    p.set_defaults(func=cmd_taproot_tree)
 
     p = sub.add_parser("payment-uri", help="build or decode a netcoin: payment URI (BIP21-style)")
     p.add_argument("--address", help="address to request payment to")
