@@ -47,6 +47,7 @@ shasum -a 256 -c SHA256SUMS              # checksum OK
 
 ### Run the network
 - [Run a Node](NODE_RUNNER.md) — your own full node, peered with the public seeds
+- [Host a Public Seed](PUBLIC_SEED_HOSTING.md) — make a node publicly reachable with **no port forwarding** (Cloudflare Tunnel / Tailscale / ngrok / VPS), macOS/Linux/Windows
 - [Mining](MINING.md) — mine testnet blocks from your machine
 - [Testnet Layout](TESTNET.md) — seed nodes, ports, DNS, launch order
 - [Operations](OPERATIONS.md) — backups, deploy/upgrade, monitoring, SQLite backend
