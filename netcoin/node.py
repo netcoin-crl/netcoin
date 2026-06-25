@@ -23,6 +23,7 @@ from .compact import CompactBlock, CompactBlockError, compact_missing_payload, m
 from .logsetup import emit
 from .params import (
     DEFAULT_NODE_PORT,
+    DEFAULT_P2P_PORT,
     MAX_REQUEST_BODY_BYTES,
     NETWORK_NAME,
     NODE_VERSION,
@@ -466,6 +467,17 @@ class NetCoinNode:
                 continue
         return adopted
 
+    def sync_over_p2p(self, host: str, port: int) -> int:
+        """Sync from a peer over the binary TCP P2P transport (getheaders ->
+        headers -> getdata(block) -> block). Returns the number of blocks
+        accepted; 0 on any failure so the caller can fall back to HTTP."""
+        from .p2p import sync_headers_first
+
+        try:
+            return sync_headers_first(host, int(port), self.chain)
+        except Exception:
+            return 0
+
     def accept_block(self, block: Block) -> str:
         self.log_event("block_received", hash=block.hash(), height=block.header.height)
         try:
@@ -835,6 +847,7 @@ def run_node(
     advertise: Optional[str] = None,
     sync_interval: int = 0,
     rate_limit_per_min: int = 240,
+    p2p_port: int = DEFAULT_P2P_PORT,
 ) -> None:
     chain = Blockchain(data_dir=data_dir)
     node = NetCoinNode(chain, peers=peers or [], self_url=advertise, rate_limit_per_min=rate_limit_per_min)
@@ -847,11 +860,32 @@ def run_node(
     if advertise:
         print(f"advertising as {advertise}")
 
+    # Serve the binary TCP P2P transport alongside HTTP. HTTP stays the API for
+    # explorers/faucets/wallets/light clients; binary P2P is the node-to-node path.
+    p2p_server = None
+    if p2p_port:
+        try:
+            from .p2p import NetCoinP2PServer
+
+            p2p_server = NetCoinP2PServer((host, int(p2p_port)), chain)
+            Thread(target=p2p_server.serve_forever, daemon=True).start()
+            print(f"binary P2P listening on {host}:{p2p_port}")
+        except OSError as exc:
+            print(f"binary P2P not started ({exc})")
+
     def _bootstrap() -> None:
         result = node.bootstrap()
+        # Best-effort: also sync each peer over the binary P2P transport.
+        p2p_blocks = 0
+        if p2p_port:
+            for peer in list(node.peers):
+                peer_host = urlparse(peer).hostname
+                if peer_host:
+                    p2p_blocks += node.sync_over_p2p(peer_host, p2p_port)
         print(
             f"bootstrap: peers={len(node.peers)} learned={result['learned']} "
-            f"adopted_chains={result['adopted_chains']} height={chain.height()} tip={chain.tip_hash()}"
+            f"adopted_chains={result['adopted_chains']} p2p_blocks={p2p_blocks} "
+            f"height={chain.height()} tip={chain.tip_hash()}"
         )
 
     Thread(target=_bootstrap, daemon=True).start()
@@ -869,4 +903,7 @@ def run_node(
             sync_stop.set()
         if sync_thread is not None:
             sync_thread.join(timeout=5)
+        if p2p_server is not None:
+            p2p_server.shutdown()
+            p2p_server.server_close()
         server.server_close()

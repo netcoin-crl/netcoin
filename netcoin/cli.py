@@ -876,6 +876,7 @@ def cmd_node(args: argparse.Namespace) -> None:
         advertise=advertise,
         sync_interval=sync_interval,
         rate_limit_per_min=rate_limit_per_min,
+        p2p_port=getattr(args, "p2p_port", DEFAULT_P2P_PORT),
     )
 
 
@@ -1251,7 +1252,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.set_defaults(func=cmd_import)
 
-    p = sub.add_parser("node", help="run an HTTP peer node")
+    p = sub.add_parser("node", help="run a peer node (HTTP API + binary P2P transport)")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_NODE_PORT)
     p.add_argument("--peer", action="append", help="peer URL; can be repeated")
@@ -1259,6 +1260,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--advertise", help="public URL to announce to peers for gossip discovery")
     p.add_argument("--config", help="path to a netcoin.conf (JSON or key=value)")
     p.add_argument("--sync-interval", type=int, default=0, help="background peer discovery/sync interval in seconds; 0 disables")
+    p.add_argument("--p2p-port", type=int, default=DEFAULT_P2P_PORT, help="binary TCP P2P port served alongside HTTP; 0 disables")
     p.add_argument("--rate-limit-per-min", type=int, default=240, help="per-IP/per-path HTTP request limit; 0 disables")
     p.set_defaults(func=cmd_node)
 
