@@ -749,6 +749,23 @@ def cmd_payment_uri(args: argparse.Namespace) -> None:
     print_json({"uri": build_uri(args.address, amount=args.amount, label=args.label, message=args.message)})
 
 
+def cmd_export_allocation(args: argparse.Namespace) -> None:
+    """Snapshot per-address balances so a relaunch can carry them to a new genesis."""
+    from .migration import export_allocation, save_allocation
+
+    chain = Blockchain(args.data)
+    allocation = export_allocation(chain)
+    if args.out:
+        save_allocation(allocation, args.out)
+    print_json({
+        "addresses": len(allocation),
+        "total_sats": sum(allocation.values()),
+        "total_net": sats_to_amount(sum(allocation.values())),
+        "saved_to": args.out,
+        "note": "load with Blockchain(genesis_allocation=...) on the relaunch to preserve balances",
+    })
+
+
 def cmd_export(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     print_json(chain.export_chain())
@@ -1247,6 +1264,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("export", help="export chain JSON")
     p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("export-allocation", help="snapshot per-address balances for a relaunch (preserve coins across a new genesis)")
+    p.add_argument("--out", help="write the allocation JSON to this file")
+    p.set_defaults(func=cmd_export_allocation)
 
     p = sub.add_parser("import", help="import a better-work chain from a JSON file")
     p.add_argument("file")
