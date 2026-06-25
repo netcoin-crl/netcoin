@@ -38,6 +38,7 @@ from .params import (
     MAX_MONEY,
     MAX_STANDARD_TX_WEIGHT,
     MIN_RELAY_FEE_PER_KB,
+    MIN_DIFFICULTY_GAP_SECONDS,
     POW_LIMIT_BITS,
     TARGET_TIMESPAN_SECONDS,
     ZERO_HASH,
@@ -373,6 +374,19 @@ class Blockchain:
         new_target = old_target * actual_timespan // TARGET_TIMESPAN_SECONDS
         return target_to_bits(new_target)
 
+    def _bits_acceptable(self, height: int, prefix: Optional[Sequence[Block]], bits: int, timestamp: int) -> bool:
+        """A block must use the normal retarget difficulty, UNLESS it is mined more
+        than MIN_DIFFICULTY_GAP_SECONDS after its parent (the testnet lone-miner
+        rule), in which case it may instead use the PoW floor so the chain can't
+        get stuck when hashpower drops."""
+        if bits == self.expected_bits_for_height(height, prefix):
+            return True
+        chain_prefix = list(prefix) if prefix is not None else self.chain
+        if chain_prefix and bits == POW_LIMIT_BITS:
+            if timestamp > chain_prefix[-1].header.timestamp + MIN_DIFFICULTY_GAP_SECONDS:
+                return True
+        return False
+
     def _recompute_utxos_from_chain(self) -> Dict[str, SpendableOutput]:
         """Authoritative full-scan UTXO computation (source of truth for rebuilds
         and integrity checks). The persistent `self._utxos` cache mirrors this."""
@@ -535,7 +549,7 @@ class Blockchain:
             raise ChainError("block height does not extend the previous block")
         if block.header.previous_hash != previous.hash():
             raise ChainError("block previous hash does not match chain tip")
-        if block.header.bits != self.expected_bits_for_height(block.header.height, chain_prefix):
+        if not self._bits_acceptable(block.header.height, chain_prefix, block.header.bits, block.header.timestamp):
             raise ChainError("block bits do not match expected difficulty target")
         if block.header.merkle_root != merkle_root(block.transactions):
             raise ChainError("block merkle root does not match its transactions")
@@ -791,7 +805,10 @@ class Blockchain:
         if not validate_address(miner_address):
             raise ChainError("miner address is not a valid NetCoin address")
         height = self.height() + 1
+        mined_at = int(time.time())
         bits = self.expected_bits_for_height(height, self.chain)
+        if self.chain and mined_at > self.tip().header.timestamp + MIN_DIFFICULTY_GAP_SECONDS:
+            bits = POW_LIMIT_BITS  # testnet lone-miner rule: mine the floor when late
         previous_hash = self.tip_hash()
         temp_utxos = self.utxo_set()
         selected: List[Transaction] = []
@@ -824,7 +841,7 @@ class Blockchain:
                     height, miner_address, reward, extra_nonce=extra_nonce, witness_commitment=commit
                 )
                 txs = [coinbase] + selected
-            candidate = make_block(previous_hash, height, bits, txs)
+            candidate = make_block(previous_hash, height, bits, txs, timestamp=mined_at)
             try:
                 self.validate_block_against(candidate, self.tip(), self.utxo_set(), self.chain)
                 break
@@ -1097,7 +1114,7 @@ class Blockchain:
                 raise ChainError("headers are not height-consecutive")
             if header.previous_hash != previous_hash:
                 raise ChainError("headers do not connect to local tip")
-            if header.bits != self.expected_bits_for_height(header.height, prefix):
+            if not self._bits_acceptable(header.height, prefix, header.bits, header.timestamp):
                 raise ChainError("header bits do not match expected difficulty")
             if not check_proof_of_work(header):
                 raise ChainError("header proof of work is invalid")

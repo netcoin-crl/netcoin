@@ -1,5 +1,13 @@
 # Real Difficulty / Testnet Relaunch Plan
 
+> **Status (2026-06-22): DECIDED + BUILT on the `testnet-v2` branch, NOT yet
+> deployed.** Decisions: 2-minute blocks (`TARGET_SPACING_SECONDS=120`), retarget
+> every 30 blocks, easy launch at the PoW floor with the fast retarget ramping up,
+> and the testnet lone-miner min-difficulty rule (`MIN_DIFFICULTY_GAP_SECONDS`).
+> New genesis (`GENESIS_MESSAGE` = "...testnet v2..."). 297 tests pass on the
+> branch. **The live seeds remain on v1 until an explicit go** — relaunch = wipe
+> seed data + redeploy this branch + re-fund the faucet (runbook below).
+
 Today NetCoin mines at trivial difficulty (`INITIAL_BITS = 0x207FFFFF`, the
 easiest possible target). Anyone can mine hundreds of blocks per second, so there
 is **no real proof-of-work, no competition, and no meaningful security** — it's a
