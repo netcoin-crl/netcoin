@@ -290,13 +290,14 @@ def mine_header(header: BlockHeader, max_nonce: int = 2**32 - 1) -> BlockHeader:
     raise BlockError("nonce space exhausted; change timestamp or coinbase extra nonce")
 
 
-def make_block(previous_hash: str, height: int, bits: int, transactions: List[Transaction]) -> Block:
+def make_block(previous_hash: str, height: int, bits: int, transactions: List[Transaction],
+               timestamp: int | None = None) -> Block:
     root = merkle_root(transactions)
     header = BlockHeader(
         version=1,
         previous_hash=previous_hash,
         merkle_root=root,
-        timestamp=int(time.time()),
+        timestamp=int(time.time()) if timestamp is None else int(timestamp),
         bits=bits,
         nonce=0,
         height=height,

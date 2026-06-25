@@ -18,12 +18,19 @@ MAX_MONEY = 21_000_000 * COIN
 INITIAL_SUBSIDY = 50 * COIN
 HALVING_INTERVAL = 210_000
 
-TARGET_SPACING_SECONDS = 10 * 60
-DIFFICULTY_ADJUSTMENT_INTERVAL = 2016
+# Testnet v2 (real-difficulty relaunch): 2-minute target blocks, retarget every
+# 30 blocks (~1h) so difficulty tracks a small, changing miner set quickly.
+TARGET_SPACING_SECONDS = 120
+DIFFICULTY_ADJUSTMENT_INTERVAL = 30
 TARGET_TIMESPAN_SECONDS = TARGET_SPACING_SECONDS * DIFFICULTY_ADJUSTMENT_INTERVAL
 
+# Launch easy (at the PoW floor) and let the fast retarget ramp difficulty up as
+# miners join. MIN_DIFFICULTY_GAP enables the testnet lone-miner rule: a block
+# more than this many seconds after its parent may be mined at the PoW floor, so
+# the chain can't get stuck if hashpower drops.
 INITIAL_BITS = 0x207FFFFF
 POW_LIMIT_BITS = 0x207FFFFF
+MIN_DIFFICULTY_GAP_SECONDS = 2 * TARGET_SPACING_SECONDS
 COINBASE_MATURITY = 100
 
 # Address and key version bytes. NetCoin intentionally does NOT reuse Bitcoin's
@@ -62,8 +69,10 @@ DEFAULT_TESTNET_SEEDS = (
 MAX_REQUEST_BODY_BYTES = 8 * 1024 * 1024
 
 ZERO_HASH = "00" * 32
-GENESIS_TIMESTAMP = 1_718_400_000
-GENESIS_MESSAGE = "NetCoin genesis - an educational Bitcoin-like chain, not Bitcoin"
+# New genesis for the testnet v2 relaunch — a different hash from the v1 chain so
+# old and new nodes never cross-talk.
+GENESIS_TIMESTAMP = 1_750_000_000
+GENESIS_MESSAGE = "NetCoin testnet v2 - real proof-of-work relaunch - not Bitcoin"
 
 # Policy and standardness knobs.
 MAX_BLOCK_WEIGHT = 4_000_000
