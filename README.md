@@ -167,6 +167,7 @@ See [docs/SECURITY_TESTING.md](docs/SECURITY_TESTING.md) for malformed block, ba
 
 ### Guides for testers
 
+- **[docs/GUIDE.md](docs/GUIDE.md) — complete step-by-step guide (macOS/Linux/Windows): install, wallet, faucet, send, mine, run a node, run a public seed, plus GitHub + AWS deployment.**
 - [docs/STARTER_KIT.md](docs/STARTER_KIT.md) — 10-minute from-scratch walkthrough: install, wallet, faucet, send, mine, report bugs.
 - [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md) — run your own independent full node and peer with the public seeds.
 - [docs/MINING.md](docs/MINING.md) — mine testnet blocks from your own machine and submit them.
