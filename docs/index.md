@@ -42,6 +42,7 @@ shasum -a 256 -c SHA256SUMS              # checksum OK
 ## Guides
 
 ### Start here
+- **[Complete Guide](GUIDE.md) — step-by-step for macOS/Linux/Windows: install → wallet → mine → node → public seed → GitHub/AWS**
 - [Starter Kit](STARTER_KIT.md) — 10-minute walkthrough: install, wallet, faucet, send, mine
 - [Tester Invite](BETA_INVITE.md) — copy-paste beta-tester flow
 
