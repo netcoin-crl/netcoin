@@ -12,6 +12,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Lightning-style payment channels** (`netcoin/channel.py`): two parties lock
+  funds in a 2-of-2 multisig (on-chain), make unlimited **off-chain** payments by
+  re-agreeing the balance split, and settle with a cooperative close that both
+  cosign. Only open and close touch the chain. CLI `channel-demo` runs the full
+  open → off-chain pays → close lifecycle. (Educational: no revocation/HTLC/routing.)
 - **Taproot script-path spends** (BIP341/342-style, `netcoin/taproot.py`): commit a
   tree of alternative tapscripts to a Taproot output by tweaking the internal key
   with the tree's merkle root, then spend by revealing one leaf + a merkle proof
