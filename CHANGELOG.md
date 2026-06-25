@@ -12,6 +12,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Binary P2P as a node transport.** Every `node` now serves the binary TCP P2P
+  protocol (`--p2p-port`, default 18447) alongside its HTTP API, and gains
+  `sync_over_p2p` — peers are synced node-to-node over the binary protocol
+  (getheaders → headers → getdata → block), with HTTP kept as the API for
+  explorers/faucets/wallets/light clients and as a sync fallback.
 - **Lightning-style payment channels** (`netcoin/channel.py`): two parties lock
   funds in a 2-of-2 multisig (on-chain), make unlimited **off-chain** payments by
   re-agreeing the balance split, and settle with a cooperative close that both
