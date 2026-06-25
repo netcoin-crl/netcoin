@@ -678,6 +678,50 @@ def cmd_verifymessage(args: argparse.Namespace) -> None:
     print_json({"valid": verify_message(args.address, args.message, args.signature)})
 
 
+def cmd_channel_demo(args: argparse.Namespace) -> None:
+    """Run a full payment-channel lifecycle (open, off-chain pays, close) on a
+    throwaway chain and print what happened."""
+    import tempfile
+
+    from .channel import PaymentChannel
+    from .tx import amount_to_sats
+
+    chain = Blockchain(tempfile.mkdtemp())
+    a, b = Wallet.create(), Wallet.create()
+    for _ in range(103):
+        chain.mine_block(a.address)
+    capacity = amount_to_sats(args.capacity)
+    channel = PaymentChannel.open(a.public_key_hex, b.public_key_hex, capacity)
+
+    funding = a.create_transaction(chain, channel.address, capacity, amount_to_sats("0.01"), from_type="legacy")
+    chain.add_mempool_transaction(funding)
+    chain.mine_block(a.address)
+    utxo = chain.utxos_for_address(channel.address)[0]
+    channel.set_funding(utxo.txid, utxo.vout, utxo.output.amount)
+
+    history = []
+    for entry in (args.pay or ["a:3", "a:1.5", "b:0.5"]):
+        sender, amount = entry.split(":")
+        channel.pay(sender.strip().lower(), amount_to_sats(amount.strip()))
+        history.append({"sender": sender.strip(), "amount": amount.strip(),
+                        "A": channel.balance_a / 1e8, "B": channel.balance_b / 1e8})
+
+    close = channel.settlement_tx(a.address, b.address, fee=amount_to_sats("0.01"))
+    channel.cosign(close, a.private_key, b.private_key)
+    chain.add_mempool_transaction(close)
+    chain.mine_block(a.address)
+
+    print_json({
+        "funding_address_2of2": channel.address,
+        "capacity_net": capacity / 1e8,
+        "offchain_payments": history,
+        "offchain_state_versions": channel.version,
+        "settlement_txid": close.txid(),
+        "onchain_B_balance_net": chain.balances_for_address(b.address)["total"] / 1e8,
+        "note": "Only open + close hit the chain; all payments in between were off-chain.",
+    })
+
+
 def cmd_taproot_tree(args: argparse.Namespace) -> None:
     from .taproot import taproot_output
     from .crypto import private_key_to_xonly_public_key
@@ -1146,6 +1190,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase", help="optional BIP39 passphrase")
     p.add_argument("--path", default="m/44'/0'/0'/0/0", help="derivation path (default m/44'/0'/0'/0/0)")
     p.set_defaults(func=cmd_hd_derive)
+
+    p = sub.add_parser("channel-demo", help="run a Lightning-style payment-channel lifecycle (open/pay/close) demo")
+    p.add_argument("--capacity", default="10", help="channel capacity in NET (default 10)")
+    p.add_argument("--pay", action="append", help="an off-chain payment 'a:3' or 'b:0.5' (repeatable)")
+    p.set_defaults(func=cmd_channel_demo)
 
     p = sub.add_parser("taproot-tree", help="build a Taproot script-tree (BIP341) address + control blocks")
     p.add_argument("--wallet", help="use this wallet's key as the internal key")
