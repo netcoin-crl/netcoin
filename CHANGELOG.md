@@ -11,6 +11,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.5.0] - 2026-06-22
+
 ### Added
 - **Binary P2P as a node transport.** Every `node` now serves the binary TCP P2P
   protocol (`--p2p-port`, default 18447) alongside its HTTP API, and gains
@@ -394,7 +398,8 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.4.4...HEAD
+[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/netcoin-crl/netcoin/compare/v0.4.4...v0.5.0
 [0.4.4]: https://github.com/netcoin-crl/netcoin/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/netcoin-crl/netcoin/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/netcoin-crl/netcoin/compare/v0.4.1...v0.4.2
