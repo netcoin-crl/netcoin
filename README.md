@@ -74,30 +74,65 @@ Still not something code alone can create:
 
 Those require people, infrastructure, review, miners, users, and time.
 
-## Get the code & run it
+## Install & run (macOS / Linux / Windows)
 
-NetCoin has no external Python package dependencies. Clone the repo and run it from the project root (the folder that contains `pyproject.toml`):
+NetCoin needs **only Python 3.10+** — no third-party packages. It runs the same on
+all three platforms; the only differences are how you install Python and activate a
+virtual environment. Run all commands from the **project root** (the folder with
+`pyproject.toml`); the inner `netcoin/` folder is the Python package.
+
+### macOS
 
 ```bash
+# Python 3 ships with recent macOS, or: brew install python
 git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
-python3 -m netcoin --help
-```
-
-Optional virtual environment (recommended):
-
-```bash
-cd netcoin
-python3 -m venv .venv
-. .venv/bin/activate          # Windows: .venv\Scripts\activate
+python3 -m venv .venv && source .venv/bin/activate
+python -m pip install -e .
 python -m netcoin --help
 ```
 
-The inner `netcoin/` folder is the Python package — run commands from the project root, not from inside it.
+### Linux
 
-> Works on macOS, Linux, and Windows. The CLI is pure Python; the `tools/*.sh` operator
-> scripts are bash (macOS/Linux/WSL) and the systemd units are Linux-only. A few examples
-> below use the macOS `open` command — substitute `xdg-open` (Linux) or `start` (Windows).
+```bash
+sudo apt install -y python3 python3-venv git        # Debian/Ubuntu (or use your distro's pkg manager)
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+python3 -m venv .venv && source .venv/bin/activate
+python -m pip install -e .
+python -m netcoin --help
+```
+
+### Windows (PowerShell)
+
+```powershell
+# Install Python 3.10+ from https://www.python.org/downloads/ (check "Add python.exe to PATH"),
+# and Git from https://git-scm.com/download/win  (or download the repo ZIP and unzip).
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -e .
+python -m netcoin --help
+```
+
+> **Cross-platform notes.** The CLI, node, wallet, miner, web wallet, and light-client
+> tools are pure Python and identical everywhere. Only the operator extras differ: the
+> `tools/*.sh` scripts are bash (macOS/Linux/WSL) and the systemd units are Linux-only.
+> A few examples below use macOS's `open` to launch a browser — use `xdg-open` on Linux
+> or `start` on Windows.
+>
+> **Behind a content/security filter** (e.g. Spectrum/CUJO, some corporate DNS): if the
+> `seed*.netcoin.online` hostnames get blocked, use the seed **IPs** instead —
+> `http://18.220.89.128:28444`, `http://18.220.197.20:28444`, `http://18.226.74.252:28444`.
+
+### Quick check — connect to the public testnet
+
+```bash
+# replace `open` with xdg-open (Linux) / start (Windows) where shown
+python -m netcoin balance --node http://seed1.netcoin.online:28444 --address <ANY_ADDRESS>
+python -m netcoin web --node http://seed1.netcoin.online:28444   # then open http://127.0.0.1:8088/
+```
 
 ## Public testnet status
 
