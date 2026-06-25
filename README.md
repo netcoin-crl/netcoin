@@ -285,10 +285,34 @@ open http://127.0.0.1:8088/
 > happens locally, and only the signed transaction is sent to the node. Keep it
 > bound to `127.0.0.1` — it is not a hosted/custodial wallet.
 
-Run a local peer node:
+Run a local peer node (serves the HTTP API and the binary P2P transport):
 
 ```bash
 python -m netcoin --data node-a node --host 127.0.0.1 --port 18444
+```
+
+### Host a public seed — no port forwarding (macOS / Linux / Windows)
+
+A node only needs the internet *outbound* to sync and mine. To be a **public seed**
+others connect to, you must be reachable — but you can do that **without touching
+your router** (works behind CGNAT too) using a tunnel, then `--advertise` the
+public URL. Four no-router options + the simple VPS route, with per-OS commands and
+a reachability test, are in **[docs/PUBLIC_SEED_HOSTING.md](docs/PUBLIC_SEED_HOSTING.md)**:
+
+| Method | Cost | Your domain? | Binary P2P? |
+| --- | --- | --- | --- |
+| **Cloudflare Tunnel** | free | yes (`seed.netcoin.online`) | no (HTTP) |
+| **Tailscale Funnel** | free | no (`*.ts.net`) | no (HTTP) |
+| **ngrok** | free tier | paid | yes (`tcp`) |
+| **Reverse SSH via a $4 VPS** | ~$4/mo | yes | **yes** |
+| **VPS running the node** | ~$4/mo | yes | yes |
+
+Example (Cloudflare quick tunnel — no account, no domain):
+
+```bash
+python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 &
+cloudflared tunnel --url http://localhost:28444     # prints a public https://<id>.trycloudflare.com
+# then restart the node with --advertise <that-url>
 ```
 
 Light-client scan with compact block filters (download tiny per-block filters
