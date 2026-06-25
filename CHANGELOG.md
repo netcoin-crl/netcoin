@@ -13,6 +13,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 _Nothing yet._
 
+## [0.6.0] - 2026-06-22 — testnet v2 relaunch (real proof-of-work)
+
+### Changed (consensus — resets the chain)
+- **Real difficulty.** Blocks now target **2 minutes** (`TARGET_SPACING_SECONDS=120`)
+  with a **30-block retarget** (~1h) so difficulty tracks the live miner set. Launch
+  is at the PoW floor and the fast retarget ramps difficulty as miners join.
+- **Testnet lone-miner rule** (`MIN_DIFFICULTY_GAP_SECONDS`): a block mined more than
+  2× the spacing after its parent may use the PoW floor, so the chain can't stall if
+  hashpower drops (`chain._bits_acceptable`).
+- **New genesis** (`GENESIS_MESSAGE`/`GENESIS_TIMESTAMP`) — testnet v2 is a fresh,
+  incompatible chain (height resets to 0; previous coins/faucet balance do not carry
+  over). `make_block` takes an explicit timestamp so mining and the lone-miner rule
+  agree. `SIGHASH_ALL` and all non-difficulty behavior are unchanged.
+
 ## [0.5.0] - 2026-06-22
 
 ### Added
@@ -398,7 +412,8 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/netcoin-crl/netcoin/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/netcoin-crl/netcoin/compare/v0.4.4...v0.5.0
 [0.4.4]: https://github.com/netcoin-crl/netcoin/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/netcoin-crl/netcoin/compare/v0.4.2...v0.4.3
