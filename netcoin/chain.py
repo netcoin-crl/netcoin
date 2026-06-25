@@ -49,6 +49,7 @@ from .tx import (
     Transaction,
     TransactionError,
     TxInput,
+    TxOutput,
     create_coinbase_transaction,
     ensure_unique_inputs,
     sats_to_amount,
@@ -68,9 +69,13 @@ class Blockchain:
     and a small set of mempool policy rules.
     """
 
-    def __init__(self, data_dir: str | os.PathLike[str] = DEFAULT_DATA_DIR, autosave: bool = True, backend: Optional[str] = None):
+    def __init__(self, data_dir: str | os.PathLike[str] = DEFAULT_DATA_DIR, autosave: bool = True, backend: Optional[str] = None,
+                 genesis_allocation: Optional[Dict[str, int]] = None):
         self.data_dir = Path(data_dir)
         self.autosave = autosave
+        # Optional premine baked into the genesis (used by a relaunch to carry
+        # balances forward from a snapshot). None => the standard empty genesis.
+        self._genesis_allocation = genesis_allocation
         # Persistence backend: "json" (default) or "sqlite". Falls back to the
         # NETCOIN_BACKEND env var so it threads through the whole CLI uniformly.
         self.backend = (backend or os.environ.get("NETCOIN_BACKEND") or "json").lower()
@@ -218,12 +223,12 @@ class Blockchain:
                 self.chain = [Block.from_dict(item) for item in self.store.load_chain()]
                 self.assert_valid_chain(self.chain)
             else:
-                self.chain = [create_genesis_block()]
+                self.chain = [create_genesis_block(self._genesis_allocation)]
                 self.save_chain()
         elif self._chain_files_exist():
             self.chain = self._load_chain_with_recovery()
         else:
-            self.chain = [create_genesis_block()]
+            self.chain = [create_genesis_block(self._genesis_allocation)]
             self.save_chain()
         self.reindex()
 
@@ -591,7 +596,7 @@ class Blockchain:
     def assert_valid_chain(self, blocks: Sequence[Block]) -> None:
         if not blocks:
             raise ChainError("chain is empty")
-        genesis = create_genesis_block()
+        genesis = create_genesis_block(self._genesis_allocation)
         if blocks[0].hash() != genesis.hash():
             raise ChainError("genesis block does not match NetCoin genesis")
         if blocks[0].header.height != 0:
@@ -1193,10 +1198,18 @@ class Blockchain:
         return [Block.from_dict(item) for item in data["blocks"]]
 
 
-def create_genesis_block() -> Block:
+def create_genesis_block(allocation: Optional[Dict[str, int]] = None) -> Block:
+    # An optional allocation pre-funds addresses in the genesis coinbase. This is
+    # how a relaunch carries balances forward from a snapshot of the old chain
+    # (see netcoin/migration.py). With no allocation the genesis is unchanged.
+    outputs = []
+    if allocation:
+        for address, amount in sorted(allocation.items()):
+            if amount > 0:
+                outputs.append(TxOutput(amount=int(amount), address=address))
     coinbase = Transaction(
         inputs=[TxInput(txid=ZERO_HASH, vout=-1, coinbase=GENESIS_MESSAGE)],
-        outputs=[],
+        outputs=outputs,
     )
     root = merkle_root([coinbase])
     header = BlockHeader(

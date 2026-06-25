@@ -11,7 +11,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Balance migration across a relaunch** (`netcoin/migration.py` + `export-allocation`):
+  snapshot per-address balances from the old chain and bake them into a new genesis
+  via `Blockchain(genesis_allocation=...)`, so a hard fork/relaunch carries everyone's
+  coins forward (same keys, same address, same balance). The default genesis is
+  unchanged when no allocation is given. Documented in `docs/UPGRADE_POLICY.md`
+  (PATCH/MINOR never reset the chain; only a MAJOR/relaunch may, and it ships a
+  snapshot allocation).
 
 ## [0.6.0] - 2026-06-22 — testnet v2 relaunch (real proof-of-work)
 
