@@ -180,6 +180,10 @@ Open these inbound firewall/security-group ports:
 Keep RPC and pool ports private. Do not expose wallet files, seed phrases, private
 keys, server keys, or RPC tokens.
 
+NetCoin ignores `X-Forwarded-For` by default so direct public clients cannot spoof
+IP addresses to bypass rate limits. Only add `--trust-proxy-headers` when the node
+is behind a reverse proxy you control.
+
 No-port-forwarding options are in
 [docs/PUBLIC_SEED_HOSTING.md](docs/PUBLIC_SEED_HOSTING.md).
 
