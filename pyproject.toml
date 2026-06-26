@@ -11,5 +11,8 @@ requires-python = ">=3.10"
 authors = [{name = "NetCoin educational project"}]
 license = {text = "MIT"}
 
+[project.optional-dependencies]
+test = ["pytest"]
+
 [project.scripts]
 netcoin = "netcoin.cli:main"
