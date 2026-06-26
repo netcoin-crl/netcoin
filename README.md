@@ -76,13 +76,15 @@ python -m netcoin miner \
   --blocks 1
 ```
 
-Mine ten blocks:
+Mine continuously until you stop it with `Ctrl+C`:
 
 ```bash
-python -m netcoin miner \
-  --node http://18.220.197.20:28444 \
-  --wallet miner.json \
-  --blocks 10
+while true; do
+  python -m netcoin miner \
+    --node http://18.220.197.20:28444 \
+    --wallet miner.json \
+    --blocks 1
+done
 ```
 
 Rotate seeds when mining so one seed does not take all the traffic:
