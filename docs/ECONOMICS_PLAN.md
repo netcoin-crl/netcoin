@@ -90,25 +90,27 @@ the reward currently decays geometrically toward 0.
 - **Activation supersedes halvings.** Past activation, random emission governs and
   the old halving schedule no longer applies (reflected in
   `test_subsidy_halving_schedule`).
-- **Activation height = 5_000** (testnet). Chosen against a live tip of ~2,050
-  (~4 days of lead at 2-min blocks) so all three seeds can upgrade and re-peer
-  first. Because 5_000 < `HALVING_INTERVAL` (210_000), the legacy halving never
-  triggers on the live chain — emission supersedes it before the first halving.
-  Height-based gating is used because the emission year is defined in blocks.
+- **Activation height = 1_000** (testnet). Chosen against a live tip of ~361, a
+  ~640-block lead (the chain was idle and the seeds run no miner, so there is no
+  active mining to fork). Because 1_000 < `HALVING_INTERVAL` (210_000), the legacy
+  halving never triggers on the live chain — emission supersedes it before the
+  first halving. Height-based gating is used because the emission year is defined
+  in blocks. **Any miner must run this version before mining past height 1_000,
+  or it would produce old-subsidy blocks that updated nodes reject.**
 - **Network-aware year length.** `EMISSION_YEAR_BLOCKS` is **720 on testnet**
   (~1 day of blocks, so the first cut lands ~1 day after activation and a cut
   decision happens roughly daily) and **262_800 on mainnet**. This lets the
   random-cut mechanism actually be observed on testnet without altering the
   intended mainnet cadence.
-- **Operational prerequisite:** the live seeds must be upgraded to this code and
-  re-peered before height 5,000 (the observed live node was v0.5.0 with 0 peers).
+- **Operational prerequisite:** all seeds (and any miner) must run this version
+  before height 1,000.
 
 ## Parameters (`netcoin/params.py`)
 
 | Constant | Value | Meaning |
 |----------|-------|---------|
 | `EMISSION_YEAR_BLOCKS` | 720 testnet / 262_800 mainnet | blocks per emission year (network-aware) |
-| `EMISSION_ACTIVATION_HEIGHT` | 5_000 | first height governed by NRE (testnet) |
+| `EMISSION_ACTIVATION_HEIGHT` | 1_000 | first height governed by NRE (testnet) |
 | `EMISSION_BASE_SUBSIDY` | 15 NET | reward at activation |
 | `EMISSION_SEED_BLOCKS` | 10 | blocks aggregated for the delayed seed |
 | `EMISSION_SAMPLE_SIZE` | 100 | blocks sampled from the prior year |
