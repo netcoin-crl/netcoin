@@ -11,6 +11,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-26 — random emission (NRE)
+
+### Added (consensus — additive, activation-gated; chain NOT reset)
+- **Random-emission schedule (NRE).** Replaces Bitcoin-style halvings with a yearly
+  random "cut": each emission year may drop the block reward 10%, decided by sampling
+  100 blocks of the prior year (via a delayed anti-grinding seed) and counting **even
+  hashes** (`>= EMISSION_EVEN_THRESHOLD`, default 40). Safety: a cut is forced after 3
+  consecutive no-cut years. New `netcoin/emission.py`; wired into `Blockchain.subsidy`.
+  **Additive & activation-gated** at `EMISSION_ACTIVATION_HEIGHT` (5_000 on testnet):
+  below it the legacy halving subsidy is unchanged, so the existing chain stays valid
+  (per `docs/UPGRADE_POLICY.md`). `EMISSION_YEAR_BLOCKS` is network-aware (720 on
+  testnet so cuts are observable, 262_800 on mainnet). Base reward 15 NET at
+  activation. Full spec in `docs/ECONOMICS_PLAN.md`.
+
 ### Added
 - **Balance migration across a relaunch** (`netcoin/migration.py` + `export-allocation`):
   snapshot per-address balances from the old chain and bake them into a new genesis
@@ -19,6 +33,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   unchanged when no allocation is given. Documented in `docs/UPGRADE_POLICY.md`
   (PATCH/MINOR never reset the chain; only a MAJOR/relaunch may, and it ships a
   snapshot allocation).
+
+### Fixed
+- **CI test gate.** Declared a `test` extra (pytest) and install `.[test]` in the CI
+  and release workflows; the test jobs previously failed with "No module named pytest".
+- **`tools/make_release.sh`** no longer aborts with "unbound variable" on bash 3.2
+  (macOS) when building an unsigned release (empty-array expansion under `set -u`).
 
 ## [0.6.0] - 2026-06-22 — testnet v2 relaunch (real proof-of-work)
 
@@ -419,7 +439,8 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/netcoin-crl/netcoin/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/netcoin-crl/netcoin/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/netcoin-crl/netcoin/compare/v0.4.4...v0.5.0
 [0.4.4]: https://github.com/netcoin-crl/netcoin/compare/v0.4.3...v0.4.4
