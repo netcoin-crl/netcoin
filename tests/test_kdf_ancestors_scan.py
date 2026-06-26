@@ -1,4 +1,4 @@
-"""Wallet KDF upgrade (#32), mempool ancestor limit (#9), gap-limit scan (#36)."""
+"""Wallet AEAD/KDF upgrade (#32), mempool ancestor limit (#9), gap-limit scan (#36)."""
 import argparse
 import json
 from pathlib import Path
@@ -23,7 +23,12 @@ def test_encrypt_uses_upgraded_iterations():
     enc = encrypt_private_key("ab" * 32, "pw")
     assert enc["iterations"] == str(wallet_mod.PBKDF2_ITERATIONS)
     assert wallet_mod.PBKDF2_ITERATIONS > wallet_mod.LEGACY_PBKDF2_ITERATIONS
-    assert enc["cipher"] == "netcoin-hmac-stream-v2"
+    assert enc["cipher"] == wallet_mod.AEAD_CIPHER
+    assert enc["aead"] == "chacha20-poly1305"
+    assert enc["associated_data"] == wallet_mod.AEAD_ASSOCIATED_DATA.decode("ascii")
+    assert "mac" not in enc
+    assert len(bytes.fromhex(enc["salt"])) == 16
+    assert len(bytes.fromhex(enc["nonce"])) == 12
     assert decrypt_private_key(enc, "pw") == "ab" * 32
 
 

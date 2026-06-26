@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [{name = "NetCoin educational project"}]
 license = {text = "MIT"}
+dependencies = ["cryptography>=42"]
 
 [project.optional-dependencies]
 test = ["pytest"]

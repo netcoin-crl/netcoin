@@ -1,14 +1,15 @@
 # NetCoin
 
 **NetCoin** is an educational, from-scratch, Bitcoin-like cryptocurrency written in
-pure Python (standard library only, runs on macOS / Linux / Windows). It is **not
-Bitcoin**, does not connect to the Bitcoin network, and has **no real-money value**.
+Python (runs on macOS / Linux / Windows). Wallet-file encryption uses the vetted
+`cryptography` package for AEAD. It is **not Bitcoin**, does not connect to the
+Bitcoin network, and has **no real-money value**.
 
 > ⚠️ **Testnet only.** This is learning software. Never use a real wallet seed here,
 > and never treat test NET as money.
 
 - **Source code:** <https://github.com/netcoin-crl/netcoin>
-- **Current release:** v0.4.1 — [changelog](https://github.com/netcoin-crl/netcoin/blob/main/CHANGELOG.md)
+- **Current release:** v0.7.2 — [changelog](https://github.com/netcoin-crl/netcoin/blob/main/CHANGELOG.md)
 - **Releases & downloads:** <https://github.com/netcoin-crl/netcoin/releases>
 
 ## Get started

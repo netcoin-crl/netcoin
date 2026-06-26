@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+
 from .chain import Blockchain, ChainError
 from .crypto import (
     N,
@@ -120,8 +123,13 @@ PBKDF2_ITERATIONS = 600_000
 LEGACY_PBKDF2_ITERATIONS = 250_000
 
 # Wallet file format version. v1 = original files with no version field (and 250k
-# KDF for encrypted ones); v2 = stamped version + 600k KDF. Loaders tolerate v1.
-WALLET_FORMAT_VERSION = 2
+# KDF for encrypted ones); v2 = stamped version + 600k KDF with the legacy
+# HMAC stream; v3 = stamped version + 600k KDF + ChaCha20-Poly1305 AEAD.
+# Loaders tolerate v1/v2 so users can migrate without losing wallet access.
+WALLET_FORMAT_VERSION = 3
+AEAD_CIPHER = "chacha20-poly1305-v3"
+LEGACY_CIPHERS = {"netcoin-hmac-stream-v1", "netcoin-hmac-stream-v2"}
+AEAD_ASSOCIATED_DATA = b"NetCoin encrypted wallet private key v3"
 
 
 def wallet_file_version(data: Dict[str, Any]) -> int:
@@ -133,7 +141,10 @@ def wallet_needs_migration(data: Dict[str, Any]) -> bool:
     if wallet_file_version(data) < WALLET_FORMAT_VERSION:
         return True
     if data.get("encrypted"):
-        iterations = int(data.get("encrypted_private_key", {}).get("iterations", LEGACY_PBKDF2_ITERATIONS))
+        encrypted = data.get("encrypted_private_key", {})
+        if encrypted.get("cipher") != AEAD_CIPHER:
+            return True
+        iterations = int(encrypted.get("iterations", LEGACY_PBKDF2_ITERATIONS))
         if iterations < PBKDF2_ITERATIONS:
             return True
     return False
@@ -157,33 +168,44 @@ def _xor_stream(data: bytes, key: bytes, nonce: bytes) -> bytes:
 
 def encrypt_private_key(private_key_hex: str, passphrase: str) -> Dict[str, str]:
     salt = secrets.token_bytes(16)
-    nonce = secrets.token_bytes(16)
+    nonce = secrets.token_bytes(12)
     key = _derive_encryption_key(passphrase, salt, PBKDF2_ITERATIONS)
     plaintext = private_key_hex.encode("ascii")
-    ciphertext = _xor_stream(plaintext, key, nonce)
-    mac = hmac.new(key, nonce + ciphertext, hashlib.sha256).digest()
+    ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, AEAD_ASSOCIATED_DATA)
     return {
-        "cipher": "netcoin-hmac-stream-v2",
+        "cipher": AEAD_CIPHER,
         "kdf": "pbkdf2-hmac-sha256",
         "iterations": str(PBKDF2_ITERATIONS),
         "salt": salt.hex(),
         "nonce": nonce.hex(),
         "ciphertext": ciphertext.hex(),
-        "mac": mac.hex(),
+        "aead": "chacha20-poly1305",
+        "associated_data": AEAD_ASSOCIATED_DATA.decode("ascii"),
     }
 
 
 def decrypt_private_key(encrypted: Dict[str, str], passphrase: str) -> str:
+    cipher = encrypted.get("cipher", "netcoin-hmac-stream-v1")
     salt = bytes.fromhex(encrypted["salt"])
     nonce = bytes.fromhex(encrypted["nonce"])
     ciphertext = bytes.fromhex(encrypted["ciphertext"])
     # Honor the file's own iteration count so older (250k) wallets still open.
     iterations = int(encrypted.get("iterations", LEGACY_PBKDF2_ITERATIONS))
     key = _derive_encryption_key(passphrase, salt, iterations)
-    mac = hmac.new(key, nonce + ciphertext, hashlib.sha256).digest()
-    if not hmac.compare_digest(mac.hex(), encrypted.get("mac", "")):
-        raise WalletError("wallet passphrase is incorrect or file was modified")
-    return _xor_stream(ciphertext, key, nonce).decode("ascii")
+    if cipher == AEAD_CIPHER:
+        associated_data = AEAD_ASSOCIATED_DATA.decode("ascii")
+        if encrypted.get("associated_data", associated_data) != associated_data:
+            raise WalletError("wallet encryption metadata is unsupported or was modified")
+        try:
+            return ChaCha20Poly1305(key).decrypt(nonce, ciphertext, AEAD_ASSOCIATED_DATA).decode("ascii")
+        except InvalidTag as exc:
+            raise WalletError("wallet passphrase is incorrect or file was modified") from exc
+    if cipher in LEGACY_CIPHERS:
+        mac = hmac.new(key, nonce + ciphertext, hashlib.sha256).digest()
+        if not hmac.compare_digest(mac.hex(), encrypted.get("mac", "")):
+            raise WalletError("wallet passphrase is incorrect or file was modified")
+        return _xor_stream(ciphertext, key, nonce).decode("ascii")
+    raise WalletError(f"unsupported wallet encryption cipher: {cipher}")
 
 
 @dataclass

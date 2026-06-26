@@ -15,7 +15,7 @@ the project itself is built and deployed (GitHub + AWS).
 
 ---
 
-## 1. Install (Python 3.10+, no other dependencies)
+## 1. Install (Python 3.10+; `pip` installs the project dependencies)
 
 ### macOS
 ```bash

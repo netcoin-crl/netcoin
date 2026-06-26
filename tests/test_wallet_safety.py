@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from netcoin.wallet import (
+    AEAD_ASSOCIATED_DATA,
+    AEAD_CIPHER,
     Wallet,
     WalletError,
     new_seed_phrase,
@@ -55,6 +57,11 @@ def test_encrypted_wallet_round_trip_and_wrong_passphrase(tmp_path: Path):
     raw = path.read_text()
     assert wallet.private_key_hex not in raw
     assert '"encrypted": true' in raw.lower()
+    encrypted = json.loads(raw)["encrypted_private_key"]
+    assert encrypted["cipher"] == AEAD_CIPHER
+    assert encrypted["aead"] == "chacha20-poly1305"
+    assert encrypted["associated_data"] == AEAD_ASSOCIATED_DATA.decode("ascii")
+    assert "mac" not in encrypted
 
     reopened = Wallet.load(path, passphrase="correct horse")
     assert reopened.private_key == wallet.private_key
@@ -75,6 +82,19 @@ def test_tampered_encrypted_wallet_is_rejected(tmp_path: Path):
     path.write_text(json.dumps(data))
 
     with pytest.raises(WalletError, match="incorrect or file was modified"):
+        Wallet.load(path, passphrase="pw")
+
+
+def test_tampered_aead_metadata_is_rejected(tmp_path: Path):
+    wallet = Wallet.create()
+    path = tmp_path / "enc-wallet.json"
+    wallet.save(path, passphrase="pw")
+
+    data = json.loads(path.read_text())
+    data["encrypted_private_key"]["associated_data"] = "wrong context"
+    path.write_text(json.dumps(data))
+
+    with pytest.raises(WalletError, match="metadata is unsupported|modified"):
         Wallet.load(path, passphrase="pw")
 
 
