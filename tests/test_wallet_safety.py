@@ -1,5 +1,7 @@
 """Wallet safety: seed-phrase verification, recovery round-trips, encryption."""
 import json
+import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -82,3 +84,12 @@ def test_plaintext_wallet_address_must_match_key(tmp_path: Path):
     data["address"] = "NotTheRightAddress"
     with pytest.raises(WalletError, match="address does not match"):
         Wallet.from_dict(data)
+
+
+def test_wallet_save_uses_private_file_permissions(tmp_path: Path):
+    wallet = Wallet.create()
+    path = tmp_path / "wallet.json"
+    wallet.save(path)
+    assert Wallet.load(path).private_key == wallet.private_key
+    if os.name != "nt":
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600

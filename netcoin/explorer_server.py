@@ -14,7 +14,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .chain import Blockchain
-from .node import RateLimiter
+from .node import RateLimiter, client_ip_from_headers
 
 
 def esc(value: object) -> str:
@@ -134,7 +134,7 @@ def search_payload(chain: Blockchain, query: str) -> dict[str, Any]:
     return {"query": q, "matches": matches}
 
 
-def make_handler(chain: Blockchain, rate_limit_per_min: int = 240):
+def make_handler(chain: Blockchain, rate_limit_per_min: int = 240, *, trust_proxy_headers: bool = False):
     rate_limiter = RateLimiter(max_requests=rate_limit_per_min, window_seconds=60)
 
     class ExplorerHandler(BaseHTTPRequestHandler):
@@ -160,10 +160,7 @@ def make_handler(chain: Blockchain, rate_limit_per_min: int = 240):
             self.wfile.write(data)
 
         def client_ip(self) -> str:
-            forwarded = self.headers.get("X-Forwarded-For", "")
-            if forwarded:
-                return forwarded.split(",", 1)[0].strip()
-            return self.client_address[0] if self.client_address else "unknown"
+            return client_ip_from_headers(self.headers, self.client_address, trust_proxy_headers=trust_proxy_headers)
 
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
@@ -262,9 +259,18 @@ def make_handler(chain: Blockchain, rate_limit_per_min: int = 240):
     return ExplorerHandler
 
 
-def run_explorer_server(data_dir: str, host: str = "127.0.0.1", port: int = 8080, rate_limit_per_min: int = 240) -> None:
+def run_explorer_server(
+    data_dir: str,
+    host: str = "127.0.0.1",
+    port: int = 8080,
+    rate_limit_per_min: int = 240,
+    trust_proxy_headers: bool = False,
+) -> None:
     chain = Blockchain(data_dir=data_dir)
-    server = ThreadingHTTPServer((host, int(port)), make_handler(chain, rate_limit_per_min=rate_limit_per_min))
+    server = ThreadingHTTPServer(
+        (host, int(port)),
+        make_handler(chain, rate_limit_per_min=rate_limit_per_min, trust_proxy_headers=trust_proxy_headers),
+    )
     print(f"NetCoin explorer listening on http://{host}:{port}")
     print(f"height={chain.height()} tip={chain.tip_hash()}")
     try:

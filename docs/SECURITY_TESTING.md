@@ -62,6 +62,11 @@ The regression suite covers:
 - faucet invalid-address and IP cooldown logic
 - node/explorer public endpoint throttling returns `429` after the configured
   per-IP/per-path limit
+- public rate limits ignore spoofed `X-Forwarded-For` headers by default; operators
+  must explicitly opt in only behind a trusted reverse proxy
+- wallet saves are atomic and force private `0600` permissions on POSIX systems
+- faucet/pool malformed request-body metadata returns a controlled error instead
+  of throwing out of the handler
 - local multi-node soak harness catches relay/sync divergence across HTTP peers
 
 ## Live Public Smoke Checks

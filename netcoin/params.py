@@ -29,7 +29,7 @@ HALVING_INTERVAL = 210_000
 EMISSION_MAINNET_YEAR_BLOCKS = 262_800    # 2-min blocks * ~365 days (mainnet "year")
 EMISSION_TESTNET_YEAR_BLOCKS = 720        # ~1 day of blocks, so cuts are observable on testnet
 # EMISSION_YEAR_BLOCKS is set network-aware just after NETWORK_NAME is defined below.
-EMISSION_ACTIVATION_HEIGHT = 5_000        # testnet activation (live tip ~2,050; ~4 days lead)
+EMISSION_ACTIVATION_HEIGHT = 1_000        # testnet activation (live tip ~361; ~640-block lead)
 EMISSION_BASE_SUBSIDY = 15 * COIN         # reward at activation (does NOT touch INITIAL_SUBSIDY)
 EMISSION_SEED_BLOCKS = 10                 # blocks aggregated for the delayed anti-grinding seed
 EMISSION_SAMPLE_SIZE = 100               # blocks sampled from the prior emission year
@@ -70,7 +70,7 @@ DEFAULT_POOL_PORT = 18446
 DEFAULT_P2P_PORT = 18447
 PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
-NODE_VERSION = "0.7.1"
+NODE_VERSION = "0.7.2"
 NETWORK_NAME = "testnet"
 # Network-aware emission "year": short on testnet (a cut decision ~daily) so the
 # random-cut mechanism can actually be observed; full year on mainnet.

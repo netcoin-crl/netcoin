@@ -11,7 +11,7 @@ import pytest
 
 from netcoin.chain import Blockchain
 from netcoin.miner import solve_template
-from netcoin.node import NetCoinNode, RateLimiter, make_handler
+from netcoin.node import NetCoinNode, RateLimiter, client_ip_from_headers, make_handler
 from netcoin.tx import amount_to_sats
 from netcoin.wallet import Wallet
 
@@ -47,6 +47,13 @@ def test_rate_limiter_unit():
     assert rl.allow("k") is False
     assert rl.allow("other") is True  # different key independent
     assert RateLimiter(max_requests=0).allow("k") is True  # 0 = disabled
+
+
+def test_client_ip_ignores_forwarded_header_unless_trusted():
+    headers = {"X-Forwarded-For": "203.0.113.9, 198.51.100.7"}
+    client_address = ("127.0.0.1", 12345)
+    assert client_ip_from_headers(headers, client_address) == "127.0.0.1"
+    assert client_ip_from_headers(headers, client_address, trust_proxy_headers=True) == "203.0.113.9"
 
 
 def test_accept_block_logs_propagation_events(tmp_path: Path):
@@ -112,6 +119,19 @@ def test_get_endpoint_rate_limited(tmp_path: Path):
             except HTTPError as exc:
                 codes.append(exc.code)
     assert codes == [200, 200, 429]
+
+
+def test_get_rate_limit_cannot_be_bypassed_with_spoofed_forwarded_for(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    node = NetCoinNode(chain, persist=False, rate_limit_per_min=1)
+    with served(node) as s:
+        first = Request(f"{s.url}/info", headers={"X-Forwarded-For": "203.0.113.1"})
+        second = Request(f"{s.url}/info", headers={"X-Forwarded-For": "203.0.113.2"})
+        with urlopen(first, timeout=5) as response:
+            assert response.status == 200
+        with pytest.raises(HTTPError) as excinfo:
+            urlopen(second, timeout=5)
+        assert excinfo.value.code == 429
 
 
 def test_request_retry_and_timeout_are_configurable(tmp_path: Path):

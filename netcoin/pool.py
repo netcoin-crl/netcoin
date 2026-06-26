@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 from .block import Block
 from .chain import Blockchain
-from .params import DEFAULT_POOL_PORT
+from .params import DEFAULT_POOL_PORT, MAX_REQUEST_BODY_BYTES
 
 
 class MiningPool:
@@ -39,6 +39,10 @@ class MiningPool:
             return {"ok": False, "error": str(exc)}
 
 
+class PoolError(ValueError):
+    pass
+
+
 def make_handler(pool: MiningPool):
     class Handler(BaseHTTPRequestHandler):
         server_version = "NetCoinPool/0.2"
@@ -55,7 +59,12 @@ def make_handler(pool: MiningPool):
             self.wfile.write(body)
 
         def read_json(self) -> Dict[str, Any]:
-            length = int(self.headers.get("Content-Length", "0"))
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except (TypeError, ValueError) as exc:
+                raise PoolError("invalid Content-Length") from exc
+            if length > MAX_REQUEST_BODY_BYTES:
+                raise PoolError("request body too large")
             if length <= 0:
                 return {}
             return json.loads(self.rfile.read(length).decode("utf-8"))
@@ -67,10 +76,13 @@ def make_handler(pool: MiningPool):
                 self.send_json({"ok": False, "error": "not found"}, status=404)
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path == "/submit":
-                self.send_json(pool.submit(self.read_json()))
-            else:
-                self.send_json({"ok": False, "error": "not found"}, status=404)
+            try:
+                if self.path == "/submit":
+                    self.send_json(pool.submit(self.read_json()))
+                else:
+                    self.send_json({"ok": False, "error": "not found"}, status=404)
+            except Exception as exc:
+                self.send_json({"ok": False, "error": str(exc)}, status=400)
 
     return Handler
 

@@ -59,6 +59,24 @@ class RateLimiter:
         return True
 
 
+def client_ip_from_headers(headers: Any, client_address: Any, *, trust_proxy_headers: bool = False) -> str:
+    """Return the request client IP, optionally honoring trusted proxy headers.
+
+    Public nodes must not trust X-Forwarded-For by default: a direct internet
+    client can spoof it and bypass per-IP throttles. Operators behind a trusted
+    reverse proxy may opt in so rate limits key on the original client address.
+    """
+    if trust_proxy_headers:
+        forwarded = headers.get("X-Forwarded-For", "")
+        if forwarded:
+            first = forwarded.split(",", 1)[0].strip()
+            if first:
+                return first
+    if client_address:
+        return str(client_address[0])
+    return "unknown"
+
+
 @dataclass
 class RelayItem:
     kind: str
@@ -677,7 +695,7 @@ class NetCoinNode:
         return delivered
 
 
-def make_handler(node: NetCoinNode):
+def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
     class Handler(BaseHTTPRequestHandler):
         server_version = "NetCoinNode/0.2"
 
@@ -850,10 +868,7 @@ def make_handler(node: NetCoinNode):
                 self.send_error_json(str(exc), status=400)
 
         def client_ip(self) -> str:
-            forwarded = self.headers.get("X-Forwarded-For", "")
-            if forwarded:
-                return forwarded.split(",", 1)[0].strip()
-            return self.client_address[0] if self.client_address else "unknown"
+            return client_ip_from_headers(self.headers, self.client_address, trust_proxy_headers=trust_proxy_headers)
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib method name
             parsed = urlparse(self.path)
@@ -916,6 +931,7 @@ def run_node(
     sync_interval: int = 0,
     rate_limit_per_min: int = 240,
     p2p_port: int = DEFAULT_P2P_PORT,
+    trust_proxy_headers: bool = False,
 ) -> None:
     chain = Blockchain(data_dir=data_dir)
     node = NetCoinNode(chain, peers=peers or [], self_url=advertise, rate_limit_per_min=rate_limit_per_min)
@@ -923,7 +939,7 @@ def run_node(
     # Bind and serve immediately, then bootstrap (announce + peer discovery +
     # initial sync) in a background thread. A slow or unreachable peer must never
     # delay — or prevent — the node from listening and accepting connections.
-    server = ThreadingHTTPServer((host, port), make_handler(node))
+    server = ThreadingHTTPServer((host, port), make_handler(node, trust_proxy_headers=trust_proxy_headers))
     print(f"NetCoin node listening on http://{host}:{port}")
     if advertise:
         print(f"advertising as {advertise}")
