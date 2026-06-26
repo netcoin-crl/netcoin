@@ -866,6 +866,7 @@ def cmd_node(args: argparse.Namespace) -> None:
     use_seeds = getattr(args, "seeds", False)
     sync_interval = getattr(args, "sync_interval", 0)
     rate_limit_per_min = getattr(args, "rate_limit_per_min", 240)
+    trust_proxy_headers = bool(getattr(args, "trust_proxy_headers", False))
     peers = list(args.peer or [])
     if getattr(args, "config", None):
         from .config import load_config
@@ -882,6 +883,7 @@ def cmd_node(args: argparse.Namespace) -> None:
             sync_interval = int(cfg["sync_interval"])
         if cfg.get("rate_limit_per_min") is not None and rate_limit_per_min == 240:
             rate_limit_per_min = int(cfg["rate_limit_per_min"])
+        trust_proxy_headers = trust_proxy_headers or bool(cfg.get("trust_proxy_headers", False))
         use_seeds = use_seeds or cfg.get("seeds", False)
     if use_seeds:
         peers.extend(s for s in DEFAULT_TESTNET_SEEDS if s not in peers)
@@ -894,6 +896,7 @@ def cmd_node(args: argparse.Namespace) -> None:
         sync_interval=sync_interval,
         rate_limit_per_min=rate_limit_per_min,
         p2p_port=getattr(args, "p2p_port", DEFAULT_P2P_PORT),
+        trust_proxy_headers=trust_proxy_headers,
     )
 
 
@@ -919,7 +922,13 @@ def cmd_explorer(args: argparse.Namespace) -> None:
 
 
 def cmd_explorer_server(args: argparse.Namespace) -> None:
-    run_explorer_server(data_dir=args.data, host=args.host, port=args.port, rate_limit_per_min=args.rate_limit_per_min)
+    run_explorer_server(
+        data_dir=args.data,
+        host=args.host,
+        port=args.port,
+        rate_limit_per_min=args.rate_limit_per_min,
+        trust_proxy_headers=getattr(args, "trust_proxy_headers", False),
+    )
 
 
 def cmd_web(args: argparse.Namespace) -> None:
@@ -1283,6 +1292,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sync-interval", type=int, default=0, help="background peer discovery/sync interval in seconds; 0 disables")
     p.add_argument("--p2p-port", type=int, default=DEFAULT_P2P_PORT, help="binary TCP P2P port served alongside HTTP; 0 disables")
     p.add_argument("--rate-limit-per-min", type=int, default=240, help="per-IP/per-path HTTP request limit; 0 disables")
+    p.add_argument("--trust-proxy-headers", action="store_true", help="honor X-Forwarded-For only when behind a trusted reverse proxy")
     p.set_defaults(func=cmd_node)
 
     p = sub.add_parser("rpc", help="run JSON-RPC server")
@@ -1314,6 +1324,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8080)
     p.add_argument("--rate-limit-per-min", type=int, default=240, help="per-IP/per-path request limit; 0 disables")
+    p.add_argument("--trust-proxy-headers", action="store_true", help="honor X-Forwarded-For only when behind a trusted reverse proxy")
     p.set_defaults(func=cmd_explorer_server)
 
     p = sub.add_parser("web", help="local web wallet + faucet + explorer page (open in a browser)")

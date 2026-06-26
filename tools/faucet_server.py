@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, urlencode
 from urllib.request import Request, urlopen
 
 from netcoin.crypto import validate_address
+from netcoin.node import client_ip_from_headers
 from netcoin.tx import amount_to_sats
 
 
@@ -52,6 +53,7 @@ CAPTCHA_SITEKEY = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SITEKEY", "")
 CAPTCHA_SECRET = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SECRET", "")
 CAPTCHA_SIMPLE_QUESTION = os.environ.get("NETCOIN_FAUCET_CAPTCHA_QUESTION", "Type netcoin")
 CAPTCHA_SIMPLE_ANSWER = os.environ.get("NETCOIN_FAUCET_CAPTCHA_ANSWER", "netcoin").strip().lower()
+TRUST_PROXY_HEADERS = os.environ.get("NETCOIN_FAUCET_TRUST_PROXY_HEADERS", "").strip().lower() in ("1", "true", "yes", "on")
 
 
 PAGE = """<!doctype html>
@@ -115,11 +117,14 @@ def save_state(state: dict) -> None:
 
 
 def client_ip(handler: BaseHTTPRequestHandler) -> str:
-    forwarded = handler.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        return forwarded.split(",", 1)[0].strip()
-    host, _port = handler.client_address
-    return host
+    return client_ip_from_headers(handler.headers, handler.client_address, trust_proxy_headers=TRUST_PROXY_HEADERS)
+
+
+def request_content_length(handler: BaseHTTPRequestHandler) -> int:
+    try:
+        return int(handler.headers.get("Content-Length", "0"))
+    except (TypeError, ValueError):
+        return -1
 
 
 def rate_limited(ip: str, state: dict) -> tuple[bool, int]:
@@ -465,7 +470,10 @@ class FaucetHandler(BaseHTTPRequestHandler):
         if self.path != "/faucet":
             self.send_error(404)
             return
-        length = int(self.headers.get("Content-Length", "0"))
+        length = request_content_length(self)
+        if length < 0:
+            self.render(message_box("Bad request.", error=True))
+            return
         ip = client_ip(self)
         if body_too_large(length):
             state = load_state()

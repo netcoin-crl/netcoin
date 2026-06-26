@@ -1,4 +1,5 @@
 import importlib.util
+import http.client
 import json
 import time
 from pathlib import Path
@@ -16,6 +17,8 @@ from netcoin.chain import Blockchain, ChainError
 from netcoin.miner import solve_template
 from netcoin.node import NetCoinNode, make_handler
 from netcoin.params import HALVING_INTERVAL, INITIAL_SUBSIDY, ZERO_HASH
+from netcoin.pool import MiningPool
+from netcoin.pool import make_handler as make_pool_handler
 from netcoin.rpc import RPCServer
 from netcoin.rpc import make_handler as make_rpc_handler
 from netcoin.tx import (
@@ -560,6 +563,29 @@ def test_rpc_requires_token_when_configured(tmp_path: Path):
         thread.join(timeout=5)
 
 
+def test_pool_rejects_malformed_content_length_cleanly(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    pool = MiningPool(chain, Wallet.create().address)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_pool_handler(pool))
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", server.server_address[1], timeout=5)
+        conn.putrequest("POST", "/submit")
+        conn.putheader("Content-Length", "not-a-number")
+        conn.endheaders()
+        response = conn.getresponse()
+        body = json.loads(response.read().decode("utf-8"))
+        assert response.status == 400
+        assert body["ok"] is False
+        assert "Content-Length" in body["error"]
+        conn.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
 def test_rpc_open_when_no_token(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     rpc = RPCServer(chain)
@@ -575,4 +601,3 @@ def test_rpc_open_when_no_token(tmp_path: Path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
-

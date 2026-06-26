@@ -13,7 +13,7 @@ from typing import Any, Dict
 
 
 _LIST_KEYS = {"peer", "peers"}
-_BOOL_KEYS = {"seeds"}
+_BOOL_KEYS = {"seeds", "trust_proxy_headers"}
 _INT_KEYS = {"port", "rate_limit_per_min", "request_timeout", "request_retries", "sync_interval"}
 
 

@@ -106,6 +106,15 @@ def test_load_config_keyvalue(tmp_path: Path):
     assert cfg["sync_interval"] == 30
 
 
+def test_load_config_coerces_trust_proxy_headers_bool(tmp_path: Path):
+    p = tmp_path / "netcoin.conf"
+    p.write_text("trust_proxy_headers = false\n")
+    assert load_config(p)["trust_proxy_headers"] is False
+
+    p.write_text("trust_proxy_headers = true\n")
+    assert load_config(p)["trust_proxy_headers"] is True
+
+
 # --- 40 faucet history ---
 
 def test_faucet_public_history_excludes_ips():

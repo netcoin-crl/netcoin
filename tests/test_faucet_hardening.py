@@ -22,6 +22,29 @@ def test_body_too_large(monkeypatch):
     assert faucet.body_too_large(0) is False
 
 
+def test_client_ip_ignores_forwarded_header_unless_trusted(monkeypatch):
+    faucet = load_faucet_module()
+
+    class Handler:
+        headers = {"X-Forwarded-For": "203.0.113.55"}
+        client_address = ("127.0.0.1", 12345)
+
+    monkeypatch.setattr(faucet, "TRUST_PROXY_HEADERS", False)
+    assert faucet.client_ip(Handler()) == "127.0.0.1"
+
+    monkeypatch.setattr(faucet, "TRUST_PROXY_HEADERS", True)
+    assert faucet.client_ip(Handler()) == "203.0.113.55"
+
+
+def test_request_content_length_rejects_malformed_value():
+    faucet = load_faucet_module()
+
+    class Handler:
+        headers = {"Content-Length": "not-a-number"}
+
+    assert faucet.request_content_length(Handler()) == -1
+
+
 def test_burst_limited_counts_last_minute(monkeypatch):
     faucet = load_faucet_module()
     monkeypatch.setattr(faucet, "MAX_REQUESTS_PER_MINUTE", 3)
