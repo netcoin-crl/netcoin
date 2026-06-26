@@ -22,6 +22,7 @@ from .block import (
     target_to_bits,
 )
 from .crypto import validate_address
+from .emission import emission_subsidy, is_active
 from .params import (
     COINBASE_MATURITY,
     DEFAULT_DATA_DIR,
@@ -352,6 +353,11 @@ class Blockchain:
     def subsidy(self, height: int) -> int:
         if height < 0:
             raise ChainError("height cannot be negative")
+        # Additive, activation-gated random-emission schedule. Below the
+        # activation height the legacy halving schedule applies unchanged, so the
+        # existing chain stays valid (see docs/UPGRADE_POLICY.md).
+        if is_active(height):
+            return emission_subsidy(height, lambda h: self.chain[h].hash())
         halvings = height // HALVING_INTERVAL
         if halvings >= 64:
             return 0
