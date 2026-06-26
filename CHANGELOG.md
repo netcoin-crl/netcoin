@@ -11,7 +11,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-## [0.7.0] - 2026-06-26 — random emission (NRE)
+## [0.7.1] - 2026-06-26 — peer-ban hardening
+
+### Fixed (P2P resilience)
+- **Trusted seeds are no longer self-partitioned.** Peers configured via `--peer`
+  are now never auto-banned and are auto-unbanned at startup. Previously a run of
+  transient sync failures (e.g. a `ConnectionResetError` while a peer restarts for
+  a deploy) could drive a configured seed's reputation past `ban_threshold`,
+  permanently ban it, and — because `add_peer()` skips banned peers — keep `--peer`
+  from ever re-adding it. (Reputation scores still track trusted peers for
+  visibility; they're just never banned.)
+- **Bans now expire.** Added `ban_ttl_seconds` (default 1h; `0` = permanent) so a
+  transient ban on an untrusted peer heals instead of lingering forever. The
+  `banned_peers.json` format gains an optional `ban_times` map; old files load fine
+  (their bans start the TTL clock at load time).
 
 ### Added (consensus — additive, activation-gated; chain NOT reset)
 - **Random-emission schedule (NRE).** Replaces Bitcoin-style halvings with a yearly
@@ -439,7 +452,8 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/netcoin-crl/netcoin/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/netcoin-crl/netcoin/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/netcoin-crl/netcoin/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/netcoin-crl/netcoin/compare/v0.4.4...v0.5.0
