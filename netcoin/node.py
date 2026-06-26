@@ -84,6 +84,7 @@ class NetCoinNode:
         request_timeout: int = 5,
         request_retries: int = 1,
         ban_threshold: int = -5,
+        ban_ttl_seconds: int = 3600,
     ):
         self.chain = chain
         self.peers = set()
@@ -96,6 +97,20 @@ class NetCoinNode:
         self.peer_scores: Dict[str, int] = {}
         self.banned: set = set()
         self.ban_threshold = ban_threshold
+        # Bans expire after this many seconds (0 = permanent) so a transient
+        # outage doesn't partition a peer forever; ban_times records when each
+        # ban started.
+        self.ban_ttl_seconds = max(0, ban_ttl_seconds)
+        self.ban_times: Dict[str, float] = {}
+        # Trusted peers (configured via --peer) are never auto-banned and are
+        # auto-unbanned at startup, so a routine restart/blip can't permanently
+        # self-partition our own seeds.
+        self.trusted_peers: set = set()
+        for _p in peers or []:
+            try:
+                self.trusted_peers.add(self._normalize_peer(_p))
+            except NodeError:
+                continue
         self.banned_path = Path(chain.data_dir) / "banned_peers.json"
         # Per-endpoint, per-IP rate limiting and configurable peer-fetch behavior.
         self.rate_limiter = RateLimiter(max_requests=rate_limit_per_min, window_seconds=60)
@@ -121,8 +136,9 @@ class NetCoinNode:
         self.started_at = time.time()
         self.peers_path = Path(peers_path) if peers_path else (Path(chain.data_dir) / "peers.json")
         self._load_banned()
-        # Reload peers discovered on previous runs, then merge in any provided
-        # via --peer so the node reconnects to known peers across restarts.
+        # Recover trusted peers that a previous run auto-banned during a transient
+        # outage, then reconnect: reload discovered peers and merge in --peer ones.
+        self._unban_trusted()
         self._load_peers()
         for peer in peers or []:
             self.add_peer(peer)
@@ -139,8 +155,12 @@ class NetCoinNode:
         # cannot grow the peer set without bound (a simple DoS guard).
         if self.self_url and normalized == self.self_url:
             return
-        if normalized in self.banned:
-            return
+        # A trusted (configured) peer is always allowed; otherwise honor bans
+        # (after expiring any that have aged out).
+        if normalized not in self.trusted_peers:
+            self._prune_expired_bans()
+            if normalized in self.banned:
+                return
         if normalized not in self.peers and len(self.peers) >= self.max_peers:
             return
         self.peers.add(normalized)
@@ -151,30 +171,75 @@ class NetCoinNode:
             data = json.loads(self.banned_path.read_text())
         except (FileNotFoundError, ValueError):
             return
+        ban_times = data.get("ban_times", {}) if isinstance(data, dict) else {}
+        now = time.time()
         for peer in data.get("banned", []):
             try:
-                self.banned.add(self._normalize_peer(str(peer)))
+                normalized = self._normalize_peer(str(peer))
             except NodeError:
                 continue
+            self.banned.add(normalized)
+            # Old files have no timestamps; treat those bans as starting now so
+            # they still expire under the TTL instead of lingering forever.
+            try:
+                self.ban_times[normalized] = float(ban_times.get(peer, now))
+            except (TypeError, ValueError):
+                self.ban_times[normalized] = now
+        self._prune_expired_bans()
 
     def _save_banned(self) -> None:
         if not self.persist:
             return
         try:
             self.banned_path.parent.mkdir(parents=True, exist_ok=True)
-            self.banned_path.write_text(json.dumps({"banned": sorted(self.banned)}, indent=2, sort_keys=True))
+            self.banned_path.write_text(json.dumps(
+                {"banned": sorted(self.banned),
+                 "ban_times": {p: self.ban_times[p] for p in sorted(self.banned) if p in self.ban_times}},
+                indent=2, sort_keys=True))
         except OSError:
             pass
 
+    def _prune_expired_bans(self) -> bool:
+        """Drop bans older than ban_ttl_seconds (0 = permanent). Returns True if any expired."""
+        if self.ban_ttl_seconds <= 0:
+            return False
+        now = time.time()
+        expired = [p for p in self.banned if now - self.ban_times.get(p, now) > self.ban_ttl_seconds]
+        for p in expired:
+            self.banned.discard(p)
+            self.ban_times.pop(p, None)
+        if expired:
+            self._save_banned()
+        return bool(expired)
+
+    def _unban_trusted(self) -> None:
+        """Clear any ban on a configured/trusted peer so our own seeds recover."""
+        changed = False
+        for tp in self.trusted_peers:
+            if tp in self.banned:
+                self.banned.discard(tp)
+                self.ban_times.pop(tp, None)
+                self.peer_scores.pop(tp, None)
+                changed = True
+        if changed:
+            self._save_banned()
+
     def is_banned(self, peer: str) -> bool:
         try:
-            return self._normalize_peer(peer) in self.banned
+            normalized = self._normalize_peer(peer)
         except NodeError:
             return False
+        self._prune_expired_bans()
+        return normalized in self.banned
 
     def ban_peer(self, peer: str, reason: str = "") -> None:
         normalized = self._normalize_peer(peer)
+        # Trusted (configured) peers are never banned — a flaky restart of our own
+        # seed must not permanently partition the network.
+        if normalized in self.trusted_peers:
+            return
         self.banned.add(normalized)
+        self.ban_times[normalized] = time.time()
         self.peers.discard(normalized)
         self.peer_scores.pop(normalized, None)
         self._save_peers()
@@ -185,6 +250,7 @@ class NetCoinNode:
         normalized = self._normalize_peer(peer)
         existed = normalized in self.banned
         self.banned.discard(normalized)
+        self.ban_times.pop(normalized, None)
         if existed:
             self._save_banned()
         return existed
@@ -197,7 +263,9 @@ class NetCoinNode:
             return 0
         score = self.peer_scores.get(normalized, 0) + delta
         self.peer_scores[normalized] = score
-        if score <= self.ban_threshold:
+        # Scores still track reputation for visibility, but a trusted (configured)
+        # peer is never auto-banned — transient failures must not partition us.
+        if score <= self.ban_threshold and normalized not in self.trusted_peers:
             self.ban_peer(normalized, reason=reason or "score below threshold")
         return score
 
