@@ -102,6 +102,18 @@ def test_below_activation_raises(small_params):
         emission.emission_subsidy(9, hash_at_all(EVEN_HASH))
 
 
+def test_year_length_is_network_aware():
+    from netcoin import params
+    assert params.EMISSION_TESTNET_YEAR_BLOCKS == 720
+    assert params.EMISSION_MAINNET_YEAR_BLOCKS == 262_800
+    expected = (
+        params.EMISSION_TESTNET_YEAR_BLOCKS
+        if params.NETWORK_NAME == "testnet"
+        else params.EMISSION_MAINNET_YEAR_BLOCKS
+    )
+    assert params.EMISSION_YEAR_BLOCKS == expected
+
+
 def test_live_chain_legacy_subsidy_unchanged(tmp_path: Path):
     """The live activation height is far ahead of any mined height, so the legacy
     halving subsidy is unchanged — the change is additive."""

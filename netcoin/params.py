@@ -26,10 +26,9 @@ HALVING_INTERVAL = 210_000
 # effect at and after EMISSION_ACTIVATION_HEIGHT, so every block before that
 # height keeps the legacy halving subsidy and the existing chain stays valid.
 # See docs/ECONOMICS_PLAN.md for the full specification and rationale.
-#
-# Status: pending Codex ratification of the activation height before any
-# mainnet/testnet activation (per docs/UPGRADE_POLICY.md, consensus coordination).
-EMISSION_YEAR_BLOCKS = 262_800            # 2-min blocks * ~365 days
+EMISSION_MAINNET_YEAR_BLOCKS = 262_800    # 2-min blocks * ~365 days (mainnet "year")
+EMISSION_TESTNET_YEAR_BLOCKS = 720        # ~1 day of blocks, so cuts are observable on testnet
+# EMISSION_YEAR_BLOCKS is set network-aware just after NETWORK_NAME is defined below.
 EMISSION_ACTIVATION_HEIGHT = 5_000        # testnet activation (live tip ~2,050; ~4 days lead)
 EMISSION_BASE_SUBSIDY = 15 * COIN         # reward at activation (does NOT touch INITIAL_SUBSIDY)
 EMISSION_SEED_BLOCKS = 10                 # blocks aggregated for the delayed anti-grinding seed
@@ -73,6 +72,11 @@ PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
 NODE_VERSION = "0.6.0"
 NETWORK_NAME = "testnet"
+# Network-aware emission "year": short on testnet (a cut decision ~daily) so the
+# random-cut mechanism can actually be observed; full year on mainnet.
+EMISSION_YEAR_BLOCKS = (
+    EMISSION_TESTNET_YEAR_BLOCKS if NETWORK_NAME == "testnet" else EMISSION_MAINNET_YEAR_BLOCKS
+)
 USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")
 

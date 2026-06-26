@@ -95,18 +95,20 @@ the reward currently decays geometrically toward 0.
   first. Because 5_000 < `HALVING_INTERVAL` (210_000), the legacy halving never
   triggers on the live chain — emission supersedes it before the first halving.
   Height-based gating is used because the emission year is defined in blocks.
-- **Still open for Codex:** confirm the seeds are upgraded + re-peered before
-  height 5,000; decide whether `EMISSION_YEAR_BLOCKS` should be shortened on
-  testnet so cuts are observable (with 262_800, the first cut is ~1 year of
-  blocks after activation, and one only per year thereafter), while keeping
-  262_800 for mainnet.
+- **Network-aware year length.** `EMISSION_YEAR_BLOCKS` is **720 on testnet**
+  (~1 day of blocks, so the first cut lands ~1 day after activation and a cut
+  decision happens roughly daily) and **262_800 on mainnet**. This lets the
+  random-cut mechanism actually be observed on testnet without altering the
+  intended mainnet cadence.
+- **Operational prerequisite:** the live seeds must be upgraded to this code and
+  re-peered before height 5,000 (the observed live node was v0.5.0 with 0 peers).
 
 ## Parameters (`netcoin/params.py`)
 
 | Constant | Value | Meaning |
 |----------|-------|---------|
-| `EMISSION_YEAR_BLOCKS` | 262_800 | blocks per emission year |
-| `EMISSION_ACTIVATION_HEIGHT` | 5_000 | first height governed by NRE (testnet; pending Codex seed-upgrade) |
+| `EMISSION_YEAR_BLOCKS` | 720 testnet / 262_800 mainnet | blocks per emission year (network-aware) |
+| `EMISSION_ACTIVATION_HEIGHT` | 5_000 | first height governed by NRE (testnet) |
 | `EMISSION_BASE_SUBSIDY` | 15 NET | reward at activation |
 | `EMISSION_SEED_BLOCKS` | 10 | blocks aggregated for the delayed seed |
 | `EMISSION_SAMPLE_SIZE` | 100 | blocks sampled from the prior year |
