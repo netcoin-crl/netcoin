@@ -1,113 +1,51 @@
 # NetCoin
 
-NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in pure Python. It is **not Bitcoin**, does not connect to the Bitcoin network, and should not be used as real money software.
+NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in
+pure Python. It runs on macOS, Linux, and Windows with Python 3.10+.
 
-It runs anywhere Python 3.10+ runs — **macOS, Linux, and Windows** — with **no third-party dependencies** (standard library only). The public testnet seeds run it on Ubuntu Linux.
+NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should
+not be used as real money software. Public testnet NET has no real-money value.
 
-> **Current release: v0.4.2.** See the [CHANGELOG](CHANGELOG.md) for what each release added and [docs/UPGRADING.md](docs/UPGRADING.md) for updating a node between releases.
+> Current release: **v0.6.0**
 
-## What's implemented
+## Start Here: Public Testnet
 
-Core chain and consensus (since v0.2):
+Most users should start by connecting to the public NetCoin testnet. The commands
+below use the public AWS seed IPs because some home networks block the
+`seed*.netcoin.online` hostnames.
 
-- UTXO chain validation
-- Proof-of-work mining
-- Merkle roots
-- Coinbase rewards and 100-block coinbase maturity
-- 21,000,000 NET monetary cap through 210,000-block halvings
-- secp256k1 ECDSA signatures
-- Base58Check legacy addresses
-- Bech32 SegWit-style P2WPKH addresses
-- Bech32m Taproot-style P2TR addresses
-- BIP340-style Schnorr signatures for Taproot-like key-path spends
-- Text-based educational NetCoin Script engine
-- P2PKH, P2SH, P2WPKH, P2WSH, P2TR script templates
-- Multisig redeem-script helpers
-- CLTV/CSV-style timelock script helpers
-- Transaction locktime and sequence handling
-- Opt-in RBF signaling
-- Mempool policy: dust, min relay fee, weight, and ancestor-style limits
-- Block weight limit
-- Raw Bitcoin-style transaction/block hex export
-- SegWit-style txid/wtxid split
-- Headers endpoint for headers-first sync shape
-- Compact-block summary endpoint
-- Orphan block candidate handling
-- JSON-RPC server
-- Mining-pool template server
-- Static HTML block explorer generator
-- API-backed explorer server
-- Encrypted wallet files
-- Deterministic NetCoin seed phrases
-- Watch-only wallet files
-- Main/testnet/signet/regtest profile descriptions
-- P2P message envelope framing helpers and experimental TCP P2P server/client
-- PSBT-like signing container
+Public nodes:
 
-Added in v0.3–v0.4:
+```text
+seed1.netcoin.online:28444 -> http://18.220.89.128:28444
+seed2.netcoin.online:28444 -> http://18.220.197.20:28444
+seed3.netcoin.online:28444 -> http://18.226.74.252:28444
+```
 
-- Persistent/incremental UTXO set (no full rescan per query)
-- Pruned mode (drop old block bodies, keep headers + UTXO snapshot)
-- Persistent block / transaction / address indexes
-- Optional SQLite storage backend (`NETCOIN_BACKEND=sqlite`) with `migrate-sqlite`
-- Cumulative-work fork choice with reorg, rollback, and mempool revalidation
-- Headers-first sync, relay queue, and peer inventory cache over the TCP transport
-- Fuller Script VM (conditionals, arithmetic, stack ops, crypto opcodes, strict errors)
-- Full PSBT flow (create / sign / combine / finalize / extract)
-- Descriptor wallets (`wallet-descriptor`, `descriptor-address`)
-- Wallet format versioning + migration (`wallet-migrate`) and a stronger KDF
-- Coin control / selection strategies, gap-limit scan, labels, change-address rotation, auto-lock
-- Faucet hardening (rate limits, abuse log, send queue, hot-wallet isolation)
-- Versioned release process with reproducible artifacts + `SHA256SUMS`
-- Local multi-node soak/stress harness (`soak`) for relay/sync convergence checks
-- Deterministic parser/endpoint fuzz smoke runner (`fuzz`)
-
-Still not something code alone can create:
-
-- Real global hashpower
-- A worldwide node network
-- Exchange listings
-- Real liquidity
-- Hardware wallet vendor support
-- A production security review
-- A public user ecosystem
-
-Those require people, infrastructure, review, miners, users, and time.
-
-## Install & run (macOS / Linux / Windows)
-
-NetCoin needs **only Python 3.10+** — no third-party packages. It runs the same on
-all three platforms; the only differences are how you install Python and activate a
-virtual environment. Run all commands from the **project root** (the folder with
-`pyproject.toml`); the inner `netcoin/` folder is the Python package.
-
-### macOS
+Quick health check:
 
 ```bash
-# Python 3 ships with recent macOS, or: brew install python
+curl http://18.220.89.128:28444/info
+curl http://18.220.197.20:28444/health
+curl "http://18.226.74.252:28444/latest?n=5"
+```
+
+## 1. Install
+
+macOS / Linux:
+
+```bash
 git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -e .
 python -m netcoin --help
 ```
 
-### Linux
-
-```bash
-sudo apt install -y python3 python3-venv git        # Debian/Ubuntu (or use your distro's pkg manager)
-git clone https://github.com/netcoin-crl/netcoin.git
-cd netcoin
-python3 -m venv .venv && source .venv/bin/activate
-python -m pip install -e .
-python -m netcoin --help
-```
-
-### Windows (PowerShell)
+Windows PowerShell:
 
 ```powershell
-# Install Python 3.10+ from https://www.python.org/downloads/ (check "Add python.exe to PATH"),
-# and Git from https://git-scm.com/download/win  (or download the repo ZIP and unzip).
 git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
 python -m venv .venv
@@ -116,91 +54,59 @@ python -m pip install -e .
 python -m netcoin --help
 ```
 
-> **Cross-platform notes.** The CLI, node, wallet, miner, web wallet, and light-client
-> tools are pure Python and identical everywhere. Only the operator extras differ: the
-> `tools/*.sh` scripts are bash (macOS/Linux/WSL) and the systemd units are Linux-only.
-> A few examples below use macOS's `open` to launch a browser — use `xdg-open` on Linux
-> or `start` on Windows.
->
-> **Behind a content/security filter** (e.g. Spectrum/CUJO, some corporate DNS): if the
-> `seed*.netcoin.online` hostnames get blocked, use the seed **IPs** instead —
-> `http://18.220.89.128:28444`, `http://18.220.197.20:28444`, `http://18.226.74.252:28444`.
+Run commands from the project folder, the one with `pyproject.toml`.
 
-### Quick check — connect to the public testnet
+## 2. Create A Wallet
 
 ```bash
-# replace `open` with xdg-open (Linux) / start (Windows) where shown
-python -m netcoin balance --node http://seed1.netcoin.online:28444 --address <ANY_ADDRESS>
-python -m netcoin web --node http://seed1.netcoin.online:28444   # then open http://127.0.0.1:8088/
+python -m netcoin wallet-new --out miner.json --mnemonic --confirm-backup
+python -m netcoin wallet-info --wallet miner.json
 ```
 
-## Public testnet status
+Write down the recovery phrase. The wallet file controls your testnet coins.
 
-NetCoin is in a **testnet-only** phase. Testnet NET has no real-money value, bugs are expected, and seed nodes should expose only the public peer port.
+## 3. Mine On The Public Network
 
-Default public testnet ports:
-
-- Peer/node HTTP: `28444`
-- JSON-RPC: `28445` local/private only
-- Pool/template server: `28446` local/private only
-- Experimental TCP P2P: `28447`
-
-The first public milestone is a single seed node that returns JSON:
+Mine one block:
 
 ```bash
-curl http://SEED1_IP:28444/info
+python -m netcoin miner \
+  --node http://18.220.89.128:28444 \
+  --wallet miner.json \
+  --blocks 1
 ```
 
-Current public testnet seeds:
-
-```text
-seed1.netcoin.online:28444
-seed2.netcoin.online:28444
-seed3.netcoin.online:28444
-```
-
-See [docs/TESTNET.md](docs/TESTNET.md) for the Mac-to-Ubuntu seed-node checklist, systemd unit, DNS layout, public user instructions, explorer notes, faucet requirements, monitoring, and launch order.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current public testnet architecture, component layout, data flows, trust boundaries, weak spots, and target network shape.
-
-See [docs/SECURITY_TESTING.md](docs/SECURITY_TESTING.md) for malformed block, bad transaction, faucet abuse, node crash, replay, and public endpoint limit testing.
-
-### Guides for testers
-
-- **[docs/GUIDE.md](docs/GUIDE.md) — complete step-by-step guide (macOS/Linux/Windows): install, wallet, faucet, send, mine, run a node, run a public seed, plus GitHub + AWS deployment.**
-- [docs/STARTER_KIT.md](docs/STARTER_KIT.md) — 10-minute from-scratch walkthrough: install, wallet, faucet, send, mine, report bugs.
-- [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md) — run your own independent full node and peer with the public seeds.
-- [docs/MINING.md](docs/MINING.md) — mine testnet blocks from your own machine and submit them.
-- [docs/RELEASING.md](docs/RELEASING.md) — versioning, signed release artifacts, and how users verify downloads.
-- [docs/UPGRADING.md](docs/UPGRADING.md) — update a node between releases without wiping data (with rollback).
-- [docs/SECURITY_REVIEW_PLAN.md](docs/SECURITY_REVIEW_PLAN.md) — the external-review checklist that gates any mainnet discussion.
-
-Operator tooling lives in `tools/`: `backup_node.sh` (backup), `deploy_seed.sh` (safe
-update with rollback), `dashboard.py` (public status page), `faucet_admin.py` (private
-faucet admin view), and `monitor_netcoin.py` (status + optional webhook alerts). The
-faucet exposes `/history`, `/queue`, `/status`, and an admin-token-protected
-`/admin/process-queue` endpoint for queued payouts and hot-wallet refill checks.
-The node also exposes explorer-style JSON: `/tx/<txid>`, `/address/<address>`,
-`/balance/<address>`, `/latest?n=`, `/utxos?address=`, `/block/<hash>`,
-`/mempool`, and `/relay` for relay-queue visibility.
-
-> The JSON-RPC server supports optional bearer-token auth: pass `--rpc-token` (or set
-> `NETCOIN_RPC_TOKEN`) and keep it bound to `127.0.0.1`. The node and RPC servers also
-> cap request body size to blunt trivial memory-DoS attempts. Public node and explorer
-> HTTP endpoints support `--rate-limit-per-min` (`0` disables) for per-IP/per-path
-> throttling.
-
-## Quick start
+Mine ten blocks:
 
 ```bash
-python -m netcoin --data demo-chain init
-python -m netcoin wallet-new --out miner.json --mnemonic
-python -m netcoin wallet-new --out alice.json
-python -m netcoin --data demo-chain mine --wallet miner.json --blocks 101
-python -m netcoin --data demo-chain balance --wallet miner.json
+python -m netcoin miner \
+  --node http://18.220.197.20:28444 \
+  --wallet miner.json \
+  --blocks 10
 ```
 
-Check any address against a public seed:
+Rotate seeds when mining so one seed does not take all the traffic:
+
+```bash
+python -m netcoin miner --node http://18.220.89.128:28444  --wallet miner.json --blocks 1
+python -m netcoin miner --node http://18.220.197.20:28444  --wallet miner.json --blocks 1
+python -m netcoin miner --node http://18.226.74.252:28444 --wallet miner.json --blocks 1
+```
+
+Mining rewards are coinbase rewards. They show as `immature` until 100 more
+blocks are mined after them.
+
+## 4. Check Balance
+
+Check your wallet:
+
+```bash
+python -m netcoin balance \
+  --node http://18.220.89.128:28444 \
+  --wallet miner.json
+```
+
+Check any address:
 
 ```bash
 python -m netcoin balance \
@@ -208,178 +114,311 @@ python -m netcoin balance \
   --address <NETCOIN_ADDRESS>
 ```
 
-Send to Alice's SegWit-style address:
-
-```bash
-ALICE_SEGWIT=$(python -m netcoin wallet-info --wallet alice.json | python -c 'import json,sys; print(json.load(sys.stdin)["addresses"]["segwit"])')
-python -m netcoin --data demo-chain send --wallet miner.json --to "$ALICE_SEGWIT" --amount 12.5 --fee 0.01 --rbf
-python -m netcoin --data demo-chain mine --wallet miner.json --blocks 1
-python -m netcoin --data demo-chain balance --wallet alice.json --address-type p2wpkh
-python -m netcoin --data demo-chain validate
-```
-
-Mine and spend Taproot-style outputs:
-
-```bash
-python -m netcoin --data taproot-chain init
-python -m netcoin wallet-new --out tr-miner.json
-python -m netcoin wallet-new --out tr-alice.json
-python -m netcoin --data taproot-chain mine --wallet tr-miner.json --address-type p2tr --blocks 101
-
-ALICE_TR=$(python -m netcoin wallet-info --wallet tr-alice.json | python -c 'import json,sys; print(json.load(sys.stdin)["addresses"]["taproot"])')
-python -m netcoin --data taproot-chain send --wallet tr-miner.json --from-type p2tr --to "$ALICE_TR" --amount 3 --fee 0.01
-python -m netcoin --data taproot-chain mine --wallet tr-miner.json --address-type p2tr --blocks 1
-python -m netcoin --data taproot-chain balance --wallet tr-alice.json --address-type p2tr
-```
-
-## Useful commands
-
-Show all address types:
+Show your addresses:
 
 ```bash
 python -m netcoin wallet-info --wallet miner.json
 ```
 
-Show the Script template for an address:
+## 5. Run A Public Seed
+
+Use this when other people should be able to connect to your node.
+
+On a VPS or public server:
 
 ```bash
-ADDR=$(python -m netcoin wallet-info --wallet miner.json | python -c 'import json,sys; print(json.load(sys.stdin)["addresses"]["taproot"])')
-python -m netcoin script "$ADDR"
+python -m netcoin --data ~/.netcoin-testnet node \
+  --host 0.0.0.0 \
+  --port 28444 \
+  --p2p-port 18447 \
+  --sync-interval 60 \
+  --rate-limit-per-min 240 \
+  --advertise http://YOUR_PUBLIC_IP_OR_DOMAIN:28444 \
+  --peer http://18.220.89.128:28444 \
+  --peer http://18.220.197.20:28444 \
+  --peer http://18.226.74.252:28444
 ```
 
-Show mempool policy data:
+Open these inbound firewall/security-group ports:
+
+| Port | Purpose | Public? |
+| --- | --- | --- |
+| `28444` | HTTP node API | yes |
+| `18447` | experimental binary P2P | yes, optional |
+| `28445` | JSON-RPC | no |
+| `28446` | pool/template server | no |
+
+Keep RPC and pool ports private. Do not expose wallet files, seed phrases, private
+keys, server keys, or RPC tokens.
+
+No-port-forwarding options are in
+[docs/PUBLIC_SEED_HOSTING.md](docs/PUBLIC_SEED_HOSTING.md).
+
+## 6. Use The Browser Wallet
+
+This is the easiest way to view a wallet and send transactions.
 
 ```bash
-python -m netcoin --data demo-chain mempool
-python -m netcoin --data demo-chain fee
+python -m netcoin web --node http://18.220.89.128:28444
 ```
 
-Show headers and raw block data:
+Open this in your browser:
+
+```text
+http://127.0.0.1:8088/
+```
+
+The web wallet is local. Your private keys stay on your computer. It only sends
+signed transactions to the public node.
+
+## 7. Run Your Own Public-Testnet Node
+
+This runs a node on your computer, syncs with the public seeds, and lets you mine
+through your own node instead of directly hitting the AWS seeds.
 
 ```bash
-python -m netcoin --data demo-chain headers --limit 5
-python -m netcoin --data demo-chain rawblock tip
+python -m netcoin --data ~/.netcoin-testnet node \
+  --host 127.0.0.1 \
+  --port 28444 \
+  --sync-interval 60 \
+  --peer http://18.220.89.128:28444 \
+  --peer http://18.220.197.20:28444 \
+  --peer http://18.226.74.252:28444
 ```
 
-Generate a static explorer:
+Check your node:
+
+```bash
+curl http://127.0.0.1:28444/info
+```
+
+Mine through your own node:
+
+```bash
+python -m netcoin miner \
+  --node http://127.0.0.1:28444 \
+  --wallet miner.json \
+  --blocks 1
+```
+
+You can also use the built-in seed list:
+
+```bash
+python -m netcoin --data ~/.netcoin-testnet node \
+  --host 127.0.0.1 \
+  --port 28444 \
+  --sync-interval 60 \
+  --seeds
+```
+
+If your network blocks `seed*.netcoin.online`, use the raw-IP `--peer` command
+above.
+
+## 8. Send Coins
+
+Use the local browser wallet for the simplest public-network send flow:
+
+```bash
+python -m netcoin web --node http://18.220.89.128:28444
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8088/
+```
+
+For local/private CLI practice, see the next section.
+
+## Local Practice Chain
+
+These commands make a private chain on your computer. They do **not** connect to
+the public NetCoin testnet.
+
+```bash
+python -m netcoin --data demo-chain init
+python -m netcoin wallet-new --out local-miner.json --mnemonic --confirm-backup
+python -m netcoin wallet-new --out local-alice.json
+python -m netcoin --data demo-chain mine --wallet local-miner.json --blocks 101
+python -m netcoin --data demo-chain balance --wallet local-miner.json
+```
+
+Send locally:
+
+```bash
+ALICE=$(python -m netcoin wallet-info --wallet local-alice.json | python -c 'import json,sys; print(json.load(sys.stdin)["address"])')
+python -m netcoin --data demo-chain send --wallet local-miner.json --to "$ALICE" --amount 12.5 --fee 0.01
+python -m netcoin --data demo-chain mine --wallet local-miner.json --blocks 1
+python -m netcoin --data demo-chain balance --wallet local-alice.json
+```
+
+## Explorer
+
+Run a local explorer for a synced node:
+
+```bash
+python -m netcoin --data ~/.netcoin-testnet explorer-server --host 127.0.0.1 --port 8080
+```
+
+Open:
+
+```text
+http://127.0.0.1:8080/
+```
+
+Generate a static explorer for a local/private chain:
 
 ```bash
 python -m netcoin --data demo-chain explorer --out explorer
 open explorer/index.html
 ```
 
-Run the live API-backed explorer:
+On Linux use `xdg-open`. On Windows open the file from Explorer or use `start`.
+
+## Light Client Tools
+
+Scan a wallet with compact filters:
 
 ```bash
-python -m netcoin --data demo-chain explorer-server --host 127.0.0.1 --port 8080
-open http://127.0.0.1:8080/
+python -m netcoin scan-filters \
+  --node http://18.220.89.128:28444 \
+  --wallet miner.json
 ```
 
-Open the web wallet (browser UI: wallet, faucet, explorer — no CLI needed):
+Fetch a block filter:
 
 ```bash
-python -m netcoin web --node http://seed1.netcoin.online:28444
-open http://127.0.0.1:8088/
+python -m netcoin blockfilter \
+  --node http://18.220.89.128:28444 \
+  --height 100
 ```
 
-> The web wallet is a **local** tool: your keys stay on your machine, signing
-> happens locally, and only the signed transaction is sent to the node. Keep it
-> bound to `127.0.0.1` — it is not a hosted/custodial wallet.
+## Local RPC
 
-Run a local peer node (serves the HTTP API and the binary P2P transport):
+Keep RPC private:
 
 ```bash
-python -m netcoin --data node-a node --host 127.0.0.1 --port 18444
+python -m netcoin --data ~/.netcoin-testnet rpc --host 127.0.0.1 --port 28445
+python -m netcoin rpc-call getblockchaininfo --url http://127.0.0.1:28445
 ```
 
-### Host a public seed — no port forwarding (macOS / Linux / Windows)
-
-A node only needs the internet *outbound* to sync and mine. To be a **public seed**
-others connect to, you must be reachable — but you can do that **without touching
-your router** (works behind CGNAT too) using a tunnel, then `--advertise` the
-public URL. Four no-router options + the simple VPS route, with per-OS commands and
-a reachability test, are in **[docs/PUBLIC_SEED_HOSTING.md](docs/PUBLIC_SEED_HOSTING.md)**:
-
-| Method | Cost | Your domain? | Binary P2P? |
-| --- | --- | --- | --- |
-| **Cloudflare Tunnel** | free | yes (`seed.netcoin.online`) | no (HTTP) |
-| **Tailscale Funnel** | free | no (`*.ts.net`) | no (HTTP) |
-| **ngrok** | free tier | paid | yes (`tcp`) |
-| **Reverse SSH via a $4 VPS** | ~$4/mo | yes | **yes** |
-| **VPS running the node** | ~$4/mo | yes | yes |
-
-Example (Cloudflare quick tunnel — no account, no domain):
+Optional token:
 
 ```bash
-python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 &
-cloudflared tunnel --url http://localhost:28444     # prints a public https://<id>.trycloudflare.com
-# then restart the node with --advertise <that-url>
+NETCOIN_RPC_TOKEN="choose-a-secret" \
+python -m netcoin --data ~/.netcoin-testnet rpc --host 127.0.0.1 --port 28445
 ```
 
-Light-client scan with compact block filters (download tiny per-block filters
-instead of full blocks; only flag blocks that might pay your address):
+## What Is Implemented
+
+Core chain:
+
+- UTXO chain validation
+- Real proof-of-work mining
+- 2-minute target blocks with difficulty retargeting
+- Testnet lone-miner rule so the chain can keep moving
+- Merkle roots
+- Coinbase rewards and 100-block coinbase maturity
+- secp256k1 ECDSA signatures
+- BIP340-style Schnorr signatures for Taproot-like key-path spends
+- Legacy, P2SH-SegWit, SegWit-style, and Taproot-style addresses
+- Educational Script engine
+- P2PKH, P2SH, P2WPKH, P2WSH, and P2TR script templates
+- Multisig helpers
+- Timelock helpers
+- Transaction locktime and sequence handling
+- Opt-in RBF signaling
+- Mempool policy limits
+- Block weight limit
+- Raw Bitcoin-style transaction and block hex export
+- SegWit-style txid/wtxid split
+
+Network:
+
+- HTTP node API
+- Experimental binary TCP P2P server/client
+- Headers-first sync shape
+- Compact-block summaries
+- BIP158-style compact block filters
+- Relay queue and peer inventory cache
+- Cumulative-work fork choice
+- Reorg, rollback, and mempool revalidation
+- Orphan block candidate handling
+- Public endpoint rate limiting
+
+Wallet and tools:
+
+- Encrypted wallet files
+- Deterministic NetCoin seed phrases
+- HD wallet derivation
+- Watch-only wallet files
+- Descriptor helpers
+- PSBT-like signing flow
+- Local web wallet
+- API-backed explorer server
+- JSON-RPC server
+- Mining-pool template server
+- Faucet hardening support
+- Signed messages
+- Payment URIs
+- Local multi-node soak/stress harness
+- Deterministic fuzz smoke runner
+- Reindex and crash-safe JSON persistence
+- Optional SQLite backend
+- Pruned mode
+
+Still not something code alone can create:
+
+- Real global hashpower
+- A worldwide independent node network
+- Exchange listings
+- Real liquidity
+- Hardware wallet vendor support
+- A production security review
+- A public user ecosystem
+
+Those require people, infrastructure, review, miners, users, and time.
+
+## Project Guides
+
+- [docs/GUIDE.md](docs/GUIDE.md) - complete step-by-step guide
+- [docs/STARTER_KIT.md](docs/STARTER_KIT.md) - 10-minute first run
+- [docs/MINING.md](docs/MINING.md) - mining from your own machine
+- [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md) - independent full node guide
+- [docs/PUBLIC_SEED_HOSTING.md](docs/PUBLIC_SEED_HOSTING.md) - public seed hosting
+- [docs/TESTNET.md](docs/TESTNET.md) - public testnet layout
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - architecture and data flows
+- [docs/OPERATIONS.md](docs/OPERATIONS.md) - backups, monitoring, logs, deployment
+- [docs/UPGRADING.md](docs/UPGRADING.md) - update a node safely
+- [docs/RELEASING.md](docs/RELEASING.md) - signed releases and checksums
+- [docs/SECURITY_TESTING.md](docs/SECURITY_TESTING.md) - abuse/crash/replay tests
+- [docs/SECURITY_REVIEW_PLAN.md](docs/SECURITY_REVIEW_PLAN.md) - external review checklist
+- [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - what NetCoin is not
+
+## Developer Checks
+
+Run tests:
 
 ```bash
-python -m netcoin scan-filters --node http://seed1.netcoin.online:28444 --wallet miner.json
-python -m netcoin blockfilter --node http://seed1.netcoin.online:28444 --height 100
+python -m pytest -q
 ```
 
-HD wallet (BIP32): one mnemonic derives unlimited keys; export an `xpub` for
-watch-only address generation without exposing private keys:
+Run a local multi-node soak test:
 
 ```bash
-python -m netcoin hd-derive --mnemonic "net100 net200 net300" --path "m/44'/0'/0'/0/0"
-python -m netcoin hd-address --xpub <account-xpub> --change 0 --index 0   # watch-only
+python -m netcoin soak --nodes 3 --rounds 3
 ```
 
-Mine through a running node instead of writing directly to a local chain:
+Run fuzz smoke tests:
 
 ```bash
-python -m netcoin wallet-new --out miner.json --mnemonic
-python -m netcoin miner \
-  --node http://seed1.netcoin.online:28444 \
-  --wallet miner.json \
-  --blocks 1
+python -m netcoin fuzz --iterations 100
 ```
 
-Save solved block JSON while mining:
+## Safety
 
-```bash
-python -m netcoin miner \
-  --node http://seed1.netcoin.online:28444 \
-  --wallet miner.json \
-  --blocks 1 \
-  --save-blocks solved-blocks
-```
+This is learning software. It has readable pure-Python cryptography and simplified
+networking so you can study it. It is not hardened like Bitcoin Core.
 
-Submit a saved solved block:
-
-```bash
-python -m netcoin submitblock solved-blocks/block-HEIGHT-HASH.json \
-  --node http://seed1.netcoin.online:28444
-```
-
-Run a JSON-RPC server:
-
-```bash
-python -m netcoin --data demo-chain rpc --host 127.0.0.1 --port 18445
-```
-
-Call RPC from another terminal:
-
-```bash
-python -m netcoin rpc-call getblockchaininfo --url http://127.0.0.1:18445
-python -m netcoin rpc-call getrawmempool --params '[true]' --url http://127.0.0.1:18445
-```
-
-Run the educational mining-pool template server:
-
-```bash
-python -m netcoin --data demo-chain pool --wallet miner.json --host 127.0.0.1 --port 18446
-```
-
-## Safety warning
-
-This is learning software. It has readable pure-Python cryptography and simplified networking so you can study it. It is not hardened against timing attacks, network attacks, denial-of-service, chain-split edge cases, wallet theft, or adversarial miners.
-
-Do not promote it as Bitcoin. Do not imply it is affiliated with Bitcoin. Do not use the included wallet files for real value.
+Do not promote it as Bitcoin. Do not imply it is affiliated with Bitcoin. Do not
+use the included wallet files for real value.
