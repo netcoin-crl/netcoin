@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import secrets
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -293,7 +295,27 @@ class Wallet:
     def save(self, path: str | Path, passphrase: Optional[str] = None) -> None:
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(self.to_dict(passphrase=passphrase), indent=2, sort_keys=True))
+        payload = json.dumps(self.to_dict(passphrase=passphrase), indent=2, sort_keys=True)
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent))
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.chmod(tmp_path, 0o600)
+            os.replace(tmp_path, target)
+            os.chmod(target, 0o600)
+            try:
+                dir_fd = os.open(str(target.parent), os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except OSError:
+                pass
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
     @classmethod
     def load(cls, path: str | Path, passphrase: Optional[str] = None) -> "Wallet":
