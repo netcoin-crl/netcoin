@@ -10,7 +10,7 @@ import pytest
 from netcoin import cli
 from netcoin.chain import Blockchain
 from netcoin.node import NetCoinNode, make_handler
-from netcoin.wallet import Wallet, WalletError, new_seed_phrase
+from netcoin.wallet import AEAD_CIPHER, PBKDF2_ITERATIONS, Wallet, WalletError, new_seed_phrase
 
 
 def make_wallet(tmp_path: Path):
@@ -79,6 +79,24 @@ def test_wallet_info_shows_private_key_with_ack(tmp_path: Path, capsys):
     result = json.loads(capsys.readouterr().out)
     assert result["private_key_hex"] == wallet.private_key_hex
     assert "export_warning" in result
+
+
+def test_wallet_info_reports_encrypted_file_metadata(tmp_path: Path, capsys):
+    wallet = Wallet.create()
+    path = tmp_path / "encrypted.json"
+    wallet.save(path, passphrase="pw")
+
+    cli.cmd_wallet_info(
+        argparse.Namespace(wallet=str(path), passphrase="pw", show_private=False, i_understand_export_risk=False)
+    )
+    result = json.loads(capsys.readouterr().out)
+    assert result["address"] == wallet.address
+    assert result["encrypted"] is True
+    assert result["encryption_cipher"] == AEAD_CIPHER
+    assert result["encryption_aead"] == "chacha20-poly1305"
+    assert result["encryption_iterations"] == str(PBKDF2_ITERATIONS)
+    assert "private_key_hex" not in result
+    assert "encrypted_private_key" not in result
 
 
 def test_balance_can_query_remote_node(tmp_path: Path, capsys):

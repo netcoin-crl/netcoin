@@ -30,7 +30,8 @@ All tests should pass before you open a pull request.
 
 ## Code style
 
-- Match the surrounding code: standard library only, clear names, small functions.
+- Match the surrounding code: prefer the standard library unless a dependency is
+  clearly justified. `cryptography` is the intentional wallet-AEAD dependency.
 - Keep comments about *why*, not *what*.
 - Consensus-affecting code (`chain.py`, `block.py`, `tx.py`) needs extra care and
   must be called out explicitly in the PR — a subtle bug there can split the chain.

@@ -180,9 +180,19 @@ def cmd_verify_mnemonic(args: argparse.Namespace) -> None:
 
 
 def cmd_wallet_info(args: argparse.Namespace) -> None:
+    wallet_path = Path(args.wallet)
+    file_data = json.loads(wallet_path.read_text())
     wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
     info = wallet.to_plain_dict()
     info["wallet_file"] = args.wallet
+    for key in ("wallet_version", "encrypted", "warning"):
+        if key in file_data:
+            info[key] = file_data[key]
+    if file_data.get("encrypted"):
+        encrypted = file_data.get("encrypted_private_key", {})
+        for key in ("cipher", "kdf", "iterations", "aead"):
+            if key in encrypted:
+                info[f"encryption_{key}"] = encrypted[key]
     if args.show_private:
         # Guard private-key exposure behind an explicit acknowledgement so it is
         # not printed by accident (e.g. in shared terminals or logs).

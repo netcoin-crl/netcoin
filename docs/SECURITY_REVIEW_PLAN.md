@@ -21,7 +21,9 @@ to launch.
 
 - [ ] secp256k1 ECDSA and BIP340 Schnorr implementations reviewed (or replaced with a vetted library).
 - [ ] Address formats (Base58Check, Bech32, Bech32m) reviewed against test vectors.
-- [ ] Wallet encryption (KDF, cipher, MAC) reviewed; the current XOR-stream construction is educational and must be replaced before any real value.
+- [ ] Wallet encryption reviewed end to end: ChaCha20-Poly1305 AEAD integration,
+      PBKDF2 parameters, associated-data handling, legacy-wallet migration, and
+      dependency supply-chain risk.
 - [ ] RNG sources audited (`secrets`), no key reuse.
 
 ## 3. Networking / P2P
@@ -53,7 +55,8 @@ to launch.
 - [ ] Release artifacts signed (GPG) and signatures verified independently.
 - [ ] Deploy/upgrade scripts reviewed for safe data handling and rollback.
 - [ ] Backups tested by an actual restore drill.
-- [ ] Dependency review (currently stdlib-only — keep it minimal).
+- [ ] Dependency review (`cryptography` is the intentional wallet-AEAD dependency;
+      keep everything else minimal).
 
 ## 7. Testing evidence
 

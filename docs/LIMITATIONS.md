@@ -12,8 +12,10 @@ of the project. Read this before relying on NetCoin for anything.
 
 ## Technical limitations
 
-- **Educational cryptography:** the wallet file encryption is a simple HMAC-stream
-  construction, not a vetted AEAD. Fine for testnet, not for real secrets.
+- **Educational cryptography:** new encrypted wallet files use ChaCha20-Poly1305
+  AEAD from the vetted `cryptography` package with PBKDF2-HMAC-SHA256, and old
+  HMAC-stream wallets can be opened for migration. The wider wallet/key-management
+  system is still not externally reviewed, so it remains testnet-only.
 - **HTTP remains the stable public seed API.** NetCoin now has an experimental
   TCP P2P transport using Bitcoin-style message envelopes, but it is not yet a
   full Bitcoin Core-style networking stack.

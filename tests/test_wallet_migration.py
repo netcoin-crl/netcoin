@@ -32,7 +32,10 @@ def test_legacy_file_without_version_needs_migration():
 
 def test_legacy_encrypted_low_kdf_needs_migration():
     data = {"wallet_version": 2, "encrypted": True,
-            "encrypted_private_key": {"iterations": str(wallet_mod.LEGACY_PBKDF2_ITERATIONS)}}
+            "encrypted_private_key": {
+                "cipher": "netcoin-hmac-stream-v2",
+                "iterations": str(wallet_mod.LEGACY_PBKDF2_ITERATIONS),
+            }}
     assert wallet_needs_migration(data) is True
 
 
@@ -83,6 +86,9 @@ def test_migrate_reencrypts_legacy_kdf(tmp_path: Path, capsys):
     migrated = json.loads(path.read_text())
     # Re-encrypted at the upgraded KDF cost and stamped version.
     assert int(migrated["encrypted_private_key"]["iterations"]) == wallet_mod.PBKDF2_ITERATIONS
+    assert migrated["encrypted_private_key"]["cipher"] == wallet_mod.AEAD_CIPHER
+    assert migrated["encrypted_private_key"]["aead"] == "chacha20-poly1305"
+    assert "mac" not in migrated["encrypted_private_key"]
     assert migrated["wallet_version"] == WALLET_FORMAT_VERSION
     assert Wallet.load(path, passphrase="pw").private_key == wallet.private_key
 

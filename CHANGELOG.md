@@ -11,6 +11,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Security
+- Encrypted wallet files now use `cryptography`'s ChaCha20-Poly1305 AEAD with
+  PBKDF2-HMAC-SHA256-derived keys and fixed associated data. Legacy
+  `netcoin-hmac-stream-v1/v2` wallets still open so `wallet-migrate` can
+  re-encrypt them into v3 format.
+
 ## [0.7.2] - 2026-06-26 — bring emission activation forward
 
 ### Changed (consensus — additive, activation-gated; chain NOT reset)
