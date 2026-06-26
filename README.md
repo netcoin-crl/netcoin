@@ -24,10 +24,20 @@ seed3.netcoin.online:28444 -> http://18.226.74.252:28444
 
 Quick health check:
 
+macOS / Linux:
+
 ```bash
 curl http://18.220.89.128:28444/info
 curl http://18.220.197.20:28444/health
 curl "http://18.226.74.252:28444/latest?n=5"
+```
+
+Windows PowerShell:
+
+```powershell
+Invoke-RestMethod http://18.220.89.128:28444/info
+Invoke-RestMethod http://18.220.197.20:28444/health
+Invoke-RestMethod "http://18.226.74.252:28444/latest?n=5"
 ```
 
 ## 1. Install
@@ -49,7 +59,7 @@ Windows PowerShell:
 git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
 python -m venv .venv
-.venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 python -m netcoin --help
 ```
@@ -70,21 +80,25 @@ Write down the recovery phrase. The wallet file controls your testnet coins.
 Mine one block:
 
 ```bash
-python -m netcoin miner \
-  --node http://18.220.89.128:28444 \
-  --wallet miner.json \
-  --blocks 1
+python -m netcoin miner --node http://18.220.89.128:28444 --wallet miner.json --blocks 1
 ```
 
 Mine continuously until you stop it with `Ctrl+C`:
 
+macOS / Linux:
+
 ```bash
 while true; do
-  python -m netcoin miner \
-    --node http://18.220.197.20:28444 \
-    --wallet miner.json \
-    --blocks 1
+  python -m netcoin miner --node http://18.220.197.20:28444 --wallet miner.json --blocks 1
 done
+```
+
+Windows PowerShell:
+
+```powershell
+while ($true) {
+  python -m netcoin miner --node http://18.220.197.20:28444 --wallet miner.json --blocks 1
+}
 ```
 
 Rotate seeds when mining so one seed does not take all the traffic:
@@ -103,17 +117,13 @@ blocks are mined after them.
 Check your wallet:
 
 ```bash
-python -m netcoin balance \
-  --node http://18.220.89.128:28444 \
-  --wallet miner.json
+python -m netcoin balance --node http://18.220.89.128:28444 --wallet miner.json
 ```
 
 Check any address:
 
 ```bash
-python -m netcoin balance \
-  --node http://18.220.89.128:28444 \
-  --address <NETCOIN_ADDRESS>
+python -m netcoin balance --node http://18.220.89.128:28444 --address <NETCOIN_ADDRESS>
 ```
 
 Show your addresses:
@@ -128,6 +138,8 @@ Use this when other people should be able to connect to your node.
 
 On a VPS or public server:
 
+macOS / Linux:
+
 ```bash
 python -m netcoin --data ~/.netcoin-testnet node \
   --host 0.0.0.0 \
@@ -138,6 +150,21 @@ python -m netcoin --data ~/.netcoin-testnet node \
   --advertise http://YOUR_PUBLIC_IP_OR_DOMAIN:28444 \
   --peer http://18.220.89.128:28444 \
   --peer http://18.220.197.20:28444 \
+  --peer http://18.226.74.252:28444
+```
+
+Windows PowerShell:
+
+```powershell
+python -m netcoin --data ~/.netcoin-testnet node `
+  --host 0.0.0.0 `
+  --port 28444 `
+  --p2p-port 18447 `
+  --sync-interval 60 `
+  --rate-limit-per-min 240 `
+  --advertise http://YOUR_PUBLIC_IP_OR_DOMAIN:28444 `
+  --peer http://18.220.89.128:28444 `
+  --peer http://18.220.197.20:28444 `
   --peer http://18.226.74.252:28444
 ```
 
@@ -179,38 +206,33 @@ This runs a node on your computer, syncs with the public seeds, and lets you min
 through your own node instead of directly hitting the AWS seeds.
 
 ```bash
-python -m netcoin --data ~/.netcoin-testnet node \
-  --host 127.0.0.1 \
-  --port 28444 \
-  --sync-interval 60 \
-  --peer http://18.220.89.128:28444 \
-  --peer http://18.220.197.20:28444 \
-  --peer http://18.226.74.252:28444
+python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 --sync-interval 60 --peer http://18.220.89.128:28444 --peer http://18.220.197.20:28444 --peer http://18.226.74.252:28444
 ```
 
 Check your node:
+
+macOS / Linux:
 
 ```bash
 curl http://127.0.0.1:28444/info
 ```
 
+Windows PowerShell:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:28444/info
+```
+
 Mine through your own node:
 
 ```bash
-python -m netcoin miner \
-  --node http://127.0.0.1:28444 \
-  --wallet miner.json \
-  --blocks 1
+python -m netcoin miner --node http://127.0.0.1:28444 --wallet miner.json --blocks 1
 ```
 
 You can also use the built-in seed list:
 
 ```bash
-python -m netcoin --data ~/.netcoin-testnet node \
-  --host 127.0.0.1 \
-  --port 28444 \
-  --sync-interval 60 \
-  --seeds
+python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 --sync-interval 60 --seeds
 ```
 
 If your network blocks `seed*.netcoin.online`, use the raw-IP `--peer` command
@@ -247,9 +269,21 @@ python -m netcoin --data demo-chain balance --wallet local-miner.json
 
 Send locally:
 
+macOS / Linux:
+
 ```bash
 ALICE=$(python -m netcoin wallet-info --wallet local-alice.json | python -c 'import json,sys; print(json.load(sys.stdin)["address"])')
 python -m netcoin --data demo-chain send --wallet local-miner.json --to "$ALICE" --amount 12.5 --fee 0.01
+python -m netcoin --data demo-chain mine --wallet local-miner.json --blocks 1
+python -m netcoin --data demo-chain balance --wallet local-alice.json
+```
+
+Windows PowerShell:
+
+```powershell
+$aliceInfo = python -m netcoin wallet-info --wallet local-alice.json | ConvertFrom-Json
+$alice = $aliceInfo.address
+python -m netcoin --data demo-chain send --wallet local-miner.json --to $alice --amount 12.5 --fee 0.01
 python -m netcoin --data demo-chain mine --wallet local-miner.json --blocks 1
 python -m netcoin --data demo-chain balance --wallet local-alice.json
 ```
@@ -275,24 +309,30 @@ python -m netcoin --data demo-chain explorer --out explorer
 open explorer/index.html
 ```
 
-On Linux use `xdg-open`. On Windows open the file from Explorer or use `start`.
+Linux:
+
+```bash
+xdg-open explorer/index.html
+```
+
+Windows PowerShell:
+
+```powershell
+Start-Process .\explorer\index.html
+```
 
 ## Light Client Tools
 
 Scan a wallet with compact filters:
 
 ```bash
-python -m netcoin scan-filters \
-  --node http://18.220.89.128:28444 \
-  --wallet miner.json
+python -m netcoin scan-filters --node http://18.220.89.128:28444 --wallet miner.json
 ```
 
 Fetch a block filter:
 
 ```bash
-python -m netcoin blockfilter \
-  --node http://18.220.89.128:28444 \
-  --height 100
+python -m netcoin blockfilter --node http://18.220.89.128:28444 --height 100
 ```
 
 ## Local RPC
@@ -306,8 +346,17 @@ python -m netcoin rpc-call getblockchaininfo --url http://127.0.0.1:28445
 
 Optional token:
 
+macOS / Linux:
+
 ```bash
 NETCOIN_RPC_TOKEN="choose-a-secret" \
+python -m netcoin --data ~/.netcoin-testnet rpc --host 127.0.0.1 --port 28445
+```
+
+Windows PowerShell:
+
+```powershell
+$env:NETCOIN_RPC_TOKEN = "choose-a-secret"
 python -m netcoin --data ~/.netcoin-testnet rpc --host 127.0.0.1 --port 28445
 ```
 
