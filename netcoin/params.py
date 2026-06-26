@@ -18,6 +18,26 @@ MAX_MONEY = 21_000_000 * COIN
 INITIAL_SUBSIDY = 50 * COIN
 HALVING_INTERVAL = 210_000
 
+# ---------------------------------------------------------------------------
+# Random-emission schedule ("NetCoin Random Emission", NRE).
+#
+# Replaces Bitcoin-style halvings with a yearly random "cut": each emission year
+# may drop the block reward by 10%. ADDITIVE + ACTIVATION-GATED — it only takes
+# effect at and after EMISSION_ACTIVATION_HEIGHT, so every block before that
+# height keeps the legacy halving subsidy and the existing chain stays valid.
+# See docs/ECONOMICS_PLAN.md for the full specification and rationale.
+EMISSION_MAINNET_YEAR_BLOCKS = 262_800    # 2-min blocks * ~365 days (mainnet "year")
+EMISSION_TESTNET_YEAR_BLOCKS = 720        # ~1 day of blocks, so cuts are observable on testnet
+# EMISSION_YEAR_BLOCKS is set network-aware just after NETWORK_NAME is defined below.
+EMISSION_ACTIVATION_HEIGHT = 5_000        # testnet activation (live tip ~2,050; ~4 days lead)
+EMISSION_BASE_SUBSIDY = 15 * COIN         # reward at activation (does NOT touch INITIAL_SUBSIDY)
+EMISSION_SEED_BLOCKS = 10                 # blocks aggregated for the delayed anti-grinding seed
+EMISSION_SAMPLE_SIZE = 100               # blocks sampled from the prior emission year
+EMISSION_EVEN_THRESHOLD = 40              # >= this many even-hash samples -> 10% cut
+EMISSION_CUT_NUMERATOR = 9               # reward *= 9/10 on a cut (10% drop)
+EMISSION_CUT_DENOMINATOR = 10
+EMISSION_DRY_YEAR_LIMIT = 3               # force a cut after this many consecutive no-cut years
+
 # Testnet v2 (real-difficulty relaunch): 2-minute target blocks, retarget every
 # 30 blocks (~1h) so difficulty tracks a small, changing miner set quickly.
 TARGET_SPACING_SECONDS = 120
@@ -52,6 +72,11 @@ PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
 NODE_VERSION = "0.6.0"
 NETWORK_NAME = "testnet"
+# Network-aware emission "year": short on testnet (a cut decision ~daily) so the
+# random-cut mechanism can actually be observed; full year on mainnet.
+EMISSION_YEAR_BLOCKS = (
+    EMISSION_TESTNET_YEAR_BLOCKS if NETWORK_NAME == "testnet" else EMISSION_MAINNET_YEAR_BLOCKS
+)
 USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")
 
