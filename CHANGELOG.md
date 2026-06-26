@@ -11,6 +11,16 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-06-26 — bring emission activation forward
+
+### Changed (consensus — additive, activation-gated; chain NOT reset)
+- **`EMISSION_ACTIVATION_HEIGHT` lowered 5_000 → 1_000** so the random-emission
+  schedule activates sooner on testnet. Still additive (well above the live tip of
+  ~361) and below the first halving. Every node — **including any miner** — must run
+  ≥0.7.2 before the chain reaches height 1_000, or old-subsidy blocks past that
+  height would be rejected by updated nodes (a fork). The seeds run no miner and the
+  chain was idle when this shipped, so there was no active mining to fork.
+
 ## [0.7.1] - 2026-06-26 — peer-ban hardening
 
 ### Fixed (P2P resilience)
@@ -452,7 +462,8 @@ First public 3-seed testnet release.
   the Bitcoin network. `SECURITY.md` currently uses a placeholder reporting
   contact. Public endpoints are not yet rate-limited.
 
-[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/netcoin-crl/netcoin/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/netcoin-crl/netcoin/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/netcoin-crl/netcoin/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/netcoin-crl/netcoin/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/netcoin-crl/netcoin/compare/v0.5.0...v0.6.0
