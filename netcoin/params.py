@@ -70,7 +70,7 @@ DEFAULT_POOL_PORT = 18446
 DEFAULT_P2P_PORT = 18447
 PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
-NODE_VERSION = "0.6.0"
+NODE_VERSION = "0.7.0"
 NETWORK_NAME = "testnet"
 # Network-aware emission "year": short on testnet (a cut decision ~daily) so the
 # random-cut mechanism can actually be observed; full year on mainnet.

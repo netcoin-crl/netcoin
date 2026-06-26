@@ -58,7 +58,10 @@ if command -v gpg >/dev/null 2>&1; then
   if [ -n "${NETCOIN_SIGNING_KEY:-}" ]; then
     KEY_ARG=(--local-user "$NETCOIN_SIGNING_KEY")
   fi
-  if gpg "${KEY_ARG[@]}" --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS 2>/dev/null; then
+  # Note the "${KEY_ARG[@]+...}" guard: expanding an empty array as
+  # "${KEY_ARG[@]}" trips `set -u` ("unbound variable") on bash 3.2 (macOS
+  # default), so guard the expansion to stay portable.
+  if gpg ${KEY_ARG[@]+"${KEY_ARG[@]}"} --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS 2>/dev/null; then
     echo "Signed dist/SHA256SUMS.asc"
   else
     echo "note: gpg present but signing skipped (no usable key). Set NETCOIN_SIGNING_KEY or import a key to sign." >&2
