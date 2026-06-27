@@ -4,10 +4,16 @@
   "type": "module",
   "private": true,
   "description": "NetCoin non-custodial in-browser wallet (keys + signing client-side)",
-  "scripts": { "test": "node test/crosscheck.mjs" },
+  "scripts": {
+    "test": "node test/crosscheck.mjs",
+    "build": "esbuild src/index.mjs --bundle --format=iife --global-name=NCW --minify --outfile=public/netcoin-wallet.js"
+  },
   "dependencies": {
     "@noble/curves": "^1.6.0",
     "@noble/hashes": "^1.5.0",
     "@scure/base": "^1.1.9"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
   }
 }
