@@ -73,7 +73,7 @@ shasum -a 256 -c SHA256SUMS              # checksum OK
 | Seed 2 | `seed2.netcoin.online:28444` |
 | Seed 3 | `seed3.netcoin.online:28444` |
 | Explorer | <http://18.220.89.128/> |
-| Faucet | <http://18.220.89.128/faucet> |
+| Faucet | <https://18.220.89.128/faucet> |
 | Status | <http://18.220.89.128/status.json> |
 
 ```bash
