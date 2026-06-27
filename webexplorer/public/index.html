@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Explorer</title>
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'" />
+  <style>
+    :root { color-scheme: dark; --bg:#0b0e14; --card:#151a23; --fg:#e6e9ef; --mut:#9aa4b2; --acc:#3ddc97; --acc2:#5aa9ff; --bd:#222a36; --warn:#ffcc66; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
+    a { color:var(--acc2); text-decoration:none; } a:hover { text-decoration:underline; }
+    .wrap { max-width:1000px; margin:0 auto; padding:20px 16px 64px; }
+    header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+    h1 { font-size:20px; margin:0; cursor:pointer; } h1 span { color:var(--acc); }
+    .pill { font-size:11px; color:var(--mut); border:1px solid var(--bd); border-radius:999px; padding:2px 9px; }
+    .search { flex:1; min-width:240px; }
+    .search input { width:100%; font:inherit; border-radius:8px; border:1px solid var(--bd); background:#0e131b; color:var(--fg); padding:9px 12px; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
+    .stat { background:var(--card); border:1px solid var(--bd); border-radius:10px; padding:12px 14px; }
+    .stat .k { color:var(--mut); font-size:12px; } .stat .v { font-size:18px; font-weight:700; margin-top:2px; }
+    .card { background:var(--card); border:1px solid var(--bd); border-radius:12px; padding:16px; margin-bottom:16px; }
+    .card h2 { font-size:14px; margin:0 0 12px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+    table { border-collapse:collapse; width:100%; font-size:14px; }
+    th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--bd); }
+    th { color:var(--mut); font-weight:600; font-size:12px; }
+    td.mono, .mono { font-family:ui-monospace,Menlo,monospace; }
+    .trunc { max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .right { text-align:right; } .acc { color:var(--acc); } .warn { color:var(--warn); }
+    .bar { height:8px; border-radius:6px; background:#0e131b; overflow:hidden; border:1px solid var(--bd); }
+    .bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--acc),var(--acc2)); }
+    .muted { color:var(--mut); font-size:13px; }
+    .kv { display:grid; grid-template-columns:140px 1fr; gap:6px 14px; font-size:14px; }
+    .kv .k { color:var(--mut); } .kv .v { word-break:break-all; }
+    .err { color:#ff6b6b; }
+    .back { font-size:13px; color:var(--mut); cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1 id="home">Net<span>Coin</span> Explorer</h1>
+      <span class="pill" id="netpill">testnet</span>
+      <div class="search"><input id="q" type="search" placeholder="Search height, block hash, txid, or address — Enter" autocomplete="off" /></div>
+    </header>
+    <div id="view"></div>
+    <p class="muted" id="footer"></p>
+  </div>
+  <script src="explorer-app.js"></script>
+</body>
+</html>

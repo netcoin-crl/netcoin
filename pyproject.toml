@@ -17,3 +17,6 @@ test = ["pytest"]
 
 [project.scripts]
 netcoin = "netcoin.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["netcoin*"]
