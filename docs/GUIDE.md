@@ -70,7 +70,7 @@ python -m netcoin hd-derive --mnemonic "your words here" --path "m/44'/0'/0'/0/0
 ## 3. Get coins from the faucet (instant, spendable)
 
 Open the faucet and paste your address (gives test NET, once per IP per day):
-- <http://18.220.89.128/faucet>
+- <https://18.220.89.128/faucet>
 
 Faucet coins are normal payments, so they're **spendable immediately** (unlike
 mined coins, which mature after 100 blocks — see step 5).

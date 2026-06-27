@@ -12,6 +12,7 @@ from urllib.request import urlopen
 
 import pytest
 
+from netcoin import cli
 import netcoin.webwallet as ww
 from netcoin.chain import Blockchain
 from netcoin.tx import Transaction
@@ -98,6 +99,11 @@ def test_server_serves_page_and_config():
         assert current["address"] is None
     finally:
         server.shutdown()
+
+
+def test_web_command_default_faucet_points_to_live_https_route():
+    args = cli.build_parser().parse_args(["web"])
+    assert args.faucet == "https://18.220.89.128/faucet"
 
 
 def test_history_endpoint_proxies_address_summary(monkeypatch):

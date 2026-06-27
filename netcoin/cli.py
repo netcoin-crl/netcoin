@@ -1339,7 +1339,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("web", help="local web wallet + faucet + explorer page (open in a browser)")
     p.add_argument("--node", default="http://seed1.netcoin.online:28444", help="NetCoin node to query/broadcast through")
-    p.add_argument("--faucet", default="http://18.220.89.128/faucet", help="faucet URL to link to (set empty to hide)")
+    p.add_argument("--faucet", default="https://18.220.89.128/faucet", help="faucet URL to link to (set empty to hide)")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8088)
     p.set_defaults(func=cmd_web)

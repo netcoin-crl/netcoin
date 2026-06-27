@@ -39,8 +39,7 @@ python -m netcoin wallet-info --wallet my-wallet.json
 
 Open the faucet and paste your address:
 
-- http://18.220.89.128/faucet (or `http://faucet.netcoin.online/` if your network
-  resolves it)
+- https://18.220.89.128/faucet
 
 The faucet sends **5 test NET** (one request per IP per 24 hours). Watch it arrive:
 

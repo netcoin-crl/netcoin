@@ -19,7 +19,7 @@ Public web services:
 - `explorer.netcoin.online` -> `18.220.89.128`
 - `faucet.netcoin.online` -> `18.220.89.128`
 - raw explorer fallback: `http://18.220.89.128/`
-- raw faucet fallback: `http://18.220.89.128/faucet`
+- raw faucet fallback: `https://18.220.89.128/faucet`
 - raw monitor fallback: `http://18.220.89.128/status.json`
 
 Current node port policy:
