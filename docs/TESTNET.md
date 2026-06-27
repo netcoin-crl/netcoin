@@ -224,20 +224,20 @@ python -m netcoin --data netcoin-testnet send \
 
 ## 7. Explorer
 
-Generate static explorer files:
+Serve the live Explorer SPA:
 
 ```bash
 cd /home/netcoin/netcoin-v2
-. .venv/bin/activate
-python -m netcoin --data /home/netcoin/.netcoin-testnet explorer --out /home/netcoin/explorer
-```
-
-Serve them with Nginx:
-
-```bash
 sudo apt install -y nginx
 sudo mkdir -p /var/www/netcoin-explorer
-sudo cp -r /home/netcoin/explorer/* /var/www/netcoin-explorer/
+sudo cp webexplorer/public/index.html /var/www/netcoin-explorer/index.html
+sudo cp webexplorer/public/explorer-app.js /var/www/netcoin-explorer/explorer-app.js
+```
+
+Configure Nginx to serve the SPA and relay read-only Explorer API calls to the
+local node:
+
+```bash
 sudo tee /etc/nginx/sites-available/netcoin-explorer >/dev/null <<'EOF'
 server {
     listen 80;
@@ -245,6 +245,12 @@ server {
 
     root /var/www/netcoin-explorer;
     index index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:28444/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
 }
 EOF
 sudo ln -s /etc/nginx/sites-available/netcoin-explorer /etc/nginx/sites-enabled/netcoin-explorer
@@ -252,10 +258,12 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-Auto-refresh every two minutes:
+The old static generator is still useful for a local/private chain, but do not
+run it as a cron job on the public Explorer host because it overwrites the live
+UI:
 
-```cron
-*/2 * * * * cd /home/netcoin/netcoin-v2 && /home/netcoin/netcoin-v2/.venv/bin/python -m netcoin --data /home/netcoin/.netcoin-testnet explorer --out /home/netcoin/explorer && cp -r /home/netcoin/explorer/* /var/www/netcoin-explorer/
+```bash
+python -m netcoin --data /home/netcoin/.netcoin-testnet explorer --out /home/netcoin/explorer-static
 ```
 
 ## 8. Faucet requirements

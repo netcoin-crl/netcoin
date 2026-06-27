@@ -52,7 +52,7 @@ Public seed mesh
 NetCoin blockchain state
 
 seed1 also hosts:
-    - static block explorer
+    - live web explorer
     - faucet
     - monitor status JSON
 ```
@@ -195,32 +195,32 @@ The chain state lives on disk per node. The seed nodes are intentionally simple:
 
 ## 7. Explorer Architecture
 
-NetCoin supports two explorer modes.
+NetCoin supports two explorer modes. The public testnet uses the live SPA mode.
 
-Static mode generates plain HTML from a chain data directory:
+Live SPA mode serves `webexplorer/public/index.html` and `explorer-app.js`
+through Nginx. The browser talks to the local seed node through a same-origin
+`/api/` relay, so the public page stays read-only and does not need a separate
+database or regeneration job.
 
 Flow:
 
 ```text
-seed1 chain data
+browser
     |
     v
-python -m netcoin explorer
+https://explorer.netcoin.online/
     |
     v
-/var/www/netcoin-explorer
+Nginx static SPA + /api/ relay
     |
     v
-Nginx port 80
+seed1 node on 127.0.0.1:28444
 ```
 
-It refreshes by cron every two minutes. This keeps the explorer simple and safer than a dynamic database-backed explorer at this stage.
-
-Live API-backed mode serves pages and JSON directly from local chain data:
+The public Explorer currently uses these node API endpoints through the relay:
 
 ```text
-python -m netcoin explorer-server --host 127.0.0.1 --port 8080
-GET /
+GET /api/info
 GET /api/latest
 GET /api/block/<hash>
 GET /api/tx/<txid>
@@ -228,8 +228,14 @@ GET /api/address/<address>
 GET /api/search?q=<query>
 ```
 
-This is the path toward a fuller explorer backend without requiring a separate
-database service yet.
+Static mode still exists for local/private chains:
+
+```bash
+python -m netcoin explorer --out explorer
+```
+
+Do not run the old static explorer cron on the public testnet host; it will
+overwrite the live UI.
 
 ## 8. Faucet Architecture
 
@@ -335,7 +341,8 @@ Rules:
 - All public web services are currently on seed1.
 - All seed nodes are in the same AWS account and region.
 - The faucet uses a hot wallet on the server.
-- The explorer is static and refreshes every two minutes, so it is not instant.
+- The explorer is live, but it is still backed directly by seed1 instead of a
+  separate indexed explorer database.
 - The brand-new domain is being blocked by at least one local ISP/router security filter.
 - The project is not yet on GitHub.
 - There are no signed releases yet.
