@@ -52,5 +52,13 @@ const pySig = fx.signed_tx.inputs[0].witness[0];
 const pyValid = secp256k1.verify(hexToBytes(pySig), hexToBytes(digestHex), hexToBytes(fx.pubkey_hex));
 check("Python signature verifies against JS digest", pyValid, true);
 
+// 5. seed-phrase derivation must match the Python wallet (mnemonic portability)
+import { privateKeyFromSeedPhrase, walletFromPrivateKey, verifySeedPhrase, addressToScriptPubkey } from "../src/wallet.mjs";
+const seedPriv = privateKeyFromSeedPhrase(fx.seed.phrase, fx.seed.index);
+check("seed phrase -> private key", seedPriv, fx.seed.priv_hex);
+check("seed phrase -> p2wpkh address", walletFromPrivateKey(seedPriv).address, fx.seed.p2wpkh_address);
+check("seed phrase validates", verifySeedPhrase(fx.seed.phrase), true);
+check("addressToScriptPubkey round-trips", addressToScriptPubkey(fx.p2wpkh_address), fx.prevout_effective_script_pubkey);
+
 console.log(fails === 0 ? "\nALL CHECKS PASSED ✅" : `\n${fails} CHECK(S) FAILED ❌`);
 process.exit(fails === 0 ? 0 : 1);

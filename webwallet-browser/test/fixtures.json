@@ -1,0 +1,41 @@
+{
+  "priv_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+  "pubkey_hex": "034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+  "p2wpkh_address": "net1ql3e9pgs3mmwuwrh95fecme0s0qtn2880pdf9sc",
+  "legacy_address": "NivnQqietnnoBQ15ibFmsxYkPGkPe4TG61",
+  "prevout_effective_script_pubkey": "OP_0 fc7250a211deddc70ee5a2738de5f07817351cef",
+  "sighash_all_digest_hex": "b0a9325c88b09971841388c52c9d15d16d6915c9c1605afb4868906a618586fc",
+  "signed_tx": {
+    "version": 1,
+    "inputs": [
+      {
+        "txid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "vout": 0,
+        "signature": "",
+        "public_key": "",
+        "coinbase": "",
+        "witness": [
+          "b733e0b93336c3fee17743fbc1f06d625e0c4c9d7fc8921af35514f50a0785f42a53c3071ae0ed120a5bb9353cce2abe58175c476b2721020f94da46c762f0d6",
+          "034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "amount": 120000000,
+        "address": "net1ql3e9pgs3mmwuwrh95fecme0s0qtn2880pdf9sc"
+      },
+      {
+        "amount": 379000000,
+        "address": "NivnQqietnnoBQ15ibFmsxYkPGkPe4TG61"
+      }
+    ],
+    "locktime": 0
+  },
+  "seed": {
+    "phrase": "net000 net001 net002 net003 net004 net005 net006 net007 net008 net009 net010 net011 net012 net013 net014 net015 net190",
+    "index": 0,
+    "priv_hex": "5887aaac1353fed524912f1367ec35bc7e116ba68472f8d54e0660e14c34d7b6",
+    "p2wpkh_address": "net1q29kyvdsam93h4xkjshwalgj8fq7a7lxpe4p3mz"
+  }
+}
