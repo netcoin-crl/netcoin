@@ -8,6 +8,7 @@
   const COIN = 100000000;
 
   let state = null; // { seed, privHex, address }
+  let lastSpendableSats = 0;
 
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
@@ -27,6 +28,24 @@
     return Number(sats);
   }
   const satsToNet = (s) => (s / COIN).toLocaleString(undefined, { maximumFractionDigits: 8 });
+  function satsToInput(sats) {
+    const n = BigInt(Math.max(0, Number(sats)));
+    const whole = n / 100000000n;
+    const frac = String(n % 100000000n).padStart(8, "0").replace(/0+$/, "");
+    return frac ? `${whole}.${frac}` : String(whole);
+  }
+  function currentFeeSats() {
+    return netToSats($("fee").value || "0", { allowZero: true });
+  }
+  function updateFeeHint() {
+    try {
+      const fee = currentFeeSats();
+      const max = Math.max(0, lastSpendableSats - fee);
+      $("feeHint").textContent = `Amount + fee must be less than your spendable balance. Max send now: ${satsToInput(max)} NET.`;
+    } catch {
+      $("feeHint").textContent = "Enter the network fee in NET, up to 8 decimal places.";
+    }
+  }
 
   // ---------- encryption at rest (WebCrypto) ----------
   async function deriveKey(password, salt) {
@@ -70,9 +89,11 @@
     $("balNet").textContent = "…";
     try {
       const b = await api("/balance/" + encodeURIComponent(state.address));
-      $("balNet").textContent = satsToNet(b.spendable_sats ?? b.spendable ?? 0);
+      lastSpendableSats = b.spendable_sats ?? b.spendable ?? 0;
+      $("balNet").textContent = satsToNet(lastSpendableSats);
       const imm = b.immature_sats ?? 0;
       $("balImmature").textContent = imm > 0 ? ("+" + satsToNet(imm) + " NET maturing") : "";
+      updateFeeHint();
     } catch (e) { $("balNet").textContent = "—"; $("balImmature").textContent = "offline: " + e.message; }
   }
 
@@ -121,6 +142,16 @@
   $("btnCopy").onclick = () => navigator.clipboard?.writeText(state.address);
   $("btnRefresh").onclick = refresh;
   $("btnLock").onclick = () => { state = null; show("unlock"); };
+  $("fee").oninput = updateFeeHint;
+  $("btnMax").onclick = () => {
+    try {
+      $("amount").value = satsToInput(Math.max(0, lastSpendableSats - currentFeeSats()));
+      $("sendMsg").textContent = "";
+    } catch (e) {
+      $("sendMsg").className = "err";
+      $("sendMsg").textContent = "Failed: " + e.message;
+    }
+  };
   $("btnSend").onclick = async () => {
     const msg = $("sendMsg"); msg.className = ""; msg.textContent = "Sending…";
     try {
@@ -128,6 +159,9 @@
       W.addressToScriptPubkey(to); // validates it's a v0 net1 address
       const amt = netToSats($("amount").value);
       const fee = netToSats($("fee").value, { allowZero: true });
+      if (lastSpendableSats && amt + fee > lastSpendableSats) {
+        throw new Error(`amount + fee is too high. Max send is ${satsToInput(Math.max(0, lastSpendableSats - fee))} NET with this fee.`);
+      }
       const txid = await send(to, amt, fee);
       msg.className = "ok"; msg.textContent = "Sent ✓ txid " + txid.slice(0, 16) + "…";
       $("toAddr").value = ""; $("amount").value = ""; setTimeout(refresh, 800);
