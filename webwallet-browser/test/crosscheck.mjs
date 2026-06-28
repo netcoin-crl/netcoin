@@ -53,12 +53,27 @@ const pyValid = secp256k1.verify(hexToBytes(pySig), hexToBytes(digestHex), hexTo
 check("Python signature verifies against JS digest", pyValid, true);
 
 // 5. seed-phrase derivation must match the Python wallet (mnemonic portability)
-import { privateKeyFromSeedPhrase, walletFromPrivateKey, verifySeedPhrase, addressToScriptPubkey } from "../src/wallet.mjs";
+import { privateKeyFromSeedPhrase, walletFromPrivateKey, verifySeedPhrase, addressToScriptPubkey, buildSignedPayment } from "../src/wallet.mjs";
 const seedPriv = privateKeyFromSeedPhrase(fx.seed.phrase, fx.seed.index);
 check("seed phrase -> private key", seedPriv, fx.seed.priv_hex);
 check("seed phrase -> p2wpkh address", walletFromPrivateKey(seedPriv).address, fx.seed.p2wpkh_address);
 check("seed phrase validates", verifySeedPhrase(fx.seed.phrase), true);
 check("addressToScriptPubkey round-trips", addressToScriptPubkey(fx.p2wpkh_address), fx.prevout_effective_script_pubkey);
+
+let zeroFeeRejected = false;
+try {
+  buildSignedPayment({
+    privHex: fx.priv_hex,
+    utxos: [{ txid: "aa".repeat(32), vout: 0, amount: 500000000, address: fx.p2wpkh_address }],
+    toAddress: fx.p2wpkh_address,
+    amount: 100000000,
+    fee: 0,
+    changeAddress: fx.p2wpkh_address,
+  });
+} catch {
+  zeroFeeRejected = true;
+}
+check("zero-fee payment is rejected", zeroFeeRejected, true);
 
 console.log(fails === 0 ? "\nALL CHECKS PASSED ✅" : `\n${fails} CHECK(S) FAILED ❌`);
 process.exit(fails === 0 ? 0 : 1);

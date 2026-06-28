@@ -149,6 +149,7 @@ class NetCoinNode:
         self._relay_queue: List[RelayItem] = []
         self.max_relay_inventory = 2000
         self.max_relay_queue = 1000
+        self.max_node_orphans = 200
         self.relay_max_attempts = 3
         self.relay_backoff_seconds = 2.0
         self.started_at = time.time()
@@ -536,10 +537,40 @@ class NetCoinNode:
         except Exception as exc:
             self.log_event("headers_first_sync_fallback", peer=peer, reason=str(exc))
 
-        # Compatibility fallback for older NetCoin nodes.
-        data = self.fetch_json(f"{peer}/chain")
-        blocks = self.chain.import_chain_data(data)
+        # Compatibility fallback for older NetCoin nodes. Fetch pages from peers
+        # that support bounded /chain responses; old peers may ignore the query and
+        # return their full chain once.
+        blocks_payload: List[Dict[str, Any]] = []
+        start = 0
+        limit = 2000
+        while True:
+            data = self.fetch_json(f"{peer}/chain?start={start}&limit={limit}")
+            page_blocks = data.get("blocks", [])
+            blocks_payload.extend(page_blocks)
+            if not data.get("has_next"):
+                break
+            start = int(data.get("next_start", start + len(page_blocks)))
+            if not page_blocks:
+                break
+        blocks = self.chain.import_chain_data({"blocks": blocks_payload})
         return self.chain.replace_chain(blocks)
+
+    def _looks_like_orphan_candidate(self, block: Block, reason: str) -> bool:
+        """Only keep rejected blocks in the node orphan queue when they plausibly
+        need a missing parent. Malformed/invalid blocks should not consume memory."""
+        if "does not connect" not in reason and "previous hash" not in reason:
+            return False
+        if self.chain.block_by_hash(block.hash()) is not None:
+            return False
+        if block.header.height <= self.chain.height():
+            return False
+        return True
+
+    def remember_node_orphan(self, block: Block) -> None:
+        self.orphans[block.hash()] = block
+        while len(self.orphans) > self.max_node_orphans:
+            oldest = next(iter(self.orphans))
+            del self.orphans[oldest]
 
     def sync_all(self) -> int:
         adopted = 0
@@ -569,8 +600,10 @@ class NetCoinNode:
         try:
             block_hash = self.chain.add_block(block)
         except Exception as exc:
-            self.orphans[block.hash()] = block
-            self.log_event("block_rejected", hash=block.hash(), reason=str(exc))
+            reason = str(exc)
+            if self._looks_like_orphan_candidate(block, reason):
+                self.remember_node_orphan(block)
+            self.log_event("block_rejected", hash=block.hash(), reason=reason)
             self.sync_all()
             raise
         self.log_event("block_accepted", hash=block_hash, height=self.chain.height())
@@ -763,7 +796,10 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     limit = max(1, min(int(query.get("limit", [100])[0]), 500))
                     self.send_json({"events": node.recent_events(limit)})
                 elif parsed.path == "/chain":
-                    self.send_json(node.chain.export_chain())
+                    query = parse_qs(parsed.query)
+                    start = int(query.get("start", [0])[0])
+                    limit = int(query.get("limit", [200])[0])
+                    self.send_json(node.chain.export_chain(start=start, limit=limit))
                 elif parsed.path == "/headers":
                     query = parse_qs(parsed.query)
                     start = int(query.get("start", [0])[0])

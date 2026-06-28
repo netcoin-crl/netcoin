@@ -103,7 +103,7 @@ const DUST = 546;
 export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, changeAddress }) {
   amount = Number(amount); fee = Number(fee);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error("amount must be a positive integer (sats)");
-  if (!Number.isInteger(fee) || fee < 0) throw new Error("fee must be a non-negative integer (sats)");
+  if (!Number.isInteger(fee) || fee <= 0) throw new Error("fee must be a positive integer (sats)");
   const { chosen, total } = selectCoins(utxos, amount + fee);
   const change = total - amount - fee;
 

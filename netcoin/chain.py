@@ -1198,8 +1198,30 @@ class Blockchain:
             "orphan_candidates": len(self.orphan_blocks),
         }
 
-    def export_chain(self) -> Dict[str, Any]:
-        return {"blocks": [block.to_dict() for block in self.chain]}
+    def export_chain(self, start: int = 0, limit: Optional[int] = None) -> Dict[str, Any]:
+        """Export a bounded chain slice.
+
+        Public HTTP callers should not be able to force a full-chain JSON dump as
+        the chain grows. CLI callers can still omit ``limit`` for a local full
+        export, while the node API passes an explicit bounded limit.
+        """
+        start = max(0, int(start))
+        if limit is None:
+            selected = self.chain[start:]
+            limit_value = len(selected)
+        else:
+            limit_value = max(1, min(int(limit), 2000))
+            selected = self.chain[start:start + limit_value]
+        next_start = start + len(selected)
+        return {
+            "height": self.height(),
+            "tip_hash": self.tip_hash(),
+            "start": start,
+            "limit": limit_value,
+            "has_next": next_start < len(self.chain),
+            "next_start": next_start,
+            "blocks": [block.to_dict() for block in selected],
+        }
 
     def export_mempool(self) -> Dict[str, Any]:
         return {"transactions": [tx.to_dict(include_scripts=True, include_witness=True) for tx in self.mempool]}

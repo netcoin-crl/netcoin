@@ -81,6 +81,24 @@ def test_latest_endpoint_clamps_n(tmp_path: Path):
     assert len(data["blocks"]) == 4
 
 
+def test_chain_endpoint_is_paginated_by_default(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    for _ in range(5):
+        chain.mine_block(miner.address)
+
+    with served(NetCoinNode(chain, persist=False)) as s:
+        first = get(f"{s.url}/chain?limit=2")
+        second = get(f"{s.url}/chain?start={first['next_start']}&limit=2")
+
+    assert first["height"] == 5
+    assert len(first["blocks"]) == 2
+    assert first["start"] == 0
+    assert first["has_next"] is True
+    assert second["start"] == 2
+    assert len(second["blocks"]) == 2
+
+
 def test_utxos_endpoint_for_address(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     miner = Wallet.create()
