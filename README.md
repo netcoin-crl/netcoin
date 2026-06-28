@@ -24,6 +24,38 @@ seed2.netcoin.online:28444 -> http://18.220.197.20:28444
 seed3.netcoin.online:28444 -> http://18.226.74.252:28444
 ```
 
+## How To Use These Commands
+
+There are two different setup steps:
+
+1. **Install once per computer**: clone the repo, create `.venv`, and run
+   `python -m pip install -e .`.
+2. **Activate every new terminal**: whenever you open a new Terminal or
+   PowerShell window, go back into the `netcoin` folder and activate `.venv`
+   again before running `python -m netcoin ...`.
+
+If a command says "Terminal 1" and "Terminal 2", those are two separate windows.
+Terminal 1 usually keeps a node running. Terminal 2 is where you check balance,
+mine, or send.
+
+Activate an existing setup:
+
+macOS / Linux:
+
+```bash
+cd netcoin
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+cd netcoin
+.\.venv\Scripts\Activate.ps1
+```
+
+You can tell it worked when your prompt starts with `(.venv)`.
+
 Quick health check:
 
 macOS / Linux:
@@ -43,6 +75,8 @@ Invoke-RestMethod "http://18.226.74.252:28444/latest?n=5"
 ```
 
 ## 1. Install
+
+Do this one time on each computer.
 
 macOS / Linux:
 
@@ -68,6 +102,23 @@ python -m netcoin --help
 
 Run commands from the project folder, the one with `pyproject.toml`.
 
+After install, if you close the terminal and open a new one, do not recreate the
+venv. Just activate it again:
+
+macOS / Linux:
+
+```bash
+cd netcoin
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+cd netcoin
+.\.venv\Scripts\Activate.ps1
+```
+
 ## 2. Create A Wallet
 
 ```bash
@@ -78,6 +129,22 @@ python -m netcoin wallet-info --wallet miner.json
 Write down the recovery phrase. The wallet file controls your testnet coins.
 
 ## 3. Mine On The Public Network
+
+Open a new terminal if needed, then activate the venv first:
+
+macOS / Linux:
+
+```bash
+cd netcoin
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+cd netcoin
+.\.venv\Scripts\Activate.ps1
+```
 
 Mine one block:
 
@@ -116,6 +183,8 @@ blocks are mined after them.
 
 ## 4. Check Balance
 
+Use a terminal where `.venv` is active.
+
 Check your wallet:
 
 ```bash
@@ -138,7 +207,8 @@ python -m netcoin wallet-info --wallet miner.json
 
 Use this when other people should be able to connect to your node.
 
-On a VPS or public server:
+On a VPS or public server, first install NetCoin and activate `.venv`. Then run
+the node command and leave that terminal open:
 
 macOS / Linux:
 
@@ -193,6 +263,8 @@ No-port-forwarding options are in
 
 This is the easiest way to view a wallet and send transactions.
 
+Open a terminal, activate `.venv`, then run:
+
 ```bash
 python -m netcoin web --node http://18.220.89.128:28444
 ```
@@ -211,11 +283,13 @@ signed transactions to the public node.
 This runs a node on your computer, syncs with the public seeds, and lets you mine
 through your own node instead of directly hitting the AWS seeds.
 
+Terminal 1: start your node and leave it running:
+
 ```bash
 python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 --sync-interval 60 --peer http://18.220.89.128:28444 --peer http://18.220.197.20:28444 --peer http://18.226.74.252:28444
 ```
 
-Check your node:
+Terminal 2: activate `.venv`, then check your node:
 
 macOS / Linux:
 
@@ -229,7 +303,7 @@ Windows PowerShell:
 Invoke-RestMethod http://127.0.0.1:28444/info
 ```
 
-Mine through your own node:
+Terminal 2: mine through your own node:
 
 ```bash
 python -m netcoin miner --node http://127.0.0.1:28444 --wallet miner.json --blocks 1
@@ -247,6 +321,8 @@ above.
 ## 8. Send Coins
 
 Use the local browser wallet for the simplest public-network send flow:
+
+Open a terminal, activate `.venv`, then run:
 
 ```bash
 python -m netcoin web --node http://18.220.89.128:28444
@@ -345,8 +421,15 @@ python -m netcoin blockfilter --node http://18.220.89.128:28444 --height 100
 
 Keep RPC private:
 
+Terminal 1:
+
 ```bash
 python -m netcoin --data ~/.netcoin-testnet rpc --host 127.0.0.1 --port 28445
+```
+
+Terminal 2:
+
+```bash
 python -m netcoin rpc-call getblockchaininfo --url http://127.0.0.1:28445
 ```
 

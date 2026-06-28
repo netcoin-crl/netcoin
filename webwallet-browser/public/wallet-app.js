@@ -6,7 +6,6 @@
   const API = (document.querySelector('meta[name="ncw-api"]')?.content || (location.origin + "/api")).replace(/\/$/, "");
   const STORE = "ncw.v1";
   const COIN = 100000000;
-  const FEE = 1000; // sats; testnet flat fee
 
   let state = null; // { seed, privHex, address }
 
@@ -18,12 +17,12 @@
   const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
   const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
-  function netToSats(str) {
+  function netToSats(str, { allowZero = false } = {}) {
     const m = String(str).trim().match(/^(\d+)(?:\.(\d{1,8}))?$/);
     if (!m) throw new Error("invalid amount");
     const whole = BigInt(m[1]); const frac = (m[2] || "").padEnd(8, "0");
     const sats = whole * 100000000n + BigInt(frac || "0");
-    if (sats <= 0n) throw new Error("amount must be positive");
+    if (sats < 0n || (!allowZero && sats === 0n)) throw new Error("amount must be positive");
     if (sats > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("amount too large");
     return Number(sats);
   }
@@ -77,11 +76,11 @@
     } catch (e) { $("balNet").textContent = "—"; $("balImmature").textContent = "offline: " + e.message; }
   }
 
-  async function send(toAddress, amountSats) {
+  async function send(toAddress, amountSats, feeSats) {
     const u = await api("/utxos?address=" + encodeURIComponent(state.address));
     const utxos = (u.utxos || []).map((x) => ({ txid: x.txid, vout: x.vout, amount: x.output.amount, address: x.output.address }));
     const signed = W.buildSignedPayment({
-      privHex: state.privHex, utxos, toAddress, amount: amountSats, fee: FEE, changeAddress: state.address,
+      privHex: state.privHex, utxos, toAddress, amount: amountSats, fee: feeSats, changeAddress: state.address,
     });
     const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signed) });
     return res.txid;
@@ -128,7 +127,8 @@
       const to = $("toAddr").value.trim();
       W.addressToScriptPubkey(to); // validates it's a v0 net1 address
       const amt = netToSats($("amount").value);
-      const txid = await send(to, amt);
+      const fee = netToSats($("fee").value, { allowZero: true });
+      const txid = await send(to, amt, fee);
       msg.className = "ok"; msg.textContent = "Sent ✓ txid " + txid.slice(0, 16) + "…";
       $("toAddr").value = ""; $("amount").value = ""; setTimeout(refresh, 800);
     } catch (e) { msg.className = "err"; msg.textContent = "Failed: " + e.message; }
