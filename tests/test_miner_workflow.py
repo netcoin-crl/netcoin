@@ -3,6 +3,7 @@ from pathlib import Path
 from netcoin.block import validate_witness_commitment
 from netcoin.chain import Blockchain
 from netcoin.miner import solve_template
+from netcoin.params import MIN_DIFFICULTY_GAP_SECONDS, POW_LIMIT_BITS
 from netcoin.wallet import Wallet
 
 
@@ -65,3 +66,17 @@ def test_solve_template_adds_witness_commitment_for_witness_transactions(tmp_pat
     assert validate_witness_commitment(block) is True
     chain.add_block(block)
     assert chain.height() == 102
+
+
+def test_block_template_uses_testnet_lone_miner_floor_when_tip_is_old(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.address)
+
+    chain.tip().header.timestamp -= MIN_DIFFICULTY_GAP_SECONDS + 1
+    template = chain.get_block_template(miner_address=miner.address)
+
+    assert template["bits"] == POW_LIMIT_BITS
+    block = solve_template(template, miner.address)
+    chain.add_block(block)
+    assert chain.height() == 2

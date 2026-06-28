@@ -1151,6 +1151,10 @@ class Blockchain:
         if not validate_address(miner_address):
             raise ChainError("miner address is not a valid NetCoin address")
         height = self.height() + 1
+        mined_at = int(time.time())
+        bits = self.expected_bits_for_height(height, self.chain)
+        if self.chain and mined_at > self.tip().header.timestamp + MIN_DIFFICULTY_GAP_SECONDS:
+            bits = POW_LIMIT_BITS
         temp_utxos = self.utxo_set()
         txs = []
         fees = 0
@@ -1174,7 +1178,7 @@ class Blockchain:
             "version": 1,
             "previous_hash": self.tip_hash(),
             "height": height,
-            "bits": self.expected_bits_for_height(height, self.chain),
+            "bits": bits,
             "subsidy": self.subsidy(height),
             "fees": fees,
             "max_block_weight": MAX_BLOCK_WEIGHT,
