@@ -35,7 +35,7 @@
     return frac ? `${whole}.${frac}` : String(whole);
   }
   function currentFeeSats() {
-    return netToSats($("fee").value || "0", { allowZero: true });
+    return netToSats($("fee").value || "0");
   }
   function updateFeeHint() {
     try {
@@ -43,7 +43,7 @@
       const max = Math.max(0, lastSpendableSats - fee);
       $("feeHint").textContent = `Amount + fee must be less than your spendable balance. Max send now: ${satsToInput(max)} NET.`;
     } catch {
-      $("feeHint").textContent = "Enter the network fee in NET, up to 8 decimal places.";
+      $("feeHint").textContent = "Enter a positive network fee in NET, up to 8 decimal places.";
     }
   }
 
@@ -158,7 +158,7 @@
       const to = $("toAddr").value.trim();
       W.addressToScriptPubkey(to); // validates it's a v0 net1 address
       const amt = netToSats($("amount").value);
-      const fee = netToSats($("fee").value, { allowZero: true });
+      const fee = netToSats($("fee").value);
       if (lastSpendableSats && amt + fee > lastSpendableSats) {
         throw new Error(`amount + fee is too high. Max send is ${satsToInput(Math.max(0, lastSpendableSats - fee))} NET with this fee.`);
       }

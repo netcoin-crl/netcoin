@@ -5,6 +5,7 @@ from pathlib import Path
 from threading import Thread
 import time
 
+from netcoin.block import Block
 from netcoin.chain import Blockchain
 from netcoin.miner import solve_template
 from netcoin.node import NetCoinNode, make_handler
@@ -115,6 +116,40 @@ def test_delayed_block_then_parent_connects(tmp_path: Path):
     node.accept_block(block2)
     assert target_chain.height() == 3
     assert target_chain.tip_hash() == source.tip_hash()
+
+
+def test_invalid_rejected_block_is_not_held_as_node_orphan(tmp_path: Path):
+    miner = Wallet.create()
+    chain = Blockchain(tmp_path / "chain")
+    node = NetCoinNode(chain, persist=False)
+    block = solve_template(chain.get_block_template(miner_address=miner.address), miner.address)
+    bad = Block(block.header, [chain.tip().transactions[0]])  # valid PoW header, bad merkle/contents
+
+    try:
+        node.accept_block(bad)
+    except Exception:
+        pass
+
+    assert len(node.orphans) == 0
+
+
+def test_node_orphan_queue_is_capped(tmp_path: Path):
+    miner = Wallet.create()
+    source = Blockchain(tmp_path / "source")
+    for _ in range(5):
+        source.mine_block(miner.address)
+
+    target = Blockchain(tmp_path / "target")
+    node = NetCoinNode(target, persist=False)
+    node.max_node_orphans = 2
+
+    for block in source.chain[2:5]:
+        try:
+            node.accept_block(block)
+        except Exception:
+            pass
+
+    assert len(node.orphans) == 2
 
 
 def test_background_sync_loop_catches_up(tmp_path: Path):
