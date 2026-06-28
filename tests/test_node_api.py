@@ -93,6 +93,36 @@ def test_utxos_endpoint_for_address(tmp_path: Path):
     assert isinstance(data["utxos"], list)
 
 
+def test_utxos_endpoint_excludes_mempool_spent_outputs(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    for _ in range(102):
+        chain.mine_block(miner.segwit_address)
+
+    spendable = chain.utxos_for_address(miner.segwit_address)[0]
+    dest = Wallet.create()
+    tx = miner.create_transaction(
+        chain,
+        dest.segwit_address,
+        amount=100_000_000,
+        fee=1_000,
+        from_address=miner.segwit_address,
+        change_address=miner.segwit_address,
+    )
+    chain.add_mempool_transaction(tx)
+
+    with served(NetCoinNode(chain, persist=False)) as s:
+        data = get(f"{s.url}/utxos?address={miner.segwit_address}")
+        raw = get(f"{s.url}/utxos?address={miner.segwit_address}&include_mempool_spent=1")
+
+    outpoints = {f"{u['txid']}:{u['vout']}" for u in data["utxos"]}
+    raw_outpoints = {f"{u['txid']}:{u['vout']}" for u in raw["utxos"]}
+    assert spendable.outpoint() not in outpoints
+    assert spendable.outpoint() in raw_outpoints
+    assert data["excluded_mempool_spent"] == 1
+    assert raw["excluded_mempool_spent"] == 0
+
+
 def test_balance_endpoint_for_address(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     miner = Wallet.create()

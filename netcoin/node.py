@@ -860,8 +860,15 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                 elif parsed.path == "/utxos":
                     query = parse_qs(parsed.query)
                     address = query.get("address", [""])[0]
-                    utxos = [utxo.to_dict() for utxo in node.chain.utxos_for_address(address)]
-                    self.send_json({"address": address, "utxos": utxos})
+                    include_mempool_spent = query.get("include_mempool_spent", ["0"])[0].lower() in ("1", "true", "yes")
+                    utxos = node.chain.utxos_for_address(address)
+                    mempool_spent = {txin.outpoint() for tx in node.chain.mempool for txin in tx.inputs}
+                    available = [utxo for utxo in utxos if include_mempool_spent or utxo.outpoint() not in mempool_spent]
+                    self.send_json({
+                        "address": address,
+                        "utxos": [utxo.to_dict() for utxo in available],
+                        "excluded_mempool_spent": len(utxos) - len(available),
+                    })
                 else:
                     self.send_error_json("not found", status=404)
             except Exception as exc:
