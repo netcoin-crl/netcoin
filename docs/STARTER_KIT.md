@@ -12,15 +12,49 @@ test coins from the faucet, send a transaction, optionally mine, and report bugs
 ## 0. Requirements
 
 - Python 3.10+
-- macOS, Linux, or WSL on Windows
+- macOS, Linux, or Windows PowerShell
 - Internet access to the public seeds (port **28444**)
 
 ## 1. Install
 
+Do this once:
+
+macOS / Linux:
+
 ```bash
+git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -e .
 python -m netcoin --help
+```
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
+python -m netcoin --help
+```
+
+Every new terminal needs the venv activated again before `python -m netcoin ...`:
+
+macOS / Linux:
+
+```bash
+cd netcoin
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+cd netcoin
+.\.venv\Scripts\Activate.ps1
 ```
 
 ## 2. Make a wallet (and back it up)
@@ -71,8 +105,20 @@ python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 \
 
 Leave that running in one terminal. Confirm sync in another:
 
+macOS / Linux:
+
 ```bash
+cd netcoin
+source .venv/bin/activate
 curl http://127.0.0.1:28444/info
+```
+
+Windows PowerShell:
+
+```powershell
+cd netcoin
+.\.venv\Scripts\Activate.ps1
+Invoke-RestMethod http://127.0.0.1:28444/info
 ```
 
 ## 5. Send a transaction

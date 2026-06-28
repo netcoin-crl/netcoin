@@ -22,6 +22,23 @@ maturity).
 
 Keep your mining wallet separate and back it up.
 
+First activate your NetCoin venv. Do this in every new Terminal or PowerShell
+window before mining:
+
+macOS / Linux:
+
+```bash
+cd netcoin
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+cd netcoin
+.\.venv\Scripts\Activate.ps1
+```
+
 ```bash
 python -m netcoin wallet-new --out miner.json --mnemonic
 chmod 600 miner.json
@@ -53,14 +70,16 @@ On success the node advances its height and relays your block to the other seeds
 Better practice: run your own node (see [NODE_RUNNER.md](NODE_RUNNER.md)) and mine
 against `127.0.0.1`. Your node relays solved blocks to the seeds for you.
 
+Use two terminals:
+
 ```bash
-# terminal 1: your synced node
+# Terminal 1: activate .venv, then start your synced node and leave it running.
 python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 \
   --peer http://seed1.netcoin.online:28444 \
   --peer http://seed2.netcoin.online:28444 \
   --peer http://seed3.netcoin.online:28444
 
-# terminal 2: mine to your local node
+# Terminal 2: activate .venv again, then mine to your local node.
 python -m netcoin miner --node http://127.0.0.1:28444 --wallet miner.json --blocks 5
 ```
 

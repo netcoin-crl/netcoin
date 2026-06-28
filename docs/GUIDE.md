@@ -43,12 +43,28 @@ python -m netcoin --help
 git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
 python -m venv .venv
-.venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 python -m netcoin --help
 ```
 
 Run every command below **from the project root** (the folder with `pyproject.toml`).
+After the first install, every new Terminal or PowerShell window needs the venv
+activated again before `python -m netcoin ...`.
+
+macOS / Linux:
+
+```bash
+cd netcoin
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+cd netcoin
+.\.venv\Scripts\Activate.ps1
+```
 
 ---
 
