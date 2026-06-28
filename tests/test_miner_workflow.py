@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from netcoin.block import validate_witness_commitment
 from netcoin.chain import Blockchain
 from netcoin.miner import solve_template
 from netcoin.wallet import Wallet
@@ -36,5 +37,31 @@ def test_block_template_includes_mempool_transaction_payload(tmp_path: Path):
 
     block = solve_template(template, miner.address)
     assert any(item.txid() == tx.txid() for item in block.transactions)
+    chain.add_block(block)
+    assert chain.height() == 102
+
+
+def test_solve_template_adds_witness_commitment_for_witness_transactions(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    receiver = Wallet.create()
+
+    for _ in range(101):
+        chain.mine_block(miner.segwit_address)
+    tx = miner.create_transaction(
+        chain,
+        receiver.segwit_address,
+        amount=100_000_000,
+        fee=1_000,
+        from_type="p2wpkh",
+    )
+    assert tx.has_witness
+    chain.add_mempool_transaction(tx)
+
+    template = chain.get_block_template(miner_address=miner.segwit_address)
+    block = solve_template(template, miner.segwit_address)
+
+    assert any(item.txid() == tx.txid() for item in block.transactions)
+    assert validate_witness_commitment(block) is True
     chain.add_block(block)
     assert chain.height() == 102

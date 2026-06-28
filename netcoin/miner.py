@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, Iterable, List, Optional
 
-from .block import Block, BlockError, BlockHeader, check_proof_of_work, mine_header, merkle_root
+from .block import Block, BlockError, BlockHeader, check_proof_of_work, mine_header, merkle_root, witness_commitment
 from .params import MAX_BLOCK_WEIGHT
 from .tx import Transaction, create_coinbase_transaction
 
@@ -40,6 +40,12 @@ def solve_template(
     for extra_nonce in range(max_extra_nonce + 1):
         coinbase = create_coinbase_transaction(height, payout_address, reward, extra_nonce=extra_nonce)
         transactions = [coinbase] + selected
+        if any(tx.has_witness for tx in selected):
+            commit = witness_commitment(transactions)
+            coinbase = create_coinbase_transaction(
+                height, payout_address, reward, extra_nonce=extra_nonce, witness_commitment=commit
+            )
+            transactions = [coinbase] + selected
         header = BlockHeader(
             version=int(template.get("version", 1)),
             previous_hash=previous_hash,
