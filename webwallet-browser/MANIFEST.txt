@@ -1,5 +1,5 @@
 NetCoin wallet build manifest
-source_commit: 98b53ebd8d4228e1730d5e3bd5997e497e1f57c6
+source_commit: b7d4106ca4a69094940ffa1fea041e178f78a2b5
 built_from: webwallet-browser/ (npm ci + npm run build)
 
 public/netcoin-wallet.js   sha384=sha384-t4EMmJPkwh4IKRH9hx0trrT7vnJczjJVAdeYSYA+pa1P6uwNzEsPWurKFtqdm600
