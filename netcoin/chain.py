@@ -186,6 +186,26 @@ class Blockchain:
             "transaction_count": len(txids),
         }
 
+    def supply_summary(self) -> Dict[str, Any]:
+        total_minted_sats = 0
+        for block in self.chain:
+            if block.transactions:
+                total_minted_sats += block.transactions[0].total_output()
+        tip_coinbase_sats = self.tip().transactions[0].total_output() if self.tip().transactions else 0
+        next_height = self.height() + 1
+        next_subsidy_sats = self.subsidy(next_height)
+        return {
+            "height": self.height(),
+            "tip_hash": self.tip_hash(),
+            "total_minted_sats": total_minted_sats,
+            "total_minted": sats_to_amount(total_minted_sats),
+            "tip_coinbase_sats": tip_coinbase_sats,
+            "tip_coinbase": sats_to_amount(tip_coinbase_sats),
+            "next_height": next_height,
+            "next_subsidy_sats": next_subsidy_sats,
+            "next_subsidy": sats_to_amount(next_subsidy_sats),
+        }
+
     @property
     def chain_path(self) -> Path:
         return self.data_dir / "chain.json"

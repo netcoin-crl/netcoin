@@ -28,11 +28,19 @@
   const setView = (node) => { view.replaceChildren(node); };
 
   // ---------- emission / supply panel ----------
-  function subsidyAt(height) { return height < ACTIVATION ? LEGACY_SUBSIDY : EMISSION_BASE; }
-  function emissionCard(height) {
+  function fallbackSupply(height) {
+    return {
+      total_minted: (height * LEGACY_SUBSIDY).toFixed(8),
+      next_subsidy: (height < ACTIVATION ? LEGACY_SUBSIDY : EMISSION_BASE).toFixed(8),
+    };
+  }
+  function displayNet(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 8 }) : esc(value ?? "0");
+  }
+  function emissionCard(height, supply) {
     const toAct = Math.max(0, ACTIVATION - height);
     const pct = Math.min(100, (height / ACTIVATION) * 100);
-    const minted = height * LEGACY_SUBSIDY; // pre-activation estimate (50 NET/block)
     const status = height < ACTIVATION
       ? `Legacy subsidy <b class="acc">${LEGACY_SUBSIDY} NET</b>/block — random emission activates at height ${ACTIVATION} (<b>${toAct}</b> blocks to go).`
       : `Random emission <b class="acc">active</b> — base ${EMISSION_BASE} NET/block, with a yearly random 10% "cut" (testnet year = ${YEAR} blocks).`;
@@ -40,21 +48,25 @@
       <h2>Emission</h2>
       <div class="muted" style="margin-bottom:10px">${status}</div>
       <div class="bar"><i style="width:${pct.toFixed(1)}%"></i></div>
-      <div class="muted" style="margin-top:6px">~${minted.toLocaleString()} NET minted${height < ACTIVATION ? " (est.)" : ""} · current subsidy ${subsidyAt(height)} NET/block</div>
+      <div class="muted" style="margin-top:6px">${displayNet(supply.total_minted)} NET minted · next subsidy ${displayNet(supply.next_subsidy)} NET/block</div>
     </div>`);
   }
 
   // ---------- home ----------
   async function home() {
-    let info, latest;
-    try { info = (await api("/info")).node; latest = await api("/latest?n=15"); }
+    let info, latest, supply;
+    try {
+      info = (await api("/info")).node;
+      latest = await api("/latest?n=15");
+      try { supply = await api("/supply"); } catch { supply = fallbackSupply(info.height); }
+    }
     catch (e) { setView(el(`<div class="card err">Cannot reach the node: ${esc(e.message)}</div>`)); return; }
 
     const stats = el(`<div class="stats">
       <div class="stat"><div class="k">Height</div><div class="v">${info.height.toLocaleString()}</div></div>
       <div class="stat"><div class="k">Mempool</div><div class="v">${info.mempool_transactions ?? 0}</div></div>
       <div class="stat"><div class="k">Difficulty (bits)</div><div class="v mono" style="font-size:14px">0x${(info.bits>>>0).toString(16)}</div></div>
-      <div class="stat"><div class="k">Subsidy</div><div class="v">${subsidyAt(info.height)} <span class="muted" style="font-size:13px">NET</span></div></div>
+      <div class="stat"><div class="k">Next Subsidy</div><div class="v">${displayNet(supply.next_subsidy)} <span class="muted" style="font-size:13px">NET</span></div></div>
     </div>`);
 
     const rows = latest.blocks.map((b) => `<tr>
@@ -68,7 +80,7 @@
       <tbody>${rows}</tbody></table></div>`);
 
     const frag = document.createDocumentFragment();
-    frag.append(stats, emissionCard(info.height), blocks);
+    frag.append(stats, emissionCard(info.height, supply), blocks);
     setView(frag);
   }
 

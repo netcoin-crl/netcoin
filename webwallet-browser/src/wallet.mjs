@@ -75,10 +75,16 @@ export function walletFromPrivateKey(privHex) {
 // ---- transactions ----
 // Derive the effective scriptPubkey for a P2WPKH bech32 address: "OP_0 <hash160>".
 export function addressToScriptPubkey(address) {
-  const { prefix, words } = bech32.decode(address);
-  if (prefix !== HRP) throw new Error("address has wrong network prefix");
+  let decoded;
+  try {
+    decoded = bech32.decode(address);
+  } catch {
+    throw new Error("browser wallet sends only to net1... SegWit v0 addresses");
+  }
+  const { prefix, words } = decoded;
+  if (prefix !== HRP) throw new Error("browser wallet sends only to net1... SegWit v0 addresses");
   const witver = words[0];
-  if (witver !== 0) throw new Error("only v0 (P2WPKH) addresses are supported here");
+  if (witver !== 0) throw new Error("browser wallet sends only to net1... SegWit v0 addresses");
   const program = bech32.fromWords(words.slice(1));
   return "OP_0 " + bytesToHex(Uint8Array.from(program));
 }

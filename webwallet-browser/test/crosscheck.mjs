@@ -59,6 +59,13 @@ check("seed phrase -> private key", seedPriv, fx.seed.priv_hex);
 check("seed phrase -> p2wpkh address", walletFromPrivateKey(seedPriv).address, fx.seed.p2wpkh_address);
 check("seed phrase validates", verifySeedPhrase(fx.seed.phrase), true);
 check("addressToScriptPubkey round-trips", addressToScriptPubkey(fx.p2wpkh_address), fx.prevout_effective_script_pubkey);
+let legacyRejected = false;
+try {
+  addressToScriptPubkey(fx.legacy_address);
+} catch (e) {
+  legacyRejected = /net1/.test(e.message);
+}
+check("legacy send address explains browser limit", legacyRejected, true);
 
 let zeroFeeRejected = false;
 try {
