@@ -1,0 +1,7 @@
+# One node per line. Blank lines and # comments are ignored.
+# You can use either hostnames or user@host entries.
+# If a line has no user@ prefix, NETCOIN_SSH_USER from deploy.env is used.
+
+# ubuntu@seed1.netcoin.online
+# ubuntu@seed2.netcoin.online
+# 203.0.113.10

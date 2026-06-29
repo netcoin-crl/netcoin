@@ -35,7 +35,7 @@
   const setView = (node) => { view.replaceChildren(node); };
 
   const SITE_CONFIG = {
-    explorer: { title: "Explorer", note: "Public chain data only: blocks, transactions, addresses, mempool, fees, peers, mining, and known labels.", route: "", nav: ["navHome", "navMempool", "navFees", "navPeers", "navStats", "navMining"] },
+    explorer: { title: "Explorer", note: "Public chain lookup only. Latest blocks, newest transactions, mempool count, fees, peers, and network health are summarized on Home. Wallet, merchant, faucet, community, markets, and API docs live on their own sites.", route: "", nav: ["navHome"] },
     pay: { title: "Pay", note: "Checkout, payment requests, receipts, tips, donations, and public profiles.", route: "#/payments", nav: ["navPayments", "navPos", "navNames"] },
     merchant: { title: "Merchant", note: "Merchant tools: invoices, POS, refunds, API keys, webhooks, and exports.", route: "#/merchant", nav: ["navMerchant", "navPos", "navPayments"] },
     faucet: { title: "Faucet", note: "Testnet coin claims and faucet health.", route: "#/faucet", nav: ["navFaucet", "navStats"] },
@@ -55,7 +55,7 @@
     const allowed = new Set(cfg.nav || []);
     document.querySelectorAll(".nav button").forEach((btn) => btn.classList.toggle("site-hidden", !allowed.has(btn.id)));
     const contacts = $("#contactsCard");
-    if (contacts) contacts.classList.toggle("site-hidden", !["explorer", "pay", "community"].includes(site));
+    if (contacts) contacts.classList.add("site-hidden");
     if (!location.hash && cfg.route) location.hash = cfg.route;
   }
 
@@ -239,19 +239,28 @@
 
   // ---------- home ----------
   async function home() {
-    let info, latest, supply, latestTxs;
+    let info, latest, supply, latestTxs, feeData, peerData, mempoolData;
     try {
       info = (await api("/info")).node;
       latest = await api("/latest?n=15");
       try { latestTxs = await api("/latest-txs?n=12"); } catch { latestTxs = { confirmed: [], mempool: [] }; }
       try { supply = await api("/supply"); } catch { supply = fallbackSupply(info.height); }
+      try { feeData = await api("/fee-estimates"); } catch { feeData = {}; }
+      try { peerData = await api("/peers"); } catch { peerData = {}; }
+      try { mempoolData = await api("/mempool"); } catch { mempoolData = {}; }
     }
     catch (e) { setView(el(`<div class="card err">Cannot reach the node: ${esc(e.message)}</div>`)); return; }
 
+    const mempoolCount = info.mempool_transactions ?? (mempoolData.entries || []).length ?? 0;
+    const peerCount = (peerData.peers || peerData.connected_peers || []).length || peerData.count || info.peer_count || 0;
+    const fastFee = feeData?.presets?.fast?.fee_rate_per_kvb || feeData?.fast || "—";
+    const health = info.height >= 0 ? "Online" : "Check node";
     const stats = el(`<div class="stats">
       <div class="stat"><div class="k">Height</div><div class="v">${info.height.toLocaleString()}</div></div>
-      <div class="stat"><div class="k">Mempool</div><div class="v"><a href="#/mempool">${info.mempool_transactions ?? 0}</a></div></div>
-      <div class="stat"><div class="k">Difficulty (bits)</div><div class="v mono" style="font-size:14px">0x${(info.bits>>>0).toString(16)}</div></div>
+      <div class="stat"><div class="k">Network health</div><div class="v acc">${health}</div></div>
+      <div class="stat"><div class="k">Mempool</div><div class="v">${mempoolCount}</div></div>
+      <div class="stat"><div class="k">Fast fee / kvB</div><div class="v">${fastFee}</div></div>
+      <div class="stat"><div class="k">Peers</div><div class="v">${peerCount}</div></div>
       <div class="stat"><div class="k">Next Subsidy</div><div class="v">${displayNet(supply.next_subsidy)} <span class="muted" style="font-size:13px">NET</span></div></div>
     </div>`);
 
@@ -647,21 +656,21 @@
 
   $("#home").onclick = () => { location.hash = ""; };
   $("#navHome").onclick = () => { location.hash = ""; };
-  $("#navMempool").onclick = () => { location.hash = "#/mempool"; };
-  $("#navFees").onclick = () => { location.hash = "#/fees"; };
-  $("#navPeers").onclick = () => { location.hash = "#/peers"; };
-  $("#navStats").onclick = () => { location.hash = "#/stats"; };
-  $("#navFaucet").onclick = () => { location.hash = "#/faucet"; };
-  $("#navPayments").onclick = () => { location.hash = "#/payments"; };
-  $("#navPos").onclick = () => { location.hash = "#/pos"; };
-  $("#navNames").onclick = () => { location.hash = "#/names"; };
-  $("#navMerchant").onclick = () => { location.hash = "#/merchant"; };
-  $("#navCommunity").onclick = () => { location.hash = "#/community"; };
-  $("#navWalletTools").onclick = () => { location.hash = "#/wallet-tools"; };
-  $("#navPhase7").onclick = () => { location.hash = "#/phase7"; };
-  const navAdmin = $("#navAdmin"); if (navAdmin) navAdmin.onclick = () => { location.href = "admin.html"; };
-  $("#navMining").onclick = () => { location.hash = "#/mining"; };
-  $("#navApi").onclick = () => { location.hash = "#/api"; };
+  const bindNav = (id, hash) => { const btn = $("#" + id); if (btn) btn.onclick = () => { location.hash = hash; }; };
+  bindNav("navMempool", "#/mempool");
+  bindNav("navFees", "#/fees");
+  bindNav("navPeers", "#/peers");
+  bindNav("navStats", "#/stats");
+  bindNav("navFaucet", "#/faucet");
+  bindNav("navPayments", "#/payments");
+  bindNav("navPos", "#/pos");
+  bindNav("navNames", "#/names");
+  bindNav("navMerchant", "#/merchant");
+  bindNav("navCommunity", "#/community");
+  bindNav("navWalletTools", "#/wallet-tools");
+  bindNav("navPhase7", "#/phase7");
+  bindNav("navMining", "#/mining");
+  bindNav("navApi", "#/api");
   $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(e.target.value); });
   $("#contactSelect").addEventListener("change", syncContactFormFromSelect);
   $("#contactAddress").addEventListener("input", syncContactNameFromAddress);

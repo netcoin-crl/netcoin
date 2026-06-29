@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Faucet</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
+  <link rel="stylesheet" href="faucet.css?v=20260629-independent" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="logo">N</div><div>NetCoin Faucet<small>testnet coin requests</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online">Pay</a><a href="https://merchant.netcoin.online">Merchant</a><a href="https://faucet.netcoin.online" class="active" aria-current="page">Faucet</a><a href="https://community.netcoin.online">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav>
+    </header>
+    
+<section class="hero"><div class="card"><span class="pill"><span id="faucetDot" class="dot"></span><span id="faucetStatus">Checking faucet</span></span><h1>Get test NetCoin without opening the explorer.</h1><p>The faucet is its own small app: enter an address, request test coins, and watch queue/health.</p></div><div class="card"><h2>Faucet health</h2><div class="stats"><div class="stat"><div class="k">Queue</div><div class="v" id="queue">—</div></div><div class="stat"><div class="k">Hot wallet</div><div class="v" id="hotWallet">—</div></div><div class="stat"><div class="k">CAPTCHA</div><div class="v" id="captcha">—</div></div></div></div></section>
+<section class="grid"><div class="card"><h2>Request test coins</h2><label>Your NetCoin address</label><input id="address" class="mono" placeholder="net..." /><button id="requestCoins">Request coins</button><pre id="requestResult"></pre></div><div class="card"><h2>Recent grants</h2><button id="refreshHistory" class="secondary">Refresh history</button><pre id="history"></pre></div></section>
+
+    <p class="footer">NetCoin Faucet is a standalone site. Explorer data is only linked when it helps this specific workflow.</p>
+  </div>
+  <script src="faucet.js?v=20260629-independent"></script>
+</body>
+</html>
