@@ -1,5 +1,5 @@
 NetCoin wallet build manifest
-source_commit: 7b98b099f2eea94d14411737315959c36b7857bf
+source_commit: eb932ea10cb07dbb46f6da8a4dd64470dc3ade36
 local_patch: browser saved contacts for recipients
 built_from: webwallet-browser/ (npm ci + npm run build)
 
