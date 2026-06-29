@@ -59,7 +59,7 @@ python -m netcoin miner \
 ```
 
 - `--blocks N` mines up to N blocks then stops.
-- Use the raw seed IPs (`18.220.89.128`, `18.220.197.20`, `18.226.74.252`) if the
+- Use the raw seed IPs (`seed1.netcoin.online`, `seed2.netcoin.online`, `seed3.netcoin.online`) if the
   hostname is blocked on your network.
 - Spread load: mine against `seed1` one round, `seed2` the next, etc.
 
@@ -107,7 +107,7 @@ python -m netcoin template --wallet miner.json
 
 ```bash
 python -m netcoin balance \
-  --node http://18.220.89.128:28444 \
+  --node http://seed1.netcoin.online:28444 \
   --address <YOUR_ADDRESS>
 ```
 

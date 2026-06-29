@@ -292,7 +292,7 @@ set, a lossless binary codec, an API-backed explorer, and faucet hardening.
   emits propagation events as JSON lines.
 - Explorer **mempool section** (unconfirmed transactions with fee rates).
 - Operations guide (`docs/OPERATIONS.md`): structured logging, **log rotation**, and
-  **deploying tagged releases** with rollback.
+  **maintaining tagged releases** with rollback.
 - **Address index** (`address_summary`) and a node `GET /address/<addr>` endpoint
   returning balance, UTXO count, and the transactions that touch an address.
 - **Node config file** (`netcoin.conf`, JSON or `key=value`) via `node --config`.

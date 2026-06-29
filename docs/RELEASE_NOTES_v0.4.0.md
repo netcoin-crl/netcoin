@@ -22,7 +22,7 @@ fidelity on top of v0.3.0. **192 automated tests pass.**
 - **Services/ops:** API-backed explorer (`explorer-server` + `/api/*`); faucet
   hardening (queue, hot-wallet isolation/refill, throttle, abuse log, balance gate);
   `/health`, `/metrics` (Prometheus), `/events`, `/relay`; GET+POST rate limiting;
-  monitoring webhook alerts; backup + safe deploy/upgrade scripts; structured logs.
+  monitoring webhook alerts; backup + safe update/maintenance scripts; structured logs.
 
 See the full [CHANGELOG](../CHANGELOG.md) for the complete list.
 

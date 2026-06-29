@@ -1,7 +1,7 @@
 # Dev-only: serve public/ and proxy /api/* -> a NetCoin node (raw IP bypasses the
 # ISP domain filter). NOT for production — production uses nginx same-origin relay.
 import http.server, socketserver, urllib.request, os
-NODE = os.environ.get("NETCOIN_NODE", "http://18.226.74.252:28444")
+NODE = os.environ.get("NETCOIN_NODE", "http://seed3.netcoin.online:28444")
 ROOT = os.path.join(os.path.dirname(__file__), "..", "public")
 
 class H(http.server.SimpleHTTPRequestHandler):
