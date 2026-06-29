@@ -5,6 +5,7 @@
   const W = window.NCW;
   const API = (document.querySelector('meta[name="ncw-api"]')?.content || (location.origin + "/api")).replace(/\/$/, "");
   const STORE = "ncw.v1";
+  const CONTACTS_STORE = "ncw.contacts.v1";
   const COIN = 100000000;
 
   let state = null; // { seed, privHex, address }
@@ -44,6 +45,122 @@
       $("feeHint").textContent = `Amount + fee must be less than your spendable balance. Max send now: ${satsToInput(max)} NET.`;
     } catch {
       $("feeHint").textContent = "Enter a positive network fee in NET, up to 8 decimal places.";
+    }
+  }
+
+
+  // ---------- saved contacts ----------
+  function loadContacts() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(CONTACTS_STORE) || "[]");
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .map((c) => ({ name: String(c.name || "").trim(), address: String(c.address || "").trim(), createdAt: Number(c.createdAt || 0) || Date.now() }))
+        .filter((c) => c.name && c.address);
+    } catch {
+      return [];
+    }
+  }
+
+  function saveContacts(list) {
+    const clean = list
+      .map((c) => ({ name: String(c.name || "").trim(), address: String(c.address || "").trim(), createdAt: Number(c.createdAt || 0) || Date.now() }))
+      .filter((c) => c.name && c.address)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    localStorage.setItem(CONTACTS_STORE, JSON.stringify(clean));
+  }
+
+  function shortAddress(address) {
+    return address.length > 24 ? `${address.slice(0, 12)}…${address.slice(-8)}` : address;
+  }
+
+  function sameAddress(a, b) {
+    return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+  }
+
+  function setContactMsg(text, className = "muted") {
+    const msg = $("contactMsg");
+    msg.className = className;
+    msg.textContent = text;
+  }
+
+  function renderContacts(selectedAddress = "") {
+    const select = $("contactSelect");
+    const contacts = loadContacts();
+    const previous = selectedAddress || select.value;
+    select.innerHTML = "";
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = contacts.length ? "Select a saved contact…" : "No saved contacts yet";
+    select.appendChild(placeholder);
+
+    for (const contact of contacts) {
+      const option = document.createElement("option");
+      option.value = contact.address;
+      option.textContent = `${contact.name} — ${shortAddress(contact.address)}`;
+      option.title = contact.address;
+      if (sameAddress(contact.address, previous)) option.selected = true;
+      select.appendChild(option);
+    }
+  }
+
+  function useSelectedContact() {
+    const address = $("contactSelect").value;
+    if (!address) {
+      setContactMsg("Choose a saved contact first.", "err");
+      return;
+    }
+    const contact = loadContacts().find((c) => sameAddress(c.address, address));
+    $("toAddr").value = address;
+    if (contact) $("contactName").value = contact.name;
+    setContactMsg(contact ? `Loaded ${contact.name}.` : "Loaded saved address.", "ok");
+  }
+
+  function saveCurrentRecipientAsContact() {
+    try {
+      const address = $("toAddr").value.trim();
+      W.addressToScriptPubkey(address); // validates browser-supported net1 address
+      const name = $("contactName").value.trim();
+      if (!name) throw new Error("enter a contact name first");
+
+      const contacts = loadContacts();
+      const existingIndex = contacts.findIndex((c) => sameAddress(c.address, address));
+      const contact = { name, address, createdAt: existingIndex >= 0 ? contacts[existingIndex].createdAt : Date.now() };
+      if (existingIndex >= 0) contacts[existingIndex] = contact;
+      else contacts.push(contact);
+
+      saveContacts(contacts);
+      renderContacts(address);
+      setContactMsg(existingIndex >= 0 ? `Updated ${name}.` : `Saved ${name}.`, "ok");
+    } catch (e) {
+      setContactMsg("Could not save contact: " + e.message, "err");
+    }
+  }
+
+  function deleteSelectedContact() {
+    const address = $("contactSelect").value;
+    if (!address) {
+      setContactMsg("Choose a saved contact to delete.", "err");
+      return;
+    }
+    const contacts = loadContacts();
+    const contact = contacts.find((c) => sameAddress(c.address, address));
+    const label = contact ? contact.name : shortAddress(address);
+    if (!confirm(`Delete ${label} from saved contacts?`)) return;
+    saveContacts(contacts.filter((c) => !sameAddress(c.address, address)));
+    $("contactSelect").value = "";
+    $("contactName").value = "";
+    renderContacts();
+    setContactMsg(`Deleted ${label}.`, "ok");
+  }
+
+  function syncContactNameFromAddress() {
+    const address = $("toAddr").value.trim();
+    const contact = loadContacts().find((c) => sameAddress(c.address, address));
+    if (contact) {
+      $("contactName").value = contact.name;
+      renderContacts(address);
     }
   }
 
@@ -143,6 +260,12 @@
   $("btnRefresh").onclick = refresh;
   $("btnLock").onclick = () => { state = null; show("unlock"); };
   $("fee").oninput = updateFeeHint;
+  $("contactSelect").onchange = useSelectedContact;
+  $("btnUseContact").onclick = useSelectedContact;
+  $("btnSaveContact").onclick = saveCurrentRecipientAsContact;
+  $("btnDeleteContact").onclick = deleteSelectedContact;
+  $("toAddr").oninput = syncContactNameFromAddress;
+  renderContacts();
   $("btnMax").onclick = () => {
     try {
       $("amount").value = satsToInput(Math.max(0, lastSpendableSats - currentFeeSats()));

@@ -1,11 +1,12 @@
 NetCoin wallet build manifest
 source_commit: 7b98b099f2eea94d14411737315959c36b7857bf
+local_patch: browser saved contacts for recipients
 built_from: webwallet-browser/ (npm ci + npm run build)
 
 public/netcoin-wallet.js   sha384=sha384-bPC3d74AR1XU9mKU6s1766pYvU/iePmxNHlEbLrixSEbsOc9NdEBt/Wm/AeN2kCW
-public/wallet-app.js       sha384=sha384-mxM3RG5N9LOrLzmYVDGlY4bigNZG0l4oPf4jxapXq9JAvLwHBOpNt0DAfl1xFk6q
+public/wallet-app.js       sha384=sha384-1bWsxqgwaEzEMRJYUmAckrtkNxsgKZuk/vj+oKReW4eTmOcP8miAeUZzItRKZXlP
 
 sha256 (base64):
   netcoin-wallet.js        2OU0vxOCIpprtguewxi2hjmCi5MxQrghrm2n/GlbDJg=
-  wallet-app.js            ctNXEoy42BgJw+qXcj0pmIoa4YGe0CgElBq/dPgmVnU=
-  wallet.html              +EcrkGUJ6pSF4/WN7uDpiy8rOK79e7DqrRb7THj/xaM=
+  wallet-app.js            McN90ztXqW6AwR7B7g9Vgg53VBldpXFIwb5jSaUnTkM=
+  wallet.html              k8w72eETOC1G48VKp9asaI21kKAWMd8d7Zb4sRZmEqA=

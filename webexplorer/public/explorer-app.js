@@ -4,6 +4,7 @@
 (function () {
   const API = (location.origin + "/api").replace(/\/$/, "");
   const COIN = 100000000;
+  const CONTACTS_STORE = "ncw.contacts.v1";
   // NetCoin emission params (display only; mirror netcoin/params.py).
   const ACTIVATION = 1000, LEGACY_SUBSIDY = 50, EMISSION_BASE = 15, YEAR = 720;
 
@@ -26,6 +27,146 @@
   }
   const view = $("#view");
   const setView = (node) => { view.replaceChildren(node); };
+
+  // ---------- saved contacts ----------
+  function loadContacts() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(CONTACTS_STORE) || "[]");
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .map((c) => ({ name: String(c.name || "").trim(), address: String(c.address || "").trim(), createdAt: Number(c.createdAt || 0) || Date.now() }))
+        .filter((c) => c.name && c.address);
+    } catch {
+      return [];
+    }
+  }
+
+  function saveContacts(list) {
+    const clean = list
+      .map((c) => ({ name: String(c.name || "").trim(), address: String(c.address || "").trim(), createdAt: Number(c.createdAt || 0) || Date.now() }))
+      .filter((c) => c.name && c.address)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    localStorage.setItem(CONTACTS_STORE, JSON.stringify(clean));
+  }
+
+  function shortAddress(address) {
+    return address.length > 24 ? `${address.slice(0, 12)}…${address.slice(-8)}` : address;
+  }
+
+  function sameAddress(a, b) {
+    return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+  }
+
+  function setContactMsg(text, className = "muted") {
+    const msg = $("#contactMsg");
+    if (!msg) return;
+    msg.className = className;
+    msg.textContent = text;
+  }
+
+  function normalizeContactAddress(address) {
+    const clean = String(address || "").trim();
+    if (!clean) throw new Error("enter an address or public key first");
+    return clean;
+  }
+
+  function renderContacts(selectedAddress = "") {
+    const select = $("#contactSelect");
+    if (!select) return;
+    const contacts = loadContacts();
+    const previous = selectedAddress || select.value;
+    select.innerHTML = "";
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = contacts.length ? "Select a saved contact…" : "No saved contacts yet";
+    select.appendChild(placeholder);
+
+    for (const contact of contacts) {
+      const option = document.createElement("option");
+      option.value = contact.address;
+      option.textContent = `${contact.name} — ${shortAddress(contact.address)}`;
+      option.title = contact.address;
+      if (sameAddress(contact.address, previous)) option.selected = true;
+      select.appendChild(option);
+    }
+  }
+
+  function fillContactForm(address, name = "") {
+    const addrInput = $("#contactAddress");
+    const nameInput = $("#contactName");
+    if (!addrInput || !nameInput) return;
+    addrInput.value = address || "";
+    const contact = loadContacts().find((c) => sameAddress(c.address, address));
+    nameInput.value = contact ? contact.name : name;
+    renderContacts(address || "");
+  }
+
+  function syncContactFormFromSelect() {
+    const address = $("#contactSelect").value;
+    if (!address) return;
+    const contact = loadContacts().find((c) => sameAddress(c.address, address));
+    fillContactForm(address, contact?.name || "");
+    setContactMsg(contact ? `Selected ${contact.name}.` : "Selected saved address.");
+  }
+
+  function syncContactNameFromAddress() {
+    const address = $("#contactAddress").value.trim();
+    const contact = loadContacts().find((c) => sameAddress(c.address, address));
+    if (contact) {
+      $("#contactName").value = contact.name;
+    }
+    renderContacts(address);
+  }
+
+  function saveContactFromFields() {
+    try {
+      const address = normalizeContactAddress($("#contactAddress").value);
+      const name = $("#contactName").value.trim();
+      if (!name) throw new Error("enter a contact name first");
+
+      const contacts = loadContacts();
+      const existingIndex = contacts.findIndex((c) => sameAddress(c.address, address));
+      const contact = { name, address, createdAt: existingIndex >= 0 ? contacts[existingIndex].createdAt : Date.now() };
+      if (existingIndex >= 0) contacts[existingIndex] = contact;
+      else contacts.push(contact);
+
+      saveContacts(contacts);
+      renderContacts(address);
+      setContactMsg(existingIndex >= 0 ? `Updated ${name}.` : `Saved ${name}.`, "ok");
+    } catch (e) {
+      setContactMsg("Could not save contact: " + e.message, "err");
+    }
+  }
+
+  function viewSelectedContact() {
+    const selectAddress = $("#contactSelect").value;
+    const typedAddress = $("#contactAddress").value.trim();
+    const address = selectAddress || typedAddress;
+    if (!address) {
+      setContactMsg("Choose or enter a contact first.", "err");
+      return;
+    }
+    const contact = loadContacts().find((c) => sameAddress(c.address, address));
+    if (contact) fillContactForm(contact.address, contact.name);
+    setContactMsg(contact ? `Opening ${contact.name}.` : "Opening address.", "ok");
+    location.hash = "#/address/" + encodeURIComponent(address);
+  }
+
+  function deleteSelectedContact() {
+    const address = $("#contactSelect").value;
+    if (!address) {
+      setContactMsg("Choose a saved contact to delete.", "err");
+      return;
+    }
+    const contacts = loadContacts();
+    const contact = contacts.find((c) => sameAddress(c.address, address));
+    const label = contact ? contact.name : shortAddress(address);
+    if (!confirm(`Delete ${label} from saved contacts?`)) return;
+    saveContacts(contacts.filter((c) => !sameAddress(c.address, address)));
+    fillContactForm("", "");
+    setContactMsg(`Deleted ${label}.`, "ok");
+  }
 
   // ---------- emission / supply panel ----------
   function fallbackSupply(height) {
@@ -129,6 +270,8 @@
           <div class="stat"><div class="k">Txs</div><div class="v">${a.transaction_count ?? txids.length}</div></div>
         </div></div>
       <div class="card"><h2>Recent transactions</h2><table><tbody>${txRows}</tbody></table></div></div>`));
+    fillContactForm(a.address);
+    setContactMsg("Viewing address. Add a name above and save it as a contact.");
     $("#bk").onclick = () => history.back();
   }
 
@@ -182,6 +325,12 @@
 
   $("#home").onclick = () => { location.hash = ""; };
   $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(e.target.value); });
+  $("#contactSelect").addEventListener("change", syncContactFormFromSelect);
+  $("#contactAddress").addEventListener("input", syncContactNameFromAddress);
+  $("#btnViewContact").onclick = viewSelectedContact;
+  $("#btnSaveContact").onclick = saveContactFromFields;
+  $("#btnDeleteContact").onclick = deleteSelectedContact;
+  renderContacts();
   window.addEventListener("hashchange", route);
   $("#footer").textContent = "NetCoin Explorer · live data via same-origin relay · read-only";
   route();
