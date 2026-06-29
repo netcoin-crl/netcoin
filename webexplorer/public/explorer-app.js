@@ -57,6 +57,10 @@
     return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
   }
 
+  function isProbablyNetCoinAddress(address) {
+    return /^(net1[ac-hj-np-z02-9]{20,90}|[Np][1-9A-HJ-NP-Za-km-z]{25,50})$/.test(address);
+  }
+
   function setContactMsg(text, className = "muted") {
     const msg = $("#contactMsg");
     if (!msg) return;
@@ -66,7 +70,8 @@
 
   function normalizeContactAddress(address) {
     const clean = String(address || "").trim();
-    if (!clean) throw new Error("enter an address or public key first");
+    if (!clean) throw new Error("enter an address first");
+    if (!isProbablyNetCoinAddress(clean)) throw new Error("enter a valid-looking NetCoin address");
     return clean;
   }
 
@@ -145,6 +150,10 @@
     const address = selectAddress || typedAddress;
     if (!address) {
       setContactMsg("Choose or enter a contact first.", "err");
+      return;
+    }
+    if (!isProbablyNetCoinAddress(address)) {
+      setContactMsg("Enter a valid-looking NetCoin address.", "err");
       return;
     }
     const contact = loadContacts().find((c) => sameAddress(c.address, address));
