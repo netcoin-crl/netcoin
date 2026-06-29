@@ -74,10 +74,10 @@ The regression suite covers:
 Use raw IPs if the local network blocks fresh `netcoin.online` hostnames.
 
 ```bash
-curl http://18.220.89.128:28444/info
-curl http://18.220.197.20:28444/info
-curl http://18.226.74.252:28444/info
-curl http://18.220.89.128/status.json
+curl http://seed1.netcoin.online:28444/info
+curl http://seed2.netcoin.online:28444/info
+curl http://seed3.netcoin.online:28444/info
+curl http://seed1.netcoin.online/status.json
 ```
 
 Expected:
@@ -225,7 +225,7 @@ Recommended next hardening:
 - Nginx `limit_req` for public endpoints
 - Nginx `client_max_body_size`
 - separate faucet/explorer host from seed nodes
-- automated uptime checks from outside AWS
+- automated uptime checks from outside the primary hosting environment
 
 ## Production Gate
 

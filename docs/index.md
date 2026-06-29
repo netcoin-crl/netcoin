@@ -1,81 +1,70 @@
-# NetCoin
+# NetCoin Docs
 
-**NetCoin** is an educational, from-scratch, Bitcoin-like cryptocurrency written in
-Python (runs on macOS / Linux / Windows). Wallet-file encryption uses the vetted
-`cryptography` package for AEAD. It is **not Bitcoin**, does not connect to the
-Bitcoin network, and has **no real-money value**.
+NetCoin is an educational, Bitcoin-like public-testnet project. These docs explain how to use the wallet, explorer, faucet, merchant tools, public API, and local developer commands.
 
-> ⚠️ **Testnet only.** This is learning software. Never use a real wallet seed here,
-> and never treat test NET as money.
+NetCoin is **not Bitcoin** and public-testnet NET has no real-money value.
 
-- **Source code:** <https://github.com/netcoin-crl/netcoin>
-- **Current release:** v0.7.2 — [changelog](https://github.com/netcoin-crl/netcoin/blob/main/CHANGELOG.md)
-- **Releases & downloads:** <https://github.com/netcoin-crl/netcoin/releases>
+## Public apps
 
-## Get started
+| App | Link | Purpose |
+| --- | --- | --- |
+| Wallet | <https://wallet.netcoin.online> | Create or restore a wallet, send, receive, contacts, backups |
+| Explorer | <https://explorer.netcoin.online> | Blocks, transactions, addresses, and network health |
+| Pay | <https://pay.netcoin.online> | Customer checkout and payment requests |
+| Merchant | <https://merchant.netcoin.online> | Invoices, POS, API keys, webhooks, exports, reports |
+| Faucet | <https://faucet.netcoin.online> | Request public-testnet NET |
+| Community | <https://community.netcoin.online> | Campaigns, bounties, gifts, leaderboards, links |
+| Markets | <https://markets.netcoin.online> | Prediction-market demos and Phase 7 experiments |
+| API Docs | <https://api.netcoin.online> | Public endpoint reference and examples |
+| Status | <https://status.netcoin.online> | Public service health |
+
+## Start here
+
+- [User guide](USER_GUIDE.md)
+- [Starter kit](STARTER_KIT.md)
+- [Testnet guide](TESTNET.md)
+- [Wallet modes and site split](WALLET_MODES_AND_SITE_SPLIT.md)
+- [Mining guide](MINING.md)
+- [Node runner guide](NODE_RUNNER.md)
+- [API and architecture overview](ARCHITECTURE.md)
+- [Roadmap](ROADMAP.md)
+- [Limitations](LIMITATIONS.md)
+- [Security policy](../SECURITY.md)
+
+## Install from source
+
+macOS / Linux:
 
 ```bash
 git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
-python3 -m pip install -e .
-python3 -m netcoin --help
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
+python -m netcoin --help
 ```
 
-Prefer a browser to the command line? Launch the local web wallet (wallet,
-faucet, and explorer in one page — keys stay on your machine):
+Windows PowerShell:
 
-```bash
-python3 -m netcoin web --node http://seed1.netcoin.online:28444
-# then open http://127.0.0.1:8088/
+```powershell
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
+python -m netcoin --help
 ```
 
-## Verify a download
+## Public testnet node URLs
 
-Releases are signed with the NetCoin signing key
-(`84F7 F2B9 50C9 D16F A628  AC67 5546 3C98 D439 9B90`):
+Use these hostnames when a command asks for a public node URL:
 
-```bash
-gpg --import netcoin-signing-key.asc
-gpg --verify SHA256SUMS.asc SHA256SUMS   # "Good signature from NetCoin"
-shasum -a 256 -c SHA256SUMS              # checksum OK
+```text
+http://seed1.netcoin.online:28444
+http://seed2.netcoin.online:28444
+http://seed3.netcoin.online:28444
 ```
 
-## Guides
+## Safety
 
-### Start here
-- **[Complete Guide](GUIDE.md) — step-by-step for macOS/Linux/Windows: install → wallet → mine → node → public seed → GitHub/AWS**
-- [Starter Kit](STARTER_KIT.md) — 10-minute walkthrough: install, wallet, faucet, send, mine
-- [Tester Invite](BETA_INVITE.md) — copy-paste beta-tester flow
-
-### Run the network
-- [Run a Node](NODE_RUNNER.md) — your own full node, peered with the public seeds
-- [Host a Public Seed](PUBLIC_SEED_HOSTING.md) — make a node publicly reachable with **no port forwarding** (Cloudflare Tunnel / Tailscale / ngrok / VPS), macOS/Linux/Windows
-- [Mining](MINING.md) — mine testnet blocks from your machine
-- [Testnet Layout](TESTNET.md) — seed nodes, ports, DNS, launch order
-- [Operations](OPERATIONS.md) — backups, deploy/upgrade, monitoring, SQLite backend
-
-### Understand it
-- [Architecture](ARCHITECTURE.md) — components, data flows, trust boundaries
-- [Limitations](LIMITATIONS.md) — what this is and isn't
-- [Roadmap](ROADMAP.md)
-
-### Maintain & secure
-- [Upgrading](UPGRADING.md) — update between releases without wiping data
-- [Releasing](RELEASING.md) — versioning, signed artifacts, verification
-- [Security Testing](SECURITY_TESTING.md)
-- [Security Review Plan](SECURITY_REVIEW_PLAN.md) — gates any mainnet discussion
-
-## Public testnet
-
-| Service | Endpoint |
-| --- | --- |
-| Seed 1 | `seed1.netcoin.online:28444` |
-| Seed 2 | `seed2.netcoin.online:28444` |
-| Seed 3 | `seed3.netcoin.online:28444` |
-| Explorer | <http://18.220.89.128/> |
-| Faucet | <https://18.220.89.128/faucet> |
-| Status | <http://18.220.89.128/status.json> |
-
-```bash
-curl http://seed1.netcoin.online:28444/info
-```
+Never share wallet files, seed phrases, private keys, API keys, or tokens. Public-testnet coins are for testing only and have no real-money value.

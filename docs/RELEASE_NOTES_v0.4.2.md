@@ -14,7 +14,7 @@ v0.4.x networking, explorer, faucet, storage, wallet, and release-verification w
   signature + pubkey in witness.
 - **Release verification:** `dist/netcoin-0.4.2.zip`, `dist/SHA256SUMS`, and
   `dist/SHA256SUMS.asc` are produced locally; checksum and GPG signature verify.
-- **Public repo links updated:** stale `Adoniyas1/netcoin` references were replaced
+- **Public repo links updated:** stale `old personal repo location` references were replaced
   with `netcoin-crl/netcoin`.
 - **Inherited from v0.4.x:** headers-first sync, experimental TCP P2P, relay queues,
   API-backed explorer, faucet queue/CAPTCHA hooks, SQLite/pruning support, fuller

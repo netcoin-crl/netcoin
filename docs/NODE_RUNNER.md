@@ -1,7 +1,7 @@
 # Running an Independent NetCoin Node
 
 This guide is for friends and testers who want to run their own NetCoin full node
-outside the project's AWS seed servers. Running more independent nodes makes the
+outside the project's public seed servers. Running more independent nodes makes the
 testnet healthier and more decentralized.
 
 > NetCoin is educational testnet software. Testnet NET has no real-money value.
@@ -52,9 +52,9 @@ python -m netcoin --data ~/.netcoin-testnet node \
 Raw-IP fallback:
 
 ```bash
-  --peer http://18.220.89.128:28444 \
-  --peer http://18.220.197.20:28444 \
-  --peer http://18.226.74.252:28444
+  --peer http://seed1.netcoin.online:28444 \
+  --peer http://seed2.netcoin.online:28444 \
+  --peer http://seed3.netcoin.online:28444
 ```
 
 On startup the node prints its height and tip, then syncs from peers.

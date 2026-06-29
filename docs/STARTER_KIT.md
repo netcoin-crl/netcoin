@@ -73,13 +73,13 @@ python -m netcoin wallet-info --wallet my-wallet.json
 
 Open the faucet and paste your address:
 
-- https://18.220.89.128/faucet
+- https://seed1.netcoin.online/faucet
 
 The faucet sends **5 test NET** (one request per IP per 24 hours). Watch it arrive:
 
 ```bash
 python -m netcoin balance \
-  --node http://18.220.89.128:28444 \
+  --node http://seed1.netcoin.online:28444 \
   --address <YOUR_ADDRESS>
 ```
 
@@ -91,7 +91,7 @@ python -m netcoin --data ~/.netcoin-testnet balance --address <YOUR_ADDRESS>
 ```
 
 The transaction must be mined before the balance changes. See the
-[explorer](http://18.220.89.128/).
+[explorer](http://seed1.netcoin.online/).
 
 ## 4. Point a local data dir at the network
 
@@ -167,7 +167,7 @@ privately.
 |---|---|
 | New wallet | `wallet-new --out my-wallet.json --mnemonic` |
 | Wallet info | `wallet-info --wallet my-wallet.json` |
-| Balance from public seed | `balance --node http://18.220.89.128:28444 --address <ADDR>` |
+| Balance from public seed | `balance --node http://seed1.netcoin.online:28444 --address <ADDR>` |
 | Balance from local chain | `--data ~/.netcoin-testnet balance --address <ADDR>` |
 | Run node | `--data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 --peer ...` |
 | Send | `send --wallet my-wallet.json --to <ADDR> --amount 1 --fee 0.01 --broadcast-to <node>` |
@@ -175,4 +175,4 @@ privately.
 | Sync now | `curl -X POST http://127.0.0.1:28444/sync` |
 
 Public seeds: `seed1.netcoin.online`, `seed2.netcoin.online`, `seed3.netcoin.online`
-(port 28444). Raw IPs: `18.220.89.128`, `18.220.197.20`, `18.226.74.252`.
+(port 28444). Raw IPs: `seed1.netcoin.online`, `seed2.netcoin.online`, `seed3.netcoin.online`.

@@ -69,9 +69,9 @@ def test_app_store_invoice_username_merchant_community_wallet_and_network(tmp_pa
     assert paid["receipt_txid"] == tx.txid()
     assert paid["payment_uri"].startswith("netcoin:")
 
-    username = store.upsert_username({"username": "adoniyas", "address": merchant.address, "display_name": "Adoniyas"})
+    username = store.upsert_username({"username": "contributor", "address": merchant.address, "display_name": "contributor"})
     assert username["address"] == merchant.address
-    assert store.resolve_username("adoniyas")["display_name"] == "Adoniyas"
+    assert store.resolve_username("contributor")["display_name"] == "contributor"
 
     api_key = store.create_api_key({"merchant_id": "shop"})
     assert api_key["api_key"].startswith("nck_")

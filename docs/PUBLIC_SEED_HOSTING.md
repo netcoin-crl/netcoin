@@ -201,7 +201,7 @@ python -m netcoin --data ~/.netcoin-testnet node --host 0.0.0.0 --port 28444 \
   --advertise http://YOUR_VPS_IP:28444
 ```
 
-This is how the official `seed1/2/3` run (AWS security group opens the port).
+This is how the official `seed1/2/3` run (cloud firewall rule opens the port).
 
 ---
 

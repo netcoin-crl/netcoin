@@ -143,9 +143,9 @@ curl http://SEED1_IP:28444/info
 Create DNS records:
 
 ```text
-seed1.netcoin.online -> 18.220.89.128
-seed2.netcoin.online -> 18.220.197.20
-seed3.netcoin.online -> 18.226.74.252
+seed1.netcoin.online -> seed1.netcoin.online
+seed2.netcoin.online -> seed2.netcoin.online
+seed3.netcoin.online -> seed3.netcoin.online
 ```
 
 Repeat setup for seed2 and seed3. Start seed2 with seed1 as a peer:

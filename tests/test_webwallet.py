@@ -110,7 +110,7 @@ def test_server_serves_page_and_config():
 
 def test_web_command_default_faucet_points_to_live_https_route():
     args = cli.build_parser().parse_args(["web"])
-    assert args.faucet == "https://18.220.89.128/faucet"
+    assert args.faucet == "https://seed1.netcoin.online/faucet"
 
 
 def test_history_endpoint_proxies_address_summary(monkeypatch):

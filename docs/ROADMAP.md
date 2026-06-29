@@ -11,7 +11,7 @@ Shipped in the v0.3.0 line / in progress:
 - [x] RPC auth, request-body caps, fuzz/security/mempool/sync tests
 - [x] Wallet safety (verify-mnemonic, backup, recovery test, export guard)
 - [x] Explorer JSON API (`/tx`, `/latest`), `/health`, `/metrics`
-- [x] Monitoring alerts (webhook), backup & deploy scripts
+- [x] Monitoring alerts (webhook), backup and maintenance scripts
 - [x] Issue/PR templates, CONTRIBUTING, CODE_OF_CONDUCT, BRAND, this roadmap
 - [ ] Real `SECURITY.md` contact, public repo, GitHub Release with artifacts
 - [ ] GPG-signed releases, GitHub Actions CI, public status page
