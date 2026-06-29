@@ -82,17 +82,10 @@ fi
 echo "==> Restarting $SERVICE"
 systemctl daemon-reload || true
 systemctl start "$SERVICE"
+sleep 2
 
 echo "==> Health check http://127.0.0.1:$PORT/info"
-ok=0
-for _ in $(seq 1 30); do
-  if curl -fsS "http://127.0.0.1:$PORT/info" >/dev/null; then
-    ok=1
-    break
-  fi
-  sleep 1
-done
-if [ "$ok" = 1 ]; then
+if curl -fsS "http://127.0.0.1:$PORT/info" >/dev/null; then
   echo "==> Deploy OK"
   rm -rf "$PREV" "$STAGE"
 else

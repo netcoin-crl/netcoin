@@ -24,57 +24,388 @@ seed2.netcoin.online:28444 -> http://18.220.197.20:28444
 seed3.netcoin.online:28444 -> http://18.226.74.252:28444
 ```
 
-## How To Use These Commands
+Public HTTPS apps:
 
-There are two different setup steps:
+```text
+Wallet:    https://wallet.netcoin.online
+Explorer:  https://explorer.netcoin.online
+Pay:       https://pay.netcoin.online
+Merchant:  https://merchant.netcoin.online
+Faucet:    https://faucet.netcoin.online
+Community: https://community.netcoin.online
+Markets:   https://markets.netcoin.online
+Docs:      https://docs.netcoin.online
+API Docs:  https://api.netcoin.online
+Status:    https://status.netcoin.online
+```
 
-1. **Install once per computer**: clone the repo, create `.venv`, and run
-   `python -m pip install -e .`.
-2. **Activate every new terminal**: whenever you open a new Terminal or
-   PowerShell window, go back into the `netcoin` folder and activate `.venv`
-   again before running `python -m netcoin ...`.
+NetCoin uses one EC2 server for these sites. DNS sends each subdomain to the
+same EC2 public IP, and Nginx decides which site folder to show.
 
-If a command says "Terminal 1" and "Terminal 2", those are two separate windows.
-Terminal 1 usually keeps a node running. Terminal 2 is where you check balance,
-mine, or send.
+```text
+wallet.netcoin.online      -> /opt/netcoin/sites/wallet
+explorer.netcoin.online    -> /opt/netcoin/sites/explorer
+pay.netcoin.online         -> /opt/netcoin/sites/pay
+merchant.netcoin.online    -> /opt/netcoin/sites/merchant
+faucet.netcoin.online      -> /opt/netcoin/sites/faucet
+community.netcoin.online   -> /opt/netcoin/sites/community
+markets.netcoin.online     -> /opt/netcoin/sites/markets
+docs.netcoin.online        -> /opt/netcoin/sites/docs
+api.netcoin.online         -> /opt/netcoin/sites/api
+status.netcoin.online      -> /opt/netcoin/sites/status
+```
 
-Activate an existing setup:
+The current production layout is intentionally separated so the Explorer does not
+become bloated. Wallet tools live in the Wallet, business features live in
+Merchant, community features live in Community, prediction-market demos live in
+Markets, and API documentation lives in API Docs.
 
-macOS / Linux:
+## Beginner Guide: How To Use These Commands
+
+There are three places you may use a terminal:
+
+1. **Your Mac / laptop terminal**: used to unzip the project, deploy files, and
+   push to GitHub.
+2. **The EC2 server terminal**: reached by running `ssh ubuntu@YOUR_EC2_IP`; used
+   to test Nginx, Certbot, and services.
+3. **A second terminal window**: sometimes needed when one window is already
+   running a long-lived process like a node.
+
+When a step says **open a new terminal**, on macOS open the Terminal app again or
+press `Command + N`. Do not close a terminal that is running a server unless the
+instructions say to stop it.
+
+### Find your EC2 public IP address
+
+Use one of these methods.
+
+**AWS Console method**:
+
+1. Open AWS Console.
+2. Go to **EC2**.
+3. Click **Instances**.
+4. Click your NetCoin instance.
+5. Copy **Public IPv4 address**.
+
+**From inside the EC2 server**:
 
 ```bash
-cd netcoin
-source .venv/bin/activate
+curl -4 https://checkip.amazonaws.com
 ```
 
-Windows PowerShell:
-
-```powershell
-cd netcoin
-.\.venv\Scripts\Activate.ps1
-```
-
-You can tell it worked when your prompt starts with `(.venv)`.
-
-Quick health check:
-
-macOS / Linux:
+**From your laptop, after DNS is set**:
 
 ```bash
-curl http://18.220.89.128:28444/info
-curl http://18.220.197.20:28444/health
-curl "http://18.226.74.252:28444/latest?n=5"
+dig wallet.netcoin.online +short
+dig explorer.netcoin.online +short
 ```
 
-Windows PowerShell:
+For the current public NetCoin server, the IP is:
 
-```powershell
-Invoke-RestMethod http://18.220.89.128:28444/info
-Invoke-RestMethod http://18.220.197.20:28444/health
-Invoke-RestMethod "http://18.226.74.252:28444/latest?n=5"
+```text
+18.220.89.128
 ```
 
-## 1. Install
+If your EC2 instance is stopped and started later, a normal public IP can change.
+Use an AWS Elastic IP if you want the DNS records to stay stable.
+
+### SSH into the server
+
+From your laptop terminal:
+
+```bash
+ssh ubuntu@18.220.89.128
+```
+
+If your server uses a `.pem` key, use:
+
+```bash
+ssh -i ~/Downloads/YOUR_KEY_NAME.pem ubuntu@18.220.89.128
+```
+
+If you see `Permission denied (publickey)`, you are either already inside the EC2
+server or your laptop is not using the correct SSH key.
+
+### Know where you are
+
+If your prompt looks like this, you are on your laptop:
+
+```text
+yourname@MacBookPro ~ %
+```
+
+If your prompt looks like this, you are on EC2:
+
+```text
+ubuntu@ip-172-31-37-78:~$
+```
+
+To leave EC2 and go back to your laptop terminal:
+
+```bash
+exit
+```
+
+## Beginner Guide: Deploy the Website to EC2
+
+Use these steps when you downloaded a NetCoin release zip and want to upload the
+site files to the existing EC2 server.
+
+### 1. Open a terminal on your laptop
+
+Do **not** run this part inside EC2.
+
+```bash
+cd ~/Downloads
+```
+
+### 2. Unzip the project
+
+Replace the zip name if your downloaded file has a newer name.
+
+```bash
+rm -rf netcoin-deploy
+unzip netcoin-main-responsive-desktop-ec2.zip -d netcoin-deploy
+cd netcoin-deploy/netcoin-main
+chmod +x deploy/deploy_multisite_ec2.sh
+```
+
+### 3. Deploy the sites
+
+```bash
+./deploy/deploy_multisite_ec2.sh ubuntu@18.220.89.128
+```
+
+If you need a key file:
+
+```bash
+./deploy/deploy_multisite_ec2.sh ubuntu@18.220.89.128 ~/Downloads/YOUR_KEY_NAME.pem
+```
+
+The deploy script uploads only the site files by default. It does **not** overwrite
+the live Certbot HTTPS Nginx config unless you deliberately set
+`NETCOIN_DEPLOY_NGINX=1`.
+
+### 4. Test from inside EC2
+
+Open a new terminal or SSH into EC2:
+
+```bash
+ssh ubuntu@18.220.89.128
+```
+
+Then run:
+
+```bash
+curl -s -H "Host: wallet.netcoin.online"   http://127.0.0.1/ | grep -i "<title"
+curl -s -H "Host: explorer.netcoin.online" http://127.0.0.1/ | grep -i "<title"
+curl -s -H "Host: pay.netcoin.online"      http://127.0.0.1/ | grep -i "<title"
+curl -s -H "Host: merchant.netcoin.online" http://127.0.0.1/ | grep -i "<title"
+curl -s -H "Host: faucet.netcoin.online"   http://127.0.0.1/ | grep -i "<title"
+curl -s -H "Host: community.netcoin.online" http://127.0.0.1/ | grep -i "<title"
+curl -s -H "Host: markets.netcoin.online"  http://127.0.0.1/ | grep -i "<title"
+curl -s -H "Host: docs.netcoin.online"     http://127.0.0.1/ | grep -i "<title"
+curl -s -H "Host: api.netcoin.online"      http://127.0.0.1/ | grep -i "<title"
+```
+
+Expected titles:
+
+```text
+NetCoin Wallet
+NetCoin Explorer
+NetCoin Pay
+NetCoin Merchant
+NetCoin Faucet
+NetCoin Community
+NetCoin Markets
+NetCoin Docs
+NetCoin API
+```
+
+### 5. Test the API proxy
+
+Still inside EC2:
+
+```bash
+curl -s -H "Host: pay.netcoin.online" https://127.0.0.1/api/latest -k | head
+curl -s -H "Host: wallet.netcoin.online" https://127.0.0.1/api/fee-estimates -k | head
+```
+
+Expected output should start with NetCoin JSON, such as:
+
+```text
+"blocks"
+"assumed_vbytes"
+```
+
+If you see `Final Trading Terminal`, Nginx is accidentally proxying to port
+`3000`. NetCoin should use port `28444`, not port `3000`.
+
+## Beginner Guide: DNS Records
+
+If all sites are hosted on the same EC2 server, the DNS records should be A
+records pointing to the same EC2 public IP.
+
+In your DNS provider, create records like this:
+
+```text
+wallet      A      18.220.89.128
+explorer    A      18.220.89.128
+pay         A      18.220.89.128
+merchant    A      18.220.89.128
+faucet      A      18.220.89.128
+community   A      18.220.89.128
+markets     A      18.220.89.128
+docs        A      18.220.89.128
+api         A      18.220.89.128
+status      A      18.220.89.128
+```
+
+Do not put `http://` or `https://` in DNS values. DNS values should be only the
+IP address for A records.
+
+Check DNS from your laptop:
+
+```bash
+for d in wallet explorer pay merchant faucet community markets docs api status; do
+  echo "$d.netcoin.online -> $(dig +short $d.netcoin.online | tail -n1)"
+done
+```
+
+Every line should show the EC2 IP.
+
+## Beginner Guide: HTTPS With Certbot
+
+Wallet encryption needs HTTPS because browser WebCrypto (`crypto.subtle`) only
+works in secure browser contexts. If the wallet console says `importKey` is
+undefined, you are probably using HTTP instead of HTTPS.
+
+### 1. Make sure AWS allows HTTPS
+
+In the EC2 Security Group, allow:
+
+```text
+HTTP   TCP 80   0.0.0.0/0
+HTTPS  TCP 443  0.0.0.0/0
+SSH    TCP 22   your IP, or restricted admin access
+```
+
+### 2. Install Certbot on EC2
+
+SSH into EC2 first:
+
+```bash
+ssh ubuntu@18.220.89.128
+```
+
+Then run:
+
+```bash
+sudo cp /etc/nginx/sites-enabled/netcoin.conf /opt/netcoin/backups/nginx/netcoin.conf.before-ssl.$(date +%Y%m%d-%H%M%S)
+
+sudo apt update
+sudo apt install -y snapd
+sudo snap install core
+sudo snap refresh core
+sudo apt remove -y certbot python3-certbot-nginx 2>/dev/null || true
+sudo snap install --classic certbot
+sudo ln -sf /snap/bin/certbot /usr/local/bin/certbot
+```
+
+### 3. Only include domains that point to this EC2 server
+
+Do **not** include `netcoin.online` or `www.netcoin.online` unless those root
+records also point to this EC2 IP.
+
+Check first:
+
+```bash
+for d in wallet.netcoin.online explorer.netcoin.online pay.netcoin.online merchant.netcoin.online faucet.netcoin.online community.netcoin.online markets.netcoin.online docs.netcoin.online api.netcoin.online status.netcoin.online; do
+  echo "$d -> $(dig +short $d | tail -n1)"
+done
+```
+
+### 4. Request the certificate
+
+```bash
+sudo certbot --nginx \
+  -d wallet.netcoin.online \
+  -d explorer.netcoin.online \
+  -d pay.netcoin.online \
+  -d merchant.netcoin.online \
+  -d faucet.netcoin.online \
+  -d community.netcoin.online \
+  -d markets.netcoin.online \
+  -d docs.netcoin.online \
+  -d api.netcoin.online \
+  -d status.netcoin.online
+```
+
+If Certbot asks to expand an existing certificate, choose `E` for expand.
+If it asks about redirecting HTTP to HTTPS, choose redirect.
+
+### 5. Test HTTPS
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+sudo ss -ltnp | grep ':443'
+
+curl -I https://wallet.netcoin.online
+curl -I https://explorer.netcoin.online
+curl -I https://merchant.netcoin.online
+curl -I https://pay.netcoin.online
+```
+
+Expected:
+
+```text
+HTTP/1.1 200 OK
+```
+
+Test renewal:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+## Beginner Guide: GitHub Update
+
+After you test the site package locally and on EC2, update GitHub from your
+laptop terminal.
+
+```bash
+cd ~/Downloads/netcoin-deploy/netcoin-main
+git status
+```
+
+If this folder is not a git repository:
+
+```bash
+git init
+git branch -M main
+git remote add origin https://github.com/netcoin-crl/netcoin.git
+```
+
+Commit and push:
+
+```bash
+git add .
+git commit -m "Update responsive HTTPS multisite NetCoin deployment"
+git push -u origin main
+```
+
+If the remote already exists:
+
+```bash
+git remote set-url origin https://github.com/netcoin-crl/netcoin.git
+git push -u origin main
+```
+
+If GitHub rejects the push because the remote has work you do not have locally,
+do not use `--force` until you intentionally decide to replace the remote branch.
+
+## 1. Install NetCoin Locally
 
 Do this one time on each computer.
 
@@ -117,6 +448,26 @@ Windows PowerShell:
 ```powershell
 cd netcoin
 .\.venv\Scripts\Activate.ps1
+```
+
+You can tell it worked when your prompt starts with `(.venv)`.
+
+Quick health check:
+
+macOS / Linux:
+
+```bash
+curl http://18.220.89.128:28444/info
+curl http://18.220.197.20:28444/health
+curl "http://18.226.74.252:28444/latest?n=5"
+```
+
+Windows PowerShell:
+
+```powershell
+Invoke-RestMethod http://18.220.89.128:28444/info
+Invoke-RestMethod http://18.220.197.20:28444/health
+Invoke-RestMethod "http://18.226.74.252:28444/latest?n=5"
 ```
 
 ## 2. Create A Wallet
@@ -261,9 +612,14 @@ No-port-forwarding options are in
 
 ## 6. Use The Browser Wallet
 
-This is the easiest way to view a wallet and send transactions.
+For the public hosted wallet, open:
 
-Open a terminal, activate `.venv`, then run:
+```text
+https://wallet.netcoin.online
+```
+
+For a local-only wallet on your own computer, open a terminal, activate `.venv`,
+then run:
 
 ```bash
 python -m netcoin web --node http://18.220.89.128:28444
@@ -275,8 +631,8 @@ Open this in your browser:
 http://127.0.0.1:8088/
 ```
 
-The web wallet is local. Your private keys stay on your computer. It only sends
-signed transactions to the public node.
+The local web wallet is local. Your private keys stay on your computer. It only
+sends signed transactions to the public node.
 
 ## 7. Run Your Own Public-Testnet Node
 
@@ -320,9 +676,16 @@ above.
 
 ## 8. Send Coins
 
-Use the local browser wallet for the simplest public-network send flow:
+Use the hosted wallet or the local browser wallet for the simplest public-network
+send flow.
 
-Open a terminal, activate `.venv`, then run:
+Hosted wallet:
+
+```text
+https://wallet.netcoin.online
+```
+
+Local browser wallet:
 
 ```bash
 python -m netcoin web --node http://18.220.89.128:28444
@@ -336,120 +699,36 @@ http://127.0.0.1:8088/
 
 For local/private CLI practice, see the next section.
 
-## Local Practice Chain
-
-These commands make a private chain on your computer. They do **not** connect to
-the public NetCoin testnet.
-
-```bash
-python -m netcoin --data demo-chain init
-python -m netcoin wallet-new --out local-miner.json --mnemonic --confirm-backup
-python -m netcoin wallet-new --out local-alice.json
-python -m netcoin --data demo-chain mine --wallet local-miner.json --blocks 101
-python -m netcoin --data demo-chain balance --wallet local-miner.json
-```
-
-Send locally:
-
-macOS / Linux:
-
-```bash
-ALICE=$(python -m netcoin wallet-info --wallet local-alice.json | python -c 'import json,sys; print(json.load(sys.stdin)["address"])')
-python -m netcoin --data demo-chain send --wallet local-miner.json --to "$ALICE" --amount 12.5 --fee 0.01
-python -m netcoin --data demo-chain mine --wallet local-miner.json --blocks 1
-python -m netcoin --data demo-chain balance --wallet local-alice.json
-```
-
-Windows PowerShell:
-
-```powershell
-$aliceInfo = python -m netcoin wallet-info --wallet local-alice.json | ConvertFrom-Json
-$alice = $aliceInfo.address
-python -m netcoin --data demo-chain send --wallet local-miner.json --to $alice --amount 12.5 --fee 0.01
-python -m netcoin --data demo-chain mine --wallet local-miner.json --blocks 1
-python -m netcoin --data demo-chain balance --wallet local-alice.json
-```
-
-## Explorer
-
-Run a local explorer for a synced node:
-
-```bash
-python -m netcoin --data ~/.netcoin-testnet explorer-server --host 127.0.0.1 --port 8080
-```
-
-Open:
-
-```text
-http://127.0.0.1:8080/
-```
-
-Generate a static explorer for a local/private chain:
-
-```bash
-python -m netcoin --data demo-chain explorer --out explorer
-open explorer/index.html
-```
-
-Linux:
-
-```bash
-xdg-open explorer/index.html
-```
-
-Windows PowerShell:
-
-```powershell
-Start-Process .\explorer\index.html
-```
-
-## Light Client Tools
-
-Scan a wallet with compact filters:
-
-```bash
-python -m netcoin scan-filters --node http://18.220.89.128:28444 --wallet miner.json
-```
-
-Fetch a block filter:
-
-```bash
-python -m netcoin blockfilter --node http://18.220.89.128:28444 --height 100
-```
-
-## Local RPC
-
-Keep RPC private:
-
-Terminal 1:
-
-```bash
-python -m netcoin --data ~/.netcoin-testnet rpc --host 127.0.0.1 --port 28445
-```
-
-Terminal 2:
-
-```bash
-python -m netcoin rpc-call getblockchaininfo --url http://127.0.0.1:28445
-```
-
-Optional token:
-
-macOS / Linux:
-
-```bash
-NETCOIN_RPC_TOKEN="choose-a-secret" \
-python -m netcoin --data ~/.netcoin-testnet rpc --host 127.0.0.1 --port 28445
-```
-
-Windows PowerShell:
-
-```powershell
-$env:NETCOIN_RPC_TOKEN = "choose-a-secret"
-python -m netcoin --data ~/.netcoin-testnet rpc --host 127.0.0.1 --port 28445
-```
-
 ## What Is Implemented
+
+Hosted product sites:
+
+- Responsive HTTPS app ecosystem for phone, tablet, laptop, and desktop.
+- Independent site folders under `/opt/netcoin/sites` so the Explorer is not
+  bloated with unrelated tools.
+- Shared navigation across Wallet, Explorer, Pay, Merchant, Faucet, Community,
+  Markets, Docs, API Docs, and Status.
+- Wallet site for user wallet actions, contacts, backups/imports, wallet modes,
+  and wallet tools.
+- Explorer site focused on chain lookup, latest blocks, latest transactions, and
+  network-health summary.
+- Pay site for customer checkout, payment requests, invoices, and receipts.
+- Merchant site for business tools: invoices, POS, names/profiles, API keys,
+  webhooks, exports, refunds, agreements, escrow-style flows, and merchant
+  reports.
+- Faucet site for testnet coin requests and faucet status.
+- Community site for community links, campaigns, bounties, gifts, and
+  leaderboards.
+- Markets site for Phase 7 prediction-market demos and market experiments.
+- Docs site for user, miner, node, merchant, and operator guides.
+- API Docs site for endpoint documentation, examples, authentication notes, and
+  webhook references.
+- Nginx host-based routing for many subdomains on one EC2 IP.
+- HTTPS with Certbot / Let's Encrypt for public subdomains.
+- API proxy from `/api/*` to the NetCoin node on `127.0.0.1:28444`.
+- Faucet proxy routes to the local faucet service on `127.0.0.1:8081`.
+- Clean deployment layout with active files in `/opt/netcoin/sites`, backups in
+  `/opt/netcoin/backups`, and no NetCoin dependency on port `3000`.
 
 Core chain:
 
@@ -485,6 +764,7 @@ Network:
 - Reorg, rollback, and mempool revalidation
 - Orphan block candidate handling
 - Public endpoint rate limiting
+- API-backed explorer and public status endpoints
 
 Wallet and tools:
 
@@ -494,13 +774,15 @@ Wallet and tools:
 - Watch-only wallet files
 - Descriptor helpers
 - PSBT-like signing flow
-- Local web wallet
-- API-backed explorer server
+- Browser wallet and local web wallet
+- Saved contacts shared between wallet and explorer tools
+- Payment URI support
+- QR/payment-link support in browser tools
+- Backup/import/export flows for wallet-related data
+- Signed messages
 - JSON-RPC server
 - Mining-pool template server
 - Faucet hardening support
-- Signed messages
-- Payment URIs
 - Local multi-node soak/stress harness
 - Deterministic fuzz smoke runner
 - Reindex and crash-safe JSON persistence
@@ -518,48 +800,3 @@ Still not something code alone can create:
 - A public user ecosystem
 
 Those require people, infrastructure, review, miners, users, and time.
-
-## Project Guides
-
-- [docs/GUIDE.md](docs/GUIDE.md) - complete step-by-step guide
-- [docs/STARTER_KIT.md](docs/STARTER_KIT.md) - 10-minute first run
-- [docs/MINING.md](docs/MINING.md) - mining from your own machine
-- [docs/NODE_RUNNER.md](docs/NODE_RUNNER.md) - independent full node guide
-- [docs/PUBLIC_SEED_HOSTING.md](docs/PUBLIC_SEED_HOSTING.md) - public seed hosting
-- [docs/TESTNET.md](docs/TESTNET.md) - public testnet layout
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - architecture and data flows
-- [docs/OPERATIONS.md](docs/OPERATIONS.md) - backups, monitoring, logs, deployment
-- [docs/UPGRADING.md](docs/UPGRADING.md) - update a node safely
-- [docs/RELEASING.md](docs/RELEASING.md) - signed releases and checksums
-- [docs/SECURITY_TESTING.md](docs/SECURITY_TESTING.md) - abuse/crash/replay tests
-- [docs/SECURITY_REVIEW_PLAN.md](docs/SECURITY_REVIEW_PLAN.md) - external review checklist
-- [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - what NetCoin is not
-
-## Developer Checks
-
-Run tests:
-
-```bash
-python -m pytest -q
-```
-
-Run a local multi-node soak test:
-
-```bash
-python -m netcoin soak --nodes 3 --rounds 3
-```
-
-Run fuzz smoke tests:
-
-```bash
-python -m netcoin fuzz --iterations 100
-```
-
-## Safety
-
-This is learning software. Wallet files now use ChaCha20-Poly1305 AEAD from the
-vetted `cryptography` package, but the broader wallet, consensus, and networking
-stack is still educational and not hardened like Bitcoin Core.
-
-Do not promote it as Bitcoin. Do not imply it is affiliated with Bitcoin. Do not
-use the included wallet files for real value.

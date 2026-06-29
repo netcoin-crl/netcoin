@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Pay</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
+  <link rel="stylesheet" href="pay.css?v=20260629-independent" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="logo">N</div><div>NetCoin Pay<small>customer checkout and payment requests</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online" class="active" aria-current="page">Pay</a><a href="https://merchant.netcoin.online">Merchant</a><a href="https://faucet.netcoin.online">Faucet</a><a href="https://community.netcoin.online">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav>
+    </header>
+    
+<section class="hero"><div class="card"><span class="pill"><span id="nodeDot" class="dot"></span><span id="nodeStatus">Checking node</span></span><h1>Checkout that feels like a payment page, not an explorer.</h1><p>Use this site for payment links, invoices, payment requests, and receipts. Customers should not have to understand blocks or mempools.</p><div class="actions"><a class="pill" href="#new">Create request</a><a class="pill" href="#lookup">Look up invoice</a><a class="pill" href="https://wallet.netcoin.online">Open wallet</a></div></div><div class="card"><h2>Live payment network</h2><div class="stats"><div class="stat"><div class="k">Tip height</div><div class="v" id="tipHeight">—</div></div><div class="stat"><div class="k">Fast fee</div><div class="v" id="fastFee">—</div></div><div class="stat"><div class="k">Last block</div><div class="v" id="lastBlock">—</div></div></div></div></section>
+<section class="grid"><div class="card" id="new"><h2>New payment request</h2><label>Recipient NetCoin address</label><input id="recipient" class="mono" placeholder="net..." autocomplete="off" /><div class="row"><div><label>Amount NET</label><input id="amount" inputmode="decimal" placeholder="12.50" /></div><div><label>Order or note</label><input id="memo" placeholder="Order #1001" /></div></div><button id="makeRequest" type="button">Generate payment request</button><p id="createMsg" class="muted"></p><pre id="requestOut" class="mono"></pre></div><div class="card" id="lookup"><h2>Invoice lookup</h2><label>Invoice ID</label><input id="invoiceId" class="mono" placeholder="invoice id" /><button id="loadInvoice" type="button">Check invoice status</button><pre id="invoiceOut" class="mono"></pre></div></section>
+<section class="card"><h2>Customer flow</h2><div class="grid"><div class="biglink"><b>1. Merchant creates request</b><span>Amount, address, memo, and optional order ID.</span></div><div class="biglink"><b>2. Customer opens payment link</b><span>The page shows only amount, recipient, status, and receipt.</span></div><div class="biglink"><b>3. Wallet pays</b><span>Customer can copy the URI or open the wallet.</span></div></div></section>
+
+    <p class="footer">NetCoin Pay is a standalone site. Explorer data is only linked when it helps this specific workflow.</p>
+  </div>
+  <script src="pay.js?v=20260629-independent"></script>
+</body>
+</html>

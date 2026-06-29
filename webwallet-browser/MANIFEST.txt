@@ -1,12 +1,12 @@
 NetCoin wallet build manifest
-source_commit: fbd4cb55fbdd8f6095918d04b8044923ddab0db7
-local_patch: finished phase 1-5 gaps; public pages, POS, webhooks, auth, payout plans, limits, alerts, teams, PDFs, contact groups
+source_commit: 7b98b099f2eea94d14411737315959c36b7857bf
+local_patch: wallet mode tabs and separated explorer entry pages
 built_from: webwallet-browser/ (npm ci + npm run build)
 
 public/netcoin-wallet.js   sha384=sha384-bPC3d74AR1XU9mKU6s1766pYvU/iePmxNHlEbLrixSEbsOc9NdEBt/Wm/AeN2kCW
-public/wallet-app.js       sha384=sha384-rmJ2F9mqLXOc6FPkH6zzuQEdN4+wpqlTrD8u7Tn3mkIxKYRURrJcvdPBDrQz8p38
+public/wallet-app.js       sha384=sha384-JzNvzYIz9gfZgnV0o/QURhZfLMpW6WV+H52LpNp+BoXTFloLnbnQdQBgiWX7N52y
 
 sha256 (base64):
   netcoin-wallet.js        2OU0vxOCIpprtguewxi2hjmCi5MxQrghrm2n/GlbDJg=
-  wallet-app.js            fqzc8NDMPGuKgnHrUA7bwlDM1nl9NgqD9aXj1G1fsio=
-  wallet.html              g3u5q3AGJv7TINNpE/igyAIMN/NIDEtcvO+8LKem7uA=
+  wallet-app.js            BEPUZSaG6FVzW/OQIxpgUSpsgQ49zp5xvU6ilM7lPSk=
+  wallet.html              SLI6qZVvqIleVp+7o3px1ckhyGVNuH/gBYG9CIHln0Y=

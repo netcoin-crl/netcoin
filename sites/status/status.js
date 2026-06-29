@@ -1,0 +1,1 @@
+'use strict';(async()=>{const s=(id,t)=>document.querySelector(id).textContent=t;try{let r=await fetch('/api/latest?n=1');s('#api',r.ok?'Online':'Issue')}catch{s('#api','Issue')}try{let r=await fetch('/faucet/status');s('#faucet',r.ok?'Online':'Issue')}catch{s('#faucet','Issue')}})();

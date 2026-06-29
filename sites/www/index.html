@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'" />
+  <style>
+    :root { color-scheme: dark; --bg:#0b0e14; --card:#151a23; --fg:#e6e9ef; --mut:#9aa4b2; --acc:#3ddc97; --acc2:#5aa9ff; --bd:#222a36; }
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#18202d,var(--bg) 48%);color:var(--fg);font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+    .wrap{max-width:1050px;margin:0 auto;padding:52px 18px 80px}.hero{padding:36px;border:1px solid var(--bd);border-radius:22px;background:rgba(21,26,35,.82)}
+    h1{font-size:42px;line-height:1.05;margin:0 0 12px} h1 span,.acc{color:var(--acc)} p{color:var(--mut);max-width:720px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:22px}
+    a.card{display:block;padding:18px;border:1px solid var(--bd);border-radius:16px;background:var(--card);color:var(--fg);text-decoration:none} a.card:hover{border-color:var(--acc2)} b{display:block;margin-bottom:5px}.pill{display:inline-block;border:1px solid var(--bd);border-radius:999px;padding:3px 10px;color:var(--mut);font-size:12px;margin-bottom:18px}
+
+    .site-nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center;max-width:1050px;margin:22px auto 0;padding:0 18px}.site-nav a{display:inline-flex;align-items:center;min-height:38px;padding:8px 12px;border:1px solid var(--bd);border-radius:999px;background:rgba(255,255,255,.02);color:var(--fg);font-weight:650;font-size:13px;text-decoration:none}.site-nav a:hover{border-color:var(--acc);text-decoration:none}
+    @media (min-width:900px){.site-nav{max-width:min(1320px,calc(100vw - 56px));gap:12px;margin-top:28px;padding:0 28px}.site-nav a{min-height:42px;padding:10px 15px;font-size:14px}.wrap{max-width:min(1320px,calc(100vw - 56px));padding:44px 28px 88px}.hero{padding:46px}.grid{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}a.card{padding:22px;min-height:150px}h1{font-size:clamp(48px,6vw,82px)}}
+    @media (min-width:1180px){.site-nav,.wrap{max-width:min(1440px,calc(100vw - 72px))}.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    @media (max-width:760px){.site-nav{overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;scrollbar-width:thin}.site-nav a{white-space:nowrap;flex:0 0 auto}.wrap{padding-top:28px}.hero{padding:24px}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online">Pay</a><a href="https://merchant.netcoin.online">Merchant</a><a href="https://faucet.netcoin.online">Faucet</a><a href="https://community.netcoin.online">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav><main class="wrap"><section class="hero"><span class="pill">testnet / demo</span><h1>Net<span>Coin</span></h1><p>One clean place for Netcoin users, merchants, developers, and network tools. Choose the app you need.</p><div class="grid">
+<a class="card" href="https://wallet.netcoin.online/"><b>Wallet</b><span>Send, receive, contacts, activity, and local wallet profiles.</span></a>
+<a class="card" href="https://explorer.netcoin.online/"><b>Explorer</b><span>Search blocks, transactions, addresses, mempool, fees, peers, and mining stats.</span></a>
+<a class="card" href="https://pay.netcoin.online/"><b>Pay</b><span>Checkout, invoice payment, receipts, tips, and donation flows.</span></a>
+<a class="card" href="https://merchant.netcoin.online/"><b>Merchant</b><span>Invoices, POS, refunds, API keys, webhooks, and reports.</span></a>
+<a class="card" href="https://faucet.netcoin.online/"><b>Faucet</b><span>Request test coins and check faucet availability.</span></a>
+<a class="card" href="https://docs.netcoin.online/"><b>Docs</b><span>Guides for users, miners, merchants, node operators, and builders.</span></a>
+<a class="card" href="https://api.netcoin.online/"><b>API</b><span>Developer API overview, examples, and endpoint reference.</span></a>
+<a class="card" href="https://status.netcoin.online/"><b>Status</b><span>Network and service health dashboard.</span></a>
+</div></section></main></body></html>
