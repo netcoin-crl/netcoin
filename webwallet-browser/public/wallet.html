@@ -18,10 +18,11 @@
     .sub { color:var(--mut); margin:0 0 20px; font-size:13px; }
     .card { background:var(--card); border:1px solid var(--bd); border-radius:12px; padding:18px; margin-bottom:16px; }
     label { display:block; font-size:12px; color:var(--mut); margin:10px 0 4px; }
-    input, textarea, button { width:100%; font:inherit; border-radius:8px; border:1px solid var(--bd); background:#0e131b; color:var(--fg); padding:10px 12px; }
+    input, textarea, select, button { width:100%; font:inherit; border-radius:8px; border:1px solid var(--bd); background:#0e131b; color:var(--fg); padding:10px 12px; }
     textarea { resize:vertical; min-height:64px; }
     button { background:var(--acc); color:#06210f; border:none; font-weight:600; cursor:pointer; margin-top:14px; }
     button.secondary { background:transparent; color:var(--fg); border:1px solid var(--bd); }
+    button.inline { margin-top:0; }
     .mono { font-family:ui-monospace,Menlo,monospace; word-break:break-all; }
     .row { display:flex; gap:10px; } .row > * { flex:1; }
     .muted { color:var(--mut); font-size:12px; }
@@ -94,6 +95,17 @@
         <h1 style="font-size:16px">Send</h1>
         <label>To address</label>
         <input id="toAddr" class="mono" placeholder="net1q..." autocomplete="off" />
+        <label>Saved contacts</label>
+        <div class="row">
+          <select id="contactSelect" aria-label="Saved contacts"></select>
+          <button id="btnUseContact" class="secondary inline" type="button">Use</button>
+        </div>
+        <div class="row">
+          <input id="contactName" placeholder="Contact name" autocomplete="off" />
+          <button id="btnSaveContact" class="secondary inline" type="button">Save recipient</button>
+        </div>
+        <button id="btnDeleteContact" class="secondary" type="button">Delete selected contact</button>
+        <p class="muted" id="contactMsg">Contacts are saved only in this browser.</p>
         <p class="muted">Browser wallet sends to net1... SegWit addresses only. Use the CLI or local wallet for legacy, P2SH, or Taproot sends.</p>
         <label>Amount (NET)</label>
         <div class="row">
@@ -111,6 +123,6 @@
   </div>
 
   <script src="netcoin-wallet.js" integrity="sha384-bPC3d74AR1XU9mKU6s1766pYvU/iePmxNHlEbLrixSEbsOc9NdEBt/Wm/AeN2kCW"></script>
-  <script src="wallet-app.js?v=20260628-fee-max" integrity="sha384-mxM3RG5N9LOrLzmYVDGlY4bigNZG0l4oPf4jxapXq9JAvLwHBOpNt0DAfl1xFk6q"></script>
+  <script src="wallet-app.js?v=20260628-contacts" integrity="sha384-1bWsxqgwaEzEMRJYUmAckrtkNxsgKZuk/vj+oKReW4eTmOcP8miAeUZzItRKZXlP"></script>
 </body>
 </html>

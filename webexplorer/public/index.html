@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'" />
   <style>
-    :root { color-scheme: dark; --bg:#0b0e14; --card:#151a23; --fg:#e6e9ef; --mut:#9aa4b2; --acc:#3ddc97; --acc2:#5aa9ff; --bd:#222a36; --warn:#ffcc66; }
+    :root { color-scheme: dark; --bg:#0b0e14; --card:#151a23; --fg:#e6e9ef; --mut:#9aa4b2; --acc:#3ddc97; --acc2:#5aa9ff; --bd:#222a36; --warn:#ffcc66; --err:#ff6b6b; }
     * { box-sizing: border-box; }
     body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
     a { color:var(--acc2); text-decoration:none; } a:hover { text-decoration:underline; }
@@ -16,7 +16,10 @@
     h1 { font-size:20px; margin:0; cursor:pointer; } h1 span { color:var(--acc); }
     .pill { font-size:11px; color:var(--mut); border:1px solid var(--bd); border-radius:999px; padding:2px 9px; }
     .search { flex:1; min-width:240px; }
-    .search input { width:100%; font:inherit; border-radius:8px; border:1px solid var(--bd); background:#0e131b; color:var(--fg); padding:9px 12px; }
+    input, select, button { font:inherit; border-radius:8px; border:1px solid var(--bd); background:#0e131b; color:var(--fg); padding:9px 12px; }
+    button { background:var(--acc); color:#06210f; border:none; font-weight:600; cursor:pointer; }
+    button.secondary { background:transparent; color:var(--fg); border:1px solid var(--bd); }
+    .search input { width:100%; }
     .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
     .stat { background:var(--card); border:1px solid var(--bd); border-radius:10px; padding:12px 14px; }
     .stat .k { color:var(--mut); font-size:12px; } .stat .v { font-size:18px; font-weight:700; margin-top:2px; }
@@ -33,8 +36,14 @@
     .muted { color:var(--mut); font-size:13px; }
     .kv { display:grid; grid-template-columns:140px 1fr; gap:6px 14px; font-size:14px; }
     .kv .k { color:var(--mut); } .kv .v { word-break:break-all; }
-    .err { color:#ff6b6b; }
+    .err { color:var(--err); } .ok { color:var(--acc); }
     .back { font-size:13px; color:var(--mut); cursor:pointer; }
+    .contacts { padding:14px 16px; }
+    .contacts h2 { margin-bottom:10px; }
+    .contact-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:10px; margin-bottom:10px; }
+    .contact-row.save { grid-template-columns:minmax(120px,.8fr) minmax(180px,1.4fr) auto; }
+    .contact-row select, .contact-row input { width:100%; min-width:0; }
+    @media (max-width:700px) { .contact-row, .contact-row.save { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -44,9 +53,23 @@
       <span class="pill" id="netpill">testnet</span>
       <div class="search"><input id="q" type="search" placeholder="Search height, block hash, txid, or address — Enter" autocomplete="off" /></div>
     </header>
+    <div class="card contacts" id="contactsCard">
+      <h2>Saved contacts</h2>
+      <div class="contact-row">
+        <select id="contactSelect" aria-label="Saved contacts"></select>
+        <button id="btnViewContact" type="button">View</button>
+        <button id="btnDeleteContact" class="secondary" type="button">Delete</button>
+      </div>
+      <div class="contact-row save">
+        <input id="contactName" placeholder="Contact name" autocomplete="off" />
+        <input id="contactAddress" class="mono" placeholder="NetCoin address / public key" autocomplete="off" />
+        <button id="btnSaveContact" class="secondary" type="button">Save contact</button>
+      </div>
+      <p class="muted" id="contactMsg">Contacts are saved only in this browser and shared with the browser wallet on this device.</p>
+    </div>
     <div id="view"></div>
     <p class="muted" id="footer"></p>
   </div>
-  <script src="explorer-app.js"></script>
+  <script src="explorer-app.js?v=20260628-contacts"></script>
 </body>
 </html>
