@@ -1,0 +1,41 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 9 * * 1"
+
+jobs:
+  python-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package and pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pip-audit
+      - name: Audit Python dependencies
+        run: python -m pip_audit
+
+  webwallet-dependencies:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webwallet-browser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: webwallet-browser/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Audit npm production dependencies
+        run: npm audit --omit=dev --audit-level=high

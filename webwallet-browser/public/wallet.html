@@ -31,6 +31,20 @@
     .bal { font-size:28px; font-weight:700; } .bal small { font-size:14px; color:var(--mut); font-weight:400; }
     .hide { display:none; }
     .pill { display:inline-block; font-size:11px; color:var(--mut); border:1px solid var(--bd); border-radius:999px; padding:2px 8px; }
+    .statusbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .dot { width:9px; height:9px; border-radius:999px; background:var(--mut); display:inline-block; }
+    .dot.okdot { background:var(--acc); } .dot.errdot { background:var(--err); }
+    .review { border:1px solid var(--bd); border-radius:10px; padding:12px; background:#0e131b; margin-top:12px; }
+    .kv { display:grid; grid-template-columns:110px 1fr; gap:6px 10px; font-size:13px; }
+    .kv .k { color:var(--mut); } .kv .v { word-break:break-all; }
+    .smallbtn { margin-top:8px; }
+    .file { padding:8px; }
+    video { width:100%; border:1px solid var(--bd); border-radius:10px; background:#000; }
+    #qrCanvas { width:192px; height:192px; max-width:100%; image-rendering:pixelated; background:#fff; border:8px solid #fff; border-radius:8px; margin-top:10px; }
+    .utxo-list, .watch-list { display:grid; gap:8px; margin-top:8px; }
+    .utxo-item, .watch-item { border:1px solid var(--bd); border-radius:10px; padding:10px; background:#0e131b; }
+    .utxo-item label { display:flex; gap:8px; align-items:flex-start; margin:0; }
+    .utxo-item input[type="checkbox"] { width:auto; margin-top:3px; }
   </style>
 </head>
 <body>
@@ -49,6 +63,8 @@
     <div id="create" class="card hide">
       <p>Your recovery phrase. <strong>Write it down</strong> — it is the only way to restore this wallet, and we never see it.</p>
       <div class="warn mono" id="newPhrase"></div>
+      <label>Wallet profile name</label>
+      <input id="createProfileName" placeholder="Default" autocomplete="off" />
       <label>Set a password to encrypt this wallet on this device</label>
       <input id="createPw" type="password" placeholder="password" autocomplete="new-password" />
       <button id="btnCreateConfirm">I saved it — continue</button>
@@ -60,6 +76,8 @@
     <div id="restore" class="card hide">
       <label>Recovery phrase</label>
       <textarea id="restorePhrase" placeholder="net000 net001 ..." autocomplete="off"></textarea>
+      <label>Wallet profile name</label>
+      <input id="restoreProfileName" placeholder="Restored wallet" autocomplete="off" />
       <label>Password to encrypt on this device</label>
       <input id="restorePw" type="password" placeholder="password" autocomplete="new-password" />
       <button id="btnRestoreConfirm">Restore</button>
@@ -69,15 +87,25 @@
 
     <!-- UNLOCK -->
     <div id="unlock" class="card hide">
-      <p>Unlock your wallet.</p>
+      <p>Unlock a saved wallet profile.</p>
+      <label>Wallet profile</label>
+      <select id="profileSelect" aria-label="Wallet profile"></select>
       <input id="unlockPw" type="password" placeholder="password" autocomplete="current-password" />
       <button id="btnUnlock">Unlock</button>
-      <button id="btnForget" class="secondary">Forget this wallet</button>
+      <div class="row">
+        <button id="btnCreateAnother" class="secondary inline" type="button">Create another wallet</button>
+        <button id="btnRestoreAnother" class="secondary inline" type="button">Restore another wallet</button>
+      </div>
+      <button id="btnForget" class="secondary">Forget selected wallet</button>
+      <p class="muted" id="profileMsg">Profiles are encrypted separately and saved only in this browser.</p>
       <p class="err" id="unlockErr"></p>
     </div>
 
     <!-- WALLET -->
     <div id="walletView" class="hide">
+      <div class="card">
+        <div class="statusbar"><span class="dot" id="statusDot"></span><span id="walletStatus" class="muted">Checking node status…</span><span class="pill" id="activeProfilePill">Profile</span></div>
+      </div>
       <div class="card">
         <label>Your address</label>
         <div class="mono" id="addr"></div>
@@ -87,14 +115,39 @@
         </div>
       </div>
       <div class="card">
+        <h1 style="font-size:16px">Receive</h1>
+        <p class="muted">Create a payment request link for your address.</p>
+        <div class="row">
+          <input id="requestAmount" inputmode="decimal" placeholder="Amount, optional" />
+          <input id="requestLabel" placeholder="Label, optional" autocomplete="off" />
+        </div>
+        <button id="btnMakePaymentLink" class="secondary" type="button">Create payment link</button>
+        <div id="receiveOut" class="review hide">
+          <div class="muted">Payment URI</div>
+          <div id="paymentUri" class="mono"></div>
+          <canvas id="qrCanvas" width="192" height="192" aria-label="Payment request QR code"></canvas>
+          <p id="qrMsg" class="muted"></p>
+          <div class="row">
+            <button id="btnCopyPaymentLink" class="secondary smallbtn" type="button">Copy payment link</button>
+            <button id="btnSharePaymentLink" class="secondary smallbtn" type="button">Share</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
         <div class="muted">Spendable balance</div>
         <div class="bal"><span id="balNet">—</span> <small>NET</small></div>
         <div class="muted" id="balImmature"></div>
       </div>
       <div class="card">
         <h1 style="font-size:16px">Send</h1>
-        <label>To address</label>
-        <input id="toAddr" class="mono" placeholder="net1q..." autocomplete="off" />
+        <label>To address or netcoin: payment link</label>
+        <input id="toAddr" class="mono" placeholder="net1q... or netcoin:net1q...?amount=1" autocomplete="off" />
+        <p id="addrValidation" class="muted">Enter a NetCoin SegWit address or payment link.</p>
+        <button id="btnScanQr" class="secondary" type="button">Scan QR payment code</button>
+        <div id="scanBox" class="hide">
+          <video id="scanVideo" playsinline muted></video>
+          <p id="scanMsg" class="muted">Point the camera at a NetCoin payment QR code.</p>
+        </div>
         <label>Saved contacts</label>
         <div class="row">
           <select id="contactSelect" aria-label="Saved contacts"></select>
@@ -102,6 +155,7 @@
         </div>
         <div class="row">
           <input id="contactName" placeholder="Contact name" autocomplete="off" />
+          <input id="contactGroup" placeholder="Group, e.g. Friends" value="General" autocomplete="off" />
           <button id="btnSaveContact" class="secondary inline" type="button">Save recipient</button>
         </div>
         <button id="btnDeleteContact" class="secondary" type="button">Delete selected contact</button>
@@ -113,16 +167,123 @@
           <button id="btnMax" class="secondary" type="button">Max</button>
         </div>
         <label>Network fee (NET)</label>
-        <input id="fee" inputmode="decimal" placeholder="0.00001000" value="0.00001000" />
+        <select id="feePreset" aria-label="Fee preset">
+          <option value="0.00001000">Slow — 0.00001000 NET</option>
+          <option value="0.00002000" selected>Normal — 0.00002000 NET</option>
+          <option value="0.00005000">Fast — 0.00005000 NET</option>
+          <option value="custom">Custom</option>
+        </select>
+        <input id="fee" inputmode="decimal" placeholder="0.00002000" value="0.00002000" />
         <p class="muted" id="feeHint">Amount + positive fee must be less than your spendable balance.</p>
+        <details>
+          <summary>Advanced coin control</summary>
+          <p class="muted">Choose exact UTXOs to spend. Leave unchecked to let the wallet pick automatically.</p>
+          <div class="row">
+            <button id="btnLoadUtxos" class="secondary inline" type="button">Refresh UTXOs</button>
+            <button id="btnClearUtxos" class="secondary inline" type="button">Clear selection</button>
+          </div>
+          <p id="utxoSummary" class="muted">UTXOs load after refresh.</p>
+          <div id="utxoList" class="utxo-list"></div>
+        </details>
         <button id="btnSend">Review &amp; send</button>
+        <div id="sendReview" class="review hide">
+          <h1 style="font-size:15px">Confirm transaction</h1>
+          <div class="kv">
+            <div class="k">Recipient</div><div class="v mono" id="reviewTo"></div>
+            <div class="k">Contact</div><div class="v" id="reviewContact"></div>
+            <div class="k">Amount</div><div class="v" id="reviewAmount"></div>
+            <div class="k">Fee</div><div class="v" id="reviewFee"></div>
+            <div class="k">Total</div><div class="v" id="reviewTotal"></div>
+            <div class="k">Coin control</div><div class="v" id="reviewUtxos"></div>
+          </div>
+          <div class="row">
+            <button id="btnConfirmSend" type="button">Send now</button>
+            <button id="btnCancelSend" class="secondary" type="button">Cancel</button>
+          </div>
+        </div>
         <p id="sendMsg"></p>
+      </div>
+      <div class="card">
+        <h1 style="font-size:16px">Transactions &amp; labels</h1>
+        <p class="muted">Labels are saved only in this browser and never sent to the node.</p>
+        <div id="txHistory" class="muted">Unlock wallet to load recent activity.</div>
+      </div>
+      <div class="card">
+        <h1 style="font-size:16px">Reports, alerts &amp; safety</h1>
+        <p class="muted">Optional app-layer tools. These use the same-origin API when available; your private key still never leaves this browser.</p>
+        <div class="row">
+          <button id="btnWalletStatement" class="secondary inline" type="button">Create statement</button>
+          <button id="btnWalletStatementCsv" class="secondary inline" type="button">Download CSV</button>
+          <button id="btnWalletStatementPdf" class="secondary inline" type="button">Download PDF</button>
+        </div>
+        <label>Statement month, optional</label>
+        <input id="statementMonth" placeholder="YYYY-MM" autocomplete="off" />
+        <pre id="statementOut" class="mono muted">Statement appears here.</pre>
+        <label>Balance alert threshold, optional</label>
+        <input id="alertThreshold" inputmode="decimal" placeholder="Notify if balance below this NET amount" />
+        <button id="btnSaveBalanceAlert" class="secondary" type="button">Save balance alert rule</button>
+        <button id="btnEvaluateAlerts" class="secondary" type="button">Check alerts now</button>
+        <div class="row">
+          <input id="singleTxLimit" inputmode="decimal" placeholder="Single-tx limit NET" />
+          <input id="dailyLimit" inputmode="decimal" placeholder="Daily limit NET" />
+        </div>
+        <select id="walletSafetyMode" aria-label="Wallet mode">
+          <option value="daily">Daily spending wallet</option>
+          <option value="savings">Savings wallet</option>
+          <option value="business">Business wallet</option>
+        </select>
+        <label><input id="requireBackupBeforeSpend" type="checkbox" /> Require verified backup before spending</label>
+        <button id="btnSaveSpendingLimits" class="secondary" type="button">Save spending limits</button>
+        <button id="btnMarkBackupDone" class="secondary" type="button">Mark backup verified</button>
+        <p id="walletToolsMsg" class="muted"></p>
+      </div>
+      <div class="card">
+        <h1 style="font-size:16px">Descriptors &amp; offline signing</h1>
+        <p class="muted">Export a watch-only descriptor for this wallet, import simple wpkh() descriptors into the watchlist, or create a NetCoin PSBT for offline review/signing workflows.</p>
+        <label>Your wallet descriptor</label>
+        <textarea id="walletDescriptor" class="mono" readonly></textarea>
+        <button id="btnCopyDescriptor" class="secondary" type="button">Copy descriptor</button>
+        <label>Import watch-only descriptor</label>
+        <textarea id="descriptorInput" class="mono" placeholder="wpkh(02...)" autocomplete="off"></textarea>
+        <div class="row">
+          <button id="btnImportDescriptor" class="secondary inline" type="button">Add descriptor to watchlist</button>
+          <button id="btnMakePsbt" class="secondary inline" type="button">Create unsigned PSBT</button>
+        </div>
+        <textarea id="psbtOut" class="mono" placeholder="Unsigned PSBT appears here" readonly></textarea>
+        <p id="descriptorMsg" class="muted"></p>
+      </div>
+      <div class="card">
+        <h1 style="font-size:16px">Watch-only addresses</h1>
+        <p class="muted">Monitor balances without importing a private key. These labels are saved only in this browser.</p>
+        <label>Address to watch</label>
+        <input id="watchAddress" class="mono" placeholder="net1q..." autocomplete="off" />
+        <label>Label</label>
+        <input id="watchLabel" placeholder="Label, optional" autocomplete="off" />
+        <div class="row">
+          <button id="btnAddWatch" class="secondary inline" type="button">Add watch-only address</button>
+          <button id="btnRefreshWatch" class="secondary inline" type="button">Refresh watchlist</button>
+        </div>
+        <p id="watchMsg" class="muted"></p>
+        <div id="watchList" class="watch-list"></div>
+      </div>
+      <div class="card">
+        <h1 style="font-size:16px">Backups</h1>
+        <p class="muted">Export or import saved contacts. Encrypted export protects the contact file with a password.</p>
+        <div class="row">
+          <button id="btnExportContacts" class="secondary" type="button">Export contacts</button>
+          <button id="btnExportContactsEncrypted" class="secondary" type="button">Export encrypted</button>
+        </div>
+        <label>Backup password for encrypted export/import</label>
+        <input id="contactsBackupPw" type="password" placeholder="backup password" autocomplete="new-password" />
+        <label>Import contacts JSON</label>
+        <input id="contactsImportFile" class="file" type="file" accept="application/json,.json" />
+        <p id="backupMsg" class="muted"></p>
       </div>
       <button id="btnLock" class="secondary">Lock</button>
     </div>
   </div>
 
   <script src="netcoin-wallet.js" integrity="sha384-bPC3d74AR1XU9mKU6s1766pYvU/iePmxNHlEbLrixSEbsOc9NdEBt/Wm/AeN2kCW"></script>
-  <script src="wallet-app.js?v=20260628-contacts" integrity="sha384-1bWsxqgwaEzEMRJYUmAckrtkNxsgKZuk/vj+oKReW4eTmOcP8miAeUZzItRKZXlP"></script>
+  <script src="wallet-app.js?v=20260628-phases-finished" integrity="sha384-rmJ2F9mqLXOc6FPkH6zzuQEdN4+wpqlTrD8u7Tn3mkIxKYRURrJcvdPBDrQz8p38"></script>
 </body>
 </html>

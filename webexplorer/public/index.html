@@ -20,6 +20,9 @@
     button { background:var(--acc); color:#06210f; border:none; font-weight:600; cursor:pointer; }
     button.secondary { background:transparent; color:var(--fg); border:1px solid var(--bd); }
     .search input { width:100%; }
+    .nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+    .nav button { padding:8px 11px; }
+    pre { white-space:pre-wrap; overflow:auto; background:#0e131b; border:1px solid var(--bd); border-radius:10px; padding:12px; }
     .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
     .stat { background:var(--card); border:1px solid var(--bd); border-radius:10px; padding:12px 14px; }
     .stat .k { color:var(--mut); font-size:12px; } .stat .v { font-size:18px; font-weight:700; margin-top:2px; }
@@ -43,6 +46,9 @@
     .contact-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:10px; margin-bottom:10px; }
     .contact-row.save { grid-template-columns:minmax(120px,.8fr) minmax(180px,1.4fr) auto; }
     .contact-row select, .contact-row input { width:100%; min-width:0; }
+    .mini-bars { display:grid; gap:4px; }
+    .mini-bar { display:grid; grid-template-columns:70px 1fr 80px; gap:8px; align-items:center; font-size:12px; }
+    .mini-bar i { display:block; height:8px; border-radius:999px; background:var(--acc2); }
     @media (max-width:700px) { .contact-row, .contact-row.save { grid-template-columns:1fr; } }
   </style>
 </head>
@@ -53,6 +59,24 @@
       <span class="pill" id="netpill">testnet</span>
       <div class="search"><input id="q" type="search" placeholder="Search height, block hash, txid, or address — Enter" autocomplete="off" /></div>
     </header>
+    <div class="nav">
+      <button id="navHome" class="secondary" type="button">Home</button>
+      <button id="navMempool" class="secondary" type="button">Mempool</button>
+      <button id="navFees" class="secondary" type="button">Fees</button>
+      <button id="navPeers" class="secondary" type="button">Peers</button>
+      <button id="navStats" class="secondary" type="button">Network stats</button>
+      <button id="navFaucet" class="secondary" type="button">Faucet</button>
+      <button id="navPayments" class="secondary" type="button">Payments</button>
+      <button id="navPos" class="secondary" type="button">POS</button>
+      <button id="navNames" class="secondary" type="button">Names</button>
+      <button id="navMerchant" class="secondary" type="button">Merchant</button>
+      <button id="navCommunity" class="secondary" type="button">Community</button>
+      <button id="navWalletTools" class="secondary" type="button">Wallet tools</button>
+      <button id="navPhase7" class="secondary" type="button">Phase 7</button>
+      <button id="navAdmin" class="secondary" type="button">Admin</button>
+      <button id="navMining" class="secondary" type="button">Mining</button>
+      <button id="navApi" class="secondary" type="button">API docs</button>
+    </div>
     <div class="card contacts" id="contactsCard">
       <h2>Saved contacts</h2>
       <div class="contact-row">
@@ -70,6 +94,6 @@
     <div id="view"></div>
     <p class="muted" id="footer"></p>
   </div>
-  <script src="explorer-app.js?v=20260628-contacts"></script>
+  <script src="explorer-app.js?v=20260628-phase7"></script>
 </body>
 </html>

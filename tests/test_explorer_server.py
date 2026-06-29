@@ -95,3 +95,34 @@ def test_explorer_rate_limits_by_path(tmp_path: Path):
             except HTTPError as exc:
                 codes.append(exc.code)
     assert codes == [200, 200, 429]
+
+
+def test_explorer_mempool_fees_headers_and_peers(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.address)
+    with served(chain) as s:
+        mempool = get_json(f"{s.url}/api/mempool")
+        fees = get_json(f"{s.url}/api/fee-estimates")
+        headers = get_json(f"{s.url}/api/headers?start=0&limit=1")
+        peers = get_json(f"{s.url}/api/peers")
+    assert mempool["size"] == 0
+    assert "normal" in fees["presets"]
+    assert len(headers["headers"]) == 1
+    assert peers["peers"] == []
+
+
+def test_explorer_latest_txs_and_block_fee_breakdown(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.address)
+    block = chain.tip()
+    coinbase_txid = block.transactions[0].txid()
+    with served(chain) as s:
+        latest_txs = get_json(f"{s.url}/api/latest-txs?n=5")
+        block_json = get_json(f"{s.url}/api/block/{block.hash()}")
+    assert latest_txs["confirmed"][0]["txid"] == coinbase_txid
+    assert latest_txs["confirmed"][0]["block_height"] == block.header.height
+    assert block_json["coinbase_value_sats"] == block.transactions[0].total_output()
+    assert block_json["subsidy_sats"] == chain.subsidy(block.header.height)
+    assert block_json["fees_sats"] == 0

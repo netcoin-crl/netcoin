@@ -6,7 +6,7 @@ import pytest
 
 import netcoin.chain as chain_module
 from netcoin.chain import Blockchain, ChainError
-from netcoin.tx import Transaction, TransactionError, TxInput, TxOutput, amount_to_sats
+from netcoin.tx import SpendableOutput, Transaction, TransactionError, TxInput, TxOutput, amount_to_sats
 from netcoin.wallet import Wallet
 
 
@@ -90,6 +90,21 @@ def test_rbf_replacement_requires_higher_fee(tmp_path: Path):
     assert original.txid() not in txids
 
 
+
+def test_rbf_replacement_requires_incremental_relay_fee(tmp_path: Path):
+    chain, miner, receiver = funded(tmp_path)
+    original_fee = amount_to_sats("0.01")
+    original = miner.create_transaction(chain, receiver.address, amount_to_sats("1"), original_fee, rbf=True)
+    chain.add_mempool_transaction(original)
+
+    # One extra satoshi is higher in absolute terms, but does not pay the
+    # incremental relay fee required to compensate peers for replacing the
+    # original transaction in their mempools.
+    tiny_bump = miner.create_transaction(chain, receiver.address, amount_to_sats("1.5"), original_fee + 1, rbf=True)
+    assert tiny_bump.inputs[0].outpoint() == original.inputs[0].outpoint()
+    with pytest.raises(ChainError, match="incremental relay fee"):
+        chain.add_mempool_transaction(tiny_bump)
+
 def test_mempool_accepts_many_independent_transactions(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path)
     # Each mined coinbase is a separate spendable UTXO; spend several independently.
@@ -103,3 +118,28 @@ def test_mempool_accepts_many_independent_transactions(tmp_path: Path):
         chain.add_mempool_transaction(tx)
         count += 1
     assert chain.mempool_info()["size"] == count
+
+
+def test_package_relay_allows_child_pays_for_parent(tmp_path: Path):
+    chain, miner, receiver = funded(tmp_path)
+    final = Wallet.create()
+
+    # Parent intentionally pays zero fee, so it is valid by consensus but not
+    # acceptable as a standalone mempool transaction under min-relay policy.
+    parent = miner.create_transaction(chain, receiver.address, amount_to_sats("2"), 0)
+    with pytest.raises(ChainError, match="below min relay fee"):
+        chain.add_mempool_transaction(parent)
+
+    parent_output = parent.outputs[0]
+    child_fee = 10_000
+    child = Transaction(
+        inputs=[TxInput(txid=parent.txid(), vout=0)],
+        outputs=[TxOutput(amount=parent_output.amount - child_fee, address=final.address)],
+    )
+    child.sign_input(0, receiver.private_key, SpendableOutput(parent.txid(), 0, parent_output, height=None, coinbase=False))
+
+    txids = chain.add_mempool_package([parent, child])
+    assert txids == [parent.txid(), child.txid()]
+    info = chain.mempool_info()
+    assert info["size"] == 2
+    assert any(pkg["count"] == 2 and set(pkg["txids"]) == set(txids) for pkg in info["packages"])

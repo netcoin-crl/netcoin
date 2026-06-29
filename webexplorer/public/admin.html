@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Admin Operator Dashboard</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'" />
+  <style>
+    :root { color-scheme: dark; --bg:#070a10; --card:#121824; --fg:#edf1f7; --mut:#99a4b5; --acc:#3ddc97; --bd:#243044; --warn:#ffcc66; --err:#ff6b6b; --ok:#3ddc97; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
+    .wrap { max-width:1180px; margin:0 auto; padding:22px 16px 64px; }
+    header { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+    h1 { font-size:22px; margin:0; } h2 { font-size:14px; color:var(--mut); text-transform:uppercase; letter-spacing:.05em; margin:0 0 12px; }
+    a { color:#6db7ff; text-decoration:none; } a:hover { text-decoration:underline; }
+    input, textarea, select, button { font:inherit; border-radius:9px; border:1px solid var(--bd); padding:9px 11px; background:#0c111b; color:var(--fg); }
+    textarea { width:100%; min-height:76px; font-family:ui-monospace,Menlo,monospace; }
+    button { background:var(--acc); color:#042014; border:0; font-weight:700; cursor:pointer; }
+    button.secondary { background:transparent; color:var(--fg); border:1px solid var(--bd); }
+    button.danger { background:var(--err); color:#260000; }
+    .card { border:1px solid var(--bd); background:var(--card); border-radius:14px; padding:16px; margin-bottom:16px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; }
+    .stat { border:1px solid var(--bd); border-radius:12px; padding:12px; background:#0c111b; } .stat .k { color:var(--mut); font-size:12px; } .stat .v { font-size:22px; font-weight:800; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; } .grow { flex:1; min-width:220px; }
+    table { width:100%; border-collapse:collapse; } th,td { border-bottom:1px solid var(--bd); padding:8px; text-align:left; vertical-align:top; } th { color:var(--mut); font-size:12px; }
+    .mono { font-family:ui-monospace,Menlo,Consolas,monospace; word-break:break-all; } .muted { color:var(--mut); } .ok { color:var(--ok); } .warn { color:var(--warn); } .err { color:var(--err); }
+    pre { white-space:pre-wrap; overflow:auto; background:#0c111b; border:1px solid var(--bd); border-radius:12px; padding:12px; max-height:340px; }
+    .badge { display:inline-block; border:1px solid var(--bd); border-radius:999px; padding:2px 8px; color:var(--mut); font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>NetCoin Admin Operator Dashboard</h1>
+      <a href="index.html">Explorer</a>
+      <span class="badge">operator-only</span>
+    </header>
+    <div class="card">
+      <h2>Admin token</h2>
+      <div class="row"><input id="adminToken" class="grow" type="password" placeholder="X-Netcoin-Admin-Token" autocomplete="off" /><button id="saveToken">Save token locally</button><button id="clearToken" class="secondary">Clear</button><button id="refresh" class="secondary">Refresh</button></div>
+      <p class="muted">The token is stored only in this browser as <span class="mono">netcoin.admin.token</span>. Enable server-side protection with <span class="mono">NETCOIN_APP_REQUIRE_ADMIN=1</span>.</p>
+      <p id="msg" class="muted"></p>
+    </div>
+    <div id="summary"></div>
+    <div class="card">
+      <h2>Manual payout signer flow</h2>
+      <p class="muted">Review payout plans, export a signer bundle, sign with a trusted/offline wallet, broadcast through your own node, then record the txid here.</p>
+      <div id="payouts"></div>
+    </div>
+    <div class="card">
+      <h2>Webhook retries & audit</h2>
+      <div class="row"><button id="deliverHooks" class="secondary">Deliver due webhook events</button><button id="loadAudit" class="secondary">Load audit log</button></div>
+      <pre id="auditBox">No audit loaded.</pre>
+    </div>
+    <div class="card">
+      <h2>Signer bundle</h2>
+      <p class="muted">Selected payout bundle output appears here. Copy it into your manual signing workflow.</p>
+      <pre id="bundleBox">Select “Export bundle” on a payout plan.</pre>
+    </div>
+  </div>
+  <script src="admin-app.js?v=20260629-admin"></script>
+</body>
+</html>
