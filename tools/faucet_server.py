@@ -26,7 +26,9 @@ from netcoin.tx import amount_to_sats
 
 HOST = os.environ.get("NETCOIN_FAUCET_HOST", "127.0.0.1")
 PORT = int(os.environ.get("NETCOIN_FAUCET_PORT", "8081"))
-PYTHON = os.environ.get("NETCOIN_PYTHON", "/opt/netcoin/netcoin-v2/.venv/bin/python")
+NETCOIN_PREFIX = Path(os.environ.get("NETCOIN_PREFIX", "/opt/netcoin"))
+NETCOIN_SOURCE_DIR = Path(os.environ.get("NETCOIN_SOURCE_DIR", str(NETCOIN_PREFIX / "netcoin-v2")))
+PYTHON = os.environ.get("NETCOIN_PYTHON", str(NETCOIN_SOURCE_DIR / ".venv/bin/python"))
 DATA_DIR = os.environ.get("NETCOIN_DATA_DIR", "/opt/netcoin/.netcoin-testnet")
 WALLET = os.environ.get("NETCOIN_FAUCET_WALLET", "/opt/netcoin/wallets/testnet-miner.json")
 BROADCAST_TO = os.environ.get("NETCOIN_BROADCAST_TO", "http://127.0.0.1:28444")
@@ -331,7 +333,7 @@ def send_faucet(address: str) -> dict:
         "--broadcast-to",
         BROADCAST_TO,
     ]
-    result = subprocess.run(command, cwd="/opt/netcoin/netcoin-v2", text=True, capture_output=True, timeout=30)
+    result = subprocess.run(command, cwd=str(NETCOIN_SOURCE_DIR), text=True, capture_output=True, timeout=30)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "faucet send failed")
     return json.loads(result.stdout)

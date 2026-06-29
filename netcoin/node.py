@@ -881,6 +881,8 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                         for b in recent
                     ]
                     self.send_json({"height": node.chain.height(), "tip_hash": node.chain.tip_hash(), "blocks": blocks})
+                elif parsed.path == "/supply":
+                    self.send_json(node.chain.supply_summary())
                 elif parsed.path == "/blocktemplate":
                     query = parse_qs(parsed.query)
                     address = query.get("address", [None])[0]

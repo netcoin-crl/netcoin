@@ -174,3 +174,31 @@ def test_hot_wallet_status_refill_signal(monkeypatch):
     assert low["state"] == "needs_refill"
     assert low["refill_address"] == "Nrefill"
     assert faucet.hot_wallet_status(1000)["state"] == "ok"
+
+
+def test_send_faucet_uses_configured_source_dir(monkeypatch):
+    faucet = load_faucet_module()
+    seen = {}
+
+    class Result:
+        returncode = 0
+        stdout = '{"txid":"abc"}'
+        stderr = ""
+
+    def fake_run(command, cwd, text, capture_output, timeout):
+        seen["command"] = command
+        seen["cwd"] = cwd
+        seen["text"] = text
+        seen["capture_output"] = capture_output
+        seen["timeout"] = timeout
+        return Result()
+
+    monkeypatch.setattr(faucet, "NETCOIN_SOURCE_DIR", Path("/srv/netcoin"))
+    monkeypatch.setattr(faucet.subprocess, "run", fake_run)
+
+    assert faucet.send_faucet("Naddr") == {"txid": "abc"}
+    assert seen["cwd"] == "/srv/netcoin"
+    assert seen["command"][0] == faucet.PYTHON
+    assert seen["text"] is True
+    assert seen["capture_output"] is True
+    assert seen["timeout"] == 30

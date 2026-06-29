@@ -153,3 +153,22 @@ def test_balance_endpoint_for_address(tmp_path: Path):
     assert data["total_sats"] > 0
     assert data["total"] == "50.00000000"
     assert data["spendable"] == "0.00000000"
+
+
+def test_supply_endpoint_reports_exact_coinbase_totals(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.address)
+    chain.mine_block(miner.address)
+
+    expected_total = sum(block.transactions[0].total_output() for block in chain.chain)
+    with served(NetCoinNode(chain, persist=False)) as s:
+        data = get(f"{s.url}/supply")
+
+    assert data["height"] == 2
+    assert data["tip_hash"] == chain.tip_hash()
+    assert data["total_minted_sats"] == expected_total
+    assert data["total_minted"] == "100.00000000"
+    assert data["tip_coinbase_sats"] == chain.tip().transactions[0].total_output()
+    assert data["next_height"] == 3
+    assert data["next_subsidy_sats"] == chain.subsidy(3)

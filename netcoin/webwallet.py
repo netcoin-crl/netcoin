@@ -218,10 +218,13 @@ PAGE = """<!doctype html>
   <div class="card"><h2>Latest blocks</h2><table id="latest"><tbody></tbody></table></div>
  </section>
 </div>
-<script>
-let CFG={}, ADDRS={}, curType="legacy";
-const $=s=>document.querySelector(s);
-async function api(p,opt){const r=await fetch(p,opt);const j=await r.json();if(!r.ok&&j.error)throw new Error(j.error);return j;}
+	<script>
+	let CFG={}, ADDRS={}, curType="legacy";
+	const $=s=>document.querySelector(s);
+	const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+	const jsq=s=>JSON.stringify(String(s??''));
+	function safeUrl(u){try{const x=new URL(String(u),location.href);return ['http:','https:'].includes(x.protocol)?x.href:'';}catch{return '';}}
+	async function api(p,opt){const r=await fetch(p,opt);const j=await r.json();if(!r.ok&&j.error)throw new Error(j.error);return j;}
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
   ['wallet','faucet','explorer'].forEach(t=>$('#tab-'+t).classList.toggle('hide',t!==b.dataset.tab));
@@ -233,12 +236,13 @@ async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG
 function showWallet(w){ADDRS=w.addresses;const sel=$('#typeSel');sel.innerHTML='';
   Object.keys(ADDRS).forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
   $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');$('#historyCard').classList.remove('hide');
-  if(w.mnemonic){$('#mnemonicBox').innerHTML='<div class="warn"><b>Recovery phrase (shown once):</b><div class="mono">'+w.mnemonic+'</div>Write it down. <a href="data:application/json,'+encodeURIComponent(JSON.stringify(w.wallet_file))+'" download="wallet.json">Download wallet.json</a></div>';}
-  switchType();}
+	  if(w.mnemonic){$('#mnemonicBox').innerHTML='<div class="warn"><b>Recovery phrase (shown once):</b><div class="mono">'+esc(w.mnemonic)+'</div>Write it down. <a href="data:application/json,'+encodeURIComponent(JSON.stringify(w.wallet_file))+'" download="wallet.json">Download wallet.json</a></div>';}
+	  switchType();}
 function switchType(){curType=$('#typeSel').value||'legacy';$('#addrType').textContent=curType;
   $('#addr').textContent=ADDRS[curType];$('#faucetAddr').textContent=ADDRS[curType];
-  $('#faucetLink').innerHTML=CFG.faucet?'<a class="act" style="display:inline-block;text-decoration:none" href="'+CFG.faucet+'" target="_blank">Open faucet ↗</a> <span class="muted">paste the address above</span>':'<span class="muted">No faucet configured.</span>';
-  refreshBalance();loadHistory();}
+	  const faucet=safeUrl(CFG.faucet);
+	  $('#faucetLink').innerHTML=faucet?'<a class="act" style="display:inline-block;text-decoration:none" href="'+esc(faucet)+'" target="_blank" rel="noopener noreferrer">Open faucet ↗</a> <span class="muted">paste the address above</span>':'<span class="muted">No faucet configured.</span>';
+	  refreshBalance();loadHistory();}
 function openTx(t){document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
   const eb=document.querySelector('.tabs button[data-tab="explorer"]');eb.classList.add('on');
   ['wallet','faucet','explorer'].forEach(tb=>$('#tab-'+tb).classList.toggle('hide',tb!=='explorer'));
@@ -246,21 +250,21 @@ function openTx(t){document.querySelectorAll('.tabs button').forEach(x=>x.classL
 async function loadHistory(){const out=$('#historyOut');try{
   const d=await api('/api/history?address='+ADDRS[curType]);
   const ids=(d.transaction_ids||[]).slice(-15).reverse();
-  out.innerHTML=ids.length?(`<div class="muted">${d.transaction_count} total · newest first</div>`+ids.map(t=>`<div class="lnk mono" onclick="openTx('${t}')">${short(t)}</div>`).join('')):'<span class="muted">No transactions yet for this address.</span>';
-}catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
+	  out.innerHTML=ids.length?(`<div class="muted">${esc(d.transaction_count)} total · newest first</div>`+ids.map(t=>`<div class="lnk mono" onclick="openTx(${jsq(t)})">${esc(short(t))}</div>`).join('')):'<span class="muted">No transactions yet for this address.</span>';
+	}catch(e){out.innerHTML='<span class="err">'+esc(e.message)+'</span>';}}
 async function newWallet(){try{const w=await api('/api/wallet/new',{method:'POST'});showWallet(w);}catch(e){alert(e.message)}}
 async function loadWallet(){try{const w=await api('/api/wallet/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({json:$('#loadJson').value,passphrase:$('#loadPass').value})});showWallet(w);}catch(e){alert(e.message)}}
 function copyAddr(){navigator.clipboard.writeText(ADDRS[curType]);}
 async function refreshBalance(){try{const b=await api('/api/balance?address='+ADDRS[curType]);
-  $('#balSpendable').innerHTML=(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+CFG.ticker+'</span>';
+	  $('#balSpendable').innerHTML=esc(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+esc(CFG.ticker)+'</span>';
   $('#balDetail').textContent='immature '+(b.immature||'0')+' · total '+(b.total||'0')+' · '+(b.utxo_count||0)+' UTXOs';}catch(e){$('#balDetail').textContent=e.message;}}
 async function makePayLink(){const out=$('#reqOut');try{
   const p=new URLSearchParams({address:ADDRS[curType]});
   if($('#reqAmt').value)p.set('amount',$('#reqAmt').value);
   if($('#reqLabel').value)p.set('label',$('#reqLabel').value);
   const d=await api('/api/payment-uri?'+p.toString());
-  out.innerHTML=`<div class="muted">Share this link:</div><div class="mono" id="payUriOut">${d.uri}</div><button class="ghost" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('payUriOut').textContent)">Copy link</button>`;
-}catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
+	  out.innerHTML=`<div class="muted">Share this link:</div><div class="mono" id="payUriOut">${esc(d.uri)}</div><button class="ghost" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('payUriOut').textContent)">Copy link</button>`;
+	}catch(e){out.innerHTML='<span class="err">'+esc(e.message)+'</span>';}}
 async function applyPayLink(){const v=$('#payLink').value.trim();if(!v.toLowerCase().startsWith('netcoin:'))return;try{
   const d=await api('/api/parse-uri?uri='+encodeURIComponent(v));
   $('#sendTo').value=d.address;if(d.amount)$('#sendAmt').value=d.amount;
@@ -268,38 +272,38 @@ async function applyPayLink(){const v=$('#payLink').value.trim();if(!v.toLowerCa
 async function send(){const out=$('#sendOut');out.textContent='Sending…';try{
   const j=await api('/api/wallet/send',{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType})});
-  out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+j.txid+'</span>';refreshBalance();}
-  catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
+	  out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+esc(j.txid)+'</span>';refreshBalance();}
+	  catch(e){out.innerHTML='<span class="err">'+esc(e.message)+'</span>';}}
 function fmtTime(ts){return ts?new Date(ts*1000).toLocaleString():'';}
 function short(h){return h?(h.length>26?h.slice(0,14)+'…'+h.slice(-8):h):'';}
-function card(t,b){return '<div class="rcard"><div class="rtitle">'+t+'</div>'+b+'</div>';}
-function kv(k,v){return '<div class="kv"><span class="muted">'+k+'</span><span>'+v+'</span></div>';}
+	function card(t,b){return '<div class="rcard"><div class="rtitle">'+esc(t)+'</div>'+b+'</div>';}
+	function kv(k,v){return '<div class="kv"><span class="muted">'+esc(k)+'</span><span>'+v+'</span></div>';}
 function searchFor(q){$('#q').value=q;search();$('#searchOut').scrollIntoView({behavior:'smooth',block:'center'});}
 function renderResult(d){
-  if(!d||d.error)return '<div class="err">'+((d&&d.error)||'no result')+'</div>';
-  if(d.type==='address'){const r=d.result,b=r.balance_net||{};
-    const txs=(r.transaction_ids||[]).slice(0,30).map(t=>`<div class="lnk mono" onclick="searchFor('${t}')">${short(t)}</div>`).join('');
-    return card('Address','<div class="mono sub">'+r.address+'</div>'+
-      kv('Spendable','<b>'+(b.spendable||'0')+'</b> '+CFG.ticker)+kv('Immature',(b.immature||'0')+' '+CFG.ticker)+
-      kv('Total',(b.total||'0')+' '+CFG.ticker)+kv('Transactions',r.transaction_count||0)+kv('UTXOs',r.utxo_count||0)+
-      (txs?'<div class="muted" style="margin:10px 0 4px">Transaction IDs</div>'+txs:''));}
-  if(d.type==='transaction'){const r=d.result,tx=r.tx||{};
-    return card('Transaction','<div class="mono sub">'+(r.txid||'')+'</div>'+
-      kv('Status',r.confirmed?'confirmed ✓':'unconfirmed')+kv('Block',r.block_height!=null?('#'+r.block_height):'mempool')+
-      kv('Inputs',(tx.inputs||[]).length)+kv('Outputs',(tx.outputs||[]).length)+
-      (r.block_hash?`<div class="lnk mono" onclick="searchFor('${r.block_hash}')">in block ${short(r.block_hash)}</div>`:''));}
-  if(d.type==='block'){const r=d.result,h=r.header||{};
-    return card('Block #'+h.height,'<div class="mono sub">'+(r.hash||'')+'</div>'+
-      kv('Time',fmtTime(h.timestamp))+kv('Transactions',(r.transactions||[]).length)+kv('Weight',r.weight||'')+
-      (h.previous_hash?`<div class="lnk mono" onclick="searchFor('${h.previous_hash}')">↑ previous ${short(h.previous_hash)}</div>`:''));}
-  return '<pre class="mono">'+JSON.stringify(d,null,2)+'</pre>';}
+	  if(!d||d.error)return '<div class="err">'+esc((d&&d.error)||'no result')+'</div>';
+	  if(d.type==='address'){const r=d.result,b=r.balance_net||{};
+	    const txs=(r.transaction_ids||[]).slice(0,30).map(t=>`<div class="lnk mono" onclick="searchFor(${jsq(t)})">${esc(short(t))}</div>`).join('');
+	    return card('Address','<div class="mono sub">'+esc(r.address)+'</div>'+
+	      kv('Spendable','<b>'+esc(b.spendable||'0')+'</b> '+esc(CFG.ticker))+kv('Immature',esc(b.immature||'0')+' '+esc(CFG.ticker))+
+	      kv('Total',esc(b.total||'0')+' '+esc(CFG.ticker))+kv('Transactions',esc(r.transaction_count||0))+kv('UTXOs',esc(r.utxo_count||0))+
+	      (txs?'<div class="muted" style="margin:10px 0 4px">Transaction IDs</div>'+txs:''));}
+	  if(d.type==='transaction'){const r=d.result,tx=r.tx||{};
+	    return card('Transaction','<div class="mono sub">'+esc(r.txid||'')+'</div>'+
+	      kv('Status',r.confirmed?'confirmed ✓':'unconfirmed')+kv('Block',r.block_height!=null?('#'+esc(r.block_height)):'mempool')+
+	      kv('Inputs',esc((tx.inputs||[]).length))+kv('Outputs',esc((tx.outputs||[]).length))+
+	      (r.block_hash?`<div class="lnk mono" onclick="searchFor(${jsq(r.block_hash)})">in block ${esc(short(r.block_hash))}</div>`:''));}
+	  if(d.type==='block'){const r=d.result,h=r.header||{};
+	    return card('Block #'+esc(h.height),'<div class="mono sub">'+esc(r.hash||'')+'</div>'+
+	      kv('Time',esc(fmtTime(h.timestamp)))+kv('Transactions',esc((r.transactions||[]).length))+kv('Weight',esc(r.weight||''))+
+	      (h.previous_hash?`<div class="lnk mono" onclick="searchFor(${jsq(h.previous_hash)})">↑ previous ${esc(short(h.previous_hash))}</div>`:''));}
+	  return '<pre class="mono">'+esc(JSON.stringify(d,null,2))+'</pre>';}
 async function search(){const out=$('#searchOut');if(!$('#q').value.trim()){out.innerHTML='';return;}out.innerHTML='<span class="muted">Searching…</span>';
   try{out.innerHTML=renderResult(await api('/api/search?q='+encodeURIComponent($('#q').value.trim())));}
-  catch(e){out.innerHTML='<span class="err">'+e.message+'</span>';}}
-async function loadLatest(){const tb=$('#latest').querySelector('tbody');tb.innerHTML='<tr><td class="muted">Loading…</td></tr>';
-  try{const d=await api('/api/latest?n=15');tb.innerHTML='<tr><th>Height</th><th>Hash</th><th>Txns</th><th>Time</th></tr>'+
-    d.blocks.map(b=>`<tr class="lnk" onclick="searchFor('${b.hash}')"><td>#${b.height}</td><td class="mono">${short(b.hash)}</td><td>${b.transactions}</td><td class="muted">${fmtTime(b.timestamp)}</td></tr>`).join('');}
-  catch(e){tb.innerHTML='<tr><td class="err">'+e.message+'</td></tr>';}}
+	  catch(e){out.innerHTML='<span class="err">'+esc(e.message)+'</span>';}}
+	async function loadLatest(){const tb=$('#latest').querySelector('tbody');tb.innerHTML='<tr><td class="muted">Loading…</td></tr>';
+	  try{const d=await api('/api/latest?n=15');tb.innerHTML='<tr><th>Height</th><th>Hash</th><th>Txns</th><th>Time</th></tr>'+
+	    d.blocks.map(b=>`<tr class="lnk" onclick="searchFor(${jsq(b.hash)})"><td>#${esc(b.height)}</td><td class="mono">${esc(short(b.hash))}</td><td>${esc(b.transactions)}</td><td class="muted">${esc(fmtTime(b.timestamp))}</td></tr>`).join('');}
+	  catch(e){tb.innerHTML='<tr><td class="err">'+esc(e.message)+'</td></tr>';}}
 boot();
 </script></body></html>"""
 

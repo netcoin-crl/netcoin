@@ -24,6 +24,13 @@ def test_page_contains_app():
     assert b"/api/wallet/send" in ww.PAGE.encode("utf-8")
 
 
+def test_page_escapes_dynamic_html_and_hardens_external_links():
+    assert "const esc=" in ww.PAGE
+    assert "const jsq=" in ww.PAGE
+    assert "function safeUrl" in ww.PAGE
+    assert 'rel="noopener noreferrer"' in ww.PAGE
+
+
 def test_page_javascript_is_valid():
     """A JS syntax error in the embedded page kills every button, so guard it.
 
