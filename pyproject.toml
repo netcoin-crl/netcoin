@@ -20,3 +20,8 @@ netcoin = "netcoin.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["netcoin*"]
+
+[tool.pytest.ini_options]
+# The ddtrace auto-loaded pytest plugin can keep local HTTP-server tests alive in some sandboxes.
+# Disable it by default so `pytest` runs deterministically for this repo.
+addopts = "-p no:ddtrace"

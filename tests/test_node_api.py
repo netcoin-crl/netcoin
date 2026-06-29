@@ -172,3 +172,30 @@ def test_supply_endpoint_reports_exact_coinbase_totals(tmp_path: Path):
     assert data["tip_coinbase_sats"] == chain.tip().transactions[0].total_output()
     assert data["next_height"] == 3
     assert data["next_subsidy_sats"] == chain.subsidy(3)
+
+
+def test_mempool_and_fee_estimates_endpoints(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    with served(NetCoinNode(chain, persist=False)) as s:
+        mempool = get(f"{s.url}/mempool")
+        fees = get(f"{s.url}/fee-estimates")
+    assert mempool["size"] == 0
+    assert mempool["transactions"] == []
+    assert set(fees["presets"]) == {"slow", "normal", "fast"}
+    assert fees["presets"]["fast"]["target_blocks"] == 1
+
+
+def test_latest_txs_and_block_fee_breakdown_endpoints(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.address)
+    block = chain.tip()
+    coinbase_txid = block.transactions[0].txid()
+    with served(NetCoinNode(chain, persist=False)) as s:
+        latest_txs = get(f"{s.url}/latest-txs?n=5")
+        block_json = get(f"{s.url}/block/{block.hash()}")
+    assert latest_txs["confirmed"][0]["txid"] == coinbase_txid
+    assert latest_txs["confirmed"][0]["block_height"] == block.header.height
+    assert block_json["coinbase_value_sats"] == block.transactions[0].total_output()
+    assert block_json["subsidy_sats"] == chain.subsidy(block.header.height)
+    assert block_json["fees_sats"] == 0

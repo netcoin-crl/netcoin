@@ -33,6 +33,7 @@ from .params import (
     HALVING_INTERVAL,
     INITIAL_BITS,
     INITIAL_SUBSIDY,
+    INCREMENTAL_RELAY_FEE,
     LOCKTIME_THRESHOLD,
     MAX_BLOCK_WEIGHT,
     MAX_MEMPOOL_ANCESTORS,
@@ -662,11 +663,15 @@ class Blockchain:
         return fee_value * 1000 // vsize
 
     def check_standard_transaction(self, tx: Transaction, fee: int) -> None:
-        if transaction_weight(tx) > MAX_STANDARD_TX_WEIGHT:
-            raise ChainError("non-standard transaction: weight too high")
+        self.check_standard_transaction_shape(tx)
         min_fee = (transaction_vsize(tx) * MIN_RELAY_FEE_PER_KB + 999) // 1000
         if fee < min_fee:
             raise ChainError("transaction fee is below min relay fee")
+
+    def check_standard_transaction_shape(self, tx: Transaction) -> None:
+        """Check non-fee standardness shared by single-tx and package relay policy."""
+        if transaction_weight(tx) > MAX_STANDARD_TX_WEIGHT:
+            raise ChainError("non-standard transaction: weight too high")
         for output in tx.outputs:
             if 0 < output.amount < DUST_THRESHOLD:
                 raise ChainError("transaction creates dust output")
@@ -691,14 +696,21 @@ class Blockchain:
             if not all(conflict.signals_rbf for conflict in conflicts):
                 raise ChainError("transaction conflicts with non-replaceable mempool transaction")
             old_fees = 0
+            old_vsize = 0
             for conflict in conflicts:
                 try:
                     old_fees += self.calculate_fee(conflict)
                 except ChainError:
                     pass
+                old_vsize += max(1, transaction_vsize(conflict))
             new_fee = self.calculate_fee(tx)
+            required_delta = (old_vsize * INCREMENTAL_RELAY_FEE + 999) // 1000
             if new_fee <= old_fees:
                 raise ChainError("replacement fee is not higher than conflicting transactions")
+            if new_fee < old_fees + required_delta:
+                raise ChainError("replacement fee increase is below incremental relay fee")
+            if self.fee_rate(tx, new_fee) <= (old_fees * 1000 // max(1, old_vsize)):
+                raise ChainError("replacement fee rate is not higher than conflicting transactions")
             conflict_txids = {conflict.txid() for conflict in conflicts}
             self.mempool = [existing for existing in self.mempool if existing.txid() not in conflict_txids]
 
@@ -716,6 +728,61 @@ class Blockchain:
         if save:
             self.save_mempool()
         return txid
+
+    def add_mempool_package(self, txs: Sequence[Transaction], *, save: bool = True) -> List[str]:
+        """Accept a small ancestor/descendant package using aggregate fee policy.
+
+        This is a deliberately compact CPFP/package-relay primitive: every
+        transaction must be valid in package order, individually non-fee-standard
+        (weight/dust), and the aggregate package fee must meet min relay. It lets
+        a high-fee child pay for a low-fee unconfirmed parent while still keeping
+        consensus validation unchanged.
+        """
+        package = list(txs)
+        if not package:
+            raise ChainError("package is empty")
+        txids = [tx.txid() for tx in package]
+        if len(set(txids)) != len(txids):
+            raise ChainError("package contains duplicate transactions")
+        if len(package) > MAX_MEMPOOL_ANCESTORS:
+            raise ChainError("package exceeds ancestor limit")
+        existing_ids = {tx.txid() for tx in self.mempool}
+        if existing_ids.intersection(txids):
+            raise ChainError("package contains transaction already in mempool")
+        for tx in package:
+            if tx.is_coinbase:
+                raise ChainError("cannot add coinbase transaction to mempool")
+            if self.mempool_conflicts(tx):
+                raise ChainError("package conflicts with existing mempool transaction")
+
+        temp_utxos = self.utxo_set()
+        spend_height = self.height() + 1
+        for existing in self.mempool:
+            self.validate_regular_transaction(existing, temp_utxos, spend_height)
+            self.apply_regular_transaction(existing, temp_utxos, spend_height)
+
+        fees: List[int] = []
+        total_vsize = 0
+        for tx in package:
+            fee = self.validate_regular_transaction(tx, temp_utxos, spend_height)
+            self.check_standard_transaction_shape(tx)
+            fees.append(fee)
+            total_vsize += transaction_vsize(tx)
+            self.apply_regular_transaction(tx, temp_utxos, spend_height)
+        required = (total_vsize * MIN_RELAY_FEE_PER_KB + 999) // 1000
+        if sum(fees) < required:
+            raise ChainError("package fee is below min relay fee")
+        for tx in package:
+            if self.mempool_ancestor_count(tx) >= MAX_MEMPOOL_ANCESTORS:
+                raise ChainError("package transaction has too many unconfirmed ancestors")
+
+        self.mempool.extend(package)
+        now = time.time()
+        for txid in txids:
+            self.mempool_times[txid] = now
+        if save:
+            self.save_mempool()
+        return txids
 
     def _safe_fee_rate(self, tx: Transaction) -> int:
         try:
@@ -790,25 +857,75 @@ class Blockchain:
     def mempool_info(self) -> Dict[str, Any]:
         entries = []
         total_bytes = 0
+        entry_by_txid: Dict[str, Dict[str, Any]] = {}
+        temp_utxos = self.utxo_set()
+        spend_height = self.height() + 1
         for tx in self.mempool:
             try:
-                fee = self.calculate_fee(tx)
+                # Validate against a rolling view so CPFP/package children can
+                # spend unconfirmed parents already present in mempool order.
+                fee = self.validate_regular_transaction(tx, temp_utxos, spend_height)
                 vsize = transaction_vsize(tx)
                 total_bytes += vsize
-                entries.append(
-                    {
-                        "txid": tx.txid(),
-                        "wtxid": tx.wtxid(),
-                        "vsize": vsize,
-                        "weight": transaction_weight(tx),
-                        "fee": fee,
-                        "fee_rate_per_kvb": self.fee_rate(tx, fee),
-                        "rbf": tx.signals_rbf,
-                    }
-                )
+                entry = {
+                    "txid": tx.txid(),
+                    "wtxid": tx.wtxid(),
+                    "vsize": vsize,
+                    "weight": transaction_weight(tx),
+                    "fee": fee,
+                    "fee_rate_per_kvb": self.fee_rate(tx, fee),
+                    "rbf": bool(tx.signals_rbf),
+                }
+                entries.append(entry)
+                entry_by_txid[tx.txid()] = entry
+                self.apply_regular_transaction(tx, temp_utxos, spend_height)
             except ChainError:
                 continue
-        return {"size": len(entries), "bytes": total_bytes, "min_relay_fee_per_kvb": MIN_RELAY_FEE_PER_KB, "entries": entries}
+        packages = self.mempool_packages(entry_by_txid)
+        return {
+            "size": len(entries),
+            "bytes": total_bytes,
+            "min_relay_fee_per_kvb": MIN_RELAY_FEE_PER_KB,
+            "entries": entries,
+            "packages": packages,
+        }
+
+    def mempool_packages(self, entry_by_txid: Optional[Dict[str, Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+        """Return connected mempool transaction packages for CPFP/package views."""
+        entry_by_txid = entry_by_txid or {}
+        mempool_ids = {tx.txid() for tx in self.mempool}
+        edges: Dict[str, set[str]] = {txid: set() for txid in mempool_ids}
+        for tx in self.mempool:
+            txid = tx.txid()
+            for txin in tx.inputs:
+                if txin.txid in mempool_ids:
+                    edges[txid].add(txin.txid)
+                    edges[txin.txid].add(txid)
+        seen: set[str] = set()
+        packages: List[Dict[str, Any]] = []
+        for txid in sorted(mempool_ids):
+            if txid in seen:
+                continue
+            stack = [txid]
+            component: List[str] = []
+            seen.add(txid)
+            while stack:
+                current = stack.pop()
+                component.append(current)
+                for nxt in edges.get(current, set()):
+                    if nxt not in seen:
+                        seen.add(nxt)
+                        stack.append(nxt)
+            fee = sum(int(entry_by_txid.get(t, {}).get("fee", 0)) for t in component)
+            vsize = sum(int(entry_by_txid.get(t, {}).get("vsize", 0)) for t in component)
+            packages.append({
+                "txids": sorted(component),
+                "count": len(component),
+                "fee": fee,
+                "vsize": vsize,
+                "fee_rate_per_kvb": (fee * 1000 // max(1, vsize)),
+            })
+        return packages
 
     def estimate_smart_fee(self, target_blocks: int = 1) -> Dict[str, Any]:
         # A tiny local estimator: with no fee market, return min relay. If the

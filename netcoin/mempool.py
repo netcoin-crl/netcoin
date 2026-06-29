@@ -65,7 +65,7 @@ def mempool_entry(tx: Transaction, fee: int) -> MempoolEntry:
         fee=fee,
         vsize=vsize,
         fee_rate=fee / vsize,
-        signals_rbf=tx.signals_rbf(),
+        signals_rbf=tx.signals_rbf,
     )
 
 
@@ -142,7 +142,7 @@ def replacement_allowed(new_tx: Transaction, new_fee: int, conflicts: Sequence[T
         return True
     old_fee_total = sum(fee for _tx, fee in conflicts)
     old_vsize_total = sum(max(1, tx.vsize()) for tx, _fee in conflicts)
-    if any(not tx.signals_rbf() for tx, _fee in conflicts):
+    if any(not tx.signals_rbf for tx, _fee in conflicts):
         return False
     required_delta = min_relay_fee(old_vsize_total, INCREMENTAL_RELAY_FEE)
     return new_fee >= old_fee_total + required_delta
