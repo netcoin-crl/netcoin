@@ -6,7 +6,7 @@
   <title>NetCoin Network</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
   <link rel="stylesheet" href="nodes.css?v=20260630-site-modes" />
-  <link rel="stylesheet" href="site-shell.css?v=20260630-header-collision-fix" />
+  <link rel="stylesheet" href="site-shell.css?v=20260630-github-instructions" />
 </head>
 <body>
   <div class="shell">
@@ -17,11 +17,12 @@
 
 <section class="hero dashboard-hero"><div class="card"><span class="pill"><span class="dot ok"></span><span id="netState">Checking network</span></span><h1>Network health, nodes, seeds, and mining.</h1><p>The Network hub combines the old Nodes and Status pages so operators can see public seeds, block height, peer health, fee signals, and how to help the network.</p><div class="site-section-tabs"><a href="#overview">Overview</a><a href="#seeds">Public seeds</a><a href="#mining">Mining</a><a href="#run">Run a seed</a></div></div><div class="card"><h2>Live summary</h2><div class="stats"><div class="stat"><div class="k">Height</div><div class="v" id="height">—</div></div><div class="stat"><div class="k">Peers</div><div class="v" id="peers">—</div></div><div class="stat"><div class="k">Fast fee</div><div class="v" id="fastFee">—</div></div></div></div></section>
 <section class="grid" id="overview"><div class="card"><h2>Node vs seed</h2><p>A node validates and relays chain data. A seed is a public node that helps new nodes find the network. A miner is a node that tries to produce blocks.</p></div><div class="card" id="seeds"><h2>Public seed checklist</h2><ul><li>Run current NetCoin software.</li><li>Keep TCP port 28444 reachable.</li><li>Monitor uptime, peers, and block height.</li><li>Never expose private keys or wallet secrets.</li></ul></div><div class="card" id="mining"><h2>Mining</h2><p>Testnet mining helps validate blocks and test difficulty rules. It has no real-money value.</p></div></section>
-<section class="split" id="run"><div class="card"><h2>Run a public seed</h2><pre>python -m netcoin --data ~/.netcoin-testnet node --host 0.0.0.0 --port 28444 --peer https://api.netcoin.online/api</pre><p class="muted">Open/forward port 28444 and test from outside your home network.</p></div><div class="card"><h2>Peer data</h2><pre id="peerData" class="compact-json">Loading…</pre></div></section>
+<section class="split" id="run"><div class="card"><h2>Run a public seed</h2><pre>python -m netcoin --data ~/.netcoin-testnet node --host 0.0.0.0 --port 28444 --seeds --sync-interval 60 --advertise http://YOUR_PUBLIC_IP_OR_DOMAIN:28444</pre><p class="muted">Open/forward port 28444 and test from outside your home network.</p></div><div class="card"><h2>Peer data</h2><pre id="peerData" class="compact-json">Loading…</pre></div></section>
+<section class="grid"><div class="card"><h2>Mine through public API</h2><pre>python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after</pre><p class="muted">Use this no-tunnel URL when your network blocks api.netcoin.online or port 28444.</p></div><div class="card"><h2>Local wallet node URL</h2><pre>python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online</pre></div></section>
 
     <p class="footer">NetCoin Network is part of the NetCoin public ecosystem.</p>
   </div>
   <script src="nodes.js?v=20260630-site-modes"></script>
-  <script src="site-shell.js?v=20260630-header-collision-fix"></script>
+  <script src="site-shell.js?v=20260630-github-instructions"></script>
 </body>
 </html>
