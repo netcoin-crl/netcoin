@@ -1,0 +1,564 @@
+# NetCoin Instructions
+
+This guide is for public testnet users who want to run NetCoin from source, connect to the public seed nodes, create a local wallet, mine testnet blocks, check balances, and run a local node.
+
+NetCoin is an educational public-testnet project. It is not Bitcoin, it does not connect to the Bitcoin network, and testnet NET has no real-money value.
+
+## Quick links
+
+- Public wallet: <https://wallet.netcoin.online>
+- Public explorer: <https://explorer.netcoin.online>
+- Public faucet: <https://faucet.netcoin.online>
+- API docs: <https://api.netcoin.online>
+- Source code: <https://github.com/netcoin-crl/netcoin>
+
+## Public seed nodes
+
+Use these node URLs when a command asks for a node:
+
+```text
+http://seed1.netcoin.online:28444
+http://seed2.netcoin.online:28444
+http://seed3.netcoin.online:28444
+```
+
+Start with `seed1`. If it is busy or unreachable, try `seed2` or `seed3`.
+
+## Before you start
+
+You will use a terminal window.
+
+- macOS: open **Terminal**.
+- Windows: open **PowerShell**, not Command Prompt.
+- Linux: open your normal terminal app.
+
+When a command starts a server or miner and keeps running, leave that terminal open. If the guide says **open a new terminal**, open a second terminal window and run the next commands there.
+
+To stop a running node, web wallet, or mining loop, click that terminal and press:
+
+```text
+Ctrl+C
+```
+
+## macOS instructions
+
+### 1. Open Terminal
+
+Open the macOS **Terminal** app.
+
+### 2. Check Python and Git
+
+Copy and paste:
+
+```bash
+python3 --version
+git --version
+```
+
+You need Python 3.10 or newer. If `git` is missing, macOS may ask you to install command line developer tools. Accept that prompt, wait for it to finish, then run the commands again.
+
+### 3. Download NetCoin
+
+```bash
+cd ~
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+```
+
+If you already downloaded it before and want a fresh copy:
+
+```bash
+cd ~
+rm -rf netcoin
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+```
+
+### 4. Create and activate a virtual environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+python -m netcoin --help
+```
+
+When the virtual environment is active, your terminal usually shows `(.venv)` near the prompt.
+
+### 5. Create a local wallet
+
+```bash
+python -m netcoin wallet-new --out my-wallet.json --mnemonic --confirm-backup
+python -m netcoin wallet-info --wallet my-wallet.json
+```
+
+Write down the recovery phrase. Do not share it. The wallet file and phrase control your testnet coins.
+
+### 6. Mine one testnet block using a public seed
+
+```bash
+python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+```
+
+If seed1 is unavailable, try:
+
+```bash
+python -m netcoin miner --node http://seed2.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+```
+
+### 7. Mine continuously until you stop it
+
+This keeps mining one block at a time. Stop with `Ctrl+C`.
+
+```bash
+while true; do
+  python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+  sleep 2
+done
+```
+
+### 8. Check your balance
+
+```bash
+python -m netcoin balance --node http://seed1.netcoin.online:28444 --wallet my-wallet.json
+```
+
+Mining rewards are coinbase rewards. They may show as immature until 100 more blocks are mined after them.
+
+### 9. Run a local node connected to public seeds
+
+Use this when you want your computer to run its own local node.
+
+In the current Terminal, run:
+
+```bash
+python -m netcoin --data ~/.netcoin-testnet init
+python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 --sync-interval 60 --peer http://seed1.netcoin.online:28444 --peer http://seed2.netcoin.online:28444 --peer http://seed3.netcoin.online:28444
+```
+
+Leave that terminal open.
+
+### 10. Open a new Terminal and mine through your local node
+
+Open a second Terminal window, then run:
+
+```bash
+cd ~/netcoin
+source .venv/bin/activate
+python -m netcoin miner --node http://127.0.0.1:28444 --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin balance --node http://127.0.0.1:28444 --wallet my-wallet.json
+```
+
+### 11. Run the local browser wallet
+
+Open a new Terminal, then run:
+
+```bash
+cd ~/netcoin
+source .venv/bin/activate
+python -m netcoin web --node http://seed1.netcoin.online:28444
+```
+
+Open this in your browser:
+
+```text
+http://127.0.0.1:8088/
+```
+
+The local browser wallet is for local testing only. Do not expose it publicly.
+
+## Windows PowerShell instructions
+
+### 1. Open PowerShell
+
+Open **PowerShell** from the Start menu.
+
+### 2. Check Python and Git
+
+```powershell
+py --version
+git --version
+```
+
+If Python is missing, install it:
+
+```powershell
+winget install --id Python.Python.3.12 -e
+```
+
+If Git is missing, install it:
+
+```powershell
+winget install --id Git.Git -e
+```
+
+Close PowerShell, open a new PowerShell window, then run the check again:
+
+```powershell
+py --version
+git --version
+```
+
+### 3. Download NetCoin
+
+```powershell
+cd $HOME
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+```
+
+If you already downloaded it before and want a fresh copy:
+
+```powershell
+cd $HOME
+Remove-Item -Recurse -Force netcoin
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+```
+
+### 4. Create and activate a virtual environment
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e .
+python -m netcoin --help
+```
+
+If PowerShell blocks activation, run this once, then try activating again:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\.venv\Scripts\Activate.ps1
+```
+
+### 5. Create a local wallet
+
+```powershell
+python -m netcoin wallet-new --out my-wallet.json --mnemonic --confirm-backup
+python -m netcoin wallet-info --wallet my-wallet.json
+```
+
+Write down the recovery phrase. Do not share it. The wallet file and phrase control your testnet coins.
+
+### 6. Mine one testnet block using a public seed
+
+```powershell
+python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+```
+
+If seed1 is unavailable, try:
+
+```powershell
+python -m netcoin miner --node http://seed2.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+```
+
+### 7. Mine continuously until you stop it
+
+This keeps mining one block at a time. Stop with `Ctrl+C`.
+
+```powershell
+while ($true) {
+  python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+  Start-Sleep -Seconds 2
+}
+```
+
+### 8. Check your balance
+
+```powershell
+python -m netcoin balance --node http://seed1.netcoin.online:28444 --wallet my-wallet.json
+```
+
+Mining rewards are coinbase rewards. They may show as immature until 100 more blocks are mined after them.
+
+### 9. Run a local node connected to public seeds
+
+Use this when you want your computer to run its own local node.
+
+In the current PowerShell window, run:
+
+```powershell
+python -m netcoin --data netcoin-testnet init
+python -m netcoin --data netcoin-testnet node --host 127.0.0.1 --port 28444 --sync-interval 60 --peer http://seed1.netcoin.online:28444 --peer http://seed2.netcoin.online:28444 --peer http://seed3.netcoin.online:28444
+```
+
+Leave that PowerShell window open.
+
+### 10. Open a new PowerShell window and mine through your local node
+
+Open a second PowerShell window, then run:
+
+```powershell
+cd $HOME\netcoin
+.\.venv\Scripts\Activate.ps1
+python -m netcoin miner --node http://127.0.0.1:28444 --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin balance --node http://127.0.0.1:28444 --wallet my-wallet.json
+```
+
+### 11. Run the local browser wallet
+
+Open a new PowerShell window, then run:
+
+```powershell
+cd $HOME\netcoin
+.\.venv\Scripts\Activate.ps1
+python -m netcoin web --node http://seed1.netcoin.online:28444
+```
+
+Open this in your browser:
+
+```text
+http://127.0.0.1:8088/
+```
+
+The local browser wallet is for local testing only. Do not expose it publicly.
+
+## Linux instructions
+
+These commands are for Ubuntu/Debian-style Linux. Other Linux distributions can use the same NetCoin commands after Python, venv, pip, and Git are installed.
+
+### 1. Open Terminal
+
+Open your Linux terminal.
+
+### 2. Install Python and Git
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip git
+```
+
+### 3. Check versions
+
+```bash
+python3 --version
+git --version
+```
+
+You need Python 3.10 or newer.
+
+### 4. Download NetCoin
+
+```bash
+cd ~
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+```
+
+If you already downloaded it before and want a fresh copy:
+
+```bash
+cd ~
+rm -rf netcoin
+git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+```
+
+### 5. Create and activate a virtual environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+python -m netcoin --help
+```
+
+When the virtual environment is active, your terminal usually shows `(.venv)` near the prompt.
+
+### 6. Create a local wallet
+
+```bash
+python -m netcoin wallet-new --out my-wallet.json --mnemonic --confirm-backup
+python -m netcoin wallet-info --wallet my-wallet.json
+```
+
+Write down the recovery phrase. Do not share it. The wallet file and phrase control your testnet coins.
+
+### 7. Mine one testnet block using a public seed
+
+```bash
+python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+```
+
+If seed1 is unavailable, try:
+
+```bash
+python -m netcoin miner --node http://seed2.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+```
+
+### 8. Mine continuously until you stop it
+
+This keeps mining one block at a time. Stop with `Ctrl+C`.
+
+```bash
+while true; do
+  python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+  sleep 2
+done
+```
+
+### 9. Check your balance
+
+```bash
+python -m netcoin balance --node http://seed1.netcoin.online:28444 --wallet my-wallet.json
+```
+
+Mining rewards are coinbase rewards. They may show as immature until 100 more blocks are mined after them.
+
+### 10. Run a local node connected to public seeds
+
+Use this when you want your computer to run its own local node.
+
+In the current terminal, run:
+
+```bash
+python -m netcoin --data ~/.netcoin-testnet init
+python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 --sync-interval 60 --peer http://seed1.netcoin.online:28444 --peer http://seed2.netcoin.online:28444 --peer http://seed3.netcoin.online:28444
+```
+
+Leave that terminal open.
+
+### 11. Open a new terminal and mine through your local node
+
+Open a second terminal window, then run:
+
+```bash
+cd ~/netcoin
+source .venv/bin/activate
+python -m netcoin miner --node http://127.0.0.1:28444 --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin balance --node http://127.0.0.1:28444 --wallet my-wallet.json
+```
+
+### 12. Run the local browser wallet
+
+Open a new terminal, then run:
+
+```bash
+cd ~/netcoin
+source .venv/bin/activate
+python -m netcoin web --node http://seed1.netcoin.online:28444
+```
+
+Open this in your browser:
+
+```text
+http://127.0.0.1:8088/
+```
+
+The local browser wallet is for local testing only. Do not expose it publicly.
+
+## Common commands after setup
+
+Activate the virtual environment after opening a new terminal:
+
+macOS / Linux:
+
+```bash
+cd ~/netcoin
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+cd $HOME\netcoin
+.\.venv\Scripts\Activate.ps1
+```
+
+Show help:
+
+```bash
+python -m netcoin --help
+```
+
+Show wallet information:
+
+```bash
+python -m netcoin wallet-info --wallet my-wallet.json
+```
+
+Check a wallet balance through a public node:
+
+```bash
+python -m netcoin balance --node http://seed1.netcoin.online:28444 --wallet my-wallet.json
+```
+
+Check any address:
+
+```bash
+python -m netcoin balance --node http://seed1.netcoin.online:28444 --address YOUR_NETCOIN_ADDRESS_HERE
+```
+
+Mine one block through a public node:
+
+```bash
+python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+```
+
+Mine one block through your local node:
+
+```bash
+python -m netcoin miner --node http://127.0.0.1:28444 --wallet my-wallet.json --blocks 1 --sync-after
+```
+
+Run the local browser wallet:
+
+```bash
+python -m netcoin web --node http://seed1.netcoin.online:28444
+```
+
+## Troubleshooting
+
+### `python: command not found`
+
+Use `python3` on macOS/Linux or `py -3` on Windows for the setup step. After the virtual environment is active, `python` should work.
+
+### `ModuleNotFoundError: No module named netcoin`
+
+You are probably outside the project folder or the virtual environment is not active. Run the activation commands again, then reinstall:
+
+```bash
+python -m pip install -e .
+```
+
+### PowerShell will not activate `.venv`
+
+Run:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\.venv\Scripts\Activate.ps1
+```
+
+### Public seed is not responding
+
+Try another seed:
+
+```bash
+python -m netcoin balance --node http://seed2.netcoin.online:28444 --wallet my-wallet.json
+python -m netcoin balance --node http://seed3.netcoin.online:28444 --wallet my-wallet.json
+```
+
+### Mining works, but balance is not spendable yet
+
+Mining rewards need maturity. Wait until 100 more blocks are mined after your reward block.
+
+### A command is stuck or keeps running
+
+Press:
+
+```text
+Ctrl+C
+```
+
+## Safety reminders
+
+- Do not share seed phrases.
+- Do not share private keys.
+- Do not share wallet files.
+- Public-testnet NET has no real-money value.
+- Keep local browser tools bound to `127.0.0.1` unless you understand the security risks.

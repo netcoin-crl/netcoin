@@ -20,6 +20,7 @@ NetCoin is **not Bitcoin** and public-testnet NET has no real-money value.
 
 ## Start here
 
+- [Beginner instructions](../INSTRUCTIONS.md)
 - [User guide](USER_GUIDE.md)
 - [Starter kit](STARTER_KIT.md)
 - [Testnet guide](TESTNET.md)
