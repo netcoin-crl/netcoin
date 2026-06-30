@@ -763,6 +763,12 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                 return {}
             return json.loads(self.rfile.read(length).decode("utf-8"))
 
+        def end_headers(self) -> None:
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+            super().end_headers()
+
         def send_json(self, payload: Dict[str, Any], status: int = 200) -> None:
             body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
             self.send_response(status)
@@ -1083,6 +1089,7 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     public_app_write = parsed.path in {
                         "/community/posts", "/api/community/posts", "/app/community/posts",
                         "/community/improvements", "/api/community/improvements", "/app/community/improvements",
+                        "/community/reports", "/api/community/reports", "/app/community/reports",
                     } or (parsed.path.startswith(("/community/improvements/", "/api/community/improvements/", "/app/community/improvements/")) and parsed.path.endswith("/vote"))
                     if not public_app_write and not self.require_app_admin():
                         return

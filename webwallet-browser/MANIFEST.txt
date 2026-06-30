@@ -1,12 +1,12 @@
 NetCoin wallet build manifest
-source_commit: public-ui-merchant-community-fix-plus-security-sites
-local_patch: private-key wallet import, session unlock, public sites, community safety guardrails
+source_commit: public-ui-polish-clarity-pass
+local_patch: compact responsive UI, readable security snapshot, cleaned explorer shell, wallet tab layout fix
 built_from: webwallet-browser/ (npm ci + npm run build)
 
 public/netcoin-wallet.js   sha384=sha384-bPC3d74AR1XU9mKU6s1766pYvU/iePmxNHlEbLrixSEbsOc9NdEBt/Wm/AeN2kCW
-public/wallet-app.js       sha384=sha384-vxdUH3dyzQ5797thFz3lT6hW/LUXMeViHYgew2frP2LiKBmZsNgYlwRLlxaildGJ
+public/wallet-app.js       sha384=sha384-n8xTWTR1lhUdOdxjCBQbiwHwo7Iw0he8opqwdj3BEOmyQAmMRg9sByiEoYIb4jKG
 
 sha256 (base64):
   netcoin-wallet.js        2OU0vxOCIpprtguewxi2hjmCi5MxQrghrm2n/GlbDJg=
-  wallet-app.js            NLyCbTJMP9b/8nHYm31uh4cjQvwn4P5+bp3iwEHob2I=
-  wallet.html              Qk4yfJSR4kR7d/TFXjtI+8evWuKtPsVX8VKqZzM2QTA=
+  wallet-app.js            zLTZ+VUfc2dTpzjjw7lpTSqFYS95so1pj4X/zvEvbqM=
+  wallet.html              NS/jHh1a9ke7XjPk8DYpDmSBBmN1HkflddNVafNkCn4=

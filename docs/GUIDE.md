@@ -143,3 +143,8 @@ pytest -q
 - Use HTTPS hosted apps when using browser wallet features.
 - Review code before running experimental tools.
 - Do not expose private wallet data through public issue reports, screenshots, logs, or demos.
+
+
+## Site-wide modes
+
+NetCoin sites now share a global mode selector: Simple, Merchant, Developer, Node Operator, Community, and Advanced/Labs. This keeps the public UI clean while preserving deeper tools for curious users. Learn includes download/install instructions, Governance includes Treasury transparency, Nodes/Status are grouped as Network, API docs live in the developer/API hub, and Markets are isolated as Labs.

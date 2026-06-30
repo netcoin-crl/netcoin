@@ -13,15 +13,15 @@ This document lists the public NetCoin sites and the intended purpose of each on
 | `faucet.netcoin.online` | Public-testnet faucet. |
 | `community.netcoin.online` | Public discussion, improvement ideas, bounties, and leaderboards. |
 | `markets.netcoin.online` | Testnet-only prediction-market demos and Phase 7 experiments. |
-| `nodes.netcoin.online` | Public node/seed dashboard and public seed onboarding. |
-| `status.netcoin.online` | Service and network health status. |
+| `nodes.netcoin.online` | Network hub: public seeds, status, peers, mining, and node-operator onboarding. |
+| `status.netcoin.online` | Companion/legacy status link that points users to the Network hub. |
 | `security.netcoin.online` | Security trust center, responsible disclosure, and audit-readiness checklist. |
 | `learn.netcoin.online` | Beginner education about wallets, nodes, seeds, mining, and safety. |
-| `download.netcoin.online` | Public install/run instructions for macOS, Windows, and Linux. |
+| `download.netcoin.online` | Companion/legacy download link; install instructions live under Learn. |
 | `governance.netcoin.online` | NetCoin Improvement Proposal style idea board and voting. |
-| `treasury.netcoin.online` | Read-only treasury transparency page when addresses are configured. |
-| `docs.netcoin.online` | Public documentation hub. |
-| `api.netcoin.online` | Developer API reference. |
+| `treasury.netcoin.online` | Companion/legacy treasury link; treasury transparency lives under Governance. |
+| `docs.netcoin.online` | Companion docs link; developer docs live under API/Developers and beginner docs live under Learn. |
+| `api.netcoin.online` | Developers hub and machine API host under `/api/*`. |
 
 ## Generic Nginx map entries
 
@@ -37,7 +37,7 @@ map $host $netcoin_site_root {
     faucet.netcoin.online    /opt/netcoin/sites/faucet;
     community.netcoin.online /opt/netcoin/sites/community;
     markets.netcoin.online   /opt/netcoin/sites/markets;
-    nodes.netcoin.online     /opt/netcoin/sites/nodes;
+    nodes.netcoin.online     /opt/netcoin/sites/nodes; # Network hub
     status.netcoin.online    /opt/netcoin/sites/status;
     security.netcoin.online  /opt/netcoin/sites/security;
     learn.netcoin.online     /opt/netcoin/sites/learn;
@@ -45,7 +45,7 @@ map $host $netcoin_site_root {
     governance.netcoin.online /opt/netcoin/sites/governance;
     treasury.netcoin.online  /opt/netcoin/sites/treasury;
     docs.netcoin.online      /opt/netcoin/sites/docs;
-    api.netcoin.online       /opt/netcoin/sites/api;
+    api.netcoin.online       /opt/netcoin/sites/api; # Developer hub and API host
 }
 ```
 
