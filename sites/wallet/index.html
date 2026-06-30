@@ -39,6 +39,8 @@
     .kv { display:grid; grid-template-columns:110px 1fr; gap:6px 10px; font-size:13px; }
     .kv .k { color:var(--mut); } .kv .v { word-break:break-all; }
     .smallbtn { margin-top:8px; }
+    .checkline { display:flex; align-items:flex-start; gap:8px; color:var(--mut); font-size:12px; margin:12px 0 4px; }
+    .checkline input { width:auto; margin-top:3px; }
     .file { padding:8px; }
     video { width:100%; border:1px solid var(--bd); border-radius:10px; background:#000; }
     #qrCanvas { width:192px; height:192px; max-width:100%; image-rendering:pixelated; background:#fff; border:8px solid #fff; border-radius:8px; margin-top:10px; }
@@ -94,15 +96,16 @@
 </head>
 <body>
   <div class="wrap">
-    <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online" class="active" aria-current="page">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online">Pay</a><a href="https://merchant.netcoin.online">Merchant</a><a href="https://faucet.netcoin.online">Faucet</a><a href="https://community.netcoin.online">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav>
+    <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online" class="active" aria-current="page">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online">Pay</a><a href="https://merchant.netcoin.online">Merchant</a><a href="https://faucet.netcoin.online">Faucet</a><a href="https://community.netcoin.online">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://nodes.netcoin.online">Nodes</a><a href="https://status.netcoin.online">Status</a><a href="https://security.netcoin.online">Security</a><a href="https://learn.netcoin.online">Learn</a><a href="https://download.netcoin.online">Download</a><a href="https://governance.netcoin.online">Governance</a><a href="https://treasury.netcoin.online">Treasury</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav>
     <h1>Net<span>Coin</span> Wallet</h1>
     <p class="sub">Non-custodial · keys never leave your browser · <span class="pill" id="netpill">testnet</span></p>
 
     <!-- WELCOME -->
     <div id="welcome" class="card hide">
-      <p>Create a new wallet or restore one from your recovery phrase.</p>
+      <p>Create a new wallet, restore a recovery phrase, or sign in with an existing private key.</p>
       <button id="btnCreate">Create new wallet</button>
       <button id="btnRestore" class="secondary">Restore from recovery phrase</button>
+      <button id="btnPrivateKey">Sign in with private key</button>
     </div>
 
     <!-- CREATE: show phrase -->
@@ -131,19 +134,39 @@
       <p class="err" id="restoreErr"></p>
     </div>
 
+
+    <!-- PRIVATE KEY IMPORT -->
+    <div id="privateKey" class="card hide">
+      <p>Import an existing NetCoin private key. The key is encrypted locally if you save it as a profile and never leaves your browser.</p>
+      <label>Private key hex</label>
+      <textarea id="privateKeyInput" placeholder="64-character private key hex" autocomplete="off" spellcheck="false"></textarea>
+      <label>Wallet profile name</label>
+      <input id="privateKeyProfileName" placeholder="Private key wallet" autocomplete="off" />
+      <label>Password to encrypt on this device</label>
+      <input id="privateKeyPw" type="password" placeholder="password" autocomplete="new-password" />
+      <label class="checkline"><input id="privateKeyRemember" type="checkbox" checked /> Stay unlocked in this browser tab until I lock or close it</label>
+      <button id="btnPrivateKeyConfirm">Unlock and save encrypted profile</button>
+      <button id="btnPrivateKeySession" class="secondary" type="button">Unlock for this session only</button>
+      <button id="btnPrivateKeyBack" class="secondary">Back</button>
+      <p class="muted">Session-only unlock does not save the key. Saved profiles are encrypted with your password in this browser.</p>
+      <p class="err" id="privateKeyErr"></p>
+    </div>
+
     <!-- UNLOCK -->
     <div id="unlock" class="card hide">
       <p>Unlock a saved wallet profile.</p>
       <label>Wallet profile</label>
       <select id="profileSelect" aria-label="Wallet profile"></select>
       <input id="unlockPw" type="password" placeholder="password" autocomplete="current-password" />
+      <label class="checkline"><input id="unlockRemember" type="checkbox" checked /> Stay unlocked in this browser tab until I lock or close it</label>
       <button id="btnUnlock">Unlock</button>
       <div class="row">
         <button id="btnCreateAnother" class="secondary inline" type="button">Create another wallet</button>
         <button id="btnRestoreAnother" class="secondary inline" type="button">Restore another wallet</button>
       </div>
+      <button id="btnPrivateKeyAnother" class="secondary" type="button">Sign in with private key</button>
       <button id="btnForget" class="secondary">Forget selected wallet</button>
-      <p class="muted" id="profileMsg">Profiles are encrypted separately and saved only in this browser.</p>
+      <p class="muted" id="profileMsg">Profiles are encrypted separately and saved only in this browser. Session unlock means switching away and back to Wallet in the same browser tab will not ask again.</p>
       <p class="err" id="unlockErr"></p>
     </div>
 

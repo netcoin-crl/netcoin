@@ -168,11 +168,17 @@ PAGE = """<!doctype html>
    <div class="row">
      <button class="act" onclick="newWallet()">Create new wallet</button>
      <button class="ghost" onclick="document.getElementById('loadBox').classList.toggle('hide')">Load existing</button>
+     <button class="ghost" onclick="document.getElementById('pkBox').classList.toggle('hide')">Private key</button>
    </div>
    <div id="loadBox" class="hide">
      <label>Paste wallet JSON</label><input id="loadJson" placeholder='{"network":"NetCoin",...}'>
      <label>Passphrase (if encrypted)</label><input id="loadPass" type="password">
      <button class="act" onclick="loadWallet()">Load</button>
+   </div>
+   <div id="pkBox" class="hide">
+     <label>Private key hex</label><input id="privHex" placeholder="64-character private key hex" autocomplete="off">
+     <p class="muted">Use this only for single-key testnet wallets. Do not paste private keys into untrusted pages.</p>
+     <button class="act" onclick="loadPrivateKey()">Log in with private key</button>
    </div>
   </div>
 
@@ -273,6 +279,7 @@ async function loadHistory(){const out=$('#historyOut');try{
 	}catch(e){out.innerHTML=nodeHelp(e.message);}}
 async function newWallet(){try{const w=await api('/api/wallet/new',{method:'POST'});showWallet(w);}catch(e){alert(e.message)}}
 async function loadWallet(){try{const w=await api('/api/wallet/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({json:$('#loadJson').value,passphrase:$('#loadPass').value})});showWallet(w);}catch(e){alert(e.message)}}
+async function loadPrivateKey(){try{const w=await api('/api/wallet/private-key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({private_key_hex:$('#privHex').value})});showWallet(w);}catch(e){alert(e.message)}}
 function copyAddr(){navigator.clipboard.writeText(ADDRS[curType]);}
 async function refreshBalance(){try{const b=await api('/api/balance?address='+ADDRS[curType]);
 	  $('#balSpendable').innerHTML=esc(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+esc(CFG.ticker)+'</span>';
@@ -417,6 +424,11 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     wallet = self._load_wallet(body.get("json", ""), body.get("passphrase") or None)
                     state["wallet"] = wallet
                     self._send({"address": wallet.address_for("legacy"), "addresses": _wallet_addresses(wallet)})
+                elif parsed.path == "/api/wallet/private-key":
+                    body = self._read()
+                    wallet = self._load_private_key(body.get("private_key_hex", ""))
+                    state["wallet"] = wallet
+                    self._send({"address": wallet.address_for("legacy"), "addresses": _wallet_addresses(wallet)})
                 elif parsed.path == "/api/wallet/send":
                     self._send(self._send_tx(self._read()))
                 else:
@@ -444,6 +456,12 @@ def make_handler(node_url: str, faucet_url: str = ""):
                 return Wallet.load(path, passphrase=passphrase)
             finally:
                 Path(path).unlink(missing_ok=True)
+
+        def _load_private_key(self, private_key_hex: str) -> Wallet:
+            clean = str(private_key_hex or "").strip().removeprefix("0x").replace(" ", "").replace("\n", "")
+            if len(clean) != 64:
+                raise ValueError("private key must be 64 hex characters")
+            return Wallet.from_dict({"private_key_hex": clean})
 
         def _send_tx(self, body: Dict[str, Any]) -> Dict[str, Any]:
             wallet = state["wallet"]

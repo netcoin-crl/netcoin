@@ -14,6 +14,7 @@ NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should 
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards for participation. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute improvements. |
 | [SECURITY.md](SECURITY.md) | How to report security issues. |
+| [docs/PUBLIC_SITE_MAP.md](docs/PUBLIC_SITE_MAP.md) | Public site purpose map for Wallet, Explorer, Pay, Merchant, Community, Nodes, Security, Governance, Treasury, Docs, and API. |
 
 ## Public Testnet Apps
 
@@ -21,16 +22,22 @@ Use the hosted public-testnet apps here:
 
 | App | Link | Purpose |
 | --- | --- | --- |
-| Wallet | <https://wallet.netcoin.online> | Create or restore a wallet, receive, send, contacts, backups, and wallet tools. |
+| Wallet | <https://wallet.netcoin.online> | Create, restore, import private keys, receive, send, contacts, backups, and wallet tools. |
 | Explorer | <https://explorer.netcoin.online> | Chain lookup, latest blocks, latest transactions, and network health. |
 | Pay | <https://pay.netcoin.online> | Customer checkout, payment requests, invoices, and receipts. |
 | Merchant | <https://merchant.netcoin.online> | Business dashboard, POS, invoices, refunds, API keys, webhooks, exports, agreements, and reports. |
 | Faucet | <https://faucet.netcoin.online> | Request public-testnet NET. |
 | Community | <https://community.netcoin.online> | Public discussion, improvement ideas, campaigns, bounties, gifts, and leaderboards. |
+| Governance | <https://governance.netcoin.online> | Proposal board and community voting for improvement ideas. |
+| Treasury | <https://treasury.netcoin.online> | Read-only transparency page for project-fund records if a treasury exists. |
 | Markets | <https://markets.netcoin.online> | Phase 7 prediction-market demos and market experiments. |
+| Nodes | <https://nodes.netcoin.online> | Node, public seed, peer, and decentralization dashboard. |
+| Status | <https://status.netcoin.online> | Public service health and availability checks. |
+| Security | <https://security.netcoin.online> | Security trust center, wallet safety, disclosure, and release-trust notes. |
+| Learn | <https://learn.netcoin.online> | Beginner-friendly explanations of wallets, nodes, seeds, mining, and payments. |
+| Download | <https://download.netcoin.online> | Install and run commands for macOS, Windows, and Linux. |
 | Docs | <https://docs.netcoin.online> | User, wallet, merchant, node, and developer guides. |
 | API Docs | <https://api.netcoin.online> | Public endpoint reference, examples, auth notes, and webhook references. |
-| Status | <https://status.netcoin.online> | Public health and availability checks. |
 
 The public sites are separated by purpose so the Explorer stays focused and users are not overwhelmed.
 
@@ -117,16 +124,24 @@ NetCoin is a testnet and learning project.
 ### Public app ecosystem
 
 - Responsive layouts for mobile, tablet, laptop, and desktop.
-- Independent websites for Wallet, Explorer, Pay, Merchant, Faucet, Community, Markets, Docs, API Docs, and Status.
+- Independent websites for Wallet, Explorer, Pay, Merchant, Faucet, Community, Governance, Treasury, Markets, Nodes, Status, Security, Learn, Download, Docs, and API Docs.
 - Shared navigation across the public NetCoin apps.
-- Wallet site for wallet actions, contacts, backups/imports, wallet modes, and wallet tools.
+- Wallet site for wallet actions, private-key import, session unlock, contacts, backups/imports, wallet modes, and wallet tools.
 - Explorer site focused on chain lookup, latest blocks, latest transactions, and network health.
 - Pay site for simple checkout and customer-facing payment flows.
 - Merchant site for invoices, POS checkout, API keys, webhooks, refunds, agreements, CSV exports, and reports.
 - Faucet site for requesting public-testnet coins.
 - Community site for public discussion, improvement ideas, campaigns, bounties, gifts, social links, and leaderboards.
 - Markets site for prediction-market demos and Phase 7 experiments.
-- Docs and API Docs sites for public help and developer references.
+- Nodes, Security, Learn, Download, Docs, and API Docs sites for public network visibility, safety, education, setup, and developer references.
+
+
+### Wallet usability upgrades
+
+- Private-key wallet import for users who already have a single NetCoin key.
+- Encrypted private-key profiles stored locally in the browser.
+- Session unlock so returning to the wallet in the same browser tab does not require signing in again until the tab is closed or the wallet is locked.
+- HTTPS-first local wallet defaults through `https://api.netcoin.online/api`.
 
 ### Core chain
 
@@ -211,6 +226,20 @@ MIT. See [LICENSE](LICENSE).
 ### Recent UI updates
 
 - Local browser wallet now defaults to the HTTPS public API proxy to avoid home-network blocks on custom ports.
-- Local browser wallet now defaults to the HTTPS public API proxy to avoid home-network blocks on custom ports.
 - Merchant site now has a clearer invoice/POS workflow, API/webhook tools, refund planning, agreements, exports, and invoice table.
 - Community site now includes a public discussion board, improvement ideas, bounties, and leaderboards backed by app-layer endpoints.
+
+## Professional ecosystem additions
+
+The public NetCoin site set now includes focused tools for a more professional cryptocurrency testnet:
+
+- **Nodes** — public seed/node health and instructions for becoming a seed.
+- **Status** — service and network health checks.
+- **Security** — trust center, wallet safety, responsible disclosure, and pre-mainnet checklist.
+- **Download** — public install/run instructions for macOS, Windows, and Linux.
+- **Governance** — NetCoin Improvement Proposal style idea board.
+- **Treasury** — read-only transparency page for any configured project addresses.
+- **Learn** — beginner education for wallets, nodes, seeds, transactions, and mining.
+
+The wallet also supports importing a single private key as an encrypted profile and keeps the wallet unlocked only for the current browser tab/session, so switching between NetCoin sites does not force repeated unlocks.
+
