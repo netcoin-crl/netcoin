@@ -21,12 +21,15 @@ NetCoin is **not Bitcoin** and public-testnet NET has no real-money value.
 ## Start here
 
 - [Beginner instructions](../INSTRUCTIONS.md)
+- [Run the local browser wallet](../INSTRUCTIONS.md#run-the-local-netcoin-wallet)
+- [Become a public seed](../INSTRUCTIONS.md#become-a-public-seed)
 - [User guide](USER_GUIDE.md)
 - [Starter kit](STARTER_KIT.md)
 - [Testnet guide](TESTNET.md)
 - [Wallet modes and site split](WALLET_MODES_AND_SITE_SPLIT.md)
 - [Mining guide](MINING.md)
 - [Node runner guide](NODE_RUNNER.md)
+- [Public seed hosting guide](PUBLIC_SEED_HOSTING.md)
 - [API and architecture overview](ARCHITECTURE.md)
 - [Roadmap](ROADMAP.md)
 - [Limitations](LIMITATIONS.md)

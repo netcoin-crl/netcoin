@@ -73,7 +73,7 @@ python -m netcoin wallet-info --wallet my-wallet.json
 
 Open the faucet and paste your address:
 
-- https://seed1.netcoin.online/faucet
+- https://faucet.netcoin.online
 
 The faucet sends **5 test NET** (one request per IP per 24 hours). Watch it arrive:
 
