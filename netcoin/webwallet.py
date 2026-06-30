@@ -21,7 +21,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
-from .params import COIN, COINBASE_MATURITY, NETWORK_NAME, NODE_VERSION, TICKER
+from .params import COIN, COINBASE_MATURITY, MAX_WALLET_SEND_INPUTS, MAX_WALLET_SEND_WEIGHT, NETWORK_NAME, NODE_VERSION, TICKER
+from .serialization import transaction_weight
 from .tx import SpendableOutput, Transaction, TxInput, TxOutput, amount_to_sats
 from .wallet import Wallet
 
@@ -51,7 +52,7 @@ def _node_get(node_url: str, path: str, timeout: int = 15) -> Dict[str, Any]:
         return json.loads(response.read().decode("utf-8"))
 
 
-def _node_post(node_url: str, path: str, payload: Dict[str, Any], timeout: int = 15) -> Dict[str, Any]:
+def _node_post(node_url: str, path: str, payload: Dict[str, Any], timeout: int = 30) -> Dict[str, Any]:
     base = _normalize_node_url(node_url)
     body = json.dumps(payload).encode("utf-8")
     request = Request(base + path, data=body, headers={"Content-Type": "application/json"}, method="POST")
@@ -91,12 +92,24 @@ def build_and_broadcast(
         raise ValueError("no spendable (mature) coins at this address yet")
 
     needed = amount_sats + fee_sats
+    total_spendable = sum(s.output.amount for s in spendables)
+    if total_spendable < needed:
+        raise ValueError(
+            f"insufficient spendable balance: have {total_spendable / COIN:.8f} {TICKER}, "
+            f"need {(needed) / COIN:.8f} {TICKER}. Mining rewards must mature before spending."
+        )
+
     spendables.sort(key=lambda s: s.output.amount, reverse=True)
     selected: List[SpendableOutput] = []
     total = 0
     for utxo in spendables:
         selected.append(utxo)
         total += utxo.output.amount
+        if len(selected) > MAX_WALLET_SEND_INPUTS:
+            raise ValueError(
+                f"transaction would need more than {MAX_WALLET_SEND_INPUTS} inputs. "
+                "Try a smaller send, wait for confirmations, or consolidate coins first."
+            )
         if total >= needed:
             break
     if total < needed:
@@ -111,8 +124,23 @@ def build_and_broadcast(
     for index, utxo in enumerate(selected):
         tx.sign_input(index, wallet.private_key, utxo)
 
-    response = _node_post(node_url, "/tx", tx.to_dict())
-    return {"txid": response.get("txid") or tx.txid(), "amount": amount_sats / COIN, "fee": fee_sats / COIN, "node_response": response}
+    weight = transaction_weight(tx)
+    if weight > MAX_WALLET_SEND_WEIGHT:
+        raise ValueError(
+            f"transaction too large ({weight} weight units > {MAX_WALLET_SEND_WEIGHT}). "
+            "Try sending a smaller amount or use coin consolidation first."
+        )
+
+    response = _node_post(node_url, "/tx", tx.to_dict(), timeout=30)
+    return {
+        "txid": response.get("txid") or tx.txid(),
+        "amount": amount_sats / COIN,
+        "fee": fee_sats / COIN,
+        "input_count": len(selected),
+        "weight": weight,
+        "change": change / COIN,
+        "node_response": response,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -243,18 +271,23 @@ PAGE = """<!doctype html>
  </section>
 </div>
 	<script>
-	let CFG={}, ADDRS={}, curType="legacy";
+	let CFG={}, ADDRS={}, curType="legacy", BAL={};
 	const $=s=>document.querySelector(s);
 	const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 	const jsq=s=>JSON.stringify(String(s??''));
 	function safeUrl(u){try{const x=new URL(String(u),location.href);return ['http:','https:'].includes(x.protocol)?x.href:'';}catch{return '';}}
-	async function api(p,opt){const r=await fetch(p,opt);const j=await r.json();if(!r.ok&&j.error)throw new Error(j.error);return j;}
+	async function api(p,opt={},timeoutMs=35000){const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),timeoutMs);
+  try{opt=Object.assign({},opt,{signal:ctrl.signal});const r=await fetch(p,opt);const text=await r.text();let j={};
+    try{j=text?JSON.parse(text):{};}catch(e){throw new Error('node returned non-JSON response');}
+    if(!r.ok&&j.error)throw new Error(j.error);if(!r.ok)throw new Error('HTTP '+r.status);return j;}
+  catch(e){if(e.name==='AbortError')throw new Error('request timed out; check mempool/explorer, then try again');throw e;}
+  finally{clearTimeout(timer);}}
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
   ['wallet','faucet','explorer'].forEach(t=>$('#tab-'+t).classList.toggle('hide',t!==b.dataset.tab));
   if(b.dataset.tab==='explorer')loadLatest();
 });
-function nodeHelp(msg){return esc(msg)+'<div class="warn"><b>Node connection help</b><br>Use the public HTTPS API proxy when home Wi-Fi blocks the seed port:<div class="mono">python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online</div><br>Configured node: <span class="mono">'+esc(CFG.node||'unknown')+'</span></div>';}
+function nodeHelp(msg){return esc(msg)+'<div class="warn"><b>Node connection help</b><br>Use the public API proxy when home Wi-Fi blocks the seed port. If your network blocks api.netcoin.online, use the direct-IP API:<div class="mono">python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online</div><br>Configured node: <span class="mono">'+esc(CFG.node||'unknown')+'</span></div>';}
 async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG.network+' · node '+CFG.node;
   $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')search();});
   const w=await api('/api/wallet/current');if(w.address)showWallet(w);}
@@ -281,7 +314,7 @@ async function newWallet(){try{const w=await api('/api/wallet/new',{method:'POST
 async function loadWallet(){try{const w=await api('/api/wallet/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({json:$('#loadJson').value,passphrase:$('#loadPass').value})});showWallet(w);}catch(e){alert(e.message)}}
 async function loadPrivateKey(){try{const w=await api('/api/wallet/private-key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({private_key_hex:$('#privHex').value})});showWallet(w);}catch(e){alert(e.message)}}
 function copyAddr(){navigator.clipboard.writeText(ADDRS[curType]);}
-async function refreshBalance(){try{const b=await api('/api/balance?address='+ADDRS[curType]);
+async function refreshBalance(){try{const b=await api('/api/balance?address='+ADDRS[curType]);BAL=b;
 	  $('#balSpendable').innerHTML=esc(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+esc(CFG.ticker)+'</span>';
   $('#balDetail').textContent='immature '+(b.immature||'0')+' · total '+(b.total||'0')+' · '+(b.utxo_count||0)+' UTXOs';}catch(e){$('#balSpendable').textContent='—';$('#balDetail').innerHTML=nodeHelp(e.message);}}
 async function makePayLink(){const out=$('#reqOut');try{
@@ -295,11 +328,18 @@ async function applyPayLink(){const v=$('#payLink').value.trim();if(!v.toLowerCa
   const d=await api('/api/parse-uri?uri='+encodeURIComponent(v));
   $('#sendTo').value=d.address;if(d.amount)$('#sendAmt').value=d.amount;
 }catch(e){}}
-async function send(){const out=$('#sendOut');out.textContent='Sending…';try{
+async function send(){const out=$('#sendOut'),btn=$('#sendBtn');
+  const amount=parseFloat($('#sendAmt').value||'0'),fee=parseFloat($('#sendFee').value||'0'),spendable=parseFloat(BAL.spendable||'0');
+  if(!$('#sendTo').value.trim()){out.innerHTML='<span class="err">Destination address required.</span>';return;}
+  if(!(amount>0)){out.innerHTML='<span class="err">Amount must be positive.</span>';return;}
+  if((amount+fee)>spendable){out.innerHTML='<span class="err">Amount plus fee exceeds spendable balance. Spendable: '+esc(BAL.spendable||'0')+' '+esc(CFG.ticker)+'</span>';return;}
+  if(spendable>0&&(amount+fee)>spendable*0.9&&!confirm('This sends more than 90% of your spendable balance. Continue?'))return;
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}out.textContent='Preparing and broadcasting transaction…';try{
   const j=await api('/api/wallet/send',{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType})});
-	  out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+esc(j.txid)+'</span>';refreshBalance();}
-	  catch(e){out.innerHTML=nodeHelp(e.message);}}
+   body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType})},45000);
+	  out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+esc(j.txid)+'</span><div class="muted">inputs '+esc(j.input_count||'?')+' · weight '+esc(j.weight||'?')+' · change '+esc(j.change||0)+' '+esc(CFG.ticker)+'</div>';refreshBalance();loadHistory();}
+	  catch(e){out.innerHTML=nodeHelp(e.message)+'<div class="warn">If this timed out after a large send, check the mempool and mine one block before trying again.</div>';}
+  finally{if(btn){btn.disabled=false;btn.textContent='Send';}}}
 function fmtTime(ts){return ts?new Date(ts*1000).toLocaleString():'';}
 function short(h){return h?(h.length>26?h.slice(0,14)+'…'+h.slice(-8):h):'';}
 	function card(t,b){return '<div class="rcard"><div class="rtitle">'+esc(t)+'</div>'+b+'</div>';}

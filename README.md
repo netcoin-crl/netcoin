@@ -4,7 +4,7 @@ NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in 
 
 NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should not be used as real money software. Public-testnet NET has no real-money value.
 
-> Current release: **v0.7.2**
+> Current release: **v0.7.5**
 
 ## Start here
 
@@ -187,6 +187,7 @@ NetCoin is a testnet and learning project.
 - Testnet lone-miner rule so the chain can keep moving.
 - Merkle roots.
 - Coinbase rewards and 100-block coinbase maturity.
+- Reward schedule: starts at 50 NET and decreases 20% every 210,000 blocks.
 - secp256k1 ECDSA signatures.
 - BIP340-style Schnorr signatures for Taproot-like key-path spends.
 - Legacy, P2SH-SegWit, SegWit-style, and Taproot-style addresses.
@@ -316,3 +317,16 @@ NetCoin now uses a mode-aware public ecosystem so new users see a simple path an
 - **Labs** — isolated testnet experiments such as prediction-market demos and Phase 7 features.
 
 Use the site-wide **Mode** selector to switch between Simple, Merchant, Developer, Node Operator, Community, and Labs views.
+
+### Reliability and public-node protections
+
+NetCoin includes public-node safeguards so wallet, explorer, mining, and seed traffic do not overload the same node:
+
+- Wallet send pre-checks for spendable balance, input count, and transaction weight.
+- Clear timeout/error messages when a send is too large or the node is busy.
+- Mempool expiry, mempool info, and operator mempool-clear tools.
+- Fast `/health` and `/status-lite` node endpoints.
+- Cached `/latest` and `/info` reads for explorer/status pages.
+- Address-history pagination for explorer/API use.
+
+See [`docs/NODE_RELIABILITY_AND_LOAD.md`](docs/NODE_RELIABILITY_AND_LOAD.md).

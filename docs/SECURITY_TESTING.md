@@ -43,7 +43,7 @@ The regression suite covers:
 - peer sync ignores an invalid chain and lower/equal-work chains
 - node and RPC servers reject oversized request bodies
 - JSON-RPC requires a bearer token when one is configured (401 vs 200)
-- subsidy halving schedule (including zero past 64 halvings, negative-height guard)
+- subsidy reward-reduction schedule (20% every 210,000 blocks, negative-height guard)
 - explorer generation and status-dashboard rendering (with HTML escaping)
 - fuzz runner: transaction/block parsing, raw-tx decoding, script parsing, and node
   endpoints survive deterministic random/garbage input without crashing

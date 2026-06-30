@@ -73,3 +73,21 @@ Then open `http://127.0.0.1:8090/`.
 ## Address types
 
 The same wallet can show several receiving address formats: legacy, p2sh-segwit, segwit, and taproot. They are controlled by the same wallet/private key, but they are different blockchain addresses. If you mined with the default miner command, check the legacy address unless you passed `--address-type`.
+
+
+## Large send or timeout troubleshooting
+
+If a wallet send times out after trying a large amount, check the mempool and node health before trying again:
+
+```bash
+curl -s http://18.220.89.128/api/health
+python -m netcoin mempool-info --node http://18.220.89.128/api --summary
+```
+
+Mine one block at a time while testing:
+
+```bash
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --timeout 60
+```
+
+Avoid sending almost your full balance until the wallet shows the transaction preview as safe.

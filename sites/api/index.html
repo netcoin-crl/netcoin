@@ -6,7 +6,7 @@
   <title>NetCoin Developers</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
   <link rel="stylesheet" href="api.css?v=20260630-site-modes" />
-  <link rel="stylesheet" href="site-shell.css?v=20260630-github-instructions" />
+  <link rel="stylesheet" href="site-shell.css?v=20260630-reward-schedule" />
 </head>
 <body>
   <div class="shell">
@@ -18,6 +18,8 @@
 <section class="hero dashboard-hero"><div class="card"><span class="pill"><span class="dot ok"></span><span id="apiState">Checking API</span></span><h1>Build with NetCoin.</h1><p>The Developer hub combines API docs, SDKs, webhooks, examples, and local-development notes. The machine API remains available at api.netcoin.online.</p><div class="site-section-tabs"><a href="#api">API</a><a href="#sdks">SDKs</a><a href="#webhooks">Webhooks</a><a href="#local">Local dev</a></div></div><div class="card"><h2>Quick API check</h2><pre>curl https://api.netcoin.online/api/latest
 curl http://18.220.89.128/api/latest
 curl https://api.netcoin.online/api/fee-estimates</pre><p class="muted">Use the direct-IP API when a home router or Charter/CUJO blocks the api.netcoin.online domain.</p></div></section>
+<section class="grid"><div class="card"><h2>Reliability tools</h2><ul><li>Use <code>/health</code> or <code>/status-lite</code> for fast node checks.</li><li>Use <code>mempool-info --summary</code> to inspect pending transaction load.</li><li>Operators can clear only unconfirmed mempool transactions with <code>mempool-clear</code>.</li><li>Wallet sends now pre-check spendable balance, input count, and transaction weight.</li></ul></div><div class="card"><h2>Large-send safety</h2><p>Send smaller test amounts first. Oversized transactions are rejected before broadcast so they do not make wallet, explorer, or mining feel stuck.</p></div></section>
+
 <section class="grid"><div class="card" id="api"><h2>API reference</h2><p>Use the API for blocks, fees, invoices, community posts, merchant tools, and validation checks.</p><a class="biglink" href="https://api.netcoin.online"><b>Machine API host</b><span>Same-origin JSON endpoints for apps.</span></a></div><div class="card" id="sdks"><h2>SDKs</h2><p>JavaScript and Python SDK starters are included in the repository.</p><pre>sdk/netcoin-js/
 sdk/netcoin-python/</pre></div><div class="card" id="webhooks"><h2>Webhooks</h2><p>Merchant webhooks use HMAC signatures. Keep webhook secrets private and rotate them if exposed.</p></div><div class="card" id="local"><h2>Local development</h2><pre>git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
@@ -29,6 +31,6 @@ python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.ne
     <p class="footer">NetCoin Developers is part of the NetCoin public ecosystem.</p>
   </div>
   <script src="api.js?v=20260630-site-modes"></script>
-  <script src="site-shell.js?v=20260630-github-instructions"></script>
+  <script src="site-shell.js?v=20260630-reward-schedule"></script>
 </body>
 </html>

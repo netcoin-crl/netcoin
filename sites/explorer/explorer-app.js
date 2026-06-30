@@ -5,8 +5,14 @@
   const API = (location.origin + "/api").replace(/\/$/, "");
   const COIN = 100000000;
   const CONTACTS_STORE = "ncw.contacts.v1";
-  // NetCoin emission params (display only; mirror netcoin/params.py).
-  const ACTIVATION = 1000, LEGACY_SUBSIDY = 50, EMISSION_BASE = 15, YEAR = 720;
+  // NetCoin reward params (display only; mirror netcoin/params.py).
+  const SCHEDULE_ACTIVATION = 4200, START_SUBSIDY = 50, REDUCTION_INTERVAL = 210000, REDUCTION_RATIO = 0.8;
+  function rewardAtHeight(height) {
+    let subsidy = START_SUBSIDY;
+    const epochs = Math.floor(Math.max(0, height) / REDUCTION_INTERVAL);
+    for (let i = 0; i < epochs; i++) subsidy *= REDUCTION_RATIO;
+    return subsidy;
+  }
 
   const $ = (s, r = document) => r.querySelector(s);
   const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -215,8 +221,8 @@
   // ---------- emission / supply panel ----------
   function fallbackSupply(height) {
     return {
-      total_minted: (height * LEGACY_SUBSIDY).toFixed(8),
-      next_subsidy: (height < ACTIVATION ? LEGACY_SUBSIDY : EMISSION_BASE).toFixed(8),
+      total_minted: (height * START_SUBSIDY).toFixed(8),
+      next_subsidy: rewardAtHeight(height + 1).toFixed(8),
     };
   }
   function displayNet(value) {
@@ -224,11 +230,15 @@
     return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 8 }) : esc(value ?? "0");
   }
   function emissionCard(height, supply) {
-    const toAct = Math.max(0, ACTIVATION - height);
-    const pct = Math.min(100, (height / ACTIVATION) * 100);
-    const status = height < ACTIVATION
-      ? `Legacy subsidy <b class="acc">${LEGACY_SUBSIDY} NET</b>/block — random emission activates at height ${ACTIVATION} (<b>${toAct}</b> blocks to go).`
-      : `Random emission <b class="acc">active</b> — base ${EMISSION_BASE} NET/block, with a yearly random 10% "cut" (testnet year = ${YEAR} blocks).`;
+    const active = height >= SCHEDULE_ACTIVATION;
+    const nextEvent = active ? (Math.floor(height / REDUCTION_INTERVAL) + 1) * REDUCTION_INTERVAL : SCHEDULE_ACTIVATION;
+    const blocksLeft = Math.max(0, nextEvent - height);
+    const pct = active
+      ? Math.min(100, ((height % REDUCTION_INTERVAL) / REDUCTION_INTERVAL) * 100)
+      : Math.min(100, (height / SCHEDULE_ACTIVATION) * 100);
+    const status = active
+      ? `Reward schedule <b class="acc">active</b> — starts at ${START_SUBSIDY} NET and decreases 20% every ${REDUCTION_INTERVAL.toLocaleString()} blocks. Next reduction at height ${nextEvent.toLocaleString()} (<b>${blocksLeft.toLocaleString()}</b> blocks).`
+      : `Upgrade pending — deterministic 20% reward schedule activates at height ${SCHEDULE_ACTIVATION.toLocaleString()} (<b>${blocksLeft.toLocaleString()}</b> blocks to go).`;
     return el(`<div class="card">
       <h2>Emission</h2>
       <div class="muted" style="margin-bottom:10px">${status}</div>

@@ -22,7 +22,7 @@ from .block import (
     target_to_bits,
 )
 from .crypto import validate_address
-from .emission import emission_subsidy, is_active
+from .emission import emission_subsidy, is_active, is_legacy_random_window, legacy_random_emission_subsidy
 from .params import (
     COINBASE_MATURITY,
     DEFAULT_DATA_DIR,
@@ -37,8 +37,12 @@ from .params import (
     LOCKTIME_THRESHOLD,
     MAX_BLOCK_WEIGHT,
     MAX_MEMPOOL_ANCESTORS,
+    MAX_MEMPOOL_BYTES,
+    MAX_MEMPOOL_TRANSACTIONS,
     MAX_MONEY,
+    MAX_STANDARD_TX_INPUTS,
     MAX_STANDARD_TX_WEIGHT,
+    MEMPOOL_EXPIRY_SECONDS,
     MIN_RELAY_FEE_PER_KB,
     MIN_DIFFICULTY_GAP_SECONDS,
     POW_LIMIT_BITS,
@@ -67,7 +71,7 @@ class Blockchain:
 
     The class stores blocks and mempool transactions as JSON files under a data
     directory. It validates proof-of-work, UTXO spends, signatures, coinbase
-    rewards, halving, coinbase maturity, difficulty retargeting, block weight,
+    rewards, reward reductions, coinbase maturity, difficulty retargeting, block weight,
     and a small set of mempool policy rules.
     """
 
@@ -273,6 +277,9 @@ class Blockchain:
                     self.add_mempool_transaction(tx, save=False)
                 except (ChainError, TransactionError):
                     continue
+            self.evict_expired_mempool(MEMPOOL_EXPIRY_SECONDS, save=False)
+            if self.autosave:
+                self.save_mempool()
         else:
             self.mempool = []
             self.save_mempool()
@@ -371,18 +378,20 @@ class Blockchain:
     # Consensus rules
     # ------------------------------------------------------------------
 
-    def subsidy(self, height: int) -> int:
+    def subsidy(self, height: int, chain_prefix: Optional[Sequence[Block]] = None) -> int:
         if height < 0:
             raise ChainError("height cannot be negative")
-        # Additive, activation-gated random-emission schedule. Below the
-        # activation height the legacy halving schedule applies unchanged, so the
-        # existing chain stays valid (see docs/UPGRADE_POLICY.md).
+        # Deterministic 20% reward-reduction schedule. A legacy random-emission
+        # compatibility window is preserved for already-mined public-testnet
+        # blocks before the new schedule activates. During full-chain validation
+        # use the candidate prefix rather than self.chain, because self.chain may
+        # not be populated yet while loading from disk.
         if is_active(height):
-            return emission_subsidy(height, lambda h: self.chain[h].hash())
-        halvings = height // HALVING_INTERVAL
-        if halvings >= 64:
-            return 0
-        return INITIAL_SUBSIDY >> halvings
+            return emission_subsidy(height)
+        if is_legacy_random_window(height):
+            source = chain_prefix if chain_prefix is not None else self.chain
+            return legacy_random_emission_subsidy(height, lambda h: source[h].hash())
+        return INITIAL_SUBSIDY
 
     def expected_bits_for_height(self, height: int, chain_prefix: Optional[Sequence[Block]] = None) -> int:
         if height == 0:
@@ -612,7 +621,7 @@ class Blockchain:
                 raise ChainError("block fees exceed MAX_MONEY")
             self.apply_regular_transaction(tx, temp_utxos, block.header.height)
 
-        max_reward = self.subsidy(block.header.height) + fees
+        max_reward = self.subsidy(block.header.height, chain_prefix) + fees
         self.validate_coinbase_transaction(block.transactions[0], block.header.height, max_reward)
         coinbase_txid = block.transactions[0].txid()
         if coinbase_txid in seen_txids:
@@ -670,6 +679,8 @@ class Blockchain:
 
     def check_standard_transaction_shape(self, tx: Transaction) -> None:
         """Check non-fee standardness shared by single-tx and package relay policy."""
+        if len(tx.inputs) > MAX_STANDARD_TX_INPUTS:
+            raise ChainError(f"non-standard transaction: too many inputs ({len(tx.inputs)} > {MAX_STANDARD_TX_INPUTS})")
         if transaction_weight(tx) > MAX_STANDARD_TX_WEIGHT:
             raise ChainError("non-standard transaction: weight too high")
         for output in tx.outputs:
@@ -690,6 +701,16 @@ class Blockchain:
             raise ChainError("cannot add coinbase transaction to mempool")
         if any(existing.txid() == txid for existing in self.mempool):
             return txid
+
+        self.evict_expired_mempool(MEMPOOL_EXPIRY_SECONDS)
+        if len(self.mempool) >= MAX_MEMPOOL_TRANSACTIONS:
+            self.evict_mempool_to_size(max(0, MAX_MEMPOOL_TRANSACTIONS - 1))
+        current_bytes = int(self.mempool_info().get("bytes", 0)) if self.mempool else 0
+        if current_bytes + transaction_vsize(tx) > MAX_MEMPOOL_BYTES:
+            self.evict_mempool_to_size(max(0, len(self.mempool) - 1))
+            current_bytes = int(self.mempool_info().get("bytes", 0)) if self.mempool else 0
+            if current_bytes + transaction_vsize(tx) > MAX_MEMPOOL_BYTES:
+                raise ChainError("mempool is full; try again after pending transactions confirm")
 
         conflicts = self.mempool_conflicts(tx)
         if conflicts:
@@ -790,7 +811,7 @@ class Blockchain:
         except (ChainError, TransactionError):
             return 0
 
-    def evict_expired_mempool(self, max_age_seconds: int, now: Optional[float] = None) -> int:
+    def evict_expired_mempool(self, max_age_seconds: int, now: Optional[float] = None, *, save: bool = True) -> int:
         """Drop mempool transactions older than max_age_seconds. Returns count."""
         now = time.time() if now is None else now
         kept: List[Transaction] = []
@@ -804,7 +825,8 @@ class Blockchain:
                 kept.append(tx)
         if evicted:
             self.mempool = kept
-            self.save_mempool()
+            if save:
+                self.save_mempool()
         return evicted
 
     def evict_mempool_to_size(self, max_count: int) -> int:
@@ -837,7 +859,17 @@ class Blockchain:
     def remove_mempool_transactions(self, txids: Iterable[str]) -> None:
         remove = set(txids)
         self.mempool = [tx for tx in self.mempool if tx.txid() not in remove]
+        for txid in remove:
+            self.mempool_times.pop(txid, None)
         self.save_mempool()
+
+    def clear_mempool(self) -> int:
+        """Drop every unconfirmed transaction. Confirmed blocks and UTXOs stay intact."""
+        count = len(self.mempool)
+        self.mempool = []
+        self.mempool_times = {}
+        self.save_mempool()
+        return count
 
     def purge_invalid_mempool(self) -> None:
         temp_utxos = self.utxo_set()
@@ -885,6 +917,9 @@ class Blockchain:
         return {
             "size": len(entries),
             "bytes": total_bytes,
+            "max_transactions": MAX_MEMPOOL_TRANSACTIONS,
+            "max_bytes": MAX_MEMPOOL_BYTES,
+            "expiry_seconds": MEMPOOL_EXPIRY_SECONDS,
             "min_relay_fee_per_kvb": MIN_RELAY_FEE_PER_KB,
             "entries": entries,
             "packages": packages,

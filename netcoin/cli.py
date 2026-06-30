@@ -47,15 +47,18 @@ def load_address(wallet_path: Optional[str], address: Optional[str], *, address_
     raise WalletError("provide --wallet or --address")
 
 
-def post_json(url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+def post_json(url: str, payload: Dict[str, Any], *, timeout: int = 10, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     body = json.dumps(payload).encode("utf-8")
-    request = Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
-    with urlopen(request, timeout=10) as response:
+    request_headers = {"Content-Type": "application/json"}
+    if headers:
+        request_headers.update(headers)
+    request = Request(url, data=body, headers=request_headers, method="POST")
+    with urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
-def get_json(url: str) -> Dict[str, Any]:
-    with urlopen(url, timeout=10) as response:
+def get_json(url: str, *, timeout: int = 10) -> Dict[str, Any]:
+    with urlopen(url, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -536,6 +539,30 @@ def cmd_mempool(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_mempool_info(args: argparse.Namespace) -> None:
+    if args.node:
+        node = args.node.rstrip("/")
+        print_json(get_json(f"{node}/mempool?transactions={0 if args.summary else 1}&limit={args.limit}", timeout=args.timeout))
+        return
+    chain = Blockchain(args.data)
+    info = chain.mempool_info()
+    if args.summary:
+        info["transactions"] = []
+    print_json(info)
+
+
+def cmd_mempool_clear(args: argparse.Namespace) -> None:
+    if args.node:
+        if not args.admin_token:
+            raise ChainError("--admin-token is required for remote mempool-clear")
+        node = args.node.rstrip("/")
+        print_json(post_json(f"{node}/mempool/clear", {}, timeout=args.timeout, headers={"X-Netcoin-Admin-Token": args.admin_token}))
+        return
+    chain = Blockchain(args.data)
+    cleared = chain.clear_mempool()
+    print_json({"ok": True, "cleared": cleared, "data": str(args.data)})
+
+
 def cmd_chain(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     blocks = chain.chain[-args.limit :] if args.limit else chain.chain
@@ -821,11 +848,12 @@ def cmd_submitblock(args: argparse.Namespace) -> None:
 def cmd_miner(args: argparse.Namespace) -> None:
     payout = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
     node = args.node.rstrip("/")
+    timeout = max(5, int(getattr(args, "timeout", 45)))
     warn_if_node_incompatible(node, need_service="block-template")
     mined = []
     for _ in range(args.blocks):
         query = urlencode({"address": payout})
-        template = get_json(f"{node}/blocktemplate?{query}")
+        template = get_json(f"{node}/blocktemplate?{query}", timeout=timeout)
         block = solve_template(template, payout)
         if args.save_blocks:
             out_dir = Path(args.save_blocks)
@@ -833,11 +861,11 @@ def cmd_miner(args: argparse.Namespace) -> None:
             (out_dir / f"block-{block.header.height}-{block.hash()}.json").write_text(
                 json.dumps(block.to_dict(), indent=2, sort_keys=True)
             )
-        response = post_json(f"{node}/submitblock", block.to_dict())
+        response = post_json(f"{node}/submitblock", block.to_dict(), timeout=timeout)
         mined.append({"block": block_summary(block), "response": response})
         if args.sync_after:
             try:
-                post_json(f"{node}/sync", {})
+                post_json(f"{node}/sync", {}, timeout=timeout)
             except Exception:
                 pass
     print_json({"ok": True, "node": node, "payout_address": payout, "mined": mined})
@@ -1161,6 +1189,19 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("mempool", help="show local mempool")
     p.set_defaults(func=cmd_mempool)
 
+    p = sub.add_parser("mempool-info", help="show local or remote mempool policy/usage")
+    p.add_argument("--node", help="remote node/API URL")
+    p.add_argument("--summary", action="store_true", help="omit raw transaction bodies")
+    p.add_argument("--limit", type=int, default=100, help="remote transaction body limit")
+    p.add_argument("--timeout", type=int, default=30, help="remote request timeout seconds")
+    p.set_defaults(func=cmd_mempool_info)
+
+    p = sub.add_parser("mempool-clear", help="clear local unconfirmed mempool transactions")
+    p.add_argument("--node", help="remote node/API URL")
+    p.add_argument("--admin-token", help="operator token for remote clear")
+    p.add_argument("--timeout", type=int, default=30, help="remote request timeout seconds")
+    p.set_defaults(func=cmd_mempool_clear)
+
     p = sub.add_parser("chain", help="show chain summary")
     p.add_argument("--limit", type=int, default=10, help="number of latest blocks to print; 0 prints all")
     p.set_defaults(func=cmd_chain)
@@ -1195,6 +1236,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--blocks", type=int, default=1)
     p.add_argument("--save-blocks", help="optional directory for solved block JSON files")
     p.add_argument("--sync-after", action="store_true", help="ask the node to sync after each submission")
+    p.add_argument("--timeout", type=int, default=45, help="node request timeout seconds (default 45)")
     p.set_defaults(func=cmd_miner)
 
     p = sub.add_parser("rawtx", help="export a transaction in Bitcoin-style raw hex")

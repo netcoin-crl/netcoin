@@ -1,119 +1,56 @@
-# NetCoin Economics — Random Emission (NRE)
+# NetCoin economics plan
 
-NetCoin replaces Bitcoin-style halvings with a **yearly random "cut."** Emission
-stays gentle and unpredictable instead of stepping down on a fixed schedule, while
-remaining fair (no single actor can grind the outcome) and additive (the existing
-chain is never reset).
+NetCoin now uses a simple deterministic reward schedule:
 
-Status: **specified + implemented behind a future activation gate.** The activation
-height is pending Codex ratification before any live activation (see
-[UPGRADE_POLICY.md](UPGRADE_POLICY.md)). Implementation: `netcoin/emission.py`,
-wired into `Blockchain.subsidy`; tests in `tests/test_emission.py`.
+- **Starting block subsidy:** `50 NET`.
+- **Reward interval:** every `210,000` blocks.
+- **Reduction size:** each event reduces the current subsidy by **20%**.
+- **Formula:** `subsidy = 50 NET × (4/5)^epoch`, where `epoch = floor(height / 210,000)`.
+- **First reduction:** height `210,000`, from `50 NET` to `40 NET`.
 
-## The rule
+This is not a Bitcoin-style 50% halving. It is a 20% reward reduction every
+210,000 blocks.
 
-Emission is divided into fixed-length **emission years** of
-`EMISSION_YEAR_BLOCKS = 262_800` blocks (2-minute blocks × ~365 days), indexed
-`k = 0, 1, 2, …` starting at `EMISSION_ACTIVATION_HEIGHT` (`A`). Year `k` spans
-heights `[A + k·Y, A + (k+1)·Y)`.
+## Reward table
 
-- **Year 0** pays a flat `EMISSION_BASE_SUBSIDY = 15 NET` per block (no prior year
-  to sample yet).
-- **Each year `k ≥ 1`** makes a **cut decision**:
-  1. **Delayed seed.** Aggregate the hashes of the first `EMISSION_SEED_BLOCKS = 10`
-     blocks of year `k` into a SHA-256 seed. Using blocks from the *start of the new
-     year* (rather than the last block of the old one) removes any last actor's
-     ability to grind the result.
-  2. **Sample.** Use the seed to deterministically draw `EMISSION_SAMPLE_SIZE = 100`
-     blocks (with replacement) from year `k−1`.
-  3. **Count even hashes.** "Even" = **even hash** (`int(hash, 16) % 2 == 0`), *not*
-     even height. PoW hash parity is a genuine ~50/50 coin flip per block; height
-     parity is deterministically 50% and carries no randomness.
-  4. **Decide.** If at least `EMISSION_EVEN_THRESHOLD = 40` samples are even, the
-     reward drops **10%** for year `k` (`reward = reward · 9 / 10`, integer floor).
-  5. **Safety.** If no cut has happened for `EMISSION_DRY_YEAR_LIMIT = 3` consecutive
-     years, a cut is **forced** regardless of the sample.
+| Height range | Subsidy |
+|---:|---:|
+| `0` - `209,999` | `50 NET` |
+| `210,000` - `419,999` | `40 NET` |
+| `420,000` - `629,999` | `32 NET` |
+| `630,000` - `839,999` | `25.6 NET` |
+| `840,000` - `1,049,999` | `20.48 NET` |
+| `1,050,000` - `1,259,999` | `16.384 NET` |
+| `1,260,000` - `1,469,999` | `13.1072 NET` |
 
-### Seed timing (no circular dependency)
+Rewards are tracked in satoshi-style integer units, so very small later rewards
+are floored to the nearest atomic unit.
 
-The seed for year `k` is only known once year `k`'s first 10 blocks exist, so those
-seed-window blocks are paid at the **previous** settled rate (year `k−1`). Year
-`k`'s cut applies from block `A + k·Y + 10` onward. A block's subsidy never depends
-on its own hash or any later block, so validation is always well defined.
+## Supply estimate
 
-## Why these numbers
+Ignoring rounding, the geometric reward schedule approaches roughly:
 
-### Threshold = 40 (not 50)
+```text
+210,000 blocks × 50 NET / 0.20 = 52,500,000 NET
+```
 
-The threshold is the real tuning knob, because the sample is ~Binomial(100, 0.5):
+So the long-run minted supply target is approximately **52.5 million NET** before
+transaction fees. Fees are not newly minted; they are paid by spenders to miners.
 
-| Threshold | P(cut / year) | Character |
-|----------:|--------------:|-----------|
-| 60 | ~20% | cuts rare → mostly inflationary |
-| 50 | ~54% | coin flip → supply is a random walk |
-| **40** | **~98%** | **near-certain ~10%/yr disinflation** |
+## Upgrade activation on the live public testnet
 
-For an **actual financial coin** you want credible, predictable scarcity. Threshold
-50 makes total supply a random walk that can drift inflationary for years by chance
-— fun for teaching, bad for store-of-value. Threshold 40 behaves like a credible
-disinflation schedule while keeping a whisper of randomness, and the 3-dry-year
-safety trigger guarantees the reward can never stall. (The 100-block sample size
-buys anti-grinding and fairness, **not** supply predictability — that comes from the
-threshold.)
+The public testnet previously activated a short random-emission experiment at
+height `1,000`. To avoid invalidating already-mined blocks, the deterministic
+20% schedule is activation-gated at height `4,200` in code.
 
-### Base subsidy = 15 NET / block → ~40M NET expected supply
+That compatibility rule means:
 
-Specifying the per-block reward directly sidesteps choosing a supply target.
+- Heights below `1,000` keep the original `50 NET` subsidy.
+- Heights `1,000` through `4,199` keep the already-active legacy testnet emission
+  window so current history remains valid.
+- Heights `4,200+` use the new deterministic 20% reward schedule.
+- The public reduction events are still based on absolute height, so the first
+  reduction remains height `210,000`.
 
-- Initial annual emission: `15 × 262_800 = 3,942,000 NET/yr`.
-- Expected total supply ≈ `initial_annual / d`, where `d = P(cut) × 0.10` is the
-  expected annual decay rate (geometric series `Σ (1−d)^k`).
-  - Threshold 40 (`d ≈ 0.098`) → **≈ 40M NET** expected total.
-  - Threshold 50 (`d ≈ 0.054`) → ≈ 73M NET (for comparison).
-
-### Caveat: expected cap, not a hard cap
-
-~40M is an **expected** total with variance, not a hard ceiling like Bitcoin's 21M.
-If a fixed advertised ceiling is ever required, add a deterministic **terminal
-floor** (stop cutting / drop to 0 below some minimum reward). Not implemented yet;
-the reward currently decays geometrically toward 0.
-
-## Consensus & rollout constraints
-
-- **Additive + activation-gated.** Below `EMISSION_ACTIVATION_HEIGHT` the legacy
-  halving subsidy is unchanged, so the current chain stays valid under the new code
-  (the definition of additive in [UPGRADE_POLICY.md](UPGRADE_POLICY.md)). No chain
-  reset, no snapshot allocation needed.
-- **`INITIAL_SUBSIDY` (50 NET) is untouched.** The 15 NET base is the reward *at
-  activation* for the new regime only; already-mined blocks keep their original
-  subsidy.
-- **Activation supersedes halvings.** Past activation, random emission governs and
-  the old halving schedule no longer applies (reflected in
-  `test_subsidy_halving_schedule`).
-- **Activation height = 1_000** (testnet). Chosen against a live tip of ~361, a
-  ~640-block lead (the chain was idle and the seeds run no miner, so there is no
-  active mining to fork). Because 1_000 < `HALVING_INTERVAL` (210_000), the legacy
-  halving never triggers on the live chain — emission supersedes it before the
-  first halving. Height-based gating is used because the emission year is defined
-  in blocks. **Any miner must run this version before mining past height 1_000,
-  or it would produce old-subsidy blocks that updated nodes reject.**
-- **Network-aware year length.** `EMISSION_YEAR_BLOCKS` is **720 on testnet**
-  (~1 day of blocks, so the first cut lands ~1 day after activation and a cut
-  decision happens roughly daily) and **262_800 on mainnet**. This lets the
-  random-cut mechanism actually be observed on testnet without altering the
-  intended mainnet cadence.
-- **Operational prerequisite:** all seeds (and any miner) must run this version
-  before height 1,000.
-
-## Parameters (`netcoin/params.py`)
-
-| Constant | Value | Meaning |
-|----------|-------|---------|
-| `EMISSION_YEAR_BLOCKS` | 720 testnet / 262_800 mainnet | blocks per emission year (network-aware) |
-| `EMISSION_ACTIVATION_HEIGHT` | 1_000 | first height governed by NRE (testnet) |
-| `EMISSION_BASE_SUBSIDY` | 15 NET | reward at activation |
-| `EMISSION_SEED_BLOCKS` | 10 | blocks aggregated for the delayed seed |
-| `EMISSION_SAMPLE_SIZE` | 100 | blocks sampled from the prior year |
-| `EMISSION_EVEN_THRESHOLD` | 40 | even-hash samples needed to cut |
-| `EMISSION_CUT_NUMERATOR` / `_DENOMINATOR` | 9 / 10 | 10% cut |
-| `EMISSION_DRY_YEAR_LIMIT` | 3 | consecutive no-cut years that force a cut |
+Every public node and miner should update before height `4,200` so they agree on
+block rewards after activation.
