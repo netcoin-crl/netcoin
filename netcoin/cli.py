@@ -1338,7 +1338,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_explorer_server)
 
     p = sub.add_parser("web", help="local web wallet + faucet + explorer page (open in a browser)")
-    p.add_argument("--node", default="http://seed1.netcoin.online:28444", help="NetCoin node to query/broadcast through")
+    p.add_argument("--node", default="https://api.netcoin.online/api", help="NetCoin node/API to query and broadcast through. The default HTTPS API avoids home-network blocks on port 28444.")
     p.add_argument("--faucet", default="https://faucet.netcoin.online", help="faucet URL to link to (set empty to hide)")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8088)

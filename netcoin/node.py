@@ -1080,7 +1080,11 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     delivered = node.drain_relay_queue()
                     self.send_json({"ok": True, "delivered": delivered, "queue": len(node._relay_queue)})
                 else:
-                    if not self.require_app_admin():
+                    public_app_write = parsed.path in {
+                        "/community/posts", "/api/community/posts", "/app/community/posts",
+                        "/community/improvements", "/api/community/improvements", "/app/community/improvements",
+                    } or (parsed.path.startswith(("/community/improvements/", "/api/community/improvements/", "/app/community/improvements/")) and parsed.path.endswith("/vote"))
+                    if not public_app_write and not self.require_app_admin():
                         return
                     header_api_key = self.app_api_key_from_headers()
                     if header_api_key and "api_key" not in data:

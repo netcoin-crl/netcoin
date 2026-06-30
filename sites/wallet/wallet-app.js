@@ -160,20 +160,19 @@
     wallet.insertBefore(walletSection("Payments", `
       <p class="muted">Business payment tools live on the separated payment and merchant pages so the wallet stays clean.</p>
       <div class="section-links">
-        <a href="http://pay.netcoin.online/"><b>Payment hub</b><br><span class="muted">Checkout, receipts, tips, donations, and profiles.</span></a>
-        <a href="http://merchant.netcoin.online/"><b>Merchant dashboard</b><br><span class="muted">Invoices, POS, refunds, API keys, webhooks, and exports.</span></a>
+        <a href="https://pay.netcoin.online/"><b>Payment hub</b><br><span class="muted">Checkout, receipts, tips, donations, and profiles.</span></a>
+        <a href="https://merchant.netcoin.online/"><b>Merchant dashboard</b><br><span class="muted">Invoices, POS, refunds, API keys, webhooks, and exports.</span></a>
       </div>`, "payments"), $("btnLock"));
     wallet.insertBefore(walletSection("Escrow", `
       <p class="muted">Escrow is an advanced app-layer workflow. Create and monitor 2-of-3 escrow deals from the separated markets/contract page.</p>
-      <div class="section-links"><a href="http://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"), $("btnLock"));
+      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"), $("btnLock"));
     wallet.insertBefore(walletSection("Contracts", `
       <p class="muted">Developer-mode contract tools are intentionally separated from normal wallet use.</p>
-      <div class="section-links"><a href="http://markets.netcoin.online/"><b>Open Phase 7 contracts</b><br><span class="muted">Timelock, vesting, multisig, recurring, polls, and prediction-market demos.</span></a></div>`, "contracts"), $("btnLock"));
+      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open Phase 7 contracts</b><br><span class="muted">Timelock, vesting, multisig, recurring, polls, and prediction-market demos.</span></a></div>`, "contracts"), $("btnLock"));
     wallet.insertBefore(walletSection("Developer", `
       <p class="muted">Developer tools expose raw/debug views and are intended for local/testnet use.</p>
       <div class="section-links">
-        <a href="http://api.netcoin.online/"><b>API docs</b><br><span class="muted">Explorer/backend API reference and SDK links.</span></a>
-        <a href="http://admin.netcoin.online/"><b>Admin dashboard</b><br><span class="muted">Operator-only payout review and security status.</span></a>
+        <a href="https://api.netcoin.online/"><b>API docs</b><br><span class="muted">Explorer/backend API reference and SDK links.</span></a>
       </div>`, "developer"), $("btnLock"));
 
     const settings = walletSection("Settings", `

@@ -15,7 +15,7 @@ NetCoin is **not Bitcoin** and public-testnet NET has no real-money value.
 | Faucet | <https://faucet.netcoin.online> | Request public-testnet NET |
 | Community | <https://community.netcoin.online> | Campaigns, bounties, gifts, leaderboards, links |
 | Markets | <https://markets.netcoin.online> | Prediction-market demos and Phase 7 experiments |
-| API Docs | <https://api.netcoin.online> | Public endpoint reference and examples |
+| API Docs | <https://api.netcoin.online> | Public endpoint reference, community posts, merchant integrations, and examples |
 | Status | <https://status.netcoin.online> | Public service health |
 
 ## Start here
@@ -72,3 +72,10 @@ http://seed3.netcoin.online:28444
 ## Safety
 
 Never share wallet files, seed phrases, private keys, API keys, or tokens. Public-testnet coins are for testing only and have no real-money value.
+
+
+### Recent UI updates
+
+- Local browser wallet now defaults to the HTTPS public API proxy to avoid home-network blocks on custom ports.
+- Merchant site now has a clearer invoice/POS workflow, integration cards, and invoice table.
+- Community site now includes local discussion drafts and improvement ideas so testers can organize feedback before a hosted forum is connected.

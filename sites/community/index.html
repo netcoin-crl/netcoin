@@ -5,18 +5,87 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Community</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="community.css?v=20260629-product-split" />
+  <link rel="stylesheet" href="community.css?v=20260630-community-board" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand"><div class="logo">N</div><div>NetCoin Community<small>news, campaigns, bounties, and social links</small></div></div>
+      <div class="brand"><div class="logo">N</div><div>NetCoin Community<small>discussion, improvements, bounties, and rewards</small></div></div>
       <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online">Pay</a><a href="https://merchant.netcoin.online">Merchant</a><a href="https://faucet.netcoin.online">Faucet</a><a href="https://community.netcoin.online" class="active" aria-current="page">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav>
     </header>
-    <section class="hero"><div class="card"><h1>Community has its own home.</h1><p>Announcements, campaigns, bounties, leaderboards, gifts, and social links belong here instead of bloating the explorer.</p></div><div class="card"><h2>Quick links</h2><div class="grid"><a class="biglink" href="https://docs.netcoin.online"><b>Docs</b><span>Learn NetCoin.</span></a><a class="biglink" href="https://faucet.netcoin.online"><b>Faucet</b><span>Try testnet coins.</span></a><a class="biglink" href="https://markets.netcoin.online"><b>Markets</b><span>Prediction-market demos.</span></a></div></div></section>
-    <section class="grid"><div class="card"><h2>Bounties</h2><p class="muted">Track community tasks, rewards, and contributor campaigns here.</p></div><div class="card"><h2>Leaderboards</h2><p class="muted">Surface testnet participation without mixing it into block lookup.</p></div><div class="card"><h2>Gifts and airdrops</h2><p class="muted">Community distribution tools belong in this standalone community area.</p></div></section>
-    <p class="footer">NetCoin Community is standalone. Explorer stays focused on blocks and transactions.</p>
+
+    <section class="hero dashboard-hero">
+      <div class="card lead">
+        <span class="pill"><span id="communityDot" class="dot"></span><span id="communityStatus">Checking community API</span></span>
+        <h1>Community has its own place.</h1>
+        <p>Use this site for public testnet discussion, improvement ideas, bounties, rewards, gifts, and community links. The explorer stays focused on chain lookup.</p>
+        <div class="actions"><a class="pill" href="#talk">Talk</a><a class="pill" href="#ideas">Improvements</a><a class="pill" href="#bounties">Bounties</a><a class="pill" href="#leaderboards">Leaderboards</a></div>
+      </div>
+      <div class="card stats-card">
+        <h2>Community snapshot</h2>
+        <div class="stats">
+          <div class="stat"><div class="k">Posts</div><div class="v" id="postCount">—</div></div>
+          <div class="stat"><div class="k">Ideas</div><div class="v" id="ideaCount">—</div></div>
+          <div class="stat"><div class="k">Open bounties</div><div class="v" id="bountyCount">—</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="split" id="talk">
+      <div class="card">
+        <h2>Community talk</h2>
+        <p class="muted">Post a public message, support request, mining note, or merchant question. Do not share private keys, seed phrases, passwords, or personal information.</p>
+        <div class="row"><div><label>Name</label><input id="postName" placeholder="Anonymous" maxlength="80" /></div><div><label>Category</label><select id="postCategory"><option>general</option><option>help</option><option>mining</option><option>wallet</option><option>merchant</option><option>ideas</option></select></div></div>
+        <label>Message</label><textarea id="postMessage" placeholder="What should the community know?" maxlength="1200"></textarea>
+        <button id="postMessageBtn">Post message</button>
+        <pre id="postResult"></pre>
+      </div>
+      <div class="card feed-card">
+        <div class="section-head"><h2>Latest messages</h2><button id="refreshPosts" class="secondary small">Refresh</button></div>
+        <div id="postFeed" class="feed"></div>
+      </div>
+    </section>
+
+    <section class="split" id="ideas">
+      <div class="card">
+        <h2>Improvement board</h2>
+        <p class="muted">Suggest improvements for the wallet, explorer, merchant tools, faucet, docs, markets, or node software.</p>
+        <label>Title</label><input id="ideaTitle" placeholder="Example: improve wallet backup flow" maxlength="140" />
+        <label>Details</label><textarea id="ideaDetails" placeholder="Describe the problem and suggested fix." maxlength="2000"></textarea>
+        <div class="row"><div><label>Category</label><select id="ideaCategory"><option>wallet</option><option>explorer</option><option>merchant</option><option>faucet</option><option>docs</option><option>node</option><option>community</option></select></div><div><label>Your name</label><input id="ideaAuthor" placeholder="optional" maxlength="80" /></div></div>
+        <button id="submitIdea">Submit idea</button>
+        <pre id="ideaResult"></pre>
+      </div>
+      <div class="card feed-card">
+        <div class="section-head"><h2>Top improvements</h2><button id="refreshIdeas" class="secondary small">Refresh</button></div>
+        <div id="ideaFeed" class="feed"></div>
+      </div>
+    </section>
+
+    <section class="grid dashboard-grid" id="bounties">
+      <div class="card">
+        <h2>Open bounties</h2>
+        <p class="muted">Bounties help coordinate public testnet work. Payouts require operator review and manual signing.</p>
+        <div id="bountyFeed" class="feed compact"></div>
+      </div>
+      <div class="card" id="leaderboards">
+        <h2>Leaderboards</h2>
+        <p class="muted">Participation stats based on public chain and community events.</p>
+        <pre id="leaderboardsOut"></pre>
+      </div>
+      <div class="card">
+        <h2>Community safety</h2>
+        <ul class="checklist">
+          <li>Never post private keys or seed phrases.</li>
+          <li>Testnet NET has no real-money value.</li>
+          <li>Use Docs for setup, Wallet for funds, Explorer for verification.</li>
+          <li>Markets are isolated testnet demos.</li>
+        </ul>
+      </div>
+    </section>
+
+    <p class="footer">NetCoin Community is standalone. Explorer stays focused on blocks, transactions, and network health.</p>
   </div>
-  <script src="community.js?v=20260629-product-split"></script>
+  <script src="community.js?v=20260630-community-board"></script>
 </body>
 </html>

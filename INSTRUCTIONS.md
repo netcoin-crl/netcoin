@@ -159,7 +159,7 @@ Open a new Terminal, then run:
 ```bash
 cd ~/netcoin
 source .venv/bin/activate
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
 ```
 
 Open this in your browser:
@@ -307,7 +307,7 @@ Open a new PowerShell window, then run:
 ```powershell
 cd $HOME\netcoin
 .\.venv\Scripts\Activate.ps1
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
 ```
 
 Open this in your browser:
@@ -442,7 +442,7 @@ Open a new terminal, then run:
 ```bash
 cd ~/netcoin
 source .venv/bin/activate
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
 ```
 
 Open this in your browser:
@@ -473,7 +473,7 @@ Open Terminal:
 ```bash
 cd ~/netcoin
 source .venv/bin/activate
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
 ```
 
 Leave that Terminal open, then open this in your browser:
@@ -489,7 +489,7 @@ Open PowerShell:
 ```powershell
 cd $HOME\netcoin
 .\.venv\Scripts\Activate.ps1
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
 ```
 
 Leave that PowerShell window open, then open this in your browser:
@@ -505,7 +505,7 @@ Open Terminal:
 ```bash
 cd ~/netcoin
 source .venv/bin/activate
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
 ```
 
 Leave that Terminal open, then open this in your browser:
@@ -518,18 +518,38 @@ http://127.0.0.1:8088/
 
 If the browser says it cannot connect, make sure the terminal running `python -m netcoin web` is still open.
 
-If port `8088` is already in use, run on a different local port:
+If the wallet page opens but says **cannot reach the node**, restart the local wallet with the HTTPS API endpoint. This avoids home-network blocks on the public seed port `28444`:
+
+```bash
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+```
+
+You can test the public API before starting the local wallet:
 
 macOS / Linux:
 
 ```bash
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online --port 8090
+curl https://api.netcoin.online/api/info
 ```
 
 Windows PowerShell:
 
 ```powershell
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online --port 8090
+Invoke-RestMethod https://api.netcoin.online/api/info
+```
+
+If port `8088` is already in use, run on a different local port:
+
+macOS / Linux:
+
+```bash
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online --port 8090
+```
+
+Windows PowerShell:
+
+```powershell
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online --port 8090
 ```
 
 Then open:
@@ -839,7 +859,7 @@ python -m netcoin miner --node http://127.0.0.1:28444 --wallet my-wallet.json --
 Run the local browser wallet:
 
 ```bash
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
 ```
 
 ## Troubleshooting
@@ -893,3 +913,24 @@ Ctrl+C
 - Do not share wallet files.
 - Public-testnet NET has no real-money value.
 - Keep local browser tools bound to `127.0.0.1` unless you understand the security risks.
+
+
+## Fix: local browser wallet says "cannot reach the node"
+
+Use the public HTTPS API proxy instead of a direct seed port. Many home networks block custom ports like `28444`, while HTTPS uses the normal web port.
+
+```bash
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8088
+```
+
+If you run your own local node, then use:
+
+```bash
+python -m netcoin web --node http://127.0.0.1:28444 --faucet https://faucet.netcoin.online
+```
