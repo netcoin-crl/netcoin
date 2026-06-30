@@ -158,23 +158,38 @@ body{letter-spacing:-.01em}
 
   </style>
   <link rel="stylesheet" href="ui-polish.css?v=20260630-wide-desktop" />
-    <link rel="stylesheet" href="site-shell.css?v=20260630-site-modes" />
+    <link rel="stylesheet" href="site-shell.css?v=20260630-header-collision-fix" />
+
+
+  <style>
+    /* Wallet overview clarity: tabs first, then address/balance, then helpful details. */
+    #walletTabs { border-bottom:1px solid var(--bd); margin-top:8px; }
+    .wallet-overview-card { max-width:none !important; }
+    .overview-grid { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(260px,.8fr); gap:12px; align-items:stretch; }
+    .overview-panel { border:1px solid var(--bd); border-radius:14px; background:rgba(0,0,0,.16); padding:14px; min-width:0; }
+    .overview-address { margin:10px 0 14px; font-size:15px; line-height:1.45; overflow-wrap:anywhere; }
+    .balance-panel { display:flex; flex-direction:column; justify-content:center; }
+    .wallet-status-inline { margin-top:12px; padding:10px 12px; border:1px solid var(--bd); border-radius:14px; background:rgba(0,0,0,.12); }
+    .setup-wizard { margin-top:12px; padding:10px 12px; border:1px solid var(--bd); border-radius:14px; background:rgba(255,255,255,.025); }
+    .setup-wizard summary { cursor:pointer; font-weight:750; }
+    .setup-wizard ol { margin:10px 0 0 20px; color:var(--mut); }
+    #btnLock { max-width:260px; }
+    @media (min-width:1280px) {
+      .overview-grid { grid-template-columns:minmax(0,1.6fr) minmax(320px,.8fr); }
+      .wallet-overview-card { max-width:1500px!important; }
+    }
+    @media (max-width:760px) {
+      .overview-grid { grid-template-columns:1fr; }
+      .overview-actions { flex-direction:column; }
+      #btnLock { max-width:none; }
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
     <nav class="site-nav" aria-label="NetCoin ecosystem"><a href="https://wallet.netcoin.online" data-modes="all" class="active" aria-current="page">Wallet</a><a href="https://pay.netcoin.online" data-modes="simple merchant">Pay</a><a href="https://explorer.netcoin.online" data-modes="simple developer node labs">Explorer</a><a href="https://merchant.netcoin.online" data-modes="merchant">Merchant</a><a href="https://community.netcoin.online" data-modes="simple community">Community</a><a href="https://learn.netcoin.online" data-modes="all">Learn</a><details class="site-more"><summary>More</summary><div class="site-more-panel"><a href="https://nodes.netcoin.online" data-modes="node developer">Network<small>nodes, seeds, status, mining</small></a><a href="https://api.netcoin.online" data-modes="developer merchant node labs">Developers<small>API, SDKs, webhooks, examples</small></a><a href="https://governance.netcoin.online" data-modes="community node developer labs">Governance<small>NIPs, votes, treasury, roadmap</small></a><a href="https://security.netcoin.online" data-modes="all">Security<small>trust center and release safety</small></a><a href="https://markets.netcoin.online" data-modes="labs">Labs<small>experimental market demos</small></a><a href="https://faucet.netcoin.online" data-modes="simple">Faucet<small>request testnet coins</small></a><a href="https://learn.netcoin.online#download" data-modes="developer node simple">Download<small>install from Learn</small></a><a href="https://api.netcoin.online" data-modes="developer merchant">API host<small>machine API endpoint</small></a></div></details></nav>
 <h1>Net<span>Coin</span> Wallet</h1>
     <p class="sub">Non-custodial · keys never leave your browser · <span class="pill" id="netpill">testnet</span></p>
-    <details id="walletSetupWizard" class="setup-wizard" open>
-      <summary>New here? Follow the 4-step wallet setup</summary>
-      <ol>
-        <li>Create or import a wallet. Private keys never leave this browser.</li>
-        <li>Back up the recovery phrase or private key before receiving coins.</li>
-        <li>Request small testnet coins from the Faucet.</li>
-        <li>Send a tiny test payment and verify it in Explorer.</li>
-      </ol>
-    </details>
-
 
     <!-- WELCOME -->
     <div id="welcome" class="card hide">
@@ -248,16 +263,32 @@ body{letter-spacing:-.01em}
 
     <!-- WALLET -->
     <div id="walletView" class="hide">
-      <div class="card">
-        <div class="statusbar"><span class="dot" id="statusDot"></span><span id="walletStatus" class="muted">Checking node status…</span><span class="pill" id="activeProfilePill">Profile</span></div>
-      </div>
-      <div class="card">
-        <label>Your address</label>
-        <div class="mono" id="addr"></div>
-        <div class="row">
-          <button id="btnCopy" class="secondary">Copy address</button>
-          <button id="btnRefresh" class="secondary">Refresh</button>
+      <div class="card wallet-overview-card">
+        <div class="overview-grid">
+          <section class="overview-panel address-panel">
+            <div class="muted">Your address</div>
+            <div class="mono overview-address" id="addr"></div>
+            <div class="row overview-actions">
+              <button id="btnCopy" class="secondary">Copy address</button>
+              <button id="btnRefresh" class="secondary">Refresh</button>
+            </div>
+          </section>
+          <section class="overview-panel balance-panel">
+            <div class="muted">Spendable balance</div>
+            <div class="bal"><span id="balNet">—</span> <small>NET</small></div>
+            <div class="muted" id="balImmature"></div>
+          </section>
         </div>
+        <div class="statusbar wallet-status-inline"><span class="dot" id="statusDot"></span><span id="walletStatus" class="muted">Checking node status…</span><span class="pill" id="activeProfilePill">Profile</span></div>
+        <details id="walletSetupWizard" class="setup-wizard">
+          <summary>New here? Follow the 4-step wallet setup</summary>
+          <ol>
+            <li>Create or import a wallet. Private keys never leave this browser.</li>
+            <li>Back up the recovery phrase or private key before receiving coins.</li>
+            <li>Request small testnet coins from the Faucet.</li>
+            <li>Send a tiny test payment and verify it in Explorer.</li>
+          </ol>
+        </details>
       </div>
       <div class="card">
         <h1 style="font-size:16px">Receive</h1>
@@ -277,11 +308,6 @@ body{letter-spacing:-.01em}
             <button id="btnSharePaymentLink" class="secondary smallbtn" type="button">Share</button>
           </div>
         </div>
-      </div>
-      <div class="card">
-        <div class="muted">Spendable balance</div>
-        <div class="bal"><span id="balNet">—</span> <small>NET</small></div>
-        <div class="muted" id="balImmature"></div>
       </div>
       <div class="card">
         <h1 style="font-size:16px">Send</h1>
@@ -429,8 +455,8 @@ body{letter-spacing:-.01em}
   </div>
 
   <script src="netcoin-wallet.js"></script>
-  <script src="wallet-app.js?v=20260630-ui-polish"></script>
-<script src="site-shell.js?v=20260630-site-modes"></script>
+  <script src="wallet-app.js?v=20260630-mode-ux"></script>
+<script src="site-shell.js?v=20260630-header-collision-fix"></script>
 </body>
 </html>
 
