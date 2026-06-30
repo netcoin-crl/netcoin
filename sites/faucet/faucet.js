@@ -1,2 +1,73 @@
+'use strict';
 
-'use strict';const $=s=>document.querySelector(s),show=(id,d)=>{$(id).textContent=typeof d==='string'?d:JSON.stringify(d,null,2)};async function get(p){const r=await fetch('/faucet'+p);const t=await r.text();let d;try{d=JSON.parse(t)}catch{d={raw:t.slice(0,1000)}}if(!r.ok||d.error)throw new Error(d.error||('HTTP '+r.status));return d}async function status(){try{const d=await get('/status');$('#faucetDot').className='dot ok';$('#faucetStatus').textContent='Faucet online';$('#queue').textContent=d.queued??'0';$('#hotWallet').textContent=d.hot_wallet?.state||'unknown';$('#captcha').textContent=d.captcha?.enabled?(d.captcha.provider||'on'):'off'}catch(e){$('#faucetDot').className='dot err';$('#faucetStatus').textContent='Faucet unavailable'}}async function history(){try{show('#history',await get('/history'))}catch(e){show('#history',{ok:false,error:e.message})}}$('#requestCoins').onclick=async()=>{const body=new URLSearchParams({address:$('#address').value.trim()});try{const r=await fetch('/faucet',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});const text=await r.text();show('#requestResult',text.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,1200));status();history()}catch(e){show('#requestResult',{ok:false,error:e.message})}};$('#refreshHistory').onclick=history;status();history();
+const $ = (s) => document.querySelector(s);
+
+function setText(selector, value) {
+  const el = $(selector);
+  if (el) el.textContent = value;
+}
+
+function show(selector, value) {
+  const el = $(selector);
+  if (!el) return;
+  el.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+}
+
+async function checkFaucet() {
+  try {
+    const r = await fetch('/faucet', { method: 'GET', cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+
+    const dot = $('#faucetDot');
+    if (dot) dot.className = 'dot ok';
+
+    setText('#faucetStatus', 'Faucet online');
+    setText('#queue', 'n/a');
+    setText('#hotWallet', 'ready');
+    setText('#captcha', 'off');
+
+    show('#history', 'History is not available on this faucet backend yet.');
+  } catch (e) {
+    const dot = $('#faucetDot');
+    if (dot) dot.className = 'dot err';
+
+    setText('#faucetStatus', 'Faucet unavailable');
+    show('#history', 'Faucet backend is not responding.');
+  }
+}
+
+const requestButton = $('#requestCoins');
+if (requestButton) {
+  requestButton.onclick = async () => {
+    const address = ($('#address')?.value || '').trim();
+
+    if (!address) {
+      show('#requestResult', 'Enter a NetCoin address first.');
+      return;
+    }
+
+    const body = new URLSearchParams({ address });
+
+    try {
+      const r = await fetch('/faucet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body
+      });
+
+      const text = await r.text();
+      const clean = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      show('#requestResult', clean.slice(0, 1200));
+      checkFaucet();
+    } catch (e) {
+      show('#requestResult', 'Request failed: ' + e.message);
+    }
+  };
+}
+
+const refreshButton = $('#refreshHistory');
+if (refreshButton) {
+  refreshButton.onclick = checkFaucet;
+}
+
+checkFaucet();
