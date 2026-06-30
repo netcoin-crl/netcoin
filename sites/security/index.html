@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Security</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
+  <link rel="stylesheet" href="security.css?v=20260630-professional" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="logo">N</div><div>NetCoin Security<small>trust center, safety policy, and release hygiene</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online">Pay</a><a href="https://merchant.netcoin.online">Merchant</a><a href="https://faucet.netcoin.online">Faucet</a><a href="https://community.netcoin.online">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://nodes.netcoin.online">Nodes</a><a href="https://status.netcoin.online">Status</a><a href="https://security.netcoin.online" class="active" aria-current="page">Security</a><a href="https://learn.netcoin.online">Learn</a><a href="https://download.netcoin.online">Download</a><a href="https://governance.netcoin.online">Governance</a><a href="https://treasury.netcoin.online">Treasury</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav>
+    </header>
+    
+<section class="hero"><div class="card"><h1>Security is the product.</h1><p>Wallets and networks are only useful when users can trust the software, releases, and operational model. This page summarizes NetCoin's safety posture and links to public security docs.</p><div class="actions"><a class="pill" href="https://github.com/netcoin-crl/netcoin/blob/main/SECURITY.md">Security policy</a><a class="pill" href="https://github.com/netcoin-crl/netcoin/blob/main/docs/PRE_MAINNET_SECURITY_CHECKLIST.md">Pre-mainnet checklist</a></div></div><div class="card"><h2>Live security check</h2><pre id="securityOut">Loading…</pre></div></section>
+<section class="grid"><div class="card"><h2>Wallet safety</h2><ul><li>Private keys never leave the browser.</li><li>Wallet profiles are encrypted locally.</li><li>HTTPS is required for browser crypto.</li><li>Never paste a seed phrase into community pages.</li></ul></div><div class="card"><h2>Operator safety</h2><ul><li>No public admin site by default.</li><li>Payouts should use operator review and manual signing.</li><li>Release files should use checksums and signatures.</li><li>Write endpoints need rate limits and audit logs.</li></ul></div><div class="card"><h2>Security roadmap</h2><ul><li>External wallet and consensus review.</li><li>Security headers and CSP hardening.</li><li>Dependency audits and secret scanning.</li><li>Bug bounty and responsible disclosure.</li></ul></div></section>
+
+    <p class="footer">NetCoin Security is a standalone site in the NetCoin ecosystem.</p>
+  </div>
+  <script src="security.js?v=20260630-professional"></script>
+</body>
+</html>

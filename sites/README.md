@@ -1,16 +1,23 @@
-# NetCoin public websites
+# NetCoin public sites
 
-The public NetCoin websites are separated by purpose so each site stays focused.
+Each folder under `sites/` is a standalone public website. The active deployment maps each subdomain to the matching folder.
 
-- wallet.netcoin.online: wallet, contacts, backups, labels, watch-only, coin control, PSBT/export flows.
-- explorer.netcoin.online: chain lookup, latest blocks, latest transactions, and network health summary.
-- pay.netcoin.online: customer checkout and invoice lookup.
-- merchant.netcoin.online: invoices, POS checkout, business profiles/names, webhooks, API keys, exports, refunds, reports, and business agreements.
-- faucet.netcoin.online: testnet coin requests and faucet health.
-- community.netcoin.online: community discussion, improvement ideas, bounties, leaderboards, gifts, and social links.
-- markets.netcoin.online: Phase 7 prediction-market demos and market experiments.
-- docs.netcoin.online: public user and developer documentation.
-- api.netcoin.online: public API docs and examples.
-- status.netcoin.online: public service health.
+Core sites:
+- `wallet`: hosted non-custodial wallet.
+- `explorer`: chain lookup and network health.
+- `pay`: customer checkout.
+- `merchant`: business tools.
+- `faucet`: public-testnet faucet.
+- `community`: discussion, improvements, bounties, rewards.
+- `markets`: prediction-market demos.
+- `nodes`: public seed and node visibility.
+- `status`: service and network health.
+- `security`: public trust center.
+- `governance`: NetCoin Improvement Proposal workflow.
+- `treasury`: transparent fund records if a treasury exists.
+- `learn`: beginner education.
+- `download`: install and local run guide.
+- `docs`: docs landing page.
+- `api`: developer API reference.
 
-These site files are public-facing assets only. Private server details, account identifiers, SSH usernames, cloud-console instructions, and operator-only runbooks do not belong in this folder.
+Never put private keys, seed phrases, admin tokens, server IPs, or SSH details in public site files.

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Nodes</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
+  <link rel="stylesheet" href="nodes.css?v=20260630-professional" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="logo">N</div><div>NetCoin Nodes<small>public seeds, peer health, and decentralization</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online">Pay</a><a href="https://merchant.netcoin.online">Merchant</a><a href="https://faucet.netcoin.online">Faucet</a><a href="https://community.netcoin.online">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://nodes.netcoin.online" class="active" aria-current="page">Nodes</a><a href="https://status.netcoin.online">Status</a><a href="https://security.netcoin.online">Security</a><a href="https://learn.netcoin.online">Learn</a><a href="https://download.netcoin.online">Download</a><a href="https://governance.netcoin.online">Governance</a><a href="https://treasury.netcoin.online">Treasury</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav>
+    </header>
+    
+<section class="hero"><div class="card"><span class="pill"><span id="nodeDot" class="dot"></span><span id="nodeStatus">Checking network</span></span><h1>See and grow the public node network.</h1><p>Nodes are the network. Seeds are public nodes that help new users connect. This page explains the difference and checks visible node health.</p><div class="actions"><a class="pill" href="https://docs.netcoin.online">Run a node</a><a class="pill" href="https://github.com/netcoin-crl/netcoin/blob/main/INSTRUCTIONS.md#become-a-public-seed">Become a seed</a></div></div><div class="card"><h2>Live summary</h2><div class="stats"><div class="stat"><div class="k">Height</div><div class="v" id="height">—</div></div><div class="stat"><div class="k">Peers</div><div class="v" id="peers">—</div></div><div class="stat"><div class="k">Mempool</div><div class="v" id="mempool">—</div></div></div></div></section>
+<section class="grid"><div class="card"><h2>Node vs seed</h2><table><tr><th>Role</th><th>Meaning</th></tr><tr><td>Node</td><td>Runs NetCoin, validates chain data, relays network information, and may mine.</td></tr><tr><td>Seed</td><td>A public reachable node listed so new nodes can find the network.</td></tr><tr><td>Miner</td><td>A node that attempts to produce blocks.</td></tr></table></div><div class="card"><h2>Public seed checklist</h2><ul><li>Run 24/7 or close to it.</li><li>Keep TCP port 28444 reachable.</li><li>Run current software.</li><li>Monitor height and uptime.</li><li>Never expose wallet/private keys.</li></ul></div><div class="card"><h2>Peer data</h2><pre id="peerData">Loading…</pre></div></section>
+
+    <p class="footer">NetCoin Nodes is a standalone site in the NetCoin ecosystem.</p>
+  </div>
+  <script src="nodes.js?v=20260630-professional"></script>
+</body>
+</html>

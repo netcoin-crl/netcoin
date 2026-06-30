@@ -103,6 +103,35 @@ def clean_id(prefix: str) -> str:
     return f"{prefix}_{secrets.token_urlsafe(9).replace('-', '').replace('_', '')[:12].lower()}"
 
 
+def looks_like_sensitive_secret(text: str) -> bool:
+    """Best-effort public-post guardrail for obvious secrets.
+
+    Community posts are public testnet data. This rejects common accidental leaks
+    such as seed phrases, private keys, API tokens, and long hex strings. It is
+    not a replacement for moderation, but it prevents the most dangerous copy-
+    paste mistakes.
+    """
+    lower = text.lower()
+    dangerous_phrases = (
+        "seed phrase", "recovery phrase", "private key", "privkey",
+        "secret access key", "api key", "password:", "passphrase",
+        "aws_secret_access_key", "authorization: bearer",
+    )
+    if any(phrase in lower for phrase in dangerous_phrases):
+        return True
+    compact = "".join(ch for ch in text if ch.strip())
+    # 64+ hex characters can easily be a private key or token.
+    hex_run = 0
+    for ch in compact:
+        if ch in "0123456789abcdefABCDEF":
+            hex_run += 1
+            if hex_run >= 64:
+                return True
+        else:
+            hex_run = 0
+    return False
+
+
 def parse_amount_sats(value: Any, field: str = "amount") -> int:
     if isinstance(value, int):
         if value < 0:
@@ -1278,6 +1307,8 @@ class AppStore:
         message = str(payload.get("message") or "")[:1200].strip()
         if not message:
             raise AppError("message is required")
+        if looks_like_sensitive_secret(message) or looks_like_sensitive_secret(name):
+            raise AppError("public posts must not include private keys, seed phrases, passwords, or API secrets")
         category = str(payload.get("category") or "general")[:40].lower()
         if category not in {"general", "help", "mining", "wallet", "merchant", "ideas"}:
             category = "general"
@@ -1305,11 +1336,15 @@ class AppStore:
         title = str(payload.get("title") or "")[:140].strip()
         if not title:
             raise AppError("title is required")
+        description = str(payload.get("description") or payload.get("details") or "")[:2000].strip()
+        author = str(payload.get("name") or payload.get("author") or "Anonymous")[:80].strip() or "Anonymous"
+        if looks_like_sensitive_secret(title) or looks_like_sensitive_secret(description) or looks_like_sensitive_secret(author):
+            raise AppError("improvement ideas must not include private keys, seed phrases, passwords, or API secrets")
         rec = {
             "idea_id": clean_id("idea"),
             "title": title,
-            "description": str(payload.get("description") or payload.get("details") or "")[:2000].strip(),
-            "name": str(payload.get("name") or payload.get("author") or "Anonymous")[:80].strip() or "Anonymous",
+            "description": description,
+            "name": author,
             "category": str(payload.get("category") or "general")[:50].strip() or "general",
             "status": "open",
             "votes": 0,

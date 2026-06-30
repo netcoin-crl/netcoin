@@ -12,8 +12,10 @@
   const UI_MODE_STORE = "ncw.walletMode.v1";
   const UI_TAB_STORE = "ncw.walletTab.v1";
   const COIN = 100000000;
+  const SESSION_STORE = "ncw.unlockedSession.v2";
+  const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
-  let state = null; // { seed, privHex, address, profile }
+  let state = null; // { secretType, seed?, privHex, address, profile }
   let lastSpendableSats = 0;
   let pendingSend = null;
   let scanStream = null;
@@ -22,7 +24,7 @@
 
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
-  const screens = ["welcome", "create", "restore", "unlock", "walletView"];
+  const screens = ["welcome", "create", "restore", "privateKey", "unlock", "walletView"];
   function show(id) { screens.forEach((s) => $(s).classList.toggle("hide", s !== id)); }
   const enc = new TextEncoder();
   const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
@@ -849,6 +851,64 @@
 
   function profileNameFromCreate() { return cleanProfileName($("createProfileName")?.value, nextProfileName()); }
   function profileNameFromRestore() { return cleanProfileName($("restoreProfileName")?.value, nextProfileName("Restored wallet")); }
+  function profileNameFromPrivateKey() { return cleanProfileName($("privateKeyProfileName")?.value, nextProfileName("Private key wallet")); }
+
+  function normalizePrivateKeyHex(value) {
+    const clean = String(value || "").trim().replace(/^0x/i, "").replace(/\s+/g, "").toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(clean)) throw new Error("private key must be 64 hex characters");
+    W.walletFromPrivateKey(clean);
+    return clean;
+  }
+
+  function rememberUnlocked(secretType, secretValue, profile, force = false) {
+    try {
+      const keep = force || $("unlockRemember")?.checked || $("privateKeyRemember")?.checked;
+      if (!keep) return;
+      sessionStorage.setItem(SESSION_STORE, JSON.stringify({ type: secretType, value: secretValue, profile, expires: Date.now() + SESSION_TTL_MS }));
+    } catch { /* ignore private browsing/session storage errors */ }
+  }
+
+  function clearUnlockedSession() {
+    try { sessionStorage.removeItem(SESSION_STORE); } catch { /* ignore */ }
+  }
+
+  function loadWalletFromPrivateKey(privHex, profile = loadProfiles().active, remember = true) {
+    const clean = normalizePrivateKeyHex(privHex);
+    const w = W.walletFromPrivateKey(clean);
+    state = { secretType: "privateKey", privHex: clean, address: w.address, profile };
+    $("addr").textContent = w.address;
+    if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · private key · session unlocked`;
+    if (remember) rememberUnlocked("privateKey", clean, profile, true);
+    show("walletView");
+    applyWalletMode();
+    makePaymentRequest();
+    refresh();
+    loadHistory();
+    loadUtxos();
+    renderWatchlist();
+    refreshDescriptorPanel();
+    updateFeeEstimates();
+  }
+
+  function loadWalletSecret(secret, profile = loadProfiles().active, remember = true) {
+    if (!secret || !secret.value) throw new Error("empty wallet secret");
+    if (secret.type === "privateKey") return loadWalletFromPrivateKey(secret.value, profile, remember);
+    return loadWallet(secret.value, profile, remember);
+  }
+
+  function resumeUnlockedSession() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_STORE);
+      if (!raw) return false;
+      const saved = JSON.parse(raw);
+      if (!saved || Number(saved.expires || 0) < Date.now()) { clearUnlockedSession(); return false; }
+      loadWalletSecret({ type: saved.type || "seed", value: saved.value }, cleanProfileName(saved.profile, loadProfiles().active), true);
+      return true;
+    } catch {
+      clearUnlockedSession();
+      return false;
+    }
+  }
 
   // ---------- encryption at rest (WebCrypto) ----------
   async function deriveKey(password, salt) {
@@ -857,17 +917,31 @@
       { name: "PBKDF2", salt, iterations: 200000, hash: "SHA-256" },
       base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
   }
-  async function encryptSeed(seed, password) {
+  async function encryptWalletSecret(secretType, secretValue, password) {
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const key = await deriveKey(password, salt);
-    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(seed));
-    return { salt: b64(salt), iv: b64(iv), ct: b64(ct) };
+    const plain = JSON.stringify({ type: secretType, value: secretValue });
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plain));
+    return { version: 2, type: secretType, salt: b64(salt), iv: b64(iv), ct: b64(ct) };
   }
-  async function decryptSeed(blob, password) {
+  async function decryptWalletSecret(blob, password) {
     const key = await deriveKey(password, unb64(blob.salt));
     const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(blob.iv) }, key, unb64(blob.ct));
-    return new TextDecoder().decode(pt);
+    const text = new TextDecoder().decode(pt);
+    if (blob && Number(blob.version || 1) >= 2) {
+      const parsed = JSON.parse(text);
+      return { type: parsed.type || "seed", value: parsed.value || "" };
+    }
+    return { type: "seed", value: text };
+  }
+  async function encryptSeed(seed, password) {
+    return encryptWalletSecret("seed", seed, password);
+  }
+  async function decryptSeed(blob, password) {
+    const secret = await decryptWalletSecret(blob, password);
+    if (secret.type !== "seed") throw new Error("selected profile is not a recovery phrase profile");
+    return secret.value;
   }
 
   async function encryptText(text, password) {
@@ -884,12 +958,13 @@
     return new TextDecoder().decode(pt);
   }
 
-  function loadWallet(seed, profile = loadProfiles().active) {
+  function loadWallet(seed, profile = loadProfiles().active, remember = true) {
     const privHex = W.privateKeyFromSeedPhrase(seed, 0);
     const w = W.walletFromPrivateKey(privHex);
-    state = { seed, privHex, address: w.address, profile };
+    state = { secretType: "seed", seed, privHex, address: w.address, profile };
     $("addr").textContent = w.address;
-    if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile}`;
+    if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · seed phrase · session unlocked`;
+    if (remember) rememberUnlocked("seed", seed, profile, true);
     show("walletView");
     applyWalletMode();
     makePaymentRequest();
@@ -1233,8 +1308,27 @@
     loadWallet(seed, profile);
   };
 
+  $("btnPrivateKeyConfirm").onclick = async () => {
+    try {
+      const pw = $("privateKeyPw").value; const profile = profileNameFromPrivateKey();
+      if (pw.length < 8) { $("privateKeyErr").textContent = "Use a password of at least 8 characters."; return; }
+      const privHex = normalizePrivateKeyHex($("privateKeyInput").value);
+      saveEncryptedProfile(profile, await encryptWalletSecret("privateKey", privHex, pw));
+      loadWalletFromPrivateKey(privHex, profile);
+    } catch (e) { $("privateKeyErr").textContent = "Import failed: " + e.message; }
+  };
+  $("btnPrivateKeySession").onclick = () => {
+    try {
+      const profile = profileNameFromPrivateKey();
+      const privHex = normalizePrivateKeyHex($("privateKeyInput").value);
+      loadWalletFromPrivateKey(privHex, profile);
+    } catch (e) { $("privateKeyErr").textContent = "Unlock failed: " + e.message; }
+  };
+
   $("btnRestore").onclick = () => { $("restorePhrase").value = ""; $("restoreProfileName").value = nextProfileName("Restored wallet"); $("restorePw").value = ""; $("restoreErr").textContent = ""; show("restore"); };
+  $("btnPrivateKey").onclick = () => { $("privateKeyInput").value = ""; $("privateKeyProfileName").value = nextProfileName("Private key wallet"); $("privateKeyPw").value = ""; $("privateKeyErr").textContent = ""; show("privateKey"); };
   $("btnRestoreBack").onclick = () => show("welcome");
+  $("btnPrivateKeyBack").onclick = () => show(hasProfiles() ? "unlock" : "welcome");
   $("btnRestoreConfirm").onclick = async () => {
     const seed = $("restorePhrase").value.trim(); const pw = $("restorePw").value; const profile = profileNameFromRestore();
     if (!W.verifySeedPhrase(seed)) { $("restoreErr").textContent = "That recovery phrase is not valid."; return; }
@@ -1249,12 +1343,13 @@
       setActiveProfile(profile);
       const blob = encryptedProfile(profile);
       if (!blob) throw new Error("profile not found");
-      loadWallet(await decryptSeed(blob, $("unlockPw").value), profile);
+      loadWalletSecret(await decryptWalletSecret(blob, $("unlockPw").value), profile);
     } catch { $("unlockErr").textContent = "Wrong password or missing profile."; }
   };
   $("profileSelect").onchange = () => setActiveProfile($("profileSelect").value);
   $("btnCreateAnother").onclick = () => $("btnCreate").onclick();
   $("btnRestoreAnother").onclick = () => $("btnRestore").onclick();
+  $("btnPrivateKeyAnother").onclick = () => $("btnPrivateKey").onclick();
   $("btnForget").onclick = () => {
     const profile = $("profileSelect").value || loadProfiles().active;
     if (confirm(`Remove the encrypted wallet profile “${profile}” from this device? Make sure you have its recovery phrase.`)) {
@@ -1265,7 +1360,7 @@
 
   $("btnCopy").onclick = () => navigator.clipboard?.writeText(state.address);
   $("btnRefresh").onclick = refresh;
-  $("btnLock").onclick = () => { state = null; renderProfiles(); show(hasProfiles() ? "unlock" : "welcome"); };
+  $("btnLock").onclick = () => { state = null; clearUnlockedSession(); renderProfiles(); show(hasProfiles() ? "unlock" : "welcome"); };
   $("fee").oninput = () => { $("feePreset").value = "custom"; updateFeeHint(); };
   $("feePreset").onchange = () => { if ($("feePreset").value !== "custom") { $("fee").value = $("feePreset").value; updateFeeHint(); } };
   $("btnMakePaymentLink").onclick = makePaymentRequest;
@@ -1353,5 +1448,5 @@
   ensureWalletTabShell();
   applyWalletMode();
   renderProfiles();
-  show(hasProfiles() ? "unlock" : "welcome");
+  if (!resumeUnlockedSession()) show(hasProfiles() ? "unlock" : "welcome");
 })();

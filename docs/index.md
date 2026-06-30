@@ -8,15 +8,21 @@ NetCoin is **not Bitcoin** and public-testnet NET has no real-money value.
 
 | App | Link | Purpose |
 | --- | --- | --- |
-| Wallet | <https://wallet.netcoin.online> | Create or restore a wallet, send, receive, contacts, backups |
+| Wallet | <https://wallet.netcoin.online> | Create, restore, import private keys, send, receive, contacts, backups |
 | Explorer | <https://explorer.netcoin.online> | Blocks, transactions, addresses, and network health |
 | Pay | <https://pay.netcoin.online> | Customer checkout and payment requests |
 | Merchant | <https://merchant.netcoin.online> | Invoices, POS, API keys, webhooks, exports, reports |
 | Faucet | <https://faucet.netcoin.online> | Request public-testnet NET |
-| Community | <https://community.netcoin.online> | Campaigns, bounties, gifts, leaderboards, links |
+| Community | <https://community.netcoin.online> | Discussion, ideas, bounties, gifts, leaderboards, links |
+| Governance | <https://governance.netcoin.online> | Improvement proposals and votes |
+| Treasury | <https://treasury.netcoin.online> | Transparent fund records if a treasury exists |
 | Markets | <https://markets.netcoin.online> | Prediction-market demos and Phase 7 experiments |
-| API Docs | <https://api.netcoin.online> | Public endpoint reference, community posts, merchant integrations, and examples |
+| Nodes | <https://nodes.netcoin.online> | Public seeds, peers, and network participation |
 | Status | <https://status.netcoin.online> | Public service health |
+| Security | <https://security.netcoin.online> | Trust center and safety notes |
+| Learn | <https://learn.netcoin.online> | Beginner concepts |
+| Download | <https://download.netcoin.online> | Install and run commands |
+| API Docs | <https://api.netcoin.online> | Public endpoint reference, community posts, merchant integrations, and examples |
 
 ## Start here
 
@@ -30,6 +36,7 @@ NetCoin is **not Bitcoin** and public-testnet NET has no real-money value.
 - [Mining guide](MINING.md)
 - [Node runner guide](NODE_RUNNER.md)
 - [Public seed hosting guide](PUBLIC_SEED_HOSTING.md)
+- [Public site map](PUBLIC_SITE_MAP.md)
 - [API and architecture overview](ARCHITECTURE.md)
 - [Roadmap](ROADMAP.md)
 - [Limitations](LIMITATIONS.md)
@@ -75,6 +82,9 @@ Never share wallet files, seed phrases, private keys, API keys, or tokens. Publi
 
 
 ### Recent UI updates
+
+- Private-key import and session unlock were added to the hosted wallet.
+- New Nodes, Security, Learn, Download, and Governance sites were added for a more professional public ecosystem.
 
 - Local browser wallet now defaults to the HTTPS public API proxy to avoid home-network blocks on custom ports.
 - Merchant site now has a clearer invoice/POS workflow, integration cards, and invoice table.

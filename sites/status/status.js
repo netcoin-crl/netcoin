@@ -1,1 +1,8 @@
-'use strict';(async()=>{const s=(id,t)=>document.querySelector(id).textContent=t;try{let r=await fetch('/api/latest?n=1');s('#api',r.ok?'Online':'Issue')}catch{s('#api','Issue')}try{let r=await fetch('/faucet/status');s('#faucet',r.ok?'Online':'Issue')}catch{s('#faucet','Issue')}})();
+'use strict';
+const $ = (s) => document.querySelector(s);
+function set(id, value) { const el = $(id); if (el) el.textContent = value; }
+async function ok(path) { try { const r = await fetch(path, { cache: 'no-store' }); return r.ok; } catch { return false; } }
+(async () => {
+  set('#api', await ok('/api/latest?n=1') ? 'Online' : 'Issue');
+  set('#faucet', await ok('/faucet') ? 'Online' : 'Issue');
+})();
