@@ -80,3 +80,16 @@ $('#submitIdea').onclick = async () => {
 $('#refreshPosts').onclick = loadPosts;
 $('#refreshIdeas').onclick = loadIdeas;
 boot();
+
+
+const reportBtn = $('#submitReport');
+if (reportBtn) {
+  reportBtn.onclick = async () => {
+    try {
+      const payload = { post_id: $('#reportPostId').value, reason: $('#reportReason').value };
+      const d = await post('/community/reports', payload);
+      $('#reportResult').textContent = 'Report submitted: ' + (d.report_id || 'ok');
+      $('#reportPostId').value = ''; $('#reportReason').value = '';
+    } catch (e) { $('#reportResult').textContent = 'Report failed: ' + e.message; }
+  };
+}

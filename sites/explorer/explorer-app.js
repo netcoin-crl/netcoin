@@ -654,8 +654,10 @@
     if (kind === "tx") return tx(val);
   }
 
-  $("#home").onclick = () => { location.hash = ""; };
-  $("#navHome").onclick = () => { location.hash = ""; };
+  const homeLink = $("#home");
+  if (homeLink) homeLink.onclick = () => { location.hash = ""; };
+  const navHome = $("#navHome");
+  if (navHome) navHome.onclick = () => { location.hash = ""; };
   const bindNav = (id, hash) => { const btn = $("#" + id); if (btn) btn.onclick = () => { location.hash = hash; }; };
   bindNav("navMempool", "#/mempool");
   bindNav("navFees", "#/fees");
@@ -671,13 +673,19 @@
   bindNav("navPhase7", "#/phase7");
   bindNav("navMining", "#/mining");
   bindNav("navApi", "#/api");
-  $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(e.target.value); });
-  $("#contactSelect").addEventListener("change", syncContactFormFromSelect);
-  $("#contactAddress").addEventListener("input", syncContactNameFromAddress);
-  $("#btnViewContact").onclick = viewSelectedContact;
-  $("#btnSaveContact").onclick = saveContactFromFields;
-  $("#btnDeleteContact").onclick = deleteSelectedContact;
-  renderContacts();
+  const searchBox = $("#q");
+  if (searchBox) searchBox.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(e.target.value); });
+  const contactSelect = $("#contactSelect");
+  const contactAddress = $("#contactAddress");
+  const btnViewContact = $("#btnViewContact");
+  const btnSaveContact = $("#btnSaveContact");
+  const btnDeleteContact = $("#btnDeleteContact");
+  if (contactSelect) contactSelect.addEventListener("change", syncContactFormFromSelect);
+  if (contactAddress) contactAddress.addEventListener("input", syncContactNameFromAddress);
+  if (btnViewContact) btnViewContact.onclick = viewSelectedContact;
+  if (btnSaveContact) btnSaveContact.onclick = saveContactFromFields;
+  if (btnDeleteContact) btnDeleteContact.onclick = deleteSelectedContact;
+  if ($("#contactsCard")) renderContacts();
   function startLiveUpdates() {
     if (!("EventSource" in window)) return;
     try {

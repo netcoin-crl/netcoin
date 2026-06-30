@@ -178,19 +178,20 @@
       </div>`, "developer"), $("btnLock"));
 
     const settings = walletSection("Settings", `
-      <p class="muted">Choose how much of the wallet UI is visible. Hidden features are not deleted; they are only tucked away until you switch modes.</p>
-      <label>Wallet mode</label>
-      <select id="walletUiMode" aria-label="Wallet mode">
+      <p class="muted">Choose a wallet mode. Hidden tabs are not deleted; they are only tucked away until you switch modes.</p>
+      <label class="hide" for="walletUiMode">Wallet mode</label>
+      <select id="walletUiMode" class="hide" aria-label="Wallet mode">
         <option value="simple">Simple — recommended</option>
         <option value="business">Business — invoices and reports</option>
         <option value="advanced">Advanced — coin control, escrow, PSBT</option>
         <option value="developer">Developer — raw/debug/testnet tools</option>
       </select>
-      <p id="walletModeHelp" class="muted"></p>
       <div class="mode-grid" id="walletModeButtons"></div>
-      <hr style="border:0;border-top:1px solid var(--bd);margin:16px 0">
-      <p class="muted">Wallet profiles, spending limits, backup verification, and network settings belong here. Contact backup/import lives in the Contacts tab.</p>
-      <p class="muted">Danger zone actions stay at the bottom of the wallet: lock, forget profiles from the unlock screen, or clear local browser data manually.</p>`, "settings");
+      <p id="walletModeHelp" class="muted compact-note"></p>
+      <details class="raw-details">
+        <summary>What each mode shows</summary>
+        <p class="muted">Simple: overview, send, receive, activity, contacts, settings. Business adds payments and reports. Advanced adds watch-only, escrow, coin control, PSBT, and descriptors. Developer adds contract/debug links.</p>
+      </details>`, "settings");
     wallet.insertBefore(settings, $("btnLock"));
     const modeButtons = $("walletModeButtons");
     if (modeButtons) {

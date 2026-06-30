@@ -88,6 +88,7 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     "operator_announcements": [],
     "community_posts": [],
     "community_improvements": {},
+    "community_reports": [],
 }
 
 
@@ -1327,6 +1328,31 @@ class AppStore:
         self.save(data)
         return rec
 
+
+    def list_community_reports(self, limit: int = 100) -> dict[str, Any]:
+        data = self.load()
+        reports = list(data.get("community_reports", []))[-max(1, min(int(limit), 500)):]
+        return {"reports": reports[::-1], "count": len(data.get("community_reports", []))}
+
+    def create_community_report(self, payload: dict[str, Any]) -> dict[str, Any]:
+        reason = str(payload.get("reason") or "")[:800].strip()
+        if not reason:
+            raise AppError("reason is required")
+        if looks_like_sensitive_secret(reason):
+            raise AppError("reports must not include private keys, seed phrases, passwords, or API secrets")
+        rec = {
+            "report_id": clean_id("report"),
+            "post_id": str(payload.get("post_id") or payload.get("target") or "")[:160],
+            "reason": reason,
+            "created_at": now(),
+            "status": "open",
+        }
+        data = self.load()
+        data.setdefault("community_reports", []).append(rec)
+        data["community_reports"] = data["community_reports"][-1000:]
+        self.save(data)
+        return rec
+
     def list_improvements(self) -> dict[str, Any]:
         data = self.load()
         ideas = sorted(data.get("community_improvements", {}).values(), key=lambda x: (int(x.get("votes", 0)), int(x.get("created_at", 0))), reverse=True)
@@ -2417,6 +2443,9 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, store.list_community_posts(limit=limit), "application/json"
     if path == "/community/improvements":
         return 200, store.list_improvements(), "application/json"
+    if path == "/community/reports":
+        limit = int(q("limit", "100") or 100)
+        return 200, store.list_community_reports(limit=limit), "application/json"
     if path == "/wallet/statement":
         return 200, store.wallet_statement(chain, q("address"), q("month") or None), "application/json"
     if path == "/wallet/statement.csv":
@@ -2548,6 +2577,8 @@ def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any],
         return 200, store.create_community_post(body)
     if path == "/community/improvements":
         return 200, store.create_improvement(body)
+    if path == "/community/reports":
+        return 200, store.create_community_report(body)
     if path.startswith("/community/improvements/") and path.endswith("/vote"):
         return 200, store.vote_improvement(path.split("/")[3])
     if path == "/community/bounties":

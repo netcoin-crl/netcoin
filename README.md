@@ -121,6 +121,9 @@ NetCoin is a testnet and learning project.
 
 ## Features
 
+- Responsive desktop layouts with denser dashboard cards and mobile-friendly stacking.
+
+
 ### Public app ecosystem
 
 - Responsive layouts for mobile, tablet, laptop, and desktop.
@@ -243,3 +246,40 @@ The public NetCoin site set now includes focused tools for a more professional c
 
 The wallet also supports importing a single private key as an encrypted profile and keeps the wallet unlocked only for the current browser tab/session, so switching between NetCoin sites does not force repeated unlocks.
 
+
+
+## NetCoin ecosystem structure
+
+NetCoin uses a mode-based public ecosystem so new users are not overwhelmed and advanced users can still find deeper tools.
+
+- **Simple mode:** Wallet, Pay, Explorer, Faucet, Learn, and Community basics.
+- **Merchant mode:** Merchant dashboard, invoices, POS, reports, API keys, and webhooks.
+- **Developer mode:** API docs, SDK examples, explorer APIs, downloads, and release verification.
+- **Node Operator mode:** Network health, public seeds, status, mining, and public-seed guides.
+- **Community mode:** Discussion, ideas, bounties, governance, roadmap, and treasury transparency.
+- **Advanced / Labs mode:** Experimental markets, polls, and contract-template demos.
+
+The public navigation is intentionally grouped: Learn includes Download, Governance includes Treasury, Nodes/Status live under Network, API docs live under the developer hub, and Markets are labeled as Labs/demo features.
+
+## Professional/security roadmap now included
+
+The site package includes a Trust Center, Network hub, Developer hub, release-verification guidance, wallet setup wizard, merchant onboarding checklist, community reports, anti-secret public-post filtering, API rate limiting, and broader desktop layouts.
+
+
+## NetCoin public site map
+
+NetCoin now uses a mode-aware public ecosystem so new users see a simple path and curious users can explore deeper tools without every page becoming crowded.
+
+- **Wallet** — create, restore, import private keys, send, receive, contacts, and session unlock.
+- **Pay** — customer checkout, payment requests, QR/payment links, and receipts.
+- **Explorer** — chain lookup only: blocks, transactions, addresses, fees, mempool summary, and network snapshot.
+- **Merchant** — invoices, POS checkout, refunds, reports, API keys, webhooks, recurring payments, and escrow-style business workflows.
+- **Community** — discussion, improvement ideas, bounties, roadmap participation, and safety guidelines.
+- **Learn** — beginner education plus download/install/run instructions for macOS, Windows, and Linux.
+- **Network** — nodes, public seeds, status, mining, uptime, versions, and seed-operator guidance.
+- **Developers** — API docs, SDKs, webhook examples, local development, and integration notes.
+- **Governance** — NetCoin Improvement Proposals, voting, roadmap, and treasury transparency.
+- **Security** — trust center, wallet safety, release verification, disclosure policy, and hardening roadmap.
+- **Labs** — isolated testnet experiments such as prediction-market demos and Phase 7 features.
+
+Use the site-wide **Mode** selector to switch between Simple, Merchant, Developer, Node Operator, Community, and Labs views.

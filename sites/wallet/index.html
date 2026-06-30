@@ -89,16 +89,92 @@
       .wallet-section.active-section > .card:first-child { grid-column:span 2; }
     }
     @media (max-width: 760px) {
+      .compact-settings { display:block; }
       .site-nav { overflow-x:auto; flex-wrap:nowrap; padding-bottom:6px; scrollbar-width:thin; }
       .site-nav a { white-space:nowrap; flex:0 0 auto; }
     }
+  
+
+/* NetCoin UI polish 20260630-clean: tighter desktop layout, clearer cards, less dead space. */
+:root{--nc-max:1180px;--nc-gap:14px;--nc-card-pad:16px;--nc-radius:18px;--nc-soft:rgba(255,255,255,.035)}
+html{scroll-behavior:smooth}
+body{letter-spacing:-.01em}
+.site-nav{display:flex!important;flex-wrap:nowrap!important;gap:8px!important;overflow-x:auto!important;overflow-y:hidden!important;max-width:100%!important;margin:0 0 16px!important;padding:0 0 8px!important;scrollbar-width:thin}.site-nav a{white-space:nowrap!important;flex:0 0 auto!important;min-height:36px!important;padding:8px 12px!important;font-size:13px!important;line-height:1!important}.topbar{display:block!important;margin-bottom:18px!important}.brand{margin-bottom:12px!important}.brand small{font-size:12px!important;opacity:.9}.shell{max-width:min(var(--nc-max),calc(100vw - 36px))!important;padding:22px 18px 64px!important}.hero,.dashboard-hero{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(250px,360px)!important;gap:var(--nc-gap)!important;margin-bottom:var(--nc-gap)!important;align-items:start!important}.hero h1{font-size:clamp(30px,4.6vw,48px)!important;line-height:1.04!important;margin-bottom:10px!important}.hero p{font-size:16px!important;margin-bottom:12px!important;max-width:70ch}.card{padding:var(--nc-card-pad)!important;border-radius:var(--nc-radius)!important;margin-bottom:var(--nc-gap)!important;min-height:0!important}.card h2{font-size:13px!important;letter-spacing:.09em!important;margin-bottom:10px!important}.grid,.dashboard-grid{gap:var(--nc-gap)!important;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))!important}.split{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:var(--nc-gap)!important;margin-bottom:var(--nc-gap)!important}.stats{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;gap:10px!important}.stat{padding:12px!important;border-radius:14px!important}.stat .v{font-size:20px!important}.actions{gap:8px!important}.pill{padding:5px 9px!important;font-size:12px!important}.row{gap:10px!important}label{margin-top:9px!important}input,textarea,select,button{padding:10px 11px!important;border-radius:11px!important}textarea{min-height:72px!important}pre{max-height:220px!important;font-size:13px!important;line-height:1.45!important}.feed{max-height:420px!important}.biglink{min-height:0!important;padding:14px!important}.footer{margin-top:16px!important}.section-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}.section-head h2{margin:0!important}.mini-grid{gap:8px!important}.checkout-box{min-height:0!important}.lead{min-height:0!important}.stats-card{align-self:start!important}.notice,.warn{padding:10px 12px!important}.muted{max-width:72ch}.security-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.security-metric{border:1px solid var(--line,var(--bd,#263244));border-radius:14px;padding:12px;background:rgba(0,0,0,.18)}.security-metric b{display:block;font-size:12px;color:var(--mut,#9aa7b5);margin-bottom:4px}.security-metric span{font-weight:800}.compact-note{font-size:13px;color:var(--mut,#9aa7b5);margin:8px 0 0}.raw-details{margin-top:12px}.raw-details summary{cursor:pointer;color:var(--mut,#9aa7b5);font-size:13px}
+@media (min-width:1180px){.shell{max-width:min(1220px,calc(100vw - 56px))!important;padding-left:24px!important;padding-right:24px!important}.hero,.dashboard-hero{grid-template-columns:minmax(0,1fr) 340px!important}.grid,.dashboard-grid{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))!important}.split{grid-template-columns:repeat(2,minmax(0,1fr))!important}.site-nav{margin-bottom:18px!important}}
+@media (max-width:860px){.shell{max-width:100%!important;padding:16px 14px 56px!important}.hero,.dashboard-hero,.split{grid-template-columns:1fr!important}.brand{margin-bottom:10px!important}.card{padding:15px!important}.grid,.dashboard-grid{grid-template-columns:1fr!important}.site-nav{margin-bottom:14px!important}.row{display:block!important}.row>*{margin-bottom:8px!important}.actions a,.actions button{width:auto!important;min-width:0!important}.section-head{align-items:flex-start!important}}
+
+  
+
+/* Wallet polish: reduce buffer, use a compact two-column dashboard only when helpful. */
+.wallet-tabs{position:static!important;background:transparent!important;border-bottom:1px solid var(--bd)!important;padding:0 0 10px!important;margin:10px 0 14px!important}.wallet-tabs button{min-height:38px!important;padding:9px 12px!important;border-radius:10px!important;font-weight:700!important}.statusbar{padding:10px 12px!important;border-radius:12px!important;background:#10151d!important}.bal{font-size:30px!important}.mode-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;gap:8px!important}.section-links{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))!important}.wallet-section.active-section{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))!important;gap:14px!important;align-items:start!important}.wallet-section.active-section>.card{margin-bottom:0!important}.wallet-section.active-section>.card:first-child{grid-column:auto!important}.wallet-section[data-wallet-tab="settings"].active-section{grid-template-columns:1fr!important;max-width:900px!important}.wallet-section[data-wallet-tab="settings"] .mode-grid{max-width:560px!important}.wallet-section[data-wallet-tab="send"].active-section{grid-template-columns:minmax(0,1fr)!important;max-width:760px!important}.wallet-section[data-wallet-tab="receive"].active-section{grid-template-columns:minmax(0,1fr) minmax(240px,320px)!important}.review{padding:12px!important}.kv{grid-template-columns:96px 1fr!important}#btnLock{max-width:260px!important;margin-top:14px!important}.wrap>h1,.sub{margin-left:2px!important}
+@media (min-width:1180px){.wrap{max-width:min(1160px,calc(100vw - 48px))!important}.wallet-section.active-section{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))!important}.wallet-section[data-wallet-tab="overview"].active-section,.wallet-section[data-wallet-tab="reports"].active-section,.wallet-section[data-wallet-tab="advanced"].active-section{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media (max-width:860px){.wallet-section.active-section,.wallet-section[data-wallet-tab="receive"].active-section,.wallet-section[data-wallet-tab="send"].active-section{grid-template-columns:1fr!important;max-width:none!important}.wallet-tabs{overflow-x:auto!important;display:flex!important;flex-wrap:nowrap!important}.wallet-tabs button{white-space:nowrap!important;flex:0 0 auto!important}.kv{grid-template-columns:1fr!important}.kv .k{margin-top:6px}}
+
+
+
+    /* Wallet clarity pass: no more desktop content splitting inside cards. */
+    @media (min-width: 900px) {
+      .wrap { max-width: min(1180px, calc(100vw - 64px)); padding: 24px 32px 64px; }
+      .site-nav { flex-wrap: nowrap; overflow-x: auto; gap: 8px; margin-bottom: 14px; padding-bottom: 4px; }
+      .site-nav a { min-height: 36px; padding: 8px 12px; font-size: 13px; white-space: nowrap; flex: 0 0 auto; }
+      h1 { font-size: 24px; }
+      .sub { margin-bottom: 18px; }
+      .card { padding: 18px; border-radius: 16px; margin-bottom: 12px; }
+      #walletView > .card:first-child { display:block; }
+      .wallet-tabs { position: static; gap: 8px; padding: 8px 0 12px; margin-bottom: 12px; overflow-x: auto; background: transparent; }
+      .wallet-tabs button { padding: 8px 12px; min-height: 36px; }
+      .wallet-section.active-section { display:block; max-width: 980px; }
+      .wallet-section[data-wallet-tab="settings"].active-section { max-width: 860px; }
+      .mode-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+      .compact-settings { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,.8fr); gap:16px; align-items:start; }
+      .row { gap: 8px; }
+      .bal { font-size: 30px; }
+    }
+    @media (min-width: 1180px) {
+      .wrap { max-width: min(1220px, calc(100vw - 80px)); }
+      .wallet-section.active-section { max-width: 1040px; }
+    }
+
+
+
+    /* NetCoin wallet clarity pass: compact layout and readable tab panels. */
+    @media (min-width: 760px) {
+      .wrap { max-width:min(1180px, calc(100vw - 48px)); padding:18px 24px 56px; }
+      .site-nav { gap:8px; margin-bottom:16px; }
+      .site-nav a { min-height:34px; padding:7px 11px; font-size:12.5px; }
+      .card { padding:16px; border-radius:16px; margin-bottom:12px; }
+      .wallet-tabs { position:relative; top:auto; gap:8px; padding:8px 0 12px; margin-bottom:12px; background:transparent; }
+      .wallet-tabs button { padding:9px 12px; }
+      #walletView > .card:first-child { display:block; padding:12px 14px; }
+      .wallet-section.active-section { display:block !important; max-width: 920px; }
+      .wallet-section.active-section > .card { margin-bottom:12px; }
+      .mode-grid { grid-template-columns:repeat(4, minmax(120px, 1fr)); }
+      pre, textarea { max-height:240px; }
+    }
+    @media (min-width: 1180px) {
+      .wrap { max-width:min(1240px, calc(100vw - 64px)); }
+      .wallet-section.active-section { max-width: 980px; }
+    }
+
   </style>
+  <link rel="stylesheet" href="ui-polish.css?v=20260630-wide-desktop" />
+    <link rel="stylesheet" href="site-shell.css?v=20260630-site-modes" />
 </head>
 <body>
   <div class="wrap">
-    <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online" class="active" aria-current="page">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online">Pay</a><a href="https://merchant.netcoin.online">Merchant</a><a href="https://faucet.netcoin.online">Faucet</a><a href="https://community.netcoin.online">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://nodes.netcoin.online">Nodes</a><a href="https://status.netcoin.online">Status</a><a href="https://security.netcoin.online">Security</a><a href="https://learn.netcoin.online">Learn</a><a href="https://download.netcoin.online">Download</a><a href="https://governance.netcoin.online">Governance</a><a href="https://treasury.netcoin.online">Treasury</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav>
-    <h1>Net<span>Coin</span> Wallet</h1>
+    <nav class="site-nav" aria-label="NetCoin ecosystem"><a href="https://wallet.netcoin.online" data-modes="all" class="active" aria-current="page">Wallet</a><a href="https://pay.netcoin.online" data-modes="simple merchant">Pay</a><a href="https://explorer.netcoin.online" data-modes="simple developer node labs">Explorer</a><a href="https://merchant.netcoin.online" data-modes="merchant">Merchant</a><a href="https://community.netcoin.online" data-modes="simple community">Community</a><a href="https://learn.netcoin.online" data-modes="all">Learn</a><details class="site-more"><summary>More</summary><div class="site-more-panel"><a href="https://nodes.netcoin.online" data-modes="node developer">Network<small>nodes, seeds, status, mining</small></a><a href="https://api.netcoin.online" data-modes="developer merchant node labs">Developers<small>API, SDKs, webhooks, examples</small></a><a href="https://governance.netcoin.online" data-modes="community node developer labs">Governance<small>NIPs, votes, treasury, roadmap</small></a><a href="https://security.netcoin.online" data-modes="all">Security<small>trust center and release safety</small></a><a href="https://markets.netcoin.online" data-modes="labs">Labs<small>experimental market demos</small></a><a href="https://faucet.netcoin.online" data-modes="simple">Faucet<small>request testnet coins</small></a><a href="https://learn.netcoin.online#download" data-modes="developer node simple">Download<small>install from Learn</small></a><a href="https://api.netcoin.online" data-modes="developer merchant">API host<small>machine API endpoint</small></a></div></details></nav>
+<h1>Net<span>Coin</span> Wallet</h1>
     <p class="sub">Non-custodial · keys never leave your browser · <span class="pill" id="netpill">testnet</span></p>
+    <details id="walletSetupWizard" class="setup-wizard" open>
+      <summary>New here? Follow the 4-step wallet setup</summary>
+      <ol>
+        <li>Create or import a wallet. Private keys never leave this browser.</li>
+        <li>Back up the recovery phrase or private key before receiving coins.</li>
+        <li>Request small testnet coins from the Faucet.</li>
+        <li>Send a tiny test payment and verify it in Explorer.</li>
+      </ol>
+    </details>
+
 
     <!-- WELCOME -->
     <div id="welcome" class="card hide">
@@ -353,6 +429,10 @@
   </div>
 
   <script src="netcoin-wallet.js"></script>
-  <script src="wallet-app.js?v=20260630-ui-fix"></script>
+  <script src="wallet-app.js?v=20260630-ui-polish"></script>
+<script src="site-shell.js?v=20260630-site-modes"></script>
 </body>
 </html>
+
+<!-- NetCoin final desktop width override -->
+<style>@media(min-width:1280px){.wrap{max-width:min(1500px,calc(100vw - 72px))!important}.wallet-section.active-section{max-width:1320px!important}.wallet-section[data-wallet-tab="settings"].active-section,.wallet-section[data-wallet-tab="send"].active-section{max-width:1080px!important}}@media(min-width:1600px){.wrap{max-width:min(1760px,calc(100vw - 96px))!important}.wallet-section.active-section{max-width:1500px!important}}</style>

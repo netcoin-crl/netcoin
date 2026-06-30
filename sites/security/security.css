@@ -59,3 +59,108 @@
   }
   .site-nav a { white-space: nowrap; flex: 0 0 auto; }
 }
+
+
+/* NetCoin UI polish 20260630-clean: tighter desktop layout, clearer cards, less dead space. */
+:root{--nc-max:1180px;--nc-gap:14px;--nc-card-pad:16px;--nc-radius:18px;--nc-soft:rgba(255,255,255,.035)}
+html{scroll-behavior:smooth}
+body{letter-spacing:-.01em}
+.site-nav{display:flex!important;flex-wrap:nowrap!important;gap:8px!important;overflow-x:auto!important;overflow-y:hidden!important;max-width:100%!important;margin:0 0 16px!important;padding:0 0 8px!important;scrollbar-width:thin}.site-nav a{white-space:nowrap!important;flex:0 0 auto!important;min-height:36px!important;padding:8px 12px!important;font-size:13px!important;line-height:1!important}.topbar{display:block!important;margin-bottom:18px!important}.brand{margin-bottom:12px!important}.brand small{font-size:12px!important;opacity:.9}.shell{max-width:min(var(--nc-max),calc(100vw - 36px))!important;padding:22px 18px 64px!important}.hero,.dashboard-hero{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(250px,360px)!important;gap:var(--nc-gap)!important;margin-bottom:var(--nc-gap)!important;align-items:start!important}.hero h1{font-size:clamp(30px,4.6vw,48px)!important;line-height:1.04!important;margin-bottom:10px!important}.hero p{font-size:16px!important;margin-bottom:12px!important;max-width:70ch}.card{padding:var(--nc-card-pad)!important;border-radius:var(--nc-radius)!important;margin-bottom:var(--nc-gap)!important;min-height:0!important}.card h2{font-size:13px!important;letter-spacing:.09em!important;margin-bottom:10px!important}.grid,.dashboard-grid{gap:var(--nc-gap)!important;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))!important}.split{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:var(--nc-gap)!important;margin-bottom:var(--nc-gap)!important}.stats{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;gap:10px!important}.stat{padding:12px!important;border-radius:14px!important}.stat .v{font-size:20px!important}.actions{gap:8px!important}.pill{padding:5px 9px!important;font-size:12px!important}.row{gap:10px!important}label{margin-top:9px!important}input,textarea,select,button{padding:10px 11px!important;border-radius:11px!important}textarea{min-height:72px!important}pre{max-height:220px!important;font-size:13px!important;line-height:1.45!important}.feed{max-height:420px!important}.biglink{min-height:0!important;padding:14px!important}.footer{margin-top:16px!important}.section-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}.section-head h2{margin:0!important}.mini-grid{gap:8px!important}.checkout-box{min-height:0!important}.lead{min-height:0!important}.stats-card{align-self:start!important}.notice,.warn{padding:10px 12px!important}.muted{max-width:72ch}.security-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.security-metric{border:1px solid var(--line,var(--bd,#263244));border-radius:14px;padding:12px;background:rgba(0,0,0,.18)}.security-metric b{display:block;font-size:12px;color:var(--mut,#9aa7b5);margin-bottom:4px}.security-metric span{font-weight:800}.compact-note{font-size:13px;color:var(--mut,#9aa7b5);margin:8px 0 0}.raw-details{margin-top:12px}.raw-details summary{cursor:pointer;color:var(--mut,#9aa7b5);font-size:13px}
+@media (min-width:1180px){.shell{max-width:min(1220px,calc(100vw - 56px))!important;padding-left:24px!important;padding-right:24px!important}.hero,.dashboard-hero{grid-template-columns:minmax(0,1fr) 340px!important}.grid,.dashboard-grid{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))!important}.split{grid-template-columns:repeat(2,minmax(0,1fr))!important}.site-nav{margin-bottom:18px!important}}
+@media (max-width:860px){.shell{max-width:100%!important;padding:16px 14px 56px!important}.hero,.dashboard-hero,.split{grid-template-columns:1fr!important}.brand{margin-bottom:10px!important}.card{padding:15px!important}.grid,.dashboard-grid{grid-template-columns:1fr!important}.site-nav{margin-bottom:14px!important}.row{display:block!important}.row>*{margin-bottom:8px!important}.actions a,.actions button{width:auto!important;min-width:0!important}.section-head{align-items:flex-start!important}}
+
+/* NetCoin UI clarity pass: compact laptop/desktop layout without hurting mobile. */
+@media (min-width: 900px) {
+  .shell, .wrap {
+    max-width: min(1220px, calc(100vw - 64px));
+    padding: 24px 32px 56px;
+  }
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .site-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .site-nav a {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .hero {
+    gap: 16px;
+    margin-bottom: 16px;
+    align-items: start;
+  }
+  .hero h1 {
+    font-size: clamp(30px, 4vw, 48px);
+    line-height: 1.04;
+  }
+  .hero p {
+    max-width: 72ch;
+    font-size: 16px;
+  }
+  .card {
+    padding: 18px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+  }
+  .grid, .split, .dashboard-grid {
+    gap: 14px;
+  }
+  pre {
+    max-height: 220px;
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .shell, .wrap {
+    max-width: min(1280px, calc(100vw - 80px));
+  }
+}
+
+@media (max-width: 760px) {
+  .site-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+  .site-nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+/* Security page cleanup */
+.security-live .security-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.security-live .stat .v{font-size:16px;line-height:1.25}
+.technical{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+.technical summary{cursor:pointer;padding:10px 12px;color:var(--mut);font-weight:700}
+.technical pre{margin:0;border:0;border-top:1px solid var(--line);border-radius:0 0 12px 12px;max-height:240px}
+@media (min-width:900px){.security-live{min-height:auto}.security-live .security-kpis{grid-template-columns:1fr}.hero{grid-template-columns:minmax(0,1.3fr) minmax(320px,.7fr)}}
+
+/* Final UI clarity override: compact navigation and cards for laptop screens. */
+@media (min-width:900px){
+  .shell,.wrap{max-width:min(1220px,calc(100vw - 64px))!important;padding:24px 32px 56px!important;}
+  .topbar{display:block!important;margin-bottom:16px!important;}
+  .brand{margin-bottom:10px!important;}
+  .site-nav{flex-wrap:nowrap!important;overflow-x:auto!important;gap:8px!important;margin-bottom:14px!important;padding-bottom:5px!important;}
+  .site-nav a{min-height:36px!important;padding:8px 12px!important;font-size:13px!important;white-space:nowrap!important;flex:0 0 auto!important;}
+  .hero,.dashboard-hero{align-items:start!important;gap:14px!important;margin-bottom:14px!important;}
+  .hero h1,.dashboard-hero h1{font-size:clamp(30px,4vw,46px)!important;}
+  .card{padding:16px!important;border-radius:16px!important;margin-bottom:12px!important;min-height:0!important;}
+  .grid,.split,.dashboard-grid{gap:14px!important;margin-bottom:14px!important;}
+  pre{max-height:200px!important;}
+}
