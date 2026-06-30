@@ -1,8 +1,10 @@
-# Hosting a Public NetCoin Seed (no port forwarding)
+# Hosting a Public NetCoin Seed
 
 A NetCoin node only needs the internet **outbound** to sync and mine — that works
 anywhere with zero setup. You only need to be *publicly reachable* if you want
 **other nodes to connect to you** (i.e. to be a seed they bootstrap from).
+
+For a beginner copy/paste guide, start with [INSTRUCTIONS.md#become-a-public-seed](../INSTRUCTIONS.md#become-a-public-seed).
 
 This guide shows four ways to make a node on your own hardware publicly reachable
 **without touching your router** (they also work behind CGNAT), plus the simplest

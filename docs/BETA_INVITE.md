@@ -29,7 +29,7 @@ chmod 600 my-wallet.json
 python -m netcoin wallet-info --wallet my-wallet.json    # copy your address
 ```
 
-3. **Faucet:** open https://seed1.netcoin.online/faucet and paste your address (5 test NET,
+3. **Faucet:** open https://faucet.netcoin.online and paste your address (5 test NET,
    once per IP per day).
 
 ```bash

@@ -10,7 +10,7 @@ NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should 
 
 | File | Purpose |
 | --- | --- |
-| [INSTRUCTIONS.md](INSTRUCTIONS.md) | Beginner-friendly setup for macOS, Windows, and Linux, including public seed nodes, wallet creation, mining, balance checks, and running a local node. |
+| [INSTRUCTIONS.md](INSTRUCTIONS.md) | Beginner-friendly setup for macOS, Windows, and Linux, including public seed nodes, wallet creation, mining, balance checks, running a local node, running the local browser wallet, and becoming a public seed. |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards for participation. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute improvements. |
 | [SECURITY.md](SECURITY.md) | How to report security issues. |
@@ -62,6 +62,23 @@ python -m pip install -e .
 python -m netcoin --help
 ```
 
+
+## Local browser wallet quick start
+
+After installing from source, you can run a local browser wallet on your own computer:
+
+```bash
+python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8088/
+```
+
+Keep the local wallet bound to `127.0.0.1`. Do not expose it publicly.
+
 ## Public seed nodes
 
 Use these node URLs when a command asks for a public node:
@@ -77,6 +94,13 @@ Example: mine one public-testnet block after creating a wallet:
 ```bash
 python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
 ```
+
+
+## Become a public seed
+
+A public seed is a NetCoin node that other users can connect to. The beginner guide includes copy/paste steps for macOS, Windows, and Linux, including how to find your IP, open the right ports, start the node, advertise your seed URL, and mine through your own seed.
+
+Start here: [INSTRUCTIONS.md#become-a-public-seed](INSTRUCTIONS.md#become-a-public-seed).
 
 ## Safety Notice
 
@@ -139,6 +163,7 @@ NetCoin is a testnet and learning project.
 - Orphan block candidate handling.
 - Public endpoint rate limiting.
 - API-backed explorer and public status endpoints.
+- Public seed instructions for macOS, Windows, Linux, home-router setups, and VPS/cloud setups.
 
 ### Wallet and developer tools
 
@@ -148,7 +173,7 @@ NetCoin is a testnet and learning project.
 - Watch-only wallet files.
 - Descriptor helpers.
 - PSBT-like signing flow.
-- Browser wallet and local web wallet.
+- Hosted browser wallet and updated local browser wallet.
 - Saved contacts shared between wallet and explorer tools.
 - Payment URI support.
 - QR/payment-link support in browser tools.

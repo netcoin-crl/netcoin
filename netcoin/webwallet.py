@@ -112,7 +112,7 @@ PAGE = """<!doctype html>
  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
  header{padding:18px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:12px}
  header h1{font-size:18px;margin:0} .tag{color:var(--mut);font-size:13px}
- .wrap{max-width:880px;margin:0 auto;padding:20px}
+ .wrap{max-width:960px;margin:0 auto;padding:20px}
  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
  .tabs button{background:var(--card);color:var(--fg);border:1px solid var(--bd);padding:8px 14px;border-radius:8px;cursor:pointer}
  .tabs button.on{border-color:var(--acc);color:var(--acc)}
@@ -127,6 +127,9 @@ PAGE = """<!doctype html>
  .warn{background:#3a2a08;border:1px solid #6b4d12;color:#f0c674;padding:10px;border-radius:8px;font-size:13px;margin-top:10px}
  table{width:100%;border-collapse:collapse;font-size:13px} td,th{text-align:left;padding:6px 4px;border-bottom:1px solid var(--bd)}
  .hide{display:none} a{color:var(--acc)}
+ @media (min-width:900px){body{font-size:16px}.wrap{max-width:min(1280px,calc(100vw - 56px));padding:28px}.tabs{gap:10px}.tabs button{padding:10px 16px}.card{border-radius:16px;padding:22px}.row>*{min-width:220px}#tab-wallet{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}#tab-wallet.hide{display:none}#tab-wallet>.card{margin-bottom:0}#noWallet,#haveWallet{grid-column:1/-1}.big{font-size:34px}}
+ @media (min-width:1180px){.wrap{max-width:min(1380px,calc(100vw - 72px));padding:36px}#tab-wallet{grid-template-columns:repeat(3,minmax(0,1fr))}#noWallet,#haveWallet{grid-column:span 2}}
+ /* Responsive local-wallet desktop layout */
  .rcard{background:#0e131a;border:1px solid var(--bd);border-radius:10px;padding:14px}
  .rtitle{color:var(--acc);font-weight:700;margin-bottom:8px;font-size:15px}
  .sub{margin-bottom:10px;color:var(--mut)}
