@@ -11,6 +11,7 @@
   const WATCH_STORE = "ncw.watch.v1";
   const UI_MODE_STORE = "ncw.walletMode.v1";
   const UI_TAB_STORE = "ncw.walletTab.v1";
+  const SITE_MODE_STORE = "nc.siteMode.v1";
   const COIN = 100000000;
   const SESSION_STORE = "ncw.unlockedSession.v2";
   const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -101,11 +102,28 @@
     const mode = localStorage.getItem(UI_MODE_STORE) || "simple";
     return MODE_INFO[mode] ? mode : "simple";
   }
-  function setWalletUiMode(mode) {
+  function siteModeToWalletMode(mode) {
+    return { simple: "simple", merchant: "business", developer: "developer", node: "advanced", community: "simple", labs: "developer" }[mode] || "simple";
+  }
+  function walletModeToSiteMode(mode) {
+    return { simple: "simple", business: "merchant", advanced: "node", developer: "developer" }[mode] || "simple";
+  }
+  function setWalletUiMode(mode, syncSite = true) {
     if (!MODE_INFO[mode]) mode = "simple";
     localStorage.setItem(UI_MODE_STORE, mode);
+    if (syncSite) {
+      const siteMode = walletModeToSiteMode(mode);
+      if (window.NetCoinSiteMode?.setMode) window.NetCoinSiteMode.setMode(siteMode);
+      else localStorage.setItem(SITE_MODE_STORE, siteMode);
+    }
     applyWalletMode();
   }
+  function syncWalletModeFromSite(siteMode) {
+    const walletMode = siteModeToWalletMode(siteMode);
+    if (walletMode && walletMode !== walletUiMode()) setWalletUiMode(walletMode, false);
+    else applyWalletMode();
+  }
+  window.addEventListener("netcoin:siteModeChanged", (ev) => syncWalletModeFromSite(ev.detail?.mode));
   function activeWalletTab() {
     return localStorage.getItem(UI_TAB_STORE) || "overview";
   }
@@ -142,11 +160,10 @@
       tabs.appendChild(btn);
     }
     const firstCard = wallet.querySelector(":scope > .card");
-    firstCard?.after(tabs);
+    if (firstCard) wallet.insertBefore(tabs, firstCard);
 
     const cards = Array.from(wallet.querySelectorAll(":scope > .card"));
     for (const card of cards) {
-      if (card.querySelector("#statusDot")) continue; // keep node/profile status visible above every tab
       let tab = "overview";
       if (card.querySelector("#receiveOut")) tab = "receive";
       else if (card.querySelector("#btnSend")) tab = "send";
@@ -190,7 +207,7 @@
       <p id="walletModeHelp" class="muted compact-note"></p>
       <details class="raw-details">
         <summary>What each mode shows</summary>
-        <p class="muted">Simple: overview, send, receive, activity, contacts, settings. Business adds payments and reports. Advanced adds watch-only, escrow, coin control, PSBT, and descriptors. Developer adds contract/debug links.</p>
+        <p class="muted">Simple: overview, send, receive, activity, contacts, settings. Merchant mode adds payments and reports. Node operator/Advanced mode adds watch-only, escrow, coin control, PSBT, and descriptors. Developer/Labs mode adds contract/debug links.</p>
       </details>`, "settings");
     wallet.insertBefore(settings, $("btnLock"));
     const modeButtons = $("walletModeButtons");
