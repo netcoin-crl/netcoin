@@ -75,7 +75,7 @@ python -m netcoin --help
 After installing from source, you can run a local browser wallet on your own computer:
 
 ```bash
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 Then open:
@@ -84,7 +84,38 @@ Then open:
 http://127.0.0.1:8088/
 ```
 
-Keep the local wallet bound to `127.0.0.1`. Do not expose it publicly. If it says **cannot reach the node**, make sure you are using the HTTPS API URL `https://api.netcoin.online/api`, not a direct seed port that your home network may block.
+Keep the local wallet bound to `127.0.0.1`. Do not expose it publicly. If it says **cannot reach the node**, first try `http://18.220.89.128/api`. If your network allows the domain normally, `https://api.netcoin.online/api` also works.
+
+
+## Public API node for local tools
+
+Use this public API node when a command asks for `--node` and you want the local wallet or miner to connect to the live public testnet without opening a custom seed port:
+
+```text
+http://18.220.89.128/api
+```
+
+Preferred public domain when your network allows it:
+
+```text
+https://api.netcoin.online/api
+```
+
+Some home networks or router security products can block `api.netcoin.online` or custom ports such as `28444`. If `curl https://api.netcoin.online/api/latest` fails, use the direct-IP API proxy above.
+
+Create a wallet, mine one public-testnet block, and run the local browser wallet:
+
+```bash
+python -m netcoin wallet-new --out my-wallet.json --mnemonic
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8088/
+```
 
 ## Public seed nodes
 
@@ -99,8 +130,10 @@ http://seed3.netcoin.online:28444
 Example: mine one public-testnet block after creating a wallet:
 
 ```bash
-python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
 ```
+
+Direct seed ports are still available for node operators, but the API proxy above is easier for local wallets and miners on home networks.
 
 
 ## Become a public seed
@@ -144,7 +177,7 @@ NetCoin is a testnet and learning project.
 - Private-key wallet import for users who already have a single NetCoin key.
 - Encrypted private-key profiles stored locally in the browser.
 - Session unlock so returning to the wallet in the same browser tab does not require signing in again until the tab is closed or the wallet is locked.
-- HTTPS-first local wallet defaults through `https://api.netcoin.online/api`.
+- Local wallet/miner instructions use `http://18.220.89.128/api` as the current no-tunnel fallback, with `https://api.netcoin.online/api` as the preferred domain when the user network allows it.
 
 ### Core chain
 

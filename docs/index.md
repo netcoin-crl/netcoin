@@ -31,6 +31,7 @@ NetCoin is **not Bitcoin** and public-testnet NET has no real-money value.
 - [Become a public seed](../INSTRUCTIONS.md#become-a-public-seed)
 - [User guide](USER_GUIDE.md)
 - [Starter kit](STARTER_KIT.md)
+- [Local wallet/node troubleshooting](LOCAL_WALLET_NODE_TROUBLESHOOTING.md)
 - [Testnet guide](TESTNET.md)
 - [Wallet modes and site split](WALLET_MODES_AND_SITE_SPLIT.md)
 - [Mining guide](MINING.md)
@@ -68,9 +69,11 @@ python -m netcoin --help
 
 ## Public testnet node URLs
 
-Use these hostnames when a command asks for a public node URL:
+For local wallet, miner, and balance commands, start with the public API proxy. Use the seed URLs when you are running or testing node-to-node behavior.
 
 ```text
+http://18.220.89.128/api
+https://api.netcoin.online/api
 http://seed1.netcoin.online:28444
 http://seed2.netcoin.online:28444
 http://seed3.netcoin.online:28444
@@ -86,7 +89,7 @@ Never share wallet files, seed phrases, private keys, API keys, or tokens. Publi
 - Private-key import and session unlock were added to the hosted wallet.
 - New Nodes, Security, Learn, Download, and Governance sites were added for a more professional public ecosystem.
 
-- Local browser wallet now defaults to the HTTPS public API proxy to avoid home-network blocks on custom ports.
+- Local browser wallet and miner instructions now include `http://18.220.89.128/api` as the no-tunnel fallback when router/ISP filters block `api.netcoin.online` or custom node ports.
 - Merchant site now has a clearer invoice/POS workflow, integration cards, and invoice table.
 - Community site now includes local discussion drafts and improvement ideas so testers can organize feedback before a hosted forum is connected.
 

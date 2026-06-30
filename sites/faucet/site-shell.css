@@ -207,3 +207,13 @@ body{
   .topbar{grid-template-columns:minmax(320px,1fr) minmax(420px,620px)!important;}
   .site-search{width:min(620px,100%)!important;}
 }
+
+
+/* NetCoin GitHub/local-wallet instructions shared across all public sites. */
+.github-quickstart{margin:18px 0 12px!important;}
+.github-quickstart details{width:100%;}
+.github-quickstart summary{cursor:pointer;font-weight:850;font-size:15px;color:var(--nc-fg,#edf2f7);}
+.github-quickstart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:12px;}
+.github-quickstart h2{font-size:14px!important;margin:0 0 8px!important;}
+.github-quickstart pre{white-space:pre-wrap;overflow:auto;max-height:260px;border:1px solid var(--nc-line,#263244);border-radius:14px;padding:12px;background:rgba(0,0,0,.24);font-size:12px;line-height:1.45;}
+.github-quickstart-note{grid-column:1/-1;margin:0!important;line-height:1.45;}

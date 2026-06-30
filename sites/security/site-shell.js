@@ -130,6 +130,23 @@
       q('span:last-child', badge).textContent = 'API check unavailable';
     }
   }
+
+  function buildGithubQuickstart() {
+    if (q('[data-github-quickstart]')) return;
+    const footer = q('.footer');
+    if (!footer) return;
+    const section = document.createElement('section');
+    section.className = 'github-quickstart card';
+    section.dataset.githubQuickstart = '';
+    section.innerHTML = '<details><summary>Run NetCoin from GitHub</summary>' +
+      '<div class="github-quickstart-grid">' +
+      '<div><h2>Install</h2><pre>git clone https://github.com/netcoin-crl/netcoin.git\ncd netcoin\npython3 -m venv .venv\nsource .venv/bin/activate\npython -m pip install -e .</pre></div>' +
+      '<div><h2>Wallet and mining</h2><pre>python -m netcoin wallet-new --out my-wallet.json --mnemonic\npython -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after\npython -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online</pre></div>' +
+      '<p class="muted github-quickstart-note">Preferred API domain: <code>https://api.netcoin.online/api</code>. If a home router, ISP filter, or TLS issue blocks that domain, use <code>http://18.220.89.128/api</code>. Legacy, p2sh-segwit, segwit, and taproot are different receiving addresses controlled by the same wallet.</p>' +
+      '</div></details>';
+    footer.insertAdjacentElement('beforebegin', section);
+  }
+
   function closeMoreOnOutside() {
     document.addEventListener('click', (ev) => {
       qa('.site-more[open], .site-tools-more[open]').forEach((d) => { if (!d.contains(ev.target)) d.removeAttribute('open'); });
@@ -140,5 +157,6 @@
   applyMode(currentMode());
   window.dispatchEvent(new CustomEvent('netcoin:siteModeChanged', { detail: { mode: currentMode(), label: modes[currentMode()] } }));
   // Site-wide network badge removed; network health remains available in Explorer/Network hub.
+  buildGithubQuickstart();
   closeMoreOnOutside();
 })();

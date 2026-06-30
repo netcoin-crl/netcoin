@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
   <link rel="stylesheet" href="learn.css?v=20260630-ecosystem" />
   <link rel="stylesheet" href="ui-polish.css?v=20260630-wide-desktop" />
-    <link rel="stylesheet" href="site-shell.css?v=20260630-header-collision-fix" />
+    <link rel="stylesheet" href="site-shell.css?v=20260630-github-instructions" />
 </head>
 <body>
   <div class="shell">
@@ -21,11 +21,12 @@
 cd netcoin
 python -m venv .venv
 source .venv/bin/activate
-pip install -e .</pre><p class="muted">Windows users can use PowerShell with <code>.venv\Scripts\Activate.ps1</code>.</p></div><div class="card" id="wallet"><h2>Run local wallet</h2><pre>python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online</pre></div><div class="card" id="run-node"><h2>Run a node</h2><pre>python -m netcoin --data ~/.netcoin-testnet node --peer https://api.netcoin.online/api</pre></div><div class="card" id="mine"><h2>Mine</h2><pre>python -m netcoin mine --help</pre></div><div class="card" id="public-seed"><h2>Become a public seed</h2><ul class="compact-list"><li>Use a reliable machine with a stable public IP.</li><li>Forward/open port 28444.</li><li>Run the node with <code>--host 0.0.0.0 --port 28444</code>.</li><li>Share your URL only after it stays synced.</li></ul></div><div class="card"><h2>Safety</h2><p class="muted">Never share seed phrases or private keys. Testnet NET has no real-money value.</p></div></section>
+pip install -e .</pre><p class="muted">Windows users can use PowerShell with <code>.venv\Scripts\Activate.ps1</code>.</p></div><div class="card" id="wallet"><h2>Run local wallet</h2><pre>python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online</pre><p class="muted">Use <code>https://api.netcoin.online/api</code> when your network allows the api.netcoin.online domain. Use the direct-IP API if Charter/CUJO or router security blocks the domain.</p></div><div class="card" id="run-node"><h2>Run a node</h2><pre>python -m netcoin --data ~/.netcoin-testnet node --peer https://api.netcoin.online/api</pre></div><div class="card" id="mine"><h2>Mine one block</h2><pre>python -m netcoin wallet-new --out my-wallet.json --mnemonic
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after</pre><p class="muted">Default mining pays the wallet legacy address unless you choose another address type.</p></div><div class="card" id="public-seed"><h2>Become a public seed</h2><ul class="compact-list"><li>Use a reliable machine with a stable public IP.</li><li>Forward/open port 28444.</li><li>Run the node with <code>--host 0.0.0.0 --port 28444</code>.</li><li>Share your URL only after it stays synced.</li></ul></div><div class="card" id="address-types"><h2>Address types</h2><p class="muted">Legacy, p2sh-segwit, segwit, and taproot are different receiving addresses from the same wallet/private key. Coins mined with the default miner command appear under the legacy address.</p></div><div class="card"><h2>Safety</h2><p class="muted">Never share seed phrases or private keys. Testnet NET has no real-money value.</p></div></section>
 
     <p class="footer">NetCoin is public testnet/demo software. Never share private keys or seed phrases.</p>
   </div>
   <script src="learn.js?v=20260630-ecosystem"></script>
-<script src="site-shell.js?v=20260630-header-collision-fix"></script>
+<script src="site-shell.js?v=20260630-github-instructions"></script>
 </body>
 </html>

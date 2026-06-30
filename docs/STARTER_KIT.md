@@ -9,6 +9,22 @@ test coins from the faucet, send a transaction, optionally mine, and report bugs
 
 ---
 
+
+## Current public API node for local tools
+
+Use this for quick local wallet/miner commands:
+
+```text
+http://18.220.89.128/api
+```
+
+The preferred domain is `https://api.netcoin.online/api`, but some home networks block that domain or custom seed ports. If a command cannot reach the node, switch to `http://18.220.89.128/api`.
+
+```bash
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
+```
+
 ## 0. Requirements
 
 - Python 3.10+
@@ -167,7 +183,7 @@ privately.
 |---|---|
 | New wallet | `wallet-new --out my-wallet.json --mnemonic` |
 | Wallet info | `wallet-info --wallet my-wallet.json` |
-| Balance from public seed | `balance --node http://seed1.netcoin.online:28444 --address <ADDR>` |
+| Balance from public seed | `balance --node http://18.220.89.128/api --address <ADDR>` |
 | Balance from local chain | `--data ~/.netcoin-testnet balance --address <ADDR>` |
 | Run node | `--data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 --peer ...` |
 | Send | `send --wallet my-wallet.json --to <ADDR> --amount 1 --fee 0.01 --broadcast-to <node>` |

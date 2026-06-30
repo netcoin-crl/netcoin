@@ -14,6 +14,35 @@ NetCoin is an educational public-testnet project. It is not Bitcoin, it does not
 - Local wallet guide: [Run the local NetCoin wallet](#run-the-local-netcoin-wallet)
 - Public seed guide: [Become a public seed](#become-a-public-seed)
 
+
+## Recommended public node URL for local commands
+
+For local wallet, mining, and balance commands, use the public API proxy on normal web port 80:
+
+```text
+http://18.220.89.128/api
+```
+
+The preferred public domain is:
+
+```text
+https://api.netcoin.online/api
+```
+
+If your network blocks `api.netcoin.online`, if HTTPS reports a TLS error, or if custom seed ports such as `28444` do not work, use the direct-IP API proxy:
+
+```bash
+curl http://18.220.89.128/api/latest
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
+```
+
+Leave the local web-wallet terminal open, then open:
+
+```text
+http://127.0.0.1:8088/
+```
+
 ## Public seed nodes
 
 Use these node URLs when a command asks for a node:
@@ -97,16 +126,16 @@ python -m netcoin wallet-info --wallet my-wallet.json
 
 Write down the recovery phrase. Do not share it. The wallet file and phrase control your testnet coins.
 
-### 6. Mine one testnet block using a public seed
+### 6. Mine one testnet block using the public API
 
 ```bash
-python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
 ```
 
-If seed1 is unavailable, try:
+If this fails, test the API first:
 
 ```bash
-python -m netcoin miner --node http://seed2.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+curl http://18.220.89.128/api/latest
 ```
 
 ### 7. Mine continuously until you stop it
@@ -115,7 +144,7 @@ This keeps mining one block at a time. Stop with `Ctrl+C`.
 
 ```bash
 while true; do
-  python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+  python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
   sleep 2
 done
 ```
@@ -123,7 +152,7 @@ done
 ### 8. Check your balance
 
 ```bash
-python -m netcoin balance --node http://seed1.netcoin.online:28444 --wallet my-wallet.json
+python -m netcoin balance --node http://18.220.89.128/api --wallet my-wallet.json
 ```
 
 Mining rewards are coinbase rewards. They may show as immature until 100 more blocks are mined after them.
@@ -159,7 +188,7 @@ Open a new Terminal, then run:
 ```bash
 cd ~/netcoin
 source .venv/bin/activate
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 Open this in your browser:
@@ -245,16 +274,16 @@ python -m netcoin wallet-info --wallet my-wallet.json
 
 Write down the recovery phrase. Do not share it. The wallet file and phrase control your testnet coins.
 
-### 6. Mine one testnet block using a public seed
+### 6. Mine one testnet block using the public API
 
 ```powershell
-python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
 ```
 
-If seed1 is unavailable, try:
+If this fails, test the API first:
 
 ```powershell
-python -m netcoin miner --node http://seed2.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+Invoke-RestMethod http://18.220.89.128/api/latest
 ```
 
 ### 7. Mine continuously until you stop it
@@ -263,7 +292,7 @@ This keeps mining one block at a time. Stop with `Ctrl+C`.
 
 ```powershell
 while ($true) {
-  python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+  python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
   Start-Sleep -Seconds 2
 }
 ```
@@ -271,7 +300,7 @@ while ($true) {
 ### 8. Check your balance
 
 ```powershell
-python -m netcoin balance --node http://seed1.netcoin.online:28444 --wallet my-wallet.json
+python -m netcoin balance --node http://18.220.89.128/api --wallet my-wallet.json
 ```
 
 Mining rewards are coinbase rewards. They may show as immature until 100 more blocks are mined after them.
@@ -307,7 +336,7 @@ Open a new PowerShell window, then run:
 ```powershell
 cd $HOME\netcoin
 .\.venv\Scripts\Activate.ps1
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 Open this in your browser:
@@ -380,16 +409,16 @@ python -m netcoin wallet-info --wallet my-wallet.json
 
 Write down the recovery phrase. Do not share it. The wallet file and phrase control your testnet coins.
 
-### 7. Mine one testnet block using a public seed
+### 7. Mine one testnet block using the public API
 
 ```bash
-python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
 ```
 
-If seed1 is unavailable, try:
+If this fails, test the API first:
 
 ```bash
-python -m netcoin miner --node http://seed2.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+curl http://18.220.89.128/api/latest
 ```
 
 ### 8. Mine continuously until you stop it
@@ -398,7 +427,7 @@ This keeps mining one block at a time. Stop with `Ctrl+C`.
 
 ```bash
 while true; do
-  python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+  python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
   sleep 2
 done
 ```
@@ -406,7 +435,7 @@ done
 ### 9. Check your balance
 
 ```bash
-python -m netcoin balance --node http://seed1.netcoin.online:28444 --wallet my-wallet.json
+python -m netcoin balance --node http://18.220.89.128/api --wallet my-wallet.json
 ```
 
 Mining rewards are coinbase rewards. They may show as immature until 100 more blocks are mined after them.
@@ -442,7 +471,7 @@ Open a new terminal, then run:
 ```bash
 cd ~/netcoin
 source .venv/bin/activate
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 Open this in your browser:
@@ -473,7 +502,7 @@ Open Terminal:
 ```bash
 cd ~/netcoin
 source .venv/bin/activate
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 Leave that Terminal open, then open this in your browser:
@@ -489,7 +518,7 @@ Open PowerShell:
 ```powershell
 cd $HOME\netcoin
 .\.venv\Scripts\Activate.ps1
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 Leave that PowerShell window open, then open this in your browser:
@@ -505,7 +534,7 @@ Open Terminal:
 ```bash
 cd ~/netcoin
 source .venv/bin/activate
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 Leave that Terminal open, then open this in your browser:
@@ -521,7 +550,7 @@ If the browser says it cannot connect, make sure the terminal running `python -m
 If the wallet page opens but says **cannot reach the node**, restart the local wallet with the HTTPS API endpoint. This avoids home-network blocks on the public seed port `28444`:
 
 ```bash
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 You can test the public API before starting the local wallet:
@@ -529,13 +558,13 @@ You can test the public API before starting the local wallet:
 macOS / Linux:
 
 ```bash
-curl https://api.netcoin.online/api/info
+curl http://18.220.89.128/api/info
 ```
 
 Windows PowerShell:
 
 ```powershell
-Invoke-RestMethod https://api.netcoin.online/api/info
+Invoke-RestMethod http://18.220.89.128/api/info
 ```
 
 If port `8088` is already in use, run on a different local port:
@@ -543,13 +572,13 @@ If port `8088` is already in use, run on a different local port:
 macOS / Linux:
 
 ```bash
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online --port 8090
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online --port 8090
 ```
 
 Windows PowerShell:
 
 ```powershell
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online --port 8090
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online --port 8090
 ```
 
 Then open:
@@ -835,19 +864,19 @@ python -m netcoin wallet-info --wallet my-wallet.json
 Check a wallet balance through a public node:
 
 ```bash
-python -m netcoin balance --node http://seed1.netcoin.online:28444 --wallet my-wallet.json
+python -m netcoin balance --node http://18.220.89.128/api --wallet my-wallet.json
 ```
 
 Check any address:
 
 ```bash
-python -m netcoin balance --node http://seed1.netcoin.online:28444 --address YOUR_NETCOIN_ADDRESS_HERE
+python -m netcoin balance --node http://18.220.89.128/api --address YOUR_NETCOIN_ADDRESS_HERE
 ```
 
 Mine one block through a public node:
 
 ```bash
-python -m netcoin miner --node http://seed1.netcoin.online:28444 --wallet my-wallet.json --blocks 1 --sync-after
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
 ```
 
 Mine one block through your local node:
@@ -859,7 +888,7 @@ python -m netcoin miner --node http://127.0.0.1:28444 --wallet my-wallet.json --
 Run the local browser wallet:
 
 ```bash
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 ## Troubleshooting
@@ -885,13 +914,20 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 .\.venv\Scripts\Activate.ps1
 ```
 
-### Public seed is not responding
+### Public seed or API is not responding
 
-Try another seed:
+First test the public API proxy:
 
 ```bash
-python -m netcoin balance --node http://seed2.netcoin.online:28444 --wallet my-wallet.json
-python -m netcoin balance --node http://seed3.netcoin.online:28444 --wallet my-wallet.json
+curl http://18.220.89.128/api/info
+```
+
+If you are running a local/public seed, test that specific seed directly:
+
+```bash
+curl http://seed1.netcoin.online:28444/info
+curl http://seed2.netcoin.online:28444/info
+curl http://seed3.netcoin.online:28444/info
 ```
 
 ### Mining works, but balance is not spendable yet
@@ -917,10 +953,10 @@ Ctrl+C
 
 ## Fix: local browser wallet says "cannot reach the node"
 
-Use the public HTTPS API proxy instead of a direct seed port. Many home networks block custom ports like `28444`, while HTTPS uses the normal web port.
+Use the public API proxy instead of a direct seed port. Many home networks block custom ports like `28444`; some router security products may also block `api.netcoin.online`. The direct-IP API proxy uses normal web port 80: `http://18.220.89.128/api`.
 
 ```bash
-python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
+python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online
 ```
 
 Then open:
