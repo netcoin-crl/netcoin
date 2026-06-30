@@ -12,7 +12,7 @@ to launch.
 
 - [ ] Independent review of block/transaction validation (`chain.py`, `block.py`, `tx.py`).
 - [ ] Reorg logic reviewed for deep reorgs, equal-work ties, and rollback correctness.
-- [ ] No integer overflow / money-supply violations (cap, halving, subsidy, fees).
+- [ ] No integer overflow / money-supply violations (cap, reward reduction, subsidy, fees).
 - [ ] Coinbase maturity and double-spend protections audited.
 - [ ] Difficulty retargeting reviewed for manipulation (timestamp games).
 - [ ] Deterministic serialization / txid stability reviewed.

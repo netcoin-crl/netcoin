@@ -29,6 +29,8 @@ from urllib.parse import quote, urlencode
 from .crypto import decode_address, validate_address, verify_message
 from .descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
 from .script import ScriptError, timelocked_redeem_script, script_to_p2sh_address
+from .params import REWARD_REDUCTION_INTERVAL, REWARD_SCHEDULE_ACTIVATION_HEIGHT
+from .emission import next_reduction_height
 from .tx import amount_to_sats, sats_to_amount
 
 
@@ -2300,16 +2302,24 @@ class AppStore:
         return {"peers": [{"url": p, "region": "unknown"} for p in peers], "reports": reports[-100:]}
 
     def reward_countdown(self, chain: Any) -> dict[str, Any]:
-        # NetCoin has random emission activation at height 1000 in the browser UI.
-        activation = 1000
         current = chain.height()
+        activation = REWARD_SCHEDULE_ACTIVATION_HEIGHT
+        if current < activation:
+            event = activation
+            event_name = "20_percent_reward_schedule_activation"
+        else:
+            event = next_reduction_height(current)
+            event_name = "20_percent_reward_reduction"
+        subsidy = chain.subsidy(current + 1)
         return {
             "height": current,
-            "next_event": "random_emission_activation" if current < activation else "random_emission_year_boundary",
-            "event_height": activation if current < activation else ((current // 720) + 1) * 720,
-            "blocks_remaining": max(0, (activation if current < activation else ((current // 720) + 1) * 720) - current),
-            "current_subsidy_sats": chain.subsidy(current + 1),
-            "current_subsidy": sats_to_amount(chain.subsidy(current + 1)),
+            "next_event": event_name,
+            "event_height": event,
+            "blocks_remaining": max(0, event - current),
+            "interval_blocks": REWARD_REDUCTION_INTERVAL,
+            "reduction_percent": 20,
+            "current_subsidy_sats": subsidy,
+            "current_subsidy": sats_to_amount(subsidy),
         }
 
     def treasury(self, chain: Any) -> dict[str, Any]:

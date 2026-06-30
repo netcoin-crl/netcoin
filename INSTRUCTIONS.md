@@ -970,3 +970,21 @@ If you run your own local node, then use:
 ```bash
 python -m netcoin web --node http://127.0.0.1:28444 --faucet https://faucet.netcoin.online
 ```
+
+
+## Large send or timeout troubleshooting
+
+If a wallet send times out after trying a large amount, check the mempool and node health before trying again:
+
+```bash
+curl -s http://18.220.89.128/api/health
+python -m netcoin mempool-info --node http://18.220.89.128/api --summary
+```
+
+Mine one block at a time while testing:
+
+```bash
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --timeout 60
+```
+
+Avoid sending almost your full balance until the wallet shows the transaction preview as safe.

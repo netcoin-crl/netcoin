@@ -11,6 +11,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-06-30 — reward schedule activation height 4,200
+
+### Changed (consensus — activation-gated; chain NOT reset)
+- Replaces the random-emission experiment with a deterministic reward schedule: `50 NET` starting subsidy and a **20% reduction every 210,000 blocks** (`50 -> 40 -> 32 -> 25.6 ...`). The new schedule activates at height `4,200` so already-mined public-testnet blocks stay valid; the first public reduction remains absolute height `210,000`.
+
 ### Security
 - Encrypted wallet files now use `cryptography`'s ChaCha20-Poly1305 AEAD with
   PBKDF2-HMAC-SHA256-derived keys and fixed associated data. Legacy

@@ -16,7 +16,7 @@ from netcoin.block import Block, BlockHeader, make_block, merkle_root, mine_head
 from netcoin.chain import Blockchain, ChainError
 from netcoin.miner import solve_template
 from netcoin.node import NetCoinNode, make_handler
-from netcoin.params import HALVING_INTERVAL, INITIAL_SUBSIDY, ZERO_HASH
+from netcoin.params import COIN, HALVING_INTERVAL, INITIAL_SUBSIDY, ZERO_HASH
 from netcoin.pool import MiningPool
 from netcoin.pool import make_handler as make_pool_handler
 from netcoin.rpc import RPCServer
@@ -495,31 +495,27 @@ def test_node_rejects_oversized_request_body(tmp_path: Path, monkeypatch):
 
 
 # ----------------------------------------------------------------------
-# Consensus: halving schedule
+# Consensus: reward-reduction schedule
 # ----------------------------------------------------------------------
 
-def test_subsidy_halving_schedule(tmp_path: Path):
-    # The legacy halving schedule governs only BELOW EMISSION_ACTIVATION_HEIGHT.
-    # At/after activation the random-emission schedule supersedes halvings (see
-    # docs/ECONOMICS_PLAN.md and test_emission.py); the change is additive because
-    # the activation height is far ahead of any mined block.
+def test_subsidy_reward_reduction_schedule(tmp_path: Path):
     from netcoin.emission import is_active
-    from netcoin.params import EMISSION_ACTIVATION_HEIGHT
+    from netcoin.params import (
+        LEGACY_NRE_ACTIVATION_HEIGHT,
+        REWARD_REDUCTION_INTERVAL,
+        REWARD_SCHEDULE_ACTIVATION_HEIGHT,
+    )
 
     chain = Blockchain(tmp_path / "chain")
-    # Below activation the legacy schedule applies. With the testnet activation
-    # height (5_000) sitting below the first halving (210_000), every pre-activation
-    # block simply pays INITIAL_SUBSIDY — the halving is superseded by emission
-    # before it would ever trigger.
-    assert EMISSION_ACTIVATION_HEIGHT < HALVING_INTERVAL
     assert chain.subsidy(0) == INITIAL_SUBSIDY
-    assert chain.subsidy(EMISSION_ACTIVATION_HEIGHT - 1) == INITIAL_SUBSIDY
-    # The negative-height guard is unchanged.
+    assert chain.subsidy(LEGACY_NRE_ACTIVATION_HEIGHT) == 15 * COIN
+    assert chain.subsidy(REWARD_SCHEDULE_ACTIVATION_HEIGHT) == 50 * COIN
+    assert chain.subsidy(REWARD_REDUCTION_INTERVAL) == 40 * COIN
+    assert chain.subsidy(REWARD_REDUCTION_INTERVAL * 2) == 32 * COIN
     with pytest.raises(ChainError):
         chain.subsidy(-1)
-    # At/after activation, emission (not halving) governs — sanity-check the gate.
-    assert is_active(EMISSION_ACTIVATION_HEIGHT)
-    assert not is_active(EMISSION_ACTIVATION_HEIGHT - 1)
+    assert is_active(REWARD_SCHEDULE_ACTIVATION_HEIGHT)
+    assert not is_active(REWARD_SCHEDULE_ACTIVATION_HEIGHT - 1)
 
 
 # ----------------------------------------------------------------------
