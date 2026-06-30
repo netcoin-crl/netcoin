@@ -32,14 +32,29 @@ ADDRESS_TYPES = ["legacy", "segwit", "taproot", "p2sh-segwit"]
 # Remote node helpers
 # --------------------------------------------------------------------------- #
 
+def _normalize_node_url(node_url: str) -> str:
+    """Return a node/API base URL that works with the local web wallet.
+
+    Public users often paste ``https://api.netcoin.online`` while the hosted
+    reverse proxy exposes the node under ``/api``. Accept both forms so the
+    local wallet does not appear broken because of a missing path segment.
+    """
+    base = (node_url or "").strip().rstrip("/")
+    if base in {"https://api.netcoin.online", "http://api.netcoin.online"}:
+        return base + "/api"
+    return base
+
+
 def _node_get(node_url: str, path: str, timeout: int = 15) -> Dict[str, Any]:
-    with urlopen(node_url.rstrip("/") + path, timeout=timeout) as response:
+    base = _normalize_node_url(node_url)
+    with urlopen(base + path, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
 def _node_post(node_url: str, path: str, payload: Dict[str, Any], timeout: int = 15) -> Dict[str, Any]:
+    base = _normalize_node_url(node_url)
     body = json.dumps(payload).encode("utf-8")
-    request = Request(node_url.rstrip("/") + path, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    request = Request(base + path, data=body, headers={"Content-Type": "application/json"}, method="POST")
     with urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -233,6 +248,7 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   ['wallet','faucet','explorer'].forEach(t=>$('#tab-'+t).classList.toggle('hide',t!==b.dataset.tab));
   if(b.dataset.tab==='explorer')loadLatest();
 });
+function nodeHelp(msg){return esc(msg)+'<div class="warn"><b>Node connection help</b><br>Use the public HTTPS API proxy when home Wi-Fi blocks the seed port:<div class="mono">python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online</div><br>Configured node: <span class="mono">'+esc(CFG.node||'unknown')+'</span></div>';}
 async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG.network+' · node '+CFG.node;
   $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')search();});
   const w=await api('/api/wallet/current');if(w.address)showWallet(w);}
@@ -254,20 +270,20 @@ async function loadHistory(){const out=$('#historyOut');try{
   const d=await api('/api/history?address='+ADDRS[curType]);
   const ids=(d.transaction_ids||[]).slice(-15).reverse();
 	  out.innerHTML=ids.length?(`<div class="muted">${esc(d.transaction_count)} total · newest first</div>`+ids.map(t=>`<div class="lnk mono" onclick="openTx(${jsq(t)})">${esc(short(t))}</div>`).join('')):'<span class="muted">No transactions yet for this address.</span>';
-	}catch(e){out.innerHTML='<span class="err">'+esc(e.message)+'</span>';}}
+	}catch(e){out.innerHTML=nodeHelp(e.message);}}
 async function newWallet(){try{const w=await api('/api/wallet/new',{method:'POST'});showWallet(w);}catch(e){alert(e.message)}}
 async function loadWallet(){try{const w=await api('/api/wallet/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({json:$('#loadJson').value,passphrase:$('#loadPass').value})});showWallet(w);}catch(e){alert(e.message)}}
 function copyAddr(){navigator.clipboard.writeText(ADDRS[curType]);}
 async function refreshBalance(){try{const b=await api('/api/balance?address='+ADDRS[curType]);
 	  $('#balSpendable').innerHTML=esc(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+esc(CFG.ticker)+'</span>';
-  $('#balDetail').textContent='immature '+(b.immature||'0')+' · total '+(b.total||'0')+' · '+(b.utxo_count||0)+' UTXOs';}catch(e){$('#balDetail').textContent=e.message;}}
+  $('#balDetail').textContent='immature '+(b.immature||'0')+' · total '+(b.total||'0')+' · '+(b.utxo_count||0)+' UTXOs';}catch(e){$('#balSpendable').textContent='—';$('#balDetail').innerHTML=nodeHelp(e.message);}}
 async function makePayLink(){const out=$('#reqOut');try{
   const p=new URLSearchParams({address:ADDRS[curType]});
   if($('#reqAmt').value)p.set('amount',$('#reqAmt').value);
   if($('#reqLabel').value)p.set('label',$('#reqLabel').value);
   const d=await api('/api/payment-uri?'+p.toString());
 	  out.innerHTML=`<div class="muted">Share this link:</div><div class="mono" id="payUriOut">${esc(d.uri)}</div><button class="ghost" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('payUriOut').textContent)">Copy link</button>`;
-	}catch(e){out.innerHTML='<span class="err">'+esc(e.message)+'</span>';}}
+	}catch(e){out.innerHTML=nodeHelp(e.message);}}
 async function applyPayLink(){const v=$('#payLink').value.trim();if(!v.toLowerCase().startsWith('netcoin:'))return;try{
   const d=await api('/api/parse-uri?uri='+encodeURIComponent(v));
   $('#sendTo').value=d.address;if(d.amount)$('#sendAmt').value=d.amount;
@@ -276,7 +292,7 @@ async function send(){const out=$('#sendOut');out.textContent='Sending…';try{
   const j=await api('/api/wallet/send',{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType})});
 	  out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+esc(j.txid)+'</span>';refreshBalance();}
-	  catch(e){out.innerHTML='<span class="err">'+esc(e.message)+'</span>';}}
+	  catch(e){out.innerHTML=nodeHelp(e.message);}}
 function fmtTime(ts){return ts?new Date(ts*1000).toLocaleString():'';}
 function short(h){return h?(h.length>26?h.slice(0,14)+'…'+h.slice(-8):h):'';}
 	function card(t,b){return '<div class="rcard"><div class="rtitle">'+esc(t)+'</div>'+b+'</div>';}
@@ -302,11 +318,11 @@ function renderResult(d){
 	  return '<pre class="mono">'+esc(JSON.stringify(d,null,2))+'</pre>';}
 async function search(){const out=$('#searchOut');if(!$('#q').value.trim()){out.innerHTML='';return;}out.innerHTML='<span class="muted">Searching…</span>';
   try{out.innerHTML=renderResult(await api('/api/search?q='+encodeURIComponent($('#q').value.trim())));}
-	  catch(e){out.innerHTML='<span class="err">'+esc(e.message)+'</span>';}}
+	  catch(e){out.innerHTML=nodeHelp(e.message);}}
 	async function loadLatest(){const tb=$('#latest').querySelector('tbody');tb.innerHTML='<tr><td class="muted">Loading…</td></tr>';
 	  try{const d=await api('/api/latest?n=15');tb.innerHTML='<tr><th>Height</th><th>Hash</th><th>Txns</th><th>Time</th></tr>'+
 	    d.blocks.map(b=>`<tr class="lnk" onclick="searchFor(${jsq(b.hash)})"><td>#${esc(b.height)}</td><td class="mono">${esc(short(b.hash))}</td><td>${esc(b.transactions)}</td><td class="muted">${esc(fmtTime(b.timestamp))}</td></tr>`).join('');}
-	  catch(e){tb.innerHTML='<tr><td class="err">'+esc(e.message)+'</td></tr>';}}
+	  catch(e){tb.innerHTML='<tr><td>'+nodeHelp(e.message)+'</td></tr>';}}
 boot();
 </script></body></html>"""
 
@@ -316,6 +332,7 @@ boot();
 # --------------------------------------------------------------------------- #
 
 def make_handler(node_url: str, faucet_url: str = ""):
+    node_url = _normalize_node_url(node_url)
     state: Dict[str, Optional[Wallet]] = {"wallet": None}
 
     class Handler(BaseHTTPRequestHandler):
@@ -378,8 +395,8 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     self._send({"error": "not found"}, status=404)
             except HTTPError as exc:
                 self._send({"error": f"node returned HTTP {exc.code} for {parsed.path}"}, status=502)
-            except (URLError, OSError):
-                self._send({"error": "cannot reach the node"}, status=502)
+            except (URLError, OSError) as exc:
+                self._send({"error": "cannot reach the node", "node": node_url, "hint": "Use --node https://api.netcoin.online/api, or start a local node and use --node http://127.0.0.1:28444", "detail": str(exc)}, status=502)
             except Exception as exc:  # noqa: BLE001
                 self._send({"error": str(exc)}, status=400)
 
@@ -460,6 +477,7 @@ def make_handler(node_url: str, faucet_url: str = ""):
 
 
 def run_web_wallet(node_url: str, faucet_url: str = "", host: str = "127.0.0.1", port: int = 8088) -> None:
+    node_url = _normalize_node_url(node_url)
     server = ThreadingHTTPServer((host, int(port)), make_handler(node_url, faucet_url))
     print(f"NetCoin web wallet on http://{host}:{port}  (node: {node_url})")
     print("Local tool — keys stay on this machine. Do not expose this port publicly.")

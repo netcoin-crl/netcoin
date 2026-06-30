@@ -86,6 +86,8 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     },
     "admin_events": [],
     "operator_announcements": [],
+    "community_posts": [],
+    "community_improvements": {},
 }
 
 
@@ -1266,6 +1268,67 @@ class AppStore:
         self.save(data)
         return record
 
+    def list_community_posts(self, limit: int = 50) -> dict[str, Any]:
+        data = self.load()
+        posts = list(data.get("community_posts", []))[-max(1, min(int(limit), 200)):]
+        return {"posts": posts[::-1], "count": len(data.get("community_posts", []))}
+
+    def create_community_post(self, payload: dict[str, Any]) -> dict[str, Any]:
+        name = str(payload.get("name") or "Anonymous")[:80].strip() or "Anonymous"
+        message = str(payload.get("message") or "")[:1200].strip()
+        if not message:
+            raise AppError("message is required")
+        category = str(payload.get("category") or "general")[:40].lower()
+        if category not in {"general", "help", "mining", "wallet", "merchant", "ideas"}:
+            category = "general"
+        rec = {
+            "post_id": clean_id("post"),
+            "name": name,
+            "message": message,
+            "category": category,
+            "address": str(payload.get("address") or "")[:140],
+            "created_at": now(),
+            "status": "visible",
+        }
+        data = self.load()
+        data.setdefault("community_posts", []).append(rec)
+        data["community_posts"] = data["community_posts"][-500:]
+        self.save(data)
+        return rec
+
+    def list_improvements(self) -> dict[str, Any]:
+        data = self.load()
+        ideas = sorted(data.get("community_improvements", {}).values(), key=lambda x: (int(x.get("votes", 0)), int(x.get("created_at", 0))), reverse=True)
+        return {"improvements": ideas, "count": len(ideas)}
+
+    def create_improvement(self, payload: dict[str, Any]) -> dict[str, Any]:
+        title = str(payload.get("title") or "")[:140].strip()
+        if not title:
+            raise AppError("title is required")
+        rec = {
+            "idea_id": clean_id("idea"),
+            "title": title,
+            "description": str(payload.get("description") or payload.get("details") or "")[:2000].strip(),
+            "name": str(payload.get("name") or payload.get("author") or "Anonymous")[:80].strip() or "Anonymous",
+            "category": str(payload.get("category") or "general")[:50].strip() or "general",
+            "status": "open",
+            "votes": 0,
+            "created_at": now(),
+        }
+        data = self.load()
+        data.setdefault("community_improvements", {})[rec["idea_id"]] = rec
+        self.save(data)
+        return rec
+
+    def vote_improvement(self, idea_id: str) -> dict[str, Any]:
+        data = self.load()
+        rec = data.get("community_improvements", {}).get(idea_id)
+        if not rec:
+            raise AppError("improvement idea not found")
+        rec["votes"] = int(rec.get("votes", 0)) + 1
+        self.save(data)
+        return rec
+
     def tip_button(self, payload: dict[str, Any]) -> dict[str, Any]:
         address = normalize_address(payload.get("address"))
         label = str(payload.get("label") or payload.get("username") or "Tip with NetCoin")[:80]
@@ -2314,6 +2377,11 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, b, "application/json"
     if path == "/community/leaderboards":
         return 200, store.leaderboards(chain), "application/json"
+    if path == "/community/posts":
+        limit = int(q("limit", "50") or 50)
+        return 200, store.list_community_posts(limit=limit), "application/json"
+    if path == "/community/improvements":
+        return 200, store.list_improvements(), "application/json"
     if path == "/wallet/statement":
         return 200, store.wallet_statement(chain, q("address"), q("month") or None), "application/json"
     if path == "/wallet/statement.csv":
@@ -2441,6 +2509,12 @@ def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any],
         return 200, store.tip_button(body)
     if path == "/community/gifts/claim":
         return 200, store.claim_gift(body)
+    if path == "/community/posts":
+        return 200, store.create_community_post(body)
+    if path == "/community/improvements":
+        return 200, store.create_improvement(body)
+    if path.startswith("/community/improvements/") and path.endswith("/vote"):
+        return 200, store.vote_improvement(path.split("/")[3])
     if path == "/community/bounties":
         return 200, store.create_bounty(body)
     if path.startswith("/community/bounties/") and path.endswith("/submit"):

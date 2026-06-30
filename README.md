@@ -26,7 +26,7 @@ Use the hosted public-testnet apps here:
 | Pay | <https://pay.netcoin.online> | Customer checkout, payment requests, invoices, and receipts. |
 | Merchant | <https://merchant.netcoin.online> | Business dashboard, POS, invoices, refunds, API keys, webhooks, exports, agreements, and reports. |
 | Faucet | <https://faucet.netcoin.online> | Request public-testnet NET. |
-| Community | <https://community.netcoin.online> | Campaigns, bounties, gifts, leaderboards, and public links. |
+| Community | <https://community.netcoin.online> | Public discussion, improvement ideas, campaigns, bounties, gifts, and leaderboards. |
 | Markets | <https://markets.netcoin.online> | Phase 7 prediction-market demos and market experiments. |
 | Docs | <https://docs.netcoin.online> | User, wallet, merchant, node, and developer guides. |
 | API Docs | <https://api.netcoin.online> | Public endpoint reference, examples, auth notes, and webhook references. |
@@ -68,7 +68,7 @@ python -m netcoin --help
 After installing from source, you can run a local browser wallet on your own computer:
 
 ```bash
-python -m netcoin web --node http://seed1.netcoin.online:28444 --faucet https://faucet.netcoin.online
+python -m netcoin web --node https://api.netcoin.online/api --faucet https://faucet.netcoin.online
 ```
 
 Then open:
@@ -77,7 +77,7 @@ Then open:
 http://127.0.0.1:8088/
 ```
 
-Keep the local wallet bound to `127.0.0.1`. Do not expose it publicly.
+Keep the local wallet bound to `127.0.0.1`. Do not expose it publicly. If it says **cannot reach the node**, make sure you are using the HTTPS API URL `https://api.netcoin.online/api`, not a direct seed port that your home network may block.
 
 ## Public seed nodes
 
@@ -122,9 +122,9 @@ NetCoin is a testnet and learning project.
 - Wallet site for wallet actions, contacts, backups/imports, wallet modes, and wallet tools.
 - Explorer site focused on chain lookup, latest blocks, latest transactions, and network health.
 - Pay site for simple checkout and customer-facing payment flows.
-- Merchant site for invoices, POS, business profiles, API keys, webhooks, exports, refunds, agreements, and reports.
+- Merchant site for invoices, POS checkout, API keys, webhooks, refunds, agreements, CSV exports, and reports.
 - Faucet site for requesting public-testnet coins.
-- Community site for campaigns, bounties, gifts, social links, and leaderboards.
+- Community site for public discussion, improvement ideas, campaigns, bounties, gifts, social links, and leaderboards.
 - Markets site for prediction-market demos and Phase 7 experiments.
 - Docs and API Docs sites for public help and developer references.
 
@@ -206,3 +206,11 @@ Still not something code alone can create:
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+
+### Recent UI updates
+
+- Local browser wallet now defaults to the HTTPS public API proxy to avoid home-network blocks on custom ports.
+- Local browser wallet now defaults to the HTTPS public API proxy to avoid home-network blocks on custom ports.
+- Merchant site now has a clearer invoice/POS workflow, API/webhook tools, refund planning, agreements, exports, and invoice table.
+- Community site now includes a public discussion board, improvement ideas, bounties, and leaderboards backed by app-layer endpoints.

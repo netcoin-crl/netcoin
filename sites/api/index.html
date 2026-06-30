@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin API</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="api.css?v=20260629-independent" />
+  <link rel="stylesheet" href="api.css?v=20260630-public-ui" />
 </head>
 <body>
   <div class="shell">
@@ -16,10 +16,10 @@
     
 <section class="hero"><div class="card"><span class="pill"><span id="apiDot" class="dot"></span><span id="apiStatus">Checking API</span></span><h1>Developer API reference.</h1><p>This site documents NetCoin endpoints. It is separate from the explorer so builders get clean examples and do not dig through block-search UI.</p></div><div class="card"><h2>Live API sample</h2><pre id="liveSample">Loading…</pre></div></section>
 <section class="card"><h2>Core endpoints</h2><table><tr><th>Endpoint</th><th>Use</th></tr><tr><td class="mono">GET /api/latest?n=15</td><td>Latest blocks and tip summary.</td></tr><tr><td class="mono">GET /api/block/&lt;hash&gt;</td><td>Block details.</td></tr><tr><td class="mono">GET /api/tx/&lt;txid&gt;</td><td>Transaction details.</td></tr><tr><td class="mono">GET /api/address/&lt;address&gt;</td><td>Address balance and txids.</td></tr><tr><td class="mono">GET /api/mempool</td><td>Unconfirmed transactions.</td></tr><tr><td class="mono">GET /api/fee-estimates</td><td>Slow/normal/fast fee estimate presets.</td></tr></table></section>
-<section class="card"><h2>App endpoints</h2><table><tr><th>Endpoint</th><th>Use</th></tr><tr><td class="mono">POST /api/invoices</td><td>Create payment request.</td></tr><tr><td class="mono">GET /api/invoices</td><td>List invoices.</td></tr><tr><td class="mono">GET /api/invoices/&lt;id&gt;</td><td>Invoice status.</td></tr><tr><td class="mono">POST /api/merchant/webhooks</td><td>Register merchant webhook.</td></tr><tr><td class="mono">GET /api/merchant/export.csv</td><td>Export sales CSV.</td></tr><tr><td class="mono">GET /faucet/status</td><td>Faucet status through same origin.</td></tr></table></section>
+<section class="card"><h2>App endpoints</h2><table><tr><th>Endpoint</th><th>Use</th></tr><tr><td class="mono">POST /api/invoices</td><td>Create payment request.</td></tr><tr><td class="mono">GET /api/invoices</td><td>List invoices.</td></tr><tr><td class="mono">GET /api/invoices/&lt;id&gt;</td><td>Invoice status.</td></tr><tr><td class="mono">POST /api/merchant/webhooks</td><td>Register merchant webhook.</td></tr><tr><td class="mono">GET /api/merchant/export.csv</td><td>Export sales CSV.</td></tr><tr><td class="mono">GET /api/community/posts</td><td>Community discussion posts.</td></tr><tr><td class="mono">POST /api/community/posts</td><td>Create a community message.</td></tr><tr><td class="mono">GET /api/community/improvements</td><td>List improvement ideas.</td></tr><tr><td class="mono">POST /api/community/improvements</td><td>Create an improvement idea.</td></tr></table></section>
 
     <p class="footer">NetCoin API is a standalone site. Explorer data is only linked when it helps this specific workflow.</p>
   </div>
-  <script src="api.js?v=20260629-independent"></script>
+  <script src="api.js?v=20260630-public-ui"></script>
 </body>
 </html>

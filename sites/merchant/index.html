@@ -5,40 +5,94 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Merchant</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="merchant.css?v=20260629-product-split" />
+  <link rel="stylesheet" href="merchant.css?v=20260630-merchant-dashboard" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand"><div class="logo">N</div><div>NetCoin Merchant<small>business tools, invoices, POS, names, and reports</small></div></div>
+      <div class="brand"><div class="logo">N</div><div>NetCoin Merchant<small>invoices, POS, webhooks, refunds, and business reports</small></div></div>
       <nav class="site-nav" aria-label="NetCoin sites"><a href="https://wallet.netcoin.online">Wallet</a><a href="https://explorer.netcoin.online">Explorer</a><a href="https://pay.netcoin.online">Pay</a><a href="https://merchant.netcoin.online" class="active" aria-current="page">Merchant</a><a href="https://faucet.netcoin.online">Faucet</a><a href="https://community.netcoin.online">Community</a><a href="https://markets.netcoin.online">Markets</a><a href="https://docs.netcoin.online">Docs</a><a href="https://api.netcoin.online">API</a></nav>
     </header>
 
-<section class="hero">
-  <div class="card">
-    <span class="pill"><span id="nodeDot" class="dot"></span><span id="nodeStatus">Checking merchant API</span></span>
-    <h1>Business tools live here, not in the explorer.</h1>
-    <p>Create invoices, run POS checkout, manage merchant names/profiles, register webhooks, export sales, and keep business workflows away from normal chain lookup.</p>
-    <div class="actions"><a class="pill" href="#invoice">Create invoice</a><a class="pill" href="#pos">POS mode</a><a class="pill" href="#names">Business names</a><a class="pill" href="#webhooks">Webhooks</a><a class="pill" href="/api/merchant/export.csv" target="_blank" rel="noreferrer">Export CSV</a></div>
+    <section class="hero dashboard-hero">
+      <div class="card lead">
+        <span class="pill"><span id="nodeDot" class="dot"></span><span id="nodeStatus">Checking merchant API</span></span>
+        <h1>Business tools live here.</h1>
+        <p>Create checkout invoices, run a point-of-sale flow, manage API keys and webhooks, export sales, and prepare refund payout plans without bloating the explorer.</p>
+        <div class="actions"><a class="pill" href="#invoice">Invoice</a><a class="pill" href="#pos">POS</a><a class="pill" href="#webhooks">API & Webhooks</a><a class="pill" href="#refunds">Refunds</a><a class="pill" href="#reports">Reports</a></div>
+      </div>
+      <div class="card">
+        <h2>Merchant snapshot</h2>
+        <div class="stats">
+          <div class="stat"><div class="k">Invoices</div><div class="v" id="invoiceCount">—</div></div>
+          <div class="stat"><div class="k">Tip height</div><div class="v" id="height">—</div></div>
+          <div class="stat"><div class="k">Fast fee</div><div class="v" id="fastFee">—</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="split">
+      <div class="card" id="invoice">
+        <h2>Create invoice</h2>
+        <p class="muted">Use this for online orders, donation campaigns, club dues, and merchant checkout.</p>
+        <div class="row"><div><label>Merchant ID</label><input id="merchantId" value="default" /></div><div><label>Order ID</label><input id="orderId" placeholder="order-1001" /></div></div>
+        <label>Receiving address</label><input id="invoiceAddress" class="mono" placeholder="NetCoin address" />
+        <div class="row"><div><label>Amount NET</label><input id="invoiceAmount" inputmode="decimal" placeholder="5.00" /></div><div><label>Memo</label><input id="invoiceMemo" placeholder="Order memo" /></div></div>
+        <button id="createInvoice">Create invoice</button>
+        <pre id="invoiceResult"></pre>
+      </div>
+      <div class="card" id="pos">
+        <h2>Point of sale</h2>
+        <p class="muted">Tablet-friendly cashier flow. Enter the sale amount, create an invoice, then send the customer to NetCoin Pay.</p>
+        <div class="row"><div><label>Amount NET</label><input id="posAmount" inputmode="decimal" placeholder="12.50" /></div><div><label>Memo</label><input id="posMemo" placeholder="Counter sale" /></div></div>
+        <label>Receiving address</label><input id="posAddress" class="mono" placeholder="NetCoin address" />
+        <button id="createPos">Create POS checkout</button>
+        <div id="posResult" class="checkout-box"></div>
+      </div>
+    </section>
+
+    <section class="split">
+      <div class="card" id="webhooks">
+        <h2>API keys and webhooks</h2>
+        <p class="muted">Connect your store or backend. Keep API keys private; rotate them if exposed.</p>
+        <label>Webhook URL</label><input id="webhookUrl" placeholder="https://example.com/netcoin-webhook" />
+        <button id="registerWebhook">Register webhook</button>
+        <pre id="webhookResult"></pre>
+        <button id="createKey" class="secondary">Create merchant API key</button>
+        <pre id="keyResult"></pre>
+      </div>
+      <div class="card" id="refunds">
+        <h2>Refund payout plan</h2>
+        <p class="muted">Creates an operator-review payout plan. It does not auto-spend a hot wallet.</p>
+        <div class="row"><div><label>Invoice ID</label><input id="refundInvoice" placeholder="inv_..." /></div><div><label>Refund amount NET</label><input id="refundAmount" inputmode="decimal" /></div></div>
+        <label>Refund address</label><input id="refundAddress" class="mono" placeholder="Customer address" />
+        <label>Reason</label><input id="refundReason" placeholder="Customer refund" />
+        <button id="createRefund">Create refund plan</button>
+        <pre id="refundResult"></pre>
+      </div>
+    </section>
+
+    <section class="grid dashboard-grid">
+      <div class="card" id="reports">
+        <h2>Recent invoices</h2>
+        <button id="refreshInvoices" class="secondary small">Refresh invoices</button>
+        <div id="invoiceList" class="feed"></div>
+      </div>
+      <div class="card">
+        <h2>Business agreements</h2>
+        <p class="muted">Recurring payments and escrow belong in Merchant because they are business workflows.</p>
+        <div class="mini-grid"><button id="loadRecurring" class="secondary">Load recurring</button><button id="loadEscrows" class="secondary">Load escrows</button></div>
+        <pre id="agreementResult"></pre>
+      </div>
+      <div class="card">
+        <h2>Exports and references</h2>
+        <a class="biglink" href="/api/merchant/export.csv" target="_blank" rel="noreferrer"><b>Download sales CSV</b><span>Export invoices and payment records.</span></a>
+        <a class="biglink" href="https://api.netcoin.online" target="_blank" rel="noreferrer"><b>API reference</b><span>Endpoints, examples, and integration notes.</span></a>
+      </div>
+    </section>
+
+    <p class="footer">NetCoin Merchant is standalone. Explorer is only for chain lookup and network health.</p>
   </div>
-  <div class="card"><h2>Merchant snapshot</h2><div class="stats"><div class="stat"><div class="k">Invoices</div><div class="v" id="invoiceCount">—</div></div><div class="stat"><div class="k">Node height</div><div class="v" id="height">—</div></div><div class="stat"><div class="k">Mode</div><div class="v">Testnet</div></div></div></div>
-</section>
-
-<section class="grid">
-  <div class="card" id="invoice"><h2>Create invoice</h2><label>Merchant ID</label><input id="merchantId" value="default" /><label>Order ID</label><input id="orderId" placeholder="order-1001" /><label>Receiving address</label><input id="invoiceAddress" class="mono" placeholder="net..." /><div class="row"><div><label>Amount NET</label><input id="invoiceAmount" inputmode="decimal" /></div><div><label>Memo</label><input id="invoiceMemo" /></div></div><button id="createInvoice">Create invoice</button><pre id="invoiceResult"></pre></div>
-  <div class="card" id="webhooks"><h2>Webhook settings</h2><label>Webhook URL</label><input id="webhookUrl" placeholder="https://example.com/netcoin-webhook" /><button id="registerWebhook">Register webhook</button><pre id="webhookResult"></pre><h2>API key</h2><button id="createKey" class="secondary">Create merchant API key</button><pre id="keyResult"></pre></div>
-</section>
-
-<section class="grid">
-  <div class="card" id="pos"><h2>POS mode</h2><p class="muted">For in-person checkout: enter amount, create a request, show QR/copy text, then verify payment status from the invoice list.</p><div class="biglink"><b>Cashier flow</b><span>Amount → invoice → customer wallet → receipt. This belongs here instead of the explorer.</span></div></div>
-  <div class="card" id="names"><h2>Business names and profiles</h2><p class="muted">Merchant names, public storefront profiles, tip pages, and customer-facing payment identities should be managed here.</p><div class="biglink"><b>Name tools</b><span>Reserve, renew, and link names to payment addresses or merchant profiles when the backend endpoint is enabled.</span></div></div>
-  <div class="card" id="contracts"><h2>Business agreements</h2><p class="muted">Escrow, recurring agreements, refunds, and contract templates are merchant/business workflows, not explorer tabs.</p><div class="biglink"><b>Coming from Phase 7</b><span>Keep contract templates and recurring agreement demos here; prediction markets are separate on Markets.</span></div></div>
-</section>
-
-<section class="card"><h2>Recent invoices</h2><button id="refreshInvoices" class="secondary">Refresh invoices</button><pre id="invoiceList"></pre></section>
-
-    <p class="footer">NetCoin Merchant is a standalone business site. The explorer is now reserved for chain lookup and network summary only.</p>
-  </div>
-  <script src="merchant.js?v=20260629-product-split"></script>
+  <script src="merchant.js?v=20260630-merchant-dashboard"></script>
 </body>
 </html>

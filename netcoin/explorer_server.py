@@ -202,6 +202,9 @@ def make_handler(chain: Blockchain, rate_limit_per_min: int = 240, *, trust_prox
         server_version = "NetCoinExplorer/0.1"
 
         def admin_required(self, path: str, method: str) -> bool:
+            public_post = path in {"/api/community/posts", "/community/posts", "/app/community/posts"}
+            if public_post:
+                return False
             if os.environ.get("NETCOIN_APP_REQUIRE_ADMIN", "0") != "1":
                 return False
             # Public read pages stay open; app-layer writes and sensitive operator reads require a token.
