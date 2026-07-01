@@ -6,10 +6,10 @@ left intact until ``REWARD_SCHEDULE_ACTIVATION_HEIGHT``. From that activation
 height onward, NetCoin uses the simple public schedule:
 
 * 50 NET starting subsidy.
-* Reward event every 210,000 blocks.
-* Each event reduces the reward by 20% (multiply by 4/5, integer sat floor).
+* Reward event every 265,000 blocks.
+* Each event reduces the reward by 10% (multiply by 9/10, integer sat floor).
 
-The first 20% reduction is at absolute height 210,000, so the public countdown is
+The first 10% reduction is at absolute height 265,000, so the public countdown is
 easy to understand even though the deterministic schedule is activation-gated for
 safe upgrade rollout.
 """
@@ -41,7 +41,7 @@ HashAt = Callable[[int], str]
 
 
 def is_active(height: int) -> bool:
-    """True when the new deterministic 20% reduction schedule governs height."""
+    """True when the new deterministic 10% reduction schedule governs height."""
     return height >= REWARD_SCHEDULE_ACTIVATION_HEIGHT
 
 
@@ -51,23 +51,23 @@ def is_legacy_random_window(height: int) -> bool:
 
 
 def reduction_epoch(height: int) -> int:
-    """Absolute 210,000-block reward epoch for ``height``."""
+    """Absolute 265,000-block reward epoch for ``height``."""
     if height < 0:
         raise ValueError("height cannot be negative")
     return height // REWARD_REDUCTION_INTERVAL
 
 
 def next_reduction_height(height: int) -> int:
-    """Next absolute height where the 20% reward reduction begins."""
+    """Next absolute height where the 10% reward reduction begins."""
     if height < 0:
         raise ValueError("height cannot be negative")
     return (height // REWARD_REDUCTION_INTERVAL + 1) * REWARD_REDUCTION_INTERVAL
 
 
 def emission_subsidy(height: int) -> int:
-    """Block subsidy under the new deterministic 20% reduction schedule.
+    """Block subsidy under the new deterministic 10% reduction schedule.
 
-    Formula: ``50 NET * (4/5) ** floor(height / 210_000)`` with integer-satoshi
+    Formula: ``50 NET * (9/10) ** floor(height / 265_000)`` with integer-satoshi
     flooring after each event.
     """
     if height < 0:
@@ -154,7 +154,7 @@ def reward_schedule_summary(height: int) -> dict[str, int | str]:
         "start_subsidy_sats": REWARD_START_SUBSIDY,
         "start_subsidy": REWARD_START_SUBSIDY // COIN,
         "interval_blocks": REWARD_REDUCTION_INTERVAL,
-        "reduction_percent": 20,
+        "reduction_percent": 10,
         "activation_height": REWARD_SCHEDULE_ACTIVATION_HEIGHT,
         "next_reduction_height": nxt,
         "blocks_to_next_reduction": max(0, nxt - height),
