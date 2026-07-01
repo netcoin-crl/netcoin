@@ -4,7 +4,7 @@ NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in 
 
 NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should not be used as real money software. Public-testnet NET has no real-money value.
 
-> Current release: **v0.7.5**
+> Current release: **v0.7.7**
 
 ## Start here
 
@@ -187,7 +187,9 @@ NetCoin is a testnet and learning project.
 - Testnet lone-miner rule so the chain can keep moving.
 - Merkle roots.
 - Coinbase rewards and 100-block coinbase maturity.
-- Reward schedule: starts at 50 NET and decreases 20% every 210,000 blocks.
+- Reward schedule: starts at 50 NET and decreases 10% every 265,000 blocks
+  (`subsidy = 50 NET × (9/10)^floor(height / 265,000)`), for a long-run supply of
+  ~132.5M NET. See [docs/ECONOMICS_PLAN.md](docs/ECONOMICS_PLAN.md).
 - secp256k1 ECDSA signatures.
 - BIP340-style Schnorr signatures for Taproot-like key-path spends.
 - Legacy, P2SH-SegWit, SegWit-style, and Taproot-style addresses.
