@@ -150,7 +150,7 @@ def reward_schedule_summary(height: int) -> dict[str, int | str]:
     current = emission_subsidy(max(0, height))
     nxt = next_reduction_height(max(0, height))
     return {
-        "schedule": "20_percent_reduction",
+        "schedule": "10_percent_reduction",
         "start_subsidy_sats": REWARD_START_SUBSIDY,
         "start_subsidy": REWARD_START_SUBSIDY // COIN,
         "interval_blocks": REWARD_REDUCTION_INTERVAL,
