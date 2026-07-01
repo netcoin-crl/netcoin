@@ -13,8 +13,10 @@ import hashlib
 import hmac
 import html
 import io
+import ipaddress
 import json
 import os
+import socket
 import sqlite3
 import secrets
 import time
@@ -24,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
 from typing import Any, Iterable
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlparse
 
 from .crypto import decode_address, validate_address, verify_message
 from .descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
@@ -36,6 +38,36 @@ from .tx import amount_to_sats, sats_to_amount
 
 class AppError(ValueError):
     """Raised when app-layer input is invalid."""
+
+
+def assert_public_webhook_url(url: str) -> None:
+    """SSRF guard: only allow https:// webhooks whose host resolves to public
+    addresses. Blocks loopback/private/link-local/reserved targets so the node
+    cannot be tricked into calling internal services (faucet, dashboard, other
+    localhost apps) or the cloud metadata endpoint.
+
+    Set ``NETCOIN_ALLOW_PRIVATE_WEBHOOKS=1`` to permit http/localhost/private
+    targets for local development and tests. This must stay OFF in production."""
+    allow_private = os.environ.get("NETCOIN_ALLOW_PRIVATE_WEBHOOKS") == "1"
+    parsed = urlparse(str(url).strip())
+    if parsed.scheme != "https" and not (allow_private and parsed.scheme == "http"):
+        raise AppError("webhook URL must be https://")
+    host = parsed.hostname
+    if not host:
+        raise AppError("webhook URL must include a host")
+    if allow_private:
+        return
+    if host.lower() == "localhost" or host.lower().endswith((".local", ".internal", ".localhost")):
+        raise AppError("webhook URL must point to a public host (SSRF blocked)")
+    try:
+        infos = socket.getaddrinfo(host, parsed.port or 443, proto=socket.IPPROTO_TCP)
+    except OSError as exc:
+        raise AppError(f"webhook host does not resolve: {exc}")
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+                or ip.is_multicast or ip.is_unspecified):
+            raise AppError("webhook URL must point to a public host (SSRF blocked)")
 
 
 APP_SCHEMA_VERSION = 1
@@ -619,8 +651,7 @@ class AppStore:
     def register_webhook(self, payload: dict[str, Any]) -> dict[str, Any]:
         merchant_id = str(payload.get("merchant_id") or "default")[:80]
         url = str(payload.get("url") or payload.get("webhook_url") or "").strip()
-        if not url.startswith(("https://", "http://localhost", "http://127.0.0.1")):
-            raise AppError("webhook URL must be https:// or localhost for testing")
+        assert_public_webhook_url(url)  # SSRF guard: public https hosts only
         secret = str(payload.get("secret") or secrets.token_urlsafe(24))
         hook_id = str(payload.get("webhook_id") or clean_id("wh"))
         record = {
@@ -773,6 +804,9 @@ class AppStore:
                 )
                 attempt = {"event_id": event.get("event_id"), "webhook_id": hook.get("webhook_id"), "url": hook.get("url"), "attempted_at": current}
                 try:
+                    # Re-check at delivery time so a stored hook (or DNS rebinding)
+                    # can never reach an internal/private target.
+                    assert_public_webhook_url(hook.get("url", ""))
                     with urllib.request.urlopen(req, timeout=float(payload.get("timeout", 3) or 3)) as resp:
                         attempt["status"] = int(resp.status)
                         attempt["ok"] = 200 <= int(resp.status) < 300
