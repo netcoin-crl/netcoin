@@ -54,11 +54,11 @@ def test_public_pages_pdfs_and_profiles(tmp_path: Path):
     chain.mine_block(miner.address)
     paid = store.invoice_status(chain, inv["invoice_id"])
     txid = paid["receipt_txid"]
-    store.upsert_username({"username": "adoniyas", "address": merchant.address, "display_name": "Adoniyas", "bio": "NetCoin"})
+    store.upsert_username({"username": "contributor", "address": merchant.address, "display_name": "contributor", "bio": "NetCoin"})
 
     assert "NetCoin checkout" in store.checkout_html(chain, inv["invoice_id"])
-    assert merchant.address in store.profile_html("adoniyas")
-    assert "Embed button" in store.tip_html("adoniyas")
+    assert merchant.address in store.profile_html("contributor")
+    assert "Embed button" in store.tip_html("contributor")
     assert txid in store.receipt_html(chain, txid)
     assert store.receipt_pdf(chain, txid).startswith(b"%PDF")
     assert store.wallet_statement_pdf(chain, merchant.address).startswith(b"%PDF")
@@ -114,7 +114,7 @@ def test_community_payout_plans_rewards_and_tip_buttons(tmp_path: Path):
     assert awarded["payout_plan"]["kind"] == "bounty"
     reward = store.create_reward({"address": miner.address, "amount": "0.3", "reason": "testing"})
     assert reward["payout_plan"]["kind"] == "reward"
-    button = store.tip_button({"address": miner.address, "label": "Tip Adoniyas"})
+    button = store.tip_button({"address": miner.address, "label": "Tip contributor"})
     assert "netcoin:" in button["html"]
 
 

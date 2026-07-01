@@ -14,29 +14,35 @@ NAME = "NetCoin"
 TICKER = "NET"
 
 COIN = 100_000_000
-MAX_MONEY = 21_000_000 * COIN
+# The deterministic 20% reduction schedule has an asymptotic supply of roughly
+# 52.5M NET: 210,000 blocks * 50 NET / 20% reduction.
+MAX_MONEY = 52_500_000 * COIN
 INITIAL_SUBSIDY = 50 * COIN
-HALVING_INTERVAL = 210_000
 
-# ---------------------------------------------------------------------------
-# Random-emission schedule ("NetCoin Random Emission", NRE).
-#
-# Replaces Bitcoin-style halvings with a yearly random "cut": each emission year
-# may drop the block reward by 10%. ADDITIVE + ACTIVATION-GATED — it only takes
-# effect at and after EMISSION_ACTIVATION_HEIGHT, so every block before that
-# height keeps the legacy halving subsidy and the existing chain stays valid.
-# See docs/ECONOMICS_PLAN.md for the full specification and rationale.
-EMISSION_MAINNET_YEAR_BLOCKS = 262_800    # 2-min blocks * ~365 days (mainnet "year")
-EMISSION_TESTNET_YEAR_BLOCKS = 720        # ~1 day of blocks, so cuts are observable on testnet
-# EMISSION_YEAR_BLOCKS is set network-aware just after NETWORK_NAME is defined below.
-EMISSION_ACTIVATION_HEIGHT = 1_000        # testnet activation (live tip ~361; ~640-block lead)
-EMISSION_BASE_SUBSIDY = 15 * COIN         # reward at activation (does NOT touch INITIAL_SUBSIDY)
-EMISSION_SEED_BLOCKS = 10                 # blocks aggregated for the delayed anti-grinding seed
-EMISSION_SAMPLE_SIZE = 100               # blocks sampled from the prior emission year
-EMISSION_EVEN_THRESHOLD = 40              # >= this many even-hash samples -> 10% cut
-EMISSION_CUT_NUMERATOR = 9               # reward *= 9/10 on a cut (10% drop)
-EMISSION_CUT_DENOMINATOR = 10
-EMISSION_DRY_YEAR_LIMIT = 3               # force a cut after this many consecutive no-cut years
+# Public reward schedule: start at 50 NET and reduce by 20% every 210,000 blocks.
+# The deterministic schedule activates at height 4,200 so already-mined public
+# testnet blocks stay valid. Its reduction epochs are still absolute-height based,
+# so the first public 20% event is at height 210,000.
+REWARD_START_SUBSIDY = INITIAL_SUBSIDY
+REWARD_REDUCTION_INTERVAL = 210_000
+REWARD_REDUCTION_NUMERATOR = 4
+REWARD_REDUCTION_DENOMINATOR = 5
+REWARD_SCHEDULE_ACTIVATION_HEIGHT = 4_200
+# Backwards-compatible name for tools/docs that still say "halving interval".
+HALVING_INTERVAL = REWARD_REDUCTION_INTERVAL
+
+# Legacy random-emission compatibility window. The live public testnet activated
+# this at height 1,000 before the deterministic schedule was chosen. Keep it only
+# until REWARD_SCHEDULE_ACTIVATION_HEIGHT so historical blocks validate.
+LEGACY_NRE_ACTIVATION_HEIGHT = 1_000
+LEGACY_NRE_YEAR_BLOCKS = 720
+LEGACY_NRE_BASE_SUBSIDY = 15 * COIN
+LEGACY_NRE_SEED_BLOCKS = 10
+LEGACY_NRE_SAMPLE_SIZE = 100
+LEGACY_NRE_EVEN_THRESHOLD = 40
+LEGACY_NRE_CUT_NUMERATOR = 9
+LEGACY_NRE_CUT_DENOMINATOR = 10
+LEGACY_NRE_DRY_YEAR_LIMIT = 3
 
 # Testnet v2 (real-difficulty relaunch): 2-minute target blocks, retarget every
 # 30 blocks (~1h) so difficulty tracks a small, changing miner set quickly.
@@ -70,13 +76,8 @@ DEFAULT_POOL_PORT = 18446
 DEFAULT_P2P_PORT = 18447
 PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
-NODE_VERSION = "0.7.2"
+NODE_VERSION = "0.7.5"
 NETWORK_NAME = "testnet"
-# Network-aware emission "year": short on testnet (a cut decision ~daily) so the
-# random-cut mechanism can actually be observed; full year on mainnet.
-EMISSION_YEAR_BLOCKS = (
-    EMISSION_TESTNET_YEAR_BLOCKS if NETWORK_NAME == "testnet" else EMISSION_MAINNET_YEAR_BLOCKS
-)
 USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")
 
@@ -107,6 +108,14 @@ INCREMENTAL_RELAY_FEE = 1000
 DUST_LIMIT = 546
 DUST_THRESHOLD = DUST_LIMIT
 MAX_MEMPOOL_TRANSACTIONS = 50_000
+# Public-node policy guards. These keep one oversized wallet send or stale
+# unconfirmed pool from slowing explorer/mining/API traffic. They are policy
+# limits only; they do not change consensus validation for confirmed blocks.
+MAX_MEMPOOL_BYTES = 32 * 1024 * 1024
+MEMPOOL_EXPIRY_SECONDS = 24 * 60 * 60
+MAX_STANDARD_TX_INPUTS = 250
+MAX_WALLET_SEND_INPUTS = 120
+MAX_WALLET_SEND_WEIGHT = 180_000
 MAX_ANCESTORS = 25
 MAX_DESCENDANTS = 25
 MAX_MEMPOOL_ANCESTORS = MAX_ANCESTORS
