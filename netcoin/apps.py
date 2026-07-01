@@ -29,6 +29,8 @@ from urllib.parse import quote, urlencode
 from .crypto import decode_address, validate_address, verify_message
 from .descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
 from .script import ScriptError, timelocked_redeem_script, script_to_p2sh_address
+from .params import REWARD_REDUCTION_INTERVAL, REWARD_SCHEDULE_ACTIVATION_HEIGHT
+from .emission import next_reduction_height
 from .tx import amount_to_sats, sats_to_amount
 
 
@@ -86,6 +88,9 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     },
     "admin_events": [],
     "operator_announcements": [],
+    "community_posts": [],
+    "community_improvements": {},
+    "community_reports": [],
 }
 
 
@@ -99,6 +104,35 @@ def _copy_default() -> dict[str, Any]:
 
 def clean_id(prefix: str) -> str:
     return f"{prefix}_{secrets.token_urlsafe(9).replace('-', '').replace('_', '')[:12].lower()}"
+
+
+def looks_like_sensitive_secret(text: str) -> bool:
+    """Best-effort public-post guardrail for obvious secrets.
+
+    Community posts are public testnet data. This rejects common accidental leaks
+    such as seed phrases, private keys, API tokens, and long hex strings. It is
+    not a replacement for moderation, but it prevents the most dangerous copy-
+    paste mistakes.
+    """
+    lower = text.lower()
+    dangerous_phrases = (
+        "seed phrase", "recovery phrase", "private key", "privkey",
+        "secret access key", "api key", "password:", "passphrase",
+        "aws_secret_access_key", "authorization: bearer",
+    )
+    if any(phrase in lower for phrase in dangerous_phrases):
+        return True
+    compact = "".join(ch for ch in text if ch.strip())
+    # 64+ hex characters can easily be a private key or token.
+    hex_run = 0
+    for ch in compact:
+        if ch in "0123456789abcdefABCDEF":
+            hex_run += 1
+            if hex_run >= 64:
+                return True
+        else:
+            hex_run = 0
+    return False
 
 
 def parse_amount_sats(value: Any, field: str = "amount") -> int:
@@ -1266,6 +1300,98 @@ class AppStore:
         self.save(data)
         return record
 
+    def list_community_posts(self, limit: int = 50) -> dict[str, Any]:
+        data = self.load()
+        posts = list(data.get("community_posts", []))[-max(1, min(int(limit), 200)):]
+        return {"posts": posts[::-1], "count": len(data.get("community_posts", []))}
+
+    def create_community_post(self, payload: dict[str, Any]) -> dict[str, Any]:
+        name = str(payload.get("name") or "Anonymous")[:80].strip() or "Anonymous"
+        message = str(payload.get("message") or "")[:1200].strip()
+        if not message:
+            raise AppError("message is required")
+        if looks_like_sensitive_secret(message) or looks_like_sensitive_secret(name):
+            raise AppError("public posts must not include private keys, seed phrases, passwords, or API secrets")
+        category = str(payload.get("category") or "general")[:40].lower()
+        if category not in {"general", "help", "mining", "wallet", "merchant", "ideas"}:
+            category = "general"
+        rec = {
+            "post_id": clean_id("post"),
+            "name": name,
+            "message": message,
+            "category": category,
+            "address": str(payload.get("address") or "")[:140],
+            "created_at": now(),
+            "status": "visible",
+        }
+        data = self.load()
+        data.setdefault("community_posts", []).append(rec)
+        data["community_posts"] = data["community_posts"][-500:]
+        self.save(data)
+        return rec
+
+
+    def list_community_reports(self, limit: int = 100) -> dict[str, Any]:
+        data = self.load()
+        reports = list(data.get("community_reports", []))[-max(1, min(int(limit), 500)):]
+        return {"reports": reports[::-1], "count": len(data.get("community_reports", []))}
+
+    def create_community_report(self, payload: dict[str, Any]) -> dict[str, Any]:
+        reason = str(payload.get("reason") or "")[:800].strip()
+        if not reason:
+            raise AppError("reason is required")
+        if looks_like_sensitive_secret(reason):
+            raise AppError("reports must not include private keys, seed phrases, passwords, or API secrets")
+        rec = {
+            "report_id": clean_id("report"),
+            "post_id": str(payload.get("post_id") or payload.get("target") or "")[:160],
+            "reason": reason,
+            "created_at": now(),
+            "status": "open",
+        }
+        data = self.load()
+        data.setdefault("community_reports", []).append(rec)
+        data["community_reports"] = data["community_reports"][-1000:]
+        self.save(data)
+        return rec
+
+    def list_improvements(self) -> dict[str, Any]:
+        data = self.load()
+        ideas = sorted(data.get("community_improvements", {}).values(), key=lambda x: (int(x.get("votes", 0)), int(x.get("created_at", 0))), reverse=True)
+        return {"improvements": ideas, "count": len(ideas)}
+
+    def create_improvement(self, payload: dict[str, Any]) -> dict[str, Any]:
+        title = str(payload.get("title") or "")[:140].strip()
+        if not title:
+            raise AppError("title is required")
+        description = str(payload.get("description") or payload.get("details") or "")[:2000].strip()
+        author = str(payload.get("name") or payload.get("author") or "Anonymous")[:80].strip() or "Anonymous"
+        if looks_like_sensitive_secret(title) or looks_like_sensitive_secret(description) or looks_like_sensitive_secret(author):
+            raise AppError("improvement ideas must not include private keys, seed phrases, passwords, or API secrets")
+        rec = {
+            "idea_id": clean_id("idea"),
+            "title": title,
+            "description": description,
+            "name": author,
+            "category": str(payload.get("category") or "general")[:50].strip() or "general",
+            "status": "open",
+            "votes": 0,
+            "created_at": now(),
+        }
+        data = self.load()
+        data.setdefault("community_improvements", {})[rec["idea_id"]] = rec
+        self.save(data)
+        return rec
+
+    def vote_improvement(self, idea_id: str) -> dict[str, Any]:
+        data = self.load()
+        rec = data.get("community_improvements", {}).get(idea_id)
+        if not rec:
+            raise AppError("improvement idea not found")
+        rec["votes"] = int(rec.get("votes", 0)) + 1
+        self.save(data)
+        return rec
+
     def tip_button(self, payload: dict[str, Any]) -> dict[str, Any]:
         address = normalize_address(payload.get("address"))
         label = str(payload.get("label") or payload.get("username") or "Tip with NetCoin")[:80]
@@ -2176,16 +2302,24 @@ class AppStore:
         return {"peers": [{"url": p, "region": "unknown"} for p in peers], "reports": reports[-100:]}
 
     def reward_countdown(self, chain: Any) -> dict[str, Any]:
-        # NetCoin has random emission activation at height 1000 in the browser UI.
-        activation = 1000
         current = chain.height()
+        activation = REWARD_SCHEDULE_ACTIVATION_HEIGHT
+        if current < activation:
+            event = activation
+            event_name = "20_percent_reward_schedule_activation"
+        else:
+            event = next_reduction_height(current)
+            event_name = "20_percent_reward_reduction"
+        subsidy = chain.subsidy(current + 1)
         return {
             "height": current,
-            "next_event": "random_emission_activation" if current < activation else "random_emission_year_boundary",
-            "event_height": activation if current < activation else ((current // 720) + 1) * 720,
-            "blocks_remaining": max(0, (activation if current < activation else ((current // 720) + 1) * 720) - current),
-            "current_subsidy_sats": chain.subsidy(current + 1),
-            "current_subsidy": sats_to_amount(chain.subsidy(current + 1)),
+            "next_event": event_name,
+            "event_height": event,
+            "blocks_remaining": max(0, event - current),
+            "interval_blocks": REWARD_REDUCTION_INTERVAL,
+            "reduction_percent": 20,
+            "current_subsidy_sats": subsidy,
+            "current_subsidy": sats_to_amount(subsidy),
         }
 
     def treasury(self, chain: Any) -> dict[str, Any]:
@@ -2314,6 +2448,14 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, b, "application/json"
     if path == "/community/leaderboards":
         return 200, store.leaderboards(chain), "application/json"
+    if path == "/community/posts":
+        limit = int(q("limit", "50") or 50)
+        return 200, store.list_community_posts(limit=limit), "application/json"
+    if path == "/community/improvements":
+        return 200, store.list_improvements(), "application/json"
+    if path == "/community/reports":
+        limit = int(q("limit", "100") or 100)
+        return 200, store.list_community_reports(limit=limit), "application/json"
     if path == "/wallet/statement":
         return 200, store.wallet_statement(chain, q("address"), q("month") or None), "application/json"
     if path == "/wallet/statement.csv":
@@ -2441,6 +2583,14 @@ def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any],
         return 200, store.tip_button(body)
     if path == "/community/gifts/claim":
         return 200, store.claim_gift(body)
+    if path == "/community/posts":
+        return 200, store.create_community_post(body)
+    if path == "/community/improvements":
+        return 200, store.create_improvement(body)
+    if path == "/community/reports":
+        return 200, store.create_community_report(body)
+    if path.startswith("/community/improvements/") and path.endswith("/vote"):
+        return 200, store.vote_improvement(path.split("/")[3])
     if path == "/community/bounties":
         return 200, store.create_bounty(body)
     if path.startswith("/community/bounties/") and path.endswith("/submit"):
