@@ -13,6 +13,7 @@ NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should 
 | [INSTRUCTIONS.md](INSTRUCTIONS.md) | Beginner-friendly setup for macOS, Windows, and Linux, including public seed nodes, wallet creation, mining, balance checks, running a local node, running the local browser wallet, and becoming a public seed. |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards for participation. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute improvements. |
+| [docs/RUN_YOUR_OWN.md](docs/RUN_YOUR_OWN.md) | Run everything yourself — mine to an address you already have, run your own node and public seed, and use NetCoin fully locally with no reliance on the public websites. |
 | [SECURITY.md](SECURITY.md) | How to report security issues. |
 | [docs/PUBLIC_SITE_MAP.md](docs/PUBLIC_SITE_MAP.md) | Public site purpose map for Wallet, Explorer, Pay, Merchant, Community, Nodes, Security, Governance, Treasury, Docs, and API. |
 

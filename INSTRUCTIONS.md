@@ -128,6 +128,8 @@ Write down the recovery phrase. Do not share it. The wallet file and phrase cont
 
 ### 6. Mine one testnet block using the public API
 
+> Already have an address? You can mine straight to it with `--address net1youraddress --address-type p2wpkh` (no wallet file needed), and run everything against your own node instead of the public API. See **[docs/RUN_YOUR_OWN.md](docs/RUN_YOUR_OWN.md)**.
+
 ```bash
 python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
 ```
