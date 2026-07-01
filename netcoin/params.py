@@ -14,19 +14,19 @@ NAME = "NetCoin"
 TICKER = "NET"
 
 COIN = 100_000_000
-# The deterministic 20% reduction schedule has an asymptotic supply of roughly
-# 52.5M NET: 210,000 blocks * 50 NET / 20% reduction.
-MAX_MONEY = 52_500_000 * COIN
+# The deterministic 10% reduction schedule has an asymptotic supply of roughly
+# 132.5M NET: 265,000 blocks * 50 NET / 10% reduction.
+MAX_MONEY = 132_500_000 * COIN
 INITIAL_SUBSIDY = 50 * COIN
 
-# Public reward schedule: start at 50 NET and reduce by 20% every 210,000 blocks.
+# Public reward schedule: start at 50 NET and reduce by 10% every 265,000 blocks.
 # The deterministic schedule activates at height 4,200 so already-mined public
 # testnet blocks stay valid. Its reduction epochs are still absolute-height based,
-# so the first public 20% event is at height 210,000.
+# so the first public 10% event is at height 265,000.
 REWARD_START_SUBSIDY = INITIAL_SUBSIDY
-REWARD_REDUCTION_INTERVAL = 210_000
-REWARD_REDUCTION_NUMERATOR = 4
-REWARD_REDUCTION_DENOMINATOR = 5
+REWARD_REDUCTION_INTERVAL = 265_000
+REWARD_REDUCTION_NUMERATOR = 9
+REWARD_REDUCTION_DENOMINATOR = 10
 REWARD_SCHEDULE_ACTIVATION_HEIGHT = 4_200
 # Backwards-compatible name for tools/docs that still say "halving interval".
 HALVING_INTERVAL = REWARD_REDUCTION_INTERVAL
@@ -76,7 +76,7 @@ DEFAULT_POOL_PORT = 18446
 DEFAULT_P2P_PORT = 18447
 PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
-NODE_VERSION = "0.7.5"
+NODE_VERSION = "0.7.6"
 NETWORK_NAME = "testnet"
 USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")

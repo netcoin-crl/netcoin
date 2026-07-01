@@ -510,8 +510,8 @@ def test_subsidy_reward_reduction_schedule(tmp_path: Path):
     assert chain.subsidy(0) == INITIAL_SUBSIDY
     assert chain.subsidy(LEGACY_NRE_ACTIVATION_HEIGHT) == 15 * COIN
     assert chain.subsidy(REWARD_SCHEDULE_ACTIVATION_HEIGHT) == 50 * COIN
-    assert chain.subsidy(REWARD_REDUCTION_INTERVAL) == 40 * COIN
-    assert chain.subsidy(REWARD_REDUCTION_INTERVAL * 2) == 32 * COIN
+    assert chain.subsidy(REWARD_REDUCTION_INTERVAL) == 50 * COIN * 9 // 10           # 45 NET
+    assert chain.subsidy(REWARD_REDUCTION_INTERVAL * 2) == 50 * COIN * 9 // 10 * 9 // 10  # 40.5 NET
     with pytest.raises(ChainError):
         chain.subsidy(-1)
     assert is_active(REWARD_SCHEDULE_ACTIVATION_HEIGHT)
