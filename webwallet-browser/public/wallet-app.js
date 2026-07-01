@@ -1468,3 +1468,28 @@
   renderProfiles();
   if (!resumeUnlockedSession()) show(hasProfiles() ? "unlock" : "welcome");
 })();
+
+/* Easier login: add a Show/Hide reveal toggle to every password field.
+   Self-contained; runs after the main app and re-scans for fields added later. */
+(function () {
+  function addToggle(inp) {
+    if (inp.dataset.pwToggle) return;
+    inp.dataset.pwToggle = "1";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Show";
+    btn.className = "secondary inline";
+    btn.style.marginTop = "6px";
+    btn.setAttribute("aria-label", "Show or hide password");
+    btn.addEventListener("click", function () {
+      const revealed = inp.type === "text";
+      inp.type = revealed ? "password" : "text";
+      btn.textContent = revealed ? "Show" : "Hide";
+    });
+    inp.insertAdjacentElement("afterend", btn);
+  }
+  function scan() { document.querySelectorAll('input[type="password"]').forEach(addToggle); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", scan);
+  else scan();
+  try { new MutationObserver(scan).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+})();
