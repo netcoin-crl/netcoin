@@ -381,7 +381,7 @@ class Blockchain:
     def subsidy(self, height: int, chain_prefix: Optional[Sequence[Block]] = None) -> int:
         if height < 0:
             raise ChainError("height cannot be negative")
-        # Deterministic 20% reward-reduction schedule. A legacy random-emission
+        # Deterministic 10% reward-reduction schedule. A legacy random-emission
         # compatibility window is preserved for already-mined public-testnet
         # blocks before the new schedule activates. During full-chain validation
         # use the candidate prefix rather than self.chain, because self.chain may

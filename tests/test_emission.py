@@ -1,4 +1,4 @@
-"""Tests for NetCoin's deterministic 20% reward-reduction schedule."""
+"""Tests for NetCoin's deterministic 10% reward-reduction schedule."""
 from pathlib import Path
 
 import pytest
@@ -25,16 +25,16 @@ def test_is_active_gates_on_new_activation_height():
     assert emission.is_active(REWARD_REDUCTION_INTERVAL)
 
 
-def test_20_percent_reward_schedule_math():
+def test_10_percent_reward_schedule_math():
     base = 50 * COIN
     assert emission.emission_subsidy(0) == base
     assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL - 1) == base
-    cut1 = base * 4 // 5
-    cut2 = cut1 * 4 // 5
-    cut3 = cut2 * 4 // 5
-    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL) == cut1          # 40 NET
-    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL * 2) == cut2      # 32 NET
-    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL * 3) == cut3      # 25.6 NET
+    cut1 = base * 9 // 10
+    cut2 = cut1 * 9 // 10
+    cut3 = cut2 * 9 // 10
+    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL) == cut1          # 45 NET
+    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL * 2) == cut2      # 40.5 NET
+    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL * 3) == cut3      # 36.45 NET
 
 
 def test_next_reduction_height():
@@ -67,4 +67,4 @@ def test_live_chain_uses_legacy_window_then_new_schedule(tmp_path: Path):
     assert chain.subsidy(0) == INITIAL_SUBSIDY == 50 * COIN
     assert chain.subsidy(LEGACY_NRE_ACTIVATION_HEIGHT) == 15 * COIN
     assert chain.subsidy(REWARD_SCHEDULE_ACTIVATION_HEIGHT) == 50 * COIN
-    assert chain.subsidy(REWARD_REDUCTION_INTERVAL) == 40 * COIN
+    assert chain.subsidy(REWARD_REDUCTION_INTERVAL) == 45 * COIN
