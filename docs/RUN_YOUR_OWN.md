@@ -83,8 +83,39 @@ Leave that terminal running. Check it in another terminal:
 curl -s http://127.0.0.1:28444/info | python3 -m json.tool   # height, tip, peers, version
 ```
 
-Now point everything (`--node http://127.0.0.1:28444`) at your own node instead of
-a public one. Your balance and transactions are verified locally.
+### If your network blocks `netcoin.online`
+
+Some ISPs and router security products (e.g. Spectrum/Charter "Advanced
+Security") block the `netcoin.online` **domain**. That does **not** block the
+seeds' raw IPs on the node port — connect by IP instead:
+
+```bash
+python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 \
+  --peer http://18.220.89.128:28444 \
+  --peer http://18.220.197.20:28444 \
+  --peer http://18.226.74.252:28444
+```
+
+(To also reach the HTTPS websites from a filtered network, allow `netcoin.online`
+in your router's security settings, or use a VPN — the site block is by TLS SNI,
+so raw IPs don't help there. The node/miner/CLI only need the IP peers above.)
+
+### Am I actually connected to the network?
+
+An isolated node (no reachable peers) silently builds its own tiny chain. Verify
+you joined the **real** network:
+
+```bash
+curl -s http://127.0.0.1:28444/info | python3 -c "import sys,json;n=json.load(sys.stdin)['node'];print('height',n['height'],'peers',len(n['peers']),'tip',n['tip_hash'][:12])"
+```
+
+- **`peers` should be > 0** and **`height` should climb toward the public tip**
+  (thousands of blocks, not single digits). If `peers` is 0 and height stays
+  tiny, you're on an island — fix your `--peer` values (use the IPs above).
+
+Once connected, point everything (`--node http://127.0.0.1:28444`) at your own
+node instead of a public one. Your balance and transactions are verified locally,
+and anything you mine or send propagates to the whole network.
 
 > Keep your node updated: any consensus change (e.g. the reward schedule) must be
 > on **≥ the network version** before its activation height, or you'll fork off.
