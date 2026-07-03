@@ -1,0 +1,351 @@
+openapi: 3.0.3
+info:
+  title: NetCoin Public API
+  version: 0.8.0
+  description: |
+    Public HTTP API served by every NetCoin node (default port 28444) and by the
+    hosted relay at `https://api.netcoin.online/api`.
+
+    Two families of endpoints share one origin:
+
+    * **Node API** — consensus data: blocks, transactions, balances, UTXOs,
+      mempool, fees, peers. Read endpoints are open; `POST /tx` accepts signed
+      transactions.
+    * **App layer** (`/api/...` on the hosted relay) — optional indexed services
+      layered on top of the chain: invoices, usernames, webhooks, escrows,
+      NET-20 style tokens, community tools. These are **not consensus**: a node
+      can disable them without affecting Send/Receive/Balance.
+
+    Networks filtered by Charter/CUJO-style DNS blocking can use the raw seed
+    IP form, e.g. `http://18.220.89.128/api`.
+  license:
+    name: MIT
+    url: https://github.com/netcoin-crl/netcoin/blob/main/LICENSE
+servers:
+  - url: https://api.netcoin.online/api
+    description: Hosted relay (seed1) — same-origin `/api/*` proxy to the node
+  - url: http://18.220.89.128/api
+    description: Raw-IP fallback for domain-filtered networks
+  - url: http://127.0.0.1:28444
+    description: Local node (no `/api` prefix)
+tags:
+  - name: node
+    description: Chain, block, transaction, and mempool data
+  - name: wallet
+    description: Balances, UTXOs, fee estimates, transaction broadcast
+  - name: apps
+    description: App-layer services (invoices, usernames, webhooks)
+  - name: tokens
+    description: NET-20 style app-layer token ledger (indexed, not consensus)
+paths:
+  /info:
+    get:
+      tags: [node]
+      summary: Node and chain summary
+      responses:
+        "200":
+          description: Height, tip hash, difficulty bits, mempool size, version.
+          content:
+            application/json:
+              example:
+                height: 3927
+                tip_hash: "0000abc..."
+                bits: 486604799
+                mempool_transactions: 0
+                version: "0.8.0"
+  /health:
+    get:
+      tags: [node]
+      summary: Fast liveness probe
+      responses:
+        "200": { description: Node is serving requests. }
+  /status-lite:
+    get:
+      tags: [node]
+      summary: Small status document for dashboards
+      responses:
+        "200": { description: Height, peers, version, uptime. }
+  /supply:
+    get:
+      tags: [node]
+      summary: Circulating supply and emission schedule status
+      responses:
+        "200": { description: Minted supply, current subsidy, next reduction height. }
+  /fee-estimates:
+    get:
+      tags: [wallet]
+      summary: Fee presets (slow / normal / fast) from recent blocks and mempool
+      responses:
+        "200":
+          description: Named presets with estimated fee in sats.
+          content:
+            application/json:
+              example:
+                presets:
+                  slow: { estimated_fee_sats: 1000 }
+                  normal: { estimated_fee_sats: 2000 }
+                  fast: { estimated_fee_sats: 5000 }
+  /latest:
+    get:
+      tags: [node]
+      summary: Most recent blocks
+      parameters:
+        - { name: n, in: query, schema: { type: integer, maximum: 100, default: 10 } }
+      responses:
+        "200": { description: "`{height, tip_hash, blocks: [...]}`" }
+  /latest-txs:
+    get:
+      tags: [node]
+      summary: Most recent transactions
+      responses:
+        "200": { description: Recent confirmed transactions. }
+  /chain:
+    get:
+      tags: [node]
+      summary: Paginated block listing
+      parameters:
+        - { name: start, in: query, schema: { type: integer, default: 0 } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
+      responses:
+        "200": { description: "`{blocks, start, has_next, next_start, height}`" }
+  /headers:
+    get:
+      tags: [node]
+      summary: Block headers (height range)
+      responses:
+        "200": { description: Header list for light verification. }
+  /block/{hash}:
+    get:
+      tags: [node]
+      summary: Full block by hash
+      parameters:
+        - { name: hash, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Header, transactions, and weight. }
+        "404": { description: Unknown block. }
+  /tx/{txid}:
+    get:
+      tags: [node]
+      summary: Transaction by id
+      parameters:
+        - { name: txid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Inputs, outputs, confirmations. }
+        "404": { description: Unknown transaction. }
+  /tx:
+    post:
+      tags: [wallet]
+      summary: Broadcast a signed transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Signed NetCoin transaction JSON (canonical form produced by the wallets/SDKs).
+      responses:
+        "200":
+          description: Accepted into the mempool.
+          content:
+            application/json:
+              example: { ok: true, txid: "ab12..." }
+        "400": { description: Rejected (bad signature, missing inputs, low fee, oversize). }
+  /address/{address}:
+    get:
+      tags: [wallet]
+      summary: Address activity summary
+      parameters:
+        - { name: address, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: "`{address, balance:{total,spendable,immature}, transaction_ids, transaction_count}`" }
+  /balance/{address}:
+    get:
+      tags: [wallet]
+      summary: Balance summary with coinbase-maturity countdown
+      parameters:
+        - { name: address, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Spendable / immature balances and maturity countdowns in blocks.
+          content:
+            application/json:
+              example:
+                address: net1q...
+                total_sats: 5100000000
+                spendable_sats: 150000000
+                immature_sats: 4950000000
+                immature_next_mature_in_blocks: 12
+                immature_all_mature_in_blocks: 99
+  /utxos:
+    get:
+      tags: [wallet]
+      summary: Spendable UTXOs for an address
+      parameters:
+        - { name: address, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: "`{address, utxos: [{txid, vout, output:{amount, address}}]}`" }
+  /mempool:
+    get:
+      tags: [node]
+      summary: Mempool contents and statistics
+      responses:
+        "200": { description: Pending transactions. }
+  /peers:
+    get:
+      tags: [node]
+      summary: Known peers and reputation
+      responses:
+        "200": { description: Peer list with scores and ban state. }
+  /metrics:
+    get:
+      tags: [node]
+      summary: Prometheus-style metrics
+      responses:
+        "200": { description: Plain-text metric exposition. }
+  /events/stream:
+    get:
+      tags: [node]
+      summary: Server-sent events stream (new blocks and transactions)
+      responses:
+        "200": { description: "`text/event-stream` of chain events." }
+  /payments:
+    post:
+      tags: [apps]
+      summary: Create an invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { recipient_address: "net1q...", amount: "1.25", memo: "Order #123" }
+      responses:
+        "200": { description: "Invoice with `payment_uri`, `checkout_path`, and status tracking." }
+  /invoices/{invoice_id}:
+    get:
+      tags: [apps]
+      summary: Invoice status (unpaid / paid / confirmed / expired)
+      parameters:
+        - { name: invoice_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Live status resolved against the chain. }
+  /usernames:
+    get:
+      tags: [apps]
+      summary: List registered usernames
+      responses:
+        "200": { description: Public username directory. }
+    post:
+      tags: [apps]
+      summary: Register or update a username → address mapping
+      responses:
+        "200": { description: Stored record. }
+  /merchant/webhooks:
+    post:
+      tags: [apps]
+      summary: Register a merchant webhook (https, public hosts only — SSRF guarded)
+      responses:
+        "200": { description: Webhook record with signing secret. }
+  /tokens:
+    get:
+      tags: [tokens]
+      summary: List app-layer tokens
+      responses:
+        "200": { description: "`{tokens: [...], count}` (balances omitted; see /tokens/{ref}/balances)." }
+    post:
+      tags: [tokens]
+      summary: Create a token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { symbol: "DEMO", name: "Demo Points", decimals: 2, creator: "net1q...", initial_supply: "100", max_supply: "150", mintable: true }
+      responses:
+        "200": { description: Created token record. }
+        "400": { description: Invalid symbol/decimals, duplicate symbol, or bad account. }
+  /tokens/{ref}:
+    get:
+      tags: [tokens]
+      summary: Token info by id or symbol
+      parameters:
+        - { name: ref, in: path, required: true, schema: { type: string }, description: token_id or symbol }
+      responses:
+        "200": { description: Token metadata, supply, holder count. }
+        "400": { description: Token not found. }
+  /tokens/{ref}/balances:
+    get:
+      tags: [tokens]
+      summary: Holder list with balances
+      parameters:
+        - { name: ref, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Sorted holder balances. }
+  /tokens/{ref}/balance/{account}:
+    get:
+      tags: [tokens]
+      summary: One account's balance
+      parameters:
+        - { name: ref, in: path, required: true, schema: { type: string } }
+        - { name: account, in: path, required: true, schema: { type: string }, description: NetCoin address or @username }
+      responses:
+        "200": { description: "`{account, units, amount}`" }
+  /tokens/{ref}/events:
+    get:
+      tags: [tokens]
+      summary: Token event log (create / mint / transfer / burn)
+      parameters:
+        - { name: ref, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 100, maximum: 500 } }
+      responses:
+        "200": { description: Newest-first event list. }
+  /tokens/{ref}/mint:
+    post:
+      tags: [tokens]
+      summary: Mint new supply (creator only, capped by max_supply)
+      parameters:
+        - { name: ref, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            example: { minter: "net1q...", to: "@alice", amount: "50" }
+      responses:
+        "200": { description: Recipient balance after mint. }
+        "400": { description: Not mintable, wrong minter, or exceeds max supply. }
+  /tokens/{ref}/transfer:
+    post:
+      tags: [tokens]
+      summary: Transfer between accounts
+      parameters:
+        - { name: ref, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            example: { from: "net1q...", to: "@bob", amount: "25.5" }
+      responses:
+        "200": { description: Sender and recipient balances after transfer. }
+        "400": { description: Insufficient balance or invalid account. }
+  /tokens/{ref}/burn:
+    post:
+      tags: [tokens]
+      summary: Burn supply from an account
+      parameters:
+        - { name: ref, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            example: { from: "net1q...", amount: "0.5" }
+      responses:
+        "200": { description: Account balance after burn. }
+  /wallet/statement:
+    get:
+      tags: [apps]
+      summary: Monthly wallet statement (also `.csv` / `.pdf` variants)
+      parameters:
+        - { name: address, in: query, required: true, schema: { type: string } }
+        - { name: month, in: query, schema: { type: string, example: "2026-07" } }
+      responses:
+        "200": { description: Statement document. }
+  /community/posts:
+    get:
+      tags: [apps]
+      summary: Community feed
+      responses:
+        "200": { description: Recent posts. }

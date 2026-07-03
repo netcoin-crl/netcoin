@@ -76,7 +76,7 @@ DEFAULT_POOL_PORT = 18446
 DEFAULT_P2P_PORT = 18447
 PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
-NODE_VERSION = "0.7.8"
+NODE_VERSION = "0.8.0"
 NETWORK_NAME = "testnet"
 USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")

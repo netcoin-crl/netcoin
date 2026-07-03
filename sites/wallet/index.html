@@ -208,6 +208,15 @@ body{letter-spacing:-.01em}
       <label>Set a password to encrypt this wallet on this device</label>
       <input id="createPw" type="password" placeholder="password" autocomplete="new-password" />
       <button id="btnCreateConfirm">I saved it — continue</button>
+      <div id="backupQuiz" class="hide">
+        <p class="warn">Quick check that your backup is written down correctly. Enter the requested words from your recovery phrase.</p>
+        <label id="quizWordLabel1">Word #</label>
+        <input id="quizWord1" class="mono" placeholder="net___" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <label id="quizWordLabel2">Word #</label>
+        <input id="quizWord2" class="mono" placeholder="net___" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <button id="btnQuizConfirm">Verify backup and open wallet</button>
+        <button id="btnQuizSkip" class="secondary" type="button">Skip verification (not recommended)</button>
+      </div>
       <button id="btnCreateBack" class="secondary">Back</button>
       <p class="err" id="createErr"></p>
     </div>
@@ -367,6 +376,7 @@ body{letter-spacing:-.01em}
             <div class="k">Total</div><div class="v" id="reviewTotal"></div>
             <div class="k">Coin control</div><div class="v" id="reviewUtxos"></div>
           </div>
+          <p id="reviewWarning" class="err hide"></p>
           <div class="row">
             <button id="btnConfirmSend" type="button">Send now</button>
             <button id="btnCancelSend" class="secondary" type="button">Cancel</button>
@@ -455,7 +465,7 @@ body{letter-spacing:-.01em}
   </div>
 
   <script src="netcoin-wallet.js"></script>
-  <script src="wallet-app.js?v=20260630-mode-ux"></script>
+  <script src="wallet-app.js?v=20260703-phase1-safety"></script>
 <script src="site-shell.js?v=20260630-reward-schedule"></script>
 </body>
 </html>

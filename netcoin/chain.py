@@ -177,6 +177,12 @@ class Blockchain:
         balances = self.balances_for_address(address)
         utxos = self.utxos_for_address(address, include_immature=True)
         txids = sorted(self.address_index.get(address, set()))
+        spend_height = self.height() + 1
+        maturing = [
+            COINBASE_MATURITY - (spend_height - utxo.height)
+            for utxo in utxos
+            if utxo.coinbase and spend_height - utxo.height < COINBASE_MATURITY
+        ]
         return {
             "address": address,
             "height": self.height(),
@@ -187,6 +193,8 @@ class Blockchain:
             "total": sats_to_amount(balances["total"]),
             "spendable": sats_to_amount(balances["spendable"]),
             "immature": sats_to_amount(balances["immature"]),
+            "immature_next_mature_in_blocks": min(maturing) if maturing else 0,
+            "immature_all_mature_in_blocks": max(maturing) if maturing else 0,
             "utxo_count": len(utxos),
             "transaction_count": len(txids),
         }
