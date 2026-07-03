@@ -82,10 +82,19 @@ fi
 echo "==> Restarting $SERVICE"
 systemctl daemon-reload || true
 systemctl start "$SERVICE"
-sleep 2
 
-echo "==> Health check http://127.0.0.1:$PORT/info"
-if curl -fsS "http://127.0.0.1:$PORT/info" >/dev/null; then
+# The node replays the whole chain before serving HTTP, so give it up to two
+# minutes to come up instead of failing (and rolling back) after one probe.
+echo "==> Health check http://127.0.0.1:$PORT/info (up to 120s)"
+HEALTHY=""
+for _ in $(seq 1 60); do
+  sleep 2
+  if curl -fsS "http://127.0.0.1:$PORT/info" >/dev/null 2>&1; then
+    HEALTHY=1
+    break
+  fi
+done
+if [ -n "$HEALTHY" ]; then
   echo "==> Deploy OK"
   rm -rf "$PREV" "$STAGE"
 else
