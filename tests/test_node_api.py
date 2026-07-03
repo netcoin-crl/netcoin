@@ -99,6 +99,26 @@ def test_chain_endpoint_is_paginated_by_default(tmp_path: Path):
     assert len(second["blocks"]) == 2
 
 
+def test_balance_summary_reports_maturity_countdown(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.segwit_address)
+
+    with served(NetCoinNode(chain, persist=False)) as s:
+        data = get(f"{s.url}/balance/{miner.segwit_address}")
+    # One immature coinbase mined at height 1, spend height 2: 99 blocks left.
+    assert data["immature_sats"] > 0
+    assert data["immature_next_mature_in_blocks"] == 99
+    assert data["immature_all_mature_in_blocks"] == 99
+
+    for _ in range(99):
+        chain.mine_block(Wallet.create().segwit_address)
+    summary = chain.address_balance_summary(miner.segwit_address)
+    assert summary["immature_sats"] == 0
+    assert summary["immature_next_mature_in_blocks"] == 0
+    assert summary["immature_all_mature_in_blocks"] == 0
+
+
 def test_utxos_endpoint_for_address(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     miner = Wallet.create()
