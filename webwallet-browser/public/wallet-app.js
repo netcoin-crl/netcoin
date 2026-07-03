@@ -1192,7 +1192,17 @@
       lastSpendableSats = b.spendable_sats ?? b.spendable ?? 0;
       $("balNet").textContent = satsToNet(lastSpendableSats);
       const imm = b.immature_sats ?? 0;
-      $("balImmature").textContent = imm > 0 ? ("+" + satsToNet(imm) + " NET maturing") : "";
+      let maturing = "";
+      if (imm > 0) {
+        maturing = "+" + satsToNet(imm) + " NET maturing";
+        const blocks = Number(b.immature_all_mature_in_blocks || 0);
+        if (blocks > 0) {
+          const minutes = blocks * 2; // testnet targets 2-minute blocks
+          const eta = minutes >= 90 ? `~${(minutes / 60).toFixed(1)} h` : `~${minutes} min`;
+          maturing += ` · all spendable in ~${blocks} block${blocks === 1 ? "" : "s"} (${eta})`;
+        }
+      }
+      $("balImmature").textContent = maturing;
       setWalletStatus("Online · balance refreshed " + new Date().toLocaleTimeString(), true);
       updateFeeHint();
       loadHistory();
@@ -1312,19 +1322,60 @@
   }
 
   // ---------- wiring ----------
+  let backupQuiz = null; // { indices: [i, j] } while the create-flow phrase check is active
+  function resetBackupQuiz() {
+    backupQuiz = null;
+    $("backupQuiz")?.classList.add("hide");
+    $("btnCreateConfirm")?.classList.remove("hide");
+    if ($("quizWord1")) $("quizWord1").value = "";
+    if ($("quizWord2")) $("quizWord2").value = "";
+  }
+  async function finishCreateWallet(verified) {
+    const pw = $("createPw").value; const seed = $("newPhrase").textContent; const profile = profileNameFromCreate();
+    saveEncryptedProfile(profile, await encryptSeed(seed, pw));
+    resetBackupQuiz();
+    loadWallet(seed, profile);
+    if (verified) {
+      // Best-effort: record verified backup in the optional app-layer backup-health tracker.
+      api("/wallet/backup-health", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ wallet_id: profile, address: state.address, seed_verified: true }) }).catch(() => {});
+    }
+  }
   $("btnCreate").onclick = () => {
     $("newPhrase").textContent = W.newSeedPhrase(16);
     $("createProfileName").value = nextProfileName();
     $("createPw").value = ""; $("createErr").textContent = "";
+    resetBackupQuiz();
     show("create");
   };
-  $("btnCreateBack").onclick = () => show("welcome");
-  $("btnCreateConfirm").onclick = async () => {
-    const pw = $("createPw").value; const seed = $("newPhrase").textContent; const profile = profileNameFromCreate();
+  $("btnCreateBack").onclick = () => { resetBackupQuiz(); show("welcome"); };
+  $("btnCreateConfirm").onclick = () => {
+    const pw = $("createPw").value;
     if (pw.length < 8) { $("createErr").textContent = "Use a password of at least 8 characters."; return; }
-    saveEncryptedProfile(profile, await encryptSeed(seed, pw));
-    loadWallet(seed, profile);
+    const words = $("newPhrase").textContent.trim().split(/\s+/);
+    const first = Math.floor(Math.random() * words.length);
+    let second = Math.floor(Math.random() * (words.length - 1));
+    if (second >= first) second += 1;
+    backupQuiz = { indices: [first, second].sort((a, b) => a - b) };
+    $("createErr").textContent = "";
+    $("quizWordLabel1").textContent = `Word #${backupQuiz.indices[0] + 1} of your recovery phrase`;
+    $("quizWordLabel2").textContent = `Word #${backupQuiz.indices[1] + 1} of your recovery phrase`;
+    $("quizWord1").value = ""; $("quizWord2").value = "";
+    $("btnCreateConfirm").classList.add("hide");
+    $("backupQuiz").classList.remove("hide");
+    $("quizWord1").focus();
   };
+  $("btnQuizConfirm").onclick = async () => {
+    if (!backupQuiz) { $("createErr").textContent = "Start over: generate a wallet first."; return; }
+    const words = $("newPhrase").textContent.trim().split(/\s+/);
+    const given = [$("quizWord1").value, $("quizWord2").value].map((w) => w.trim().toLowerCase());
+    const expect = backupQuiz.indices.map((i) => words[i].toLowerCase());
+    if (given[0] !== expect[0] || given[1] !== expect[1]) {
+      $("createErr").textContent = "Those words do not match your recovery phrase. Check your written backup and try again.";
+      return;
+    }
+    await finishCreateWallet(true);
+  };
+  $("btnQuizSkip").onclick = () => finishCreateWallet(false);
 
   $("btnPrivateKeyConfirm").onclick = async () => {
     try {
@@ -1435,6 +1486,30 @@
       }
       await checkSpendingLimits(amt, fee);
       const contact = loadContacts().find((c) => sameAddress(c.address, to));
+      const warnings = [];
+      // Address-poisoning check: a recipient that looks like a known address but
+      // is not that address is the classic lookalike scam pattern.
+      const known = [
+        ...loadContacts().map((c) => ({ address: c.address, label: `contact “${c.name}”` })),
+        ...loadWatchlist().map((w) => ({ address: w.address, label: `watch-only “${w.label || shortAddress(w.address)}”` })),
+        { address: state.address, label: "your own address" },
+      ];
+      for (const k of known) {
+        if (sameAddress(k.address, to)) continue;
+        const a = String(k.address).toLowerCase(); const b = to.toLowerCase();
+        if (a.slice(0, 12) === b.slice(0, 12) && a.slice(-5) === b.slice(-5)) {
+          warnings.push(`⚠ This address looks similar to ${k.label} but is NOT the same address. Lookalike addresses are a common payment scam — verify every character before sending.`);
+          break;
+        }
+      }
+      if (lastSpendableSats && amt + fee > lastSpendableSats / 2) {
+        warnings.push("⚠ Large send: this transaction spends more than half of your spendable balance.");
+      }
+      const warnBox = $("reviewWarning");
+      if (warnBox) {
+        warnBox.textContent = warnings.join(" ");
+        warnBox.classList.toggle("hide", !warnings.length);
+      }
       pendingSend = { to, amt, fee, outpoints: selected.map(outpointOf) };
       $("reviewTo").textContent = to;
       $("reviewContact").textContent = contact ? contact.name : "—";

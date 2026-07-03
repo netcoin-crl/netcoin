@@ -11,6 +11,32 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-03 — roadmap Phases 1–3: wallet safety, builder platform, app-layer tokens
+
+### Added (app layer — not consensus)
+- **NET-20 style token ledger**: create / mint / transfer / burn app-layer tokens
+  keyed by NetCoin address or `@username`, with holder lists and an event log.
+  Endpoints under `/api/tokens`; covered by `tests/test_app_tokens.py`. The base
+  chain never validates tokens (turn-it-off test passes).
+- **OpenAPI 3 specification** at `docs/openapi.yaml` (also served from the
+  Developers site) covering the node API, app layer, and tokens.
+- **Docker dev node**: `Dockerfile` + `docker-compose.yml` run a testnet-joined
+  node with one command; volume-persisted chain data and health checks.
+- **Starter examples** in `examples/`: store checkout (invoice + polling) and
+  loyalty-points token flow, both on the bundled Python SDK.
+- Python and JavaScript SDKs gained token methods (`create_token`,
+  `mint_token`, `transfer_token`, `burn_token`, `token_balance`, `list_tokens`).
+
+### Added (wallet)
+- **Recovery-phrase verification quiz** in the browser-wallet create flow (asks
+  for two random words before opening the wallet; skippable but recorded).
+- **Address-poisoning warning**: the send review flags recipients that look
+  similar to a saved contact, watch-only entry, or your own address.
+- **Large-send warning** when a payment spends more than half the spendable balance.
+- **Maturity countdown**: `/balance/<address>` now reports
+  `immature_next_mature_in_blocks` / `immature_all_mature_in_blocks`, and the
+  wallet shows "all spendable in ~N blocks (~ETA)".
+
 ## [0.7.4] - 2026-06-30 — reward schedule activation height 4,200
 
 ### Changed (consensus — activation-gated; chain NOT reset)

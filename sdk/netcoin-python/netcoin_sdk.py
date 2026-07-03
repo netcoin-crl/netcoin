@@ -41,6 +41,29 @@ class NetcoinClient:
     def resolve_username(self, username: str) -> dict:
         return self.get(f"/api/usernames/{quote(username)}")
 
+    # ----- NET-20 style app-layer tokens -----
+
+    def list_tokens(self) -> dict:
+        return self.get("/api/tokens")
+
+    def create_token(self, symbol: str, creator: str, *, name: str = "", decimals: int = 8, initial_supply: str = "0", max_supply: str = "0", mintable: bool = True) -> dict:
+        return self.post("/api/tokens", {"symbol": symbol, "creator": creator, "name": name or symbol, "decimals": decimals, "initial_supply": initial_supply, "max_supply": max_supply, "mintable": mintable})
+
+    def token_info(self, token: str) -> dict:
+        return self.get(f"/api/tokens/{quote(token)}")
+
+    def token_balance(self, token: str, account: str) -> dict:
+        return self.get(f"/api/tokens/{quote(token)}/balance/{quote(account)}")
+
+    def mint_token(self, token: str, minter: str, amount: str, to: str = "") -> dict:
+        return self.post(f"/api/tokens/{quote(token)}/mint", {"minter": minter, "amount": amount, "to": to or minter})
+
+    def transfer_token(self, token: str, sender: str, recipient: str, amount: str) -> dict:
+        return self.post(f"/api/tokens/{quote(token)}/transfer", {"from": sender, "to": recipient, "amount": amount})
+
+    def burn_token(self, token: str, account: str, amount: str) -> dict:
+        return self.post(f"/api/tokens/{quote(token)}/burn", {"from": account, "amount": amount})
+
 
 def payment_uri(address: str, amount: str = "", label: str = "", message: str = "") -> str:
     qs = {k: v for k, v in {"amount": amount, "label": label, "message": message}.items() if v}
