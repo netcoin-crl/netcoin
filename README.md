@@ -14,6 +14,7 @@ NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should 
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards for participation. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute improvements. |
 | [docs/RUN_YOUR_OWN.md](docs/RUN_YOUR_OWN.md) | Run everything yourself — mine to an address you already have, run your own node and public seed, and use NetCoin fully locally with no reliance on the public websites. |
+| [ROADMAP.md](ROADMAP.md) | The plan: how NetCoin grows into simple money + a builder platform + strong infrastructure, layered so the base chain stays simple and secure. Every proposed feature, phased and risk-tagged. |
 | [SECURITY.md](SECURITY.md) | How to report security issues. |
 | [docs/PUBLIC_SITE_MAP.md](docs/PUBLIC_SITE_MAP.md) | Public site purpose map for Wallet, Explorer, Pay, Merchant, Community, Nodes, Security, Governance, Treasury, Docs, and API. |
 
