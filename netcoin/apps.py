@@ -16,6 +16,7 @@ import io
 import ipaddress
 import json
 import os
+import re
 import socket
 import sqlite3
 import secrets
@@ -97,6 +98,8 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     "address_rotation": {},
     "rewards": {},
     "tip_buttons": {},
+    "tokens": {},
+    "token_events": [],
     "treasury_addresses": [],
     "node_reports": [],
     "contract_templates": {},
@@ -200,6 +203,43 @@ def normalize_username(name: Any) -> str:
     if any(ch not in allowed for ch in value):
         raise AppError("username may contain only letters, numbers, dash, and underscore")
     return value
+
+
+def normalize_token_account(value: Any) -> str:
+    """A token account is a NetCoin address or an @username handle."""
+    account = str(value or "").strip()
+    if not account:
+        raise AppError("token account is required")
+    if account.startswith("@"):
+        return "@" + normalize_username(account[1:])
+    return normalize_address(account)
+
+
+def parse_token_units(value: Any, decimals: int, field: str = "amount", *, allow_zero: bool = False) -> int:
+    """Parse a decimal token amount (whole-token notation) into integer base units."""
+    text = str(value if value is not None else "").strip() or "0"
+    try:
+        whole, _, frac = text.partition(".")
+        frac = frac.rstrip("0")
+        if len(frac) > decimals:
+            raise ValueError(f"more than {decimals} decimal places")
+        units = int(whole or "0") * 10**decimals + (int(frac.ljust(decimals, "0")) if frac else 0)
+    except ValueError as exc:
+        raise AppError(f"invalid token {field}: {exc}") from exc
+    if units < 0:
+        raise AppError(f"token {field} cannot be negative")
+    if not allow_zero and units == 0:
+        raise AppError(f"token {field} must be greater than zero")
+    if units > 10**24:
+        raise AppError(f"token {field} is too large")
+    return units
+
+
+def format_token_amount(units: int, decimals: int) -> str:
+    if decimals <= 0:
+        return str(units)
+    whole, frac = divmod(int(units), 10**decimals)
+    return f"{whole}.{str(frac).zfill(decimals)}"
 
 
 def payment_uri(address: str, amount_sats: int | None = None, label: str = "", message: str = "") -> str:
@@ -1191,6 +1231,149 @@ class AppStore:
         data["airdrops"][record["airdrop_id"]] = record
         self.save(data)
         return record
+
+    # ----- app-layer tokens (NET-20 style indexed ledger, NOT a consensus change) -----
+    # Tokens live entirely in the app-layer store: an indexed ledger keyed by
+    # NetCoin address or @username. The base chain never validates them.
+
+    def _find_token(self, data: dict[str, Any], token_ref: str) -> dict[str, Any]:
+        ref = str(token_ref or "").strip()
+        token = data["tokens"].get(ref)
+        if token:
+            return token
+        for candidate in data["tokens"].values():
+            if candidate["symbol"].lower() == ref.lower():
+                return candidate
+        raise AppError("token not found")
+
+    def _token_event(self, data: dict[str, Any], token: dict[str, Any], kind: str, detail: dict[str, Any]) -> None:
+        data["token_events"].append({"event_id": clean_id("tev"), "token_id": token["token_id"], "symbol": token["symbol"], "kind": kind, "detail": detail, "created_at": now()})
+        data["token_events"] = data["token_events"][-500:]
+
+    def create_token(self, payload: dict[str, Any]) -> dict[str, Any]:
+        symbol = str(payload.get("symbol") or "").strip().upper()
+        if not re.fullmatch(r"[A-Z0-9]{2,8}", symbol):
+            raise AppError("token symbol must be 2-8 letters/digits")
+        name = str(payload.get("name") or symbol).strip()[:80]
+        decimals = int(payload.get("decimals", 8) or 0)
+        if not 0 <= decimals <= 8:
+            raise AppError("token decimals must be between 0 and 8")
+        creator = normalize_token_account(payload.get("creator") or payload.get("creator_address"))
+        initial_units = parse_token_units(payload.get("initial_supply", 0), decimals, "initial supply", allow_zero=True)
+        max_units = parse_token_units(payload.get("max_supply", 0), decimals, "max supply", allow_zero=True)
+        if max_units and initial_units > max_units:
+            raise AppError("initial supply exceeds max supply")
+        data = self.load()
+        for existing in data["tokens"].values():
+            if existing["symbol"] == symbol:
+                raise AppError("token symbol already exists")
+        token = {
+            "token_id": clean_id("tok"),
+            "standard": "NET-20",
+            "symbol": symbol,
+            "name": name,
+            "decimals": decimals,
+            "creator": creator,
+            "mintable": bool(payload.get("mintable", True)),
+            "supply_units": initial_units,
+            "max_supply_units": max_units,
+            "balances": {creator: initial_units} if initial_units else {},
+            "created_at": now(),
+            "note": "App-layer indexed ledger. Not enforced by NetCoin consensus.",
+        }
+        data["tokens"][token["token_id"]] = token
+        self._token_event(data, token, "create", {"creator": creator, "initial_units": initial_units})
+        self.save(data)
+        return token
+
+    def token_info(self, token_ref: str) -> dict[str, Any]:
+        token = dict(self._find_token(self.load(), token_ref))
+        token["holder_count"] = sum(1 for units in token["balances"].values() if units > 0)
+        return token
+
+    def list_tokens(self) -> dict[str, Any]:
+        tokens = []
+        for token in self.load()["tokens"].values():
+            item = {k: v for k, v in token.items() if k != "balances"}
+            item["holder_count"] = sum(1 for units in token["balances"].values() if units > 0)
+            tokens.append(item)
+        tokens.sort(key=lambda t: t["created_at"])
+        return {"tokens": tokens, "count": len(tokens)}
+
+    def token_balances(self, token_ref: str) -> dict[str, Any]:
+        token = self._find_token(self.load(), token_ref)
+        holders = sorted(
+            ({"account": account, "units": units, "amount": format_token_amount(units, token["decimals"])} for account, units in token["balances"].items() if units > 0),
+            key=lambda h: (-h["units"], h["account"]),
+        )
+        return {"token_id": token["token_id"], "symbol": token["symbol"], "decimals": token["decimals"], "holders": holders, "holder_count": len(holders)}
+
+    def token_balance_of(self, token_ref: str, account: str) -> dict[str, Any]:
+        token = self._find_token(self.load(), token_ref)
+        clean = normalize_token_account(account)
+        units = int(token["balances"].get(clean, 0))
+        return {"token_id": token["token_id"], "symbol": token["symbol"], "account": clean, "units": units, "amount": format_token_amount(units, token["decimals"])}
+
+    def token_events(self, token_ref: str | None = None, limit: int = 100) -> dict[str, Any]:
+        events = self.load()["token_events"]
+        if token_ref:
+            token = self._find_token(self.load(), token_ref)
+            events = [e for e in events if e["token_id"] == token["token_id"]]
+        return {"events": events[-max(1, min(limit, 500)):][::-1]}
+
+    def mint_token(self, token_ref: str, payload: dict[str, Any]) -> dict[str, Any]:
+        data = self.load()
+        token = self._find_token(data, token_ref)
+        if not token.get("mintable"):
+            raise AppError("token is not mintable")
+        minter = normalize_token_account(payload.get("minter") or payload.get("creator"))
+        if minter != token["creator"]:
+            raise AppError("only the token creator may mint")
+        to_account = normalize_token_account(payload.get("to") or minter)
+        units = parse_token_units(payload.get("amount"), token["decimals"], "mint amount")
+        if token["max_supply_units"] and token["supply_units"] + units > token["max_supply_units"]:
+            raise AppError("mint would exceed max supply")
+        token["supply_units"] += units
+        token["balances"][to_account] = int(token["balances"].get(to_account, 0)) + units
+        self._token_event(data, token, "mint", {"to": to_account, "units": units})
+        self.save(data)
+        return self.token_balance_of(token["token_id"], to_account)
+
+    def transfer_token(self, token_ref: str, payload: dict[str, Any]) -> dict[str, Any]:
+        data = self.load()
+        token = self._find_token(data, token_ref)
+        sender = normalize_token_account(payload.get("from") or payload.get("sender"))
+        recipient = normalize_token_account(payload.get("to") or payload.get("recipient"))
+        if sender == recipient:
+            raise AppError("cannot transfer a token to the same account")
+        units = parse_token_units(payload.get("amount"), token["decimals"], "transfer amount")
+        balance = int(token["balances"].get(sender, 0))
+        if balance < units:
+            raise AppError("insufficient token balance")
+        token["balances"][sender] = balance - units
+        token["balances"][recipient] = int(token["balances"].get(recipient, 0)) + units
+        self._token_event(data, token, "transfer", {"from": sender, "to": recipient, "units": units})
+        self.save(data)
+        return {
+            "token_id": token["token_id"],
+            "symbol": token["symbol"],
+            "from": self.token_balance_of(token["token_id"], sender),
+            "to": self.token_balance_of(token["token_id"], recipient),
+        }
+
+    def burn_token(self, token_ref: str, payload: dict[str, Any]) -> dict[str, Any]:
+        data = self.load()
+        token = self._find_token(data, token_ref)
+        account = normalize_token_account(payload.get("from") or payload.get("account"))
+        units = parse_token_units(payload.get("amount"), token["decimals"], "burn amount")
+        balance = int(token["balances"].get(account, 0))
+        if balance < units:
+            raise AppError("insufficient token balance")
+        token["balances"][account] = balance - units
+        token["supply_units"] -= units
+        self._token_event(data, token, "burn", {"from": account, "units": units})
+        self.save(data)
+        return self.token_balance_of(token["token_id"], account)
 
     def create_gift(self, payload: dict[str, Any]) -> dict[str, Any]:
         amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "gift amount")
@@ -2475,6 +2658,19 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, {"tip_buttons": list(store.load()["tip_buttons"].values())}, "application/json"
     if path == "/community/bounties":
         return 200, {"bounties": list(store.load()["bounties"].values())}, "application/json"
+    if path == "/tokens":
+        return 200, store.list_tokens(), "application/json"
+    if path == "/tokens/events":
+        return 200, store.token_events(limit=int(q("limit", "100") or 100)), "application/json"
+    if path.startswith("/tokens/") and path.endswith("/balances"):
+        return 200, store.token_balances(path.split("/")[2]), "application/json"
+    if path.startswith("/tokens/") and path.endswith("/events"):
+        return 200, store.token_events(path.split("/")[2], limit=int(q("limit", "100") or 100)), "application/json"
+    if path.startswith("/tokens/") and "/balance/" in path:
+        parts = path.split("/")
+        return 200, store.token_balance_of(parts[2], parts[4]), "application/json"
+    if path.startswith("/tokens/"):
+        return 200, store.token_info(path.split("/", 2)[2]), "application/json"
     if path.startswith("/community/bounties/"):
         b = store.load()["bounties"].get(path.split("/", 3)[3])
         if not b:
@@ -2607,6 +2803,14 @@ def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any],
         merchant_id = str(body.get("merchant_id") or "default")[:80]
         store.maybe_require_api_key(body, merchant_id, "merchant:write")
         return 200, store.create_refund_plan(body)
+    if path == "/tokens":
+        return 200, store.create_token(body)
+    if path.startswith("/tokens/") and path.endswith("/mint"):
+        return 200, store.mint_token(path.split("/")[2], body)
+    if path.startswith("/tokens/") and path.endswith("/transfer"):
+        return 200, store.transfer_token(path.split("/")[2], body)
+    if path.startswith("/tokens/") and path.endswith("/burn"):
+        return 200, store.burn_token(path.split("/")[2], body)
     if path == "/community/airdrops":
         return 200, store.airdrop(body)
     if path == "/community/gifts":

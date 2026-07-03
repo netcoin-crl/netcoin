@@ -1,0 +1,21 @@
+# Local NetCoin dev stack: one node joined to the public testnet.
+#   docker compose up --build node
+# Private offline chain instead:
+#   docker compose run --rm node python -m netcoin --data /data node --host 0.0.0.0
+services:
+  node:
+    build: .
+    ports:
+      - "28444:28444"   # HTTP API
+      - "28445:28445"   # binary P2P
+    volumes:
+      - netcoin-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:28444/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  netcoin-data:
