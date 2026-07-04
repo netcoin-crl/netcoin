@@ -56,7 +56,7 @@ TARGET_TIMESPAN_SECONDS = TARGET_SPACING_SECONDS * DIFFICULTY_ADJUSTMENT_INTERVA
 # window straddles old-spacing blocks; the standard timespan clamp bounds that
 # transition. Below the activation height the original 2-minute schedule applies
 # so all historical blocks stay valid.
-SPACING_V2_ACTIVATION_HEIGHT = 6_000
+SPACING_V2_ACTIVATION_HEIGHT = 5_010
 TARGET_SPACING_V2_SECONDS = 300
 
 
@@ -97,7 +97,7 @@ DEFAULT_POOL_PORT = 18446
 DEFAULT_P2P_PORT = 18447
 PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
-NODE_VERSION = "0.10.0"
+NODE_VERSION = "0.10.1"
 NETWORK_NAME = "testnet"
 USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: NetCoin Public API
-  version: 0.10.0
+  version: 0.10.1
   description: |
     Public HTTP API served by every NetCoin node (default port 28444) and by the
     hosted relay at `https://api.netcoin.online/api`.
@@ -54,7 +54,7 @@ paths:
                 mempool_transactions: 0
                 version: "0.9.0"
                 target_spacing_seconds: 300
-                spacing_v2_activation_height: 6000
+                spacing_v2_activation_height: 5010
   /health:
     get:
       tags: [node]
