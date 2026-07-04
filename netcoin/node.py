@@ -31,7 +31,9 @@ from .params import (
     NETWORK_NAME,
     NODE_VERSION,
     PROTOCOL_VERSION,
+    SPACING_V2_ACTIVATION_HEIGHT,
     USER_AGENT,
+    target_spacing_at,
 )
 from .tx import Transaction
 
@@ -403,6 +405,8 @@ class NetCoinNode:
                 "network": NETWORK_NAME,
                 "genesis_hash": self.genesis_hash(),
                 "uptime_seconds": self.uptime_seconds(),
+                "target_spacing_seconds": target_spacing_at(self.chain.height() + 1),
+                "spacing_v2_activation_height": SPACING_V2_ACTIVATION_HEIGHT,
                 "peers": sorted(self.peers),
                 "banned": len(self.banned),
                 "orphans": len(self.orphans),

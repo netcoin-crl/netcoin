@@ -35,7 +35,7 @@ BROADCAST_TO = os.environ.get("NETCOIN_BROADCAST_TO", "http://127.0.0.1:28444")
 STATE_FILE = Path(os.environ.get("NETCOIN_FAUCET_STATE", "/opt/netcoin/faucet/state.json"))
 AMOUNT = os.environ.get("NETCOIN_FAUCET_AMOUNT", "5")
 FEE = os.environ.get("NETCOIN_FAUCET_FEE", "0.01")
-COOLDOWN_SECONDS = int(os.environ.get("NETCOIN_FAUCET_COOLDOWN_SECONDS", str(24 * 60 * 60)))
+COOLDOWN_SECONDS = int(os.environ.get("NETCOIN_FAUCET_COOLDOWN_SECONDS", str(60 * 60)))  # 1h between claims
 # Hardening knobs.
 MAX_BODY_BYTES = int(os.environ.get("NETCOIN_FAUCET_MAX_BODY", "4096"))
 MAX_REQUESTS_PER_MINUTE = int(os.environ.get("NETCOIN_FAUCET_MAX_PER_MINUTE", "5"))
@@ -185,7 +185,7 @@ def burst_limited(state: dict, now: int | None = None) -> bool:
     """True if the faucet has served too many requests in the last 60 seconds.
 
     A global per-minute throttle protects the hot wallet and node from a rapid
-    drain even when requests come from many different IPs (the 24h cooldown is
+    drain even when requests come from many different IPs (the hourly cooldown is
     per-IP and does not bound short bursts)."""
     now = int(time.time()) if now is None else now
     recent = [item for item in state.get("requests", []) if now - int(item.get("timestamp", 0)) < 60]

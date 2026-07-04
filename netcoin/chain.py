@@ -44,7 +44,8 @@ from .params import (
     MAX_STANDARD_TX_WEIGHT,
     MEMPOOL_EXPIRY_SECONDS,
     MIN_RELAY_FEE_PER_KB,
-    MIN_DIFFICULTY_GAP_SECONDS,
+    min_difficulty_gap_at,
+    target_timespan_at,
     POW_LIMIT_BITS,
     TARGET_TIMESPAN_SECONDS,
     ZERO_HASH,
@@ -416,23 +417,24 @@ class Blockchain:
         first = prefix[-DIFFICULTY_ADJUSTMENT_INTERVAL]
         last = prefix[-1]
         actual_timespan = last.header.timestamp - first.header.timestamp
-        min_timespan = TARGET_TIMESPAN_SECONDS // 4
-        max_timespan = TARGET_TIMESPAN_SECONDS * 4
+        target_timespan = target_timespan_at(height)  # spacing v2 after activation
+        min_timespan = target_timespan // 4
+        max_timespan = target_timespan * 4
         actual_timespan = max(min_timespan, min(actual_timespan, max_timespan))
         old_target = bits_to_target(previous_bits)
-        new_target = old_target * actual_timespan // TARGET_TIMESPAN_SECONDS
+        new_target = old_target * actual_timespan // target_timespan
         return target_to_bits(new_target)
 
     def _bits_acceptable(self, height: int, prefix: Optional[Sequence[Block]], bits: int, timestamp: int) -> bool:
         """A block must use the normal retarget difficulty, UNLESS it is mined more
-        than MIN_DIFFICULTY_GAP_SECONDS after its parent (the testnet lone-miner
+        than min_difficulty_gap_at(height) seconds after its parent (the testnet lone-miner
         rule), in which case it may instead use the PoW floor so the chain can't
         get stuck when hashpower drops."""
         if bits == self.expected_bits_for_height(height, prefix):
             return True
         chain_prefix = list(prefix) if prefix is not None else self.chain
         if chain_prefix and bits == POW_LIMIT_BITS:
-            if timestamp > chain_prefix[-1].header.timestamp + MIN_DIFFICULTY_GAP_SECONDS:
+            if timestamp > chain_prefix[-1].header.timestamp + min_difficulty_gap_at(height):
                 return True
         return False
 
@@ -998,7 +1000,7 @@ class Blockchain:
         height = self.height() + 1
         mined_at = int(time.time())
         bits = self.expected_bits_for_height(height, self.chain)
-        if self.chain and mined_at > self.tip().header.timestamp + MIN_DIFFICULTY_GAP_SECONDS:
+        if self.chain and mined_at > self.tip().header.timestamp + min_difficulty_gap_at(height):
             bits = POW_LIMIT_BITS  # testnet lone-miner rule: mine the floor when late
         previous_hash = self.tip_hash()
         temp_utxos = self.utxo_set()
@@ -1333,7 +1335,7 @@ class Blockchain:
         height = self.height() + 1
         mined_at = int(time.time())
         bits = self.expected_bits_for_height(height, self.chain)
-        if self.chain and mined_at > self.tip().header.timestamp + MIN_DIFFICULTY_GAP_SECONDS:
+        if self.chain and mined_at > self.tip().header.timestamp + min_difficulty_gap_at(height):
             bits = POW_LIMIT_BITS
         temp_utxos = self.utxo_set()
         txs = []
