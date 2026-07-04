@@ -11,6 +11,31 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-03 — 5-minute blocks (activation-gated), hourly faucet, NIP process
+
+### Changed (consensus — activation-gated at height 6,000; chain NOT reset)
+- **Spacing v2: 5-minute target blocks** from height `6,000` (a retarget
+  boundary). Below the activation height the original 2-minute rules apply
+  byte-for-byte, so all historical blocks stay valid. The retarget timespan and
+  the lone-miner floor gap (now 600s) follow the active spacing
+  (`target_spacing_at` / `target_timespan_at` / `min_difficulty_gap_at` in
+  `params.py`). Documented as the first formal NIP-0005 activation.
+  **Miners must run ≥0.9.0 before height 6,000 or they will fork.**
+
+### Changed (services)
+- **Faucet cooldown default is now 1 hour** (was 24h); still overridable with
+  `NETCOIN_FAUCET_COOLDOWN_SECONDS`.
+
+### Added
+- `docs/nips/NIP-0001.md` (the improvement-proposal process) and
+  `docs/nips/NIP-0005.md` (the height-gated upgrade-activation standard with the
+  activation history table) — the Phase 0 process items from ROADMAP.md.
+- `/info` now reports `target_spacing_seconds` (for the next block) and
+  `spacing_v2_activation_height`.
+- Browser wallet: **Mining tab** (simple mode) with live chain stats and a
+  copyable personal `python -m netcoin miner ...` command; maturity ETA now
+  uses the node-reported block spacing instead of assuming 2-minute blocks.
+
 ## [0.8.0] - 2026-07-03 — roadmap Phases 1–3: wallet safety, builder platform, app-layer tokens
 
 ### Added (app layer — not consensus)

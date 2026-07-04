@@ -18,6 +18,7 @@
 
   let state = null; // { secretType, seed?, privHex, address, profile }
   let lastSpendableSats = 0;
+  let nodeSpacingSeconds = 120; // refreshed from /info; spacing v2 reports 300
   let pendingSend = null;
   let scanStream = null;
   let lastUtxos = [];
@@ -83,6 +84,7 @@
     { id: "receive", label: "Receive", modes: ["simple", "business", "advanced", "developer"] },
     { id: "activity", label: "Activity", modes: ["simple", "business", "advanced", "developer"] },
     { id: "contacts", label: "Contacts", modes: ["simple", "business", "advanced", "developer"] },
+    { id: "mining", label: "Mining", modes: ["simple", "advanced", "developer"] },
     { id: "payments", label: "Payments", modes: ["business", "advanced", "developer"] },
     { id: "reports", label: "Reports", modes: ["business", "advanced", "developer"] },
     { id: "watch", label: "Watch-only", modes: ["advanced", "developer"] },
@@ -182,6 +184,14 @@
         <a href="https://pay.netcoin.online/"><b>Payment hub</b><br><span class="muted">Checkout, receipts, tips, donations, and profiles.</span></a>
         <a href="https://merchant.netcoin.online/"><b>Merchant dashboard</b><br><span class="muted">Invoices, POS, refunds, API keys, webhooks, and exports.</span></a>
       </div>`, "payments"), $("btnLock"));
+    wallet.insertBefore(walletSection("Mining", `
+      <p class="muted">Mine NetCoin on your own computer and get the block reward paid to this wallet. No pools, no signup — one command in a terminal.</p>
+      <p id="miningStats" class="muted">Checking chain status…</p>
+      <p class="muted">1. Install NetCoin once (see the Learn site). 2. Activate your virtualenv. 3. Run:</p>
+      <pre id="mineCommand" class="mono">Unlock your wallet to see your personal mining command.</pre>
+      <button id="btnCopyMineCommand" class="secondary" type="button">Copy mining command</button>
+      <p class="muted">Mining rewards show under your balance as "maturing" and unlock after 100 blocks. If the netcoin.online domain is blocked on your network, the command above already uses the raw seed IP.</p>
+      <div class="section-links"><a href="https://learn.netcoin.online/"><b>Full mining guide</b><br><span class="muted">Install steps, Windows/macOS/Linux notes, troubleshooting.</span></a></div>`, "mining"), $("btnLock"));
     wallet.insertBefore(walletSection("Escrow", `
       <p class="muted">Escrow is an advanced app-layer workflow. Create and monitor 2-of-3 escrow deals from the separated markets/contract page.</p>
       <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"), $("btnLock"));
@@ -906,6 +916,7 @@
     renderWatchlist();
     refreshDescriptorPanel();
     updateFeeEstimates();
+    refreshMiningPanel();
   }
 
   function loadWalletSecret(secret, profile = loadProfiles().active, remember = true) {
@@ -992,6 +1003,7 @@
     renderWatchlist();
     refreshDescriptorPanel();
     updateFeeEstimates();
+    refreshMiningPanel();
   }
 
 
@@ -1197,8 +1209,8 @@
         maturing = "+" + satsToNet(imm) + " NET maturing";
         const blocks = Number(b.immature_all_mature_in_blocks || 0);
         if (blocks > 0) {
-          const minutes = blocks * 2; // testnet targets 2-minute blocks
-          const eta = minutes >= 90 ? `~${(minutes / 60).toFixed(1)} h` : `~${minutes} min`;
+          const minutes = (blocks * nodeSpacingSeconds) / 60;
+          const eta = minutes >= 90 ? `~${(minutes / 60).toFixed(1)} h` : `~${Math.ceil(minutes)} min`;
           maturing += ` · all spendable in ~${blocks} block${blocks === 1 ? "" : "s"} (${eta})`;
         }
       }
@@ -1213,6 +1225,23 @@
       $("balImmature").textContent = "offline: " + e.message;
       setWalletStatus("Offline or stale data · " + e.message, false);
     }
+  }
+
+  async function refreshMiningPanel() {
+    try {
+      const d = await api("/info");
+      const n = d.node || d;
+      nodeSpacingSeconds = Number(n.target_spacing_seconds || 0) || nodeSpacingSeconds;
+      if ($("miningStats")) {
+        const s = await api("/supply").catch(() => null);
+        const reward = s ? `${s.next_subsidy} NET` : "—";
+        const spacing = nodeSpacingSeconds % 60 === 0 ? `${nodeSpacingSeconds / 60} min` : `${nodeSpacingSeconds}s`;
+        $("miningStats").innerHTML = `Chain height <strong>${esc(n.height)}</strong> · block reward <strong>${esc(reward)}</strong> · target block time <strong>${esc(spacing)}</strong>`;
+      }
+      if ($("mineCommand") && state) {
+        $("mineCommand").textContent = `python -m netcoin miner --node http://18.220.89.128 --address ${state.address} --address-type p2wpkh --blocks 10 --sync-after`;
+      }
+    } catch { /* offline: leave the static copy */ }
   }
 
   async function updateFeeEstimates() {
@@ -1429,6 +1458,9 @@
 
   $("btnCopy").onclick = () => navigator.clipboard?.writeText(state.address);
   $("btnRefresh").onclick = refresh;
+  document.addEventListener("click", (ev) => {
+    if (ev.target && ev.target.id === "btnCopyMineCommand") navigator.clipboard?.writeText($("mineCommand")?.textContent || "");
+  });
   $("btnLock").onclick = () => { state = null; clearUnlockedSession(); renderProfiles(); show(hasProfiles() ? "unlock" : "welcome"); };
   $("fee").oninput = () => { $("feePreset").value = "custom"; updateFeeHint(); };
   $("feePreset").onchange = () => { if ($("feePreset").value !== "custom") { $("fee").value = $("feePreset").value; updateFeeHint(); } };

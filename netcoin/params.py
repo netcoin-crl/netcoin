@@ -50,6 +50,27 @@ TARGET_SPACING_SECONDS = 120
 DIFFICULTY_ADJUSTMENT_INTERVAL = 30
 TARGET_TIMESPAN_SECONDS = TARGET_SPACING_SECONDS * DIFFICULTY_ADJUSTMENT_INTERVAL
 
+# Spacing v2 (NIP-0005 activation-gated, no chain reset): 5-minute target blocks
+# from SPACING_V2_ACTIVATION_HEIGHT onward. The activation height is a retarget
+# boundary (multiple of DIFFICULTY_ADJUSTMENT_INTERVAL) so exactly one adjustment
+# window straddles old-spacing blocks; the standard timespan clamp bounds that
+# transition. Below the activation height the original 2-minute schedule applies
+# so all historical blocks stay valid.
+SPACING_V2_ACTIVATION_HEIGHT = 6_000
+TARGET_SPACING_V2_SECONDS = 300
+
+
+def target_spacing_at(height: int) -> int:
+    return TARGET_SPACING_V2_SECONDS if height >= SPACING_V2_ACTIVATION_HEIGHT else TARGET_SPACING_SECONDS
+
+
+def target_timespan_at(height: int) -> int:
+    return target_spacing_at(height) * DIFFICULTY_ADJUSTMENT_INTERVAL
+
+
+def min_difficulty_gap_at(height: int) -> int:
+    return 2 * target_spacing_at(height)
+
 # Launch easy (at the PoW floor) and let the fast retarget ramp difficulty up as
 # miners join. MIN_DIFFICULTY_GAP enables the testnet lone-miner rule: a block
 # more than this many seconds after its parent may be mined at the PoW floor, so
@@ -76,7 +97,7 @@ DEFAULT_POOL_PORT = 18446
 DEFAULT_P2P_PORT = 18447
 PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
-NODE_VERSION = "0.8.0"
+NODE_VERSION = "0.9.0"
 NETWORK_NAME = "testnet"
 USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")
