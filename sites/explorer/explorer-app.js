@@ -288,7 +288,8 @@
     const txRows = txItems.map((t) => `<tr><td class="mono trunc"><a href="#/tx/${esc(t.txid)}">${esc(t.txid)}</a></td><td>${t.confirmed ? "confirmed" : "mempool"}</td><td class="right">${fmtNet(t.total_output_sats || 0)} NET</td><td class="right muted">${t.block_height ?? "—"}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No transactions yet.</td></tr>`;
     const txFeed = el(`<div class="card"><h2>Newest transactions</h2><table><thead><tr><th>Txid</th><th>Status</th><th class="right">Output total</th><th class="right">Height</th></tr></thead><tbody>${txRows}</tbody></table></div>`);
     const frag = document.createDocumentFragment();
-    frag.append(stats, emissionCard(info.height, supply), blocks, txFeed);
+    const tokensCard = el(`<div class="card"><h2>App-layer tokens</h2><p class="muted">NET-20 style indexed tokens live on this node's app layer. <a href="#/tokens">Browse tokens →</a></p></div>`);
+    frag.append(stats, emissionCard(info.height, supply), blocks, txFeed, tokensCard);
     setView(frag);
   }
 
@@ -634,6 +635,46 @@
     } catch (e) { setView(el(`<div class="card err">No result for “${esc(q)}”: ${esc(e.message)}</div>`)); }
   }
 
+
+  // ---------- app-layer tokens (NET-20) ----------
+  function fmtTokenAmount(units, decimals) {
+    if (!decimals) return String(units);
+    const n = BigInt(units || 0), d = BigInt(10) ** BigInt(decimals);
+    const frac = String(n % d).padStart(decimals, "0").replace(/0+$/, "");
+    return `${n / d}${frac ? "." + frac : ""}`;
+  }
+  async function tokensPage() {
+    setView(el(`<div class="card muted">Loading tokens…</div>`));
+    try {
+      const d = await api("/tokens");
+      const rows = (d.tokens || []).map((t) => `<tr><td><a href="#/token/${esc(t.token_id)}">${esc(t.symbol)}</a></td><td>${esc(t.name)}</td><td class="right">${esc(fmtTokenAmount(t.supply_units, t.decimals))}</td><td class="right">${t.holder_count ?? 0}</td><td>${t.mintable ? "yes" : "no"}</td><td class="mono trunc">${esc(t.creator)}</td></tr>`).join("") || `<tr><td colspan="6" class="muted">No app-layer tokens yet. Create one via POST /api/tokens (see the API docs).</td></tr>`;
+      setView(el(`<div><div class="card"><h2>App-layer tokens (NET-20)</h2><p class="muted">Indexed ledger served by the node's app layer. Not consensus: the base chain never validates tokens, and writes are gated by free developer API keys rather than chain signatures.</p><table><thead><tr><th>Symbol</th><th>Name</th><th class="right">Supply</th><th class="right">Holders</th><th>Mintable</th><th>Creator</th></tr></thead><tbody>${rows}</tbody></table></div></div>`));
+    } catch (e) { setView(el(`<div class="card err">Tokens unavailable: ${esc(e.message)}</div>`)); }
+  }
+  async function tokenPage(ref) {
+    setView(el(`<div class="card muted">Loading token…</div>`));
+    try {
+      const t = await api("/tokens/" + encodeURIComponent(ref));
+      const holders = await api(`/tokens/${encodeURIComponent(t.token_id)}/balances`);
+      const events = await api(`/tokens/${encodeURIComponent(t.token_id)}/events?limit=25`).catch(() => ({ events: [] }));
+      const holderRows = (holders.holders || []).slice(0, 50).map((h) => `<tr><td class="mono trunc">${h.account.startsWith("@") ? esc(h.account) : addressLink(h.account)}</td><td class="right">${esc(h.amount)}</td></tr>`).join("") || `<tr><td colspan="2" class="muted">No holders.</td></tr>`;
+      const eventRows = (events.events || []).map((ev) => `<tr><td>${esc(ev.kind)}</td><td class="mono trunc">${esc(JSON.stringify(ev.detail))}</td><td class="right muted">${ago(ev.created_at)}</td></tr>`).join("") || `<tr><td colspan="3" class="muted">No events.</td></tr>`;
+      setView(el(`<div><div class="back" id="bk">← back</div>
+        <div class="card"><h2>${esc(t.symbol)} — ${esc(t.name)}</h2><div class="kv">
+          <div class="k">Standard</div><div class="v">${esc(t.standard)} (app layer, not consensus)</div>
+          <div class="k">Supply</div><div class="v acc">${esc(fmtTokenAmount(t.supply_units, t.decimals))} ${esc(t.symbol)}</div>
+          <div class="k">Max supply</div><div class="v">${t.max_supply_units ? esc(fmtTokenAmount(t.max_supply_units, t.decimals)) : "unlimited"}</div>
+          <div class="k">Decimals</div><div class="v">${t.decimals}</div>
+          <div class="k">Mintable</div><div class="v">${t.mintable ? "yes (creator only)" : "no"}</div>
+          <div class="k">Creator</div><div class="v mono">${esc(t.creator)}</div>
+          <div class="k">Token id</div><div class="v mono">${esc(t.token_id)}</div>
+        </div></div>
+        <div class="card"><h2>Holders (${holders.holder_count ?? 0})</h2><table><thead><tr><th>Account</th><th class="right">Balance</th></tr></thead><tbody>${holderRows}</tbody></table></div>
+        <div class="card"><h2>Recent events</h2><table><thead><tr><th>Kind</th><th>Detail</th><th class="right">Age</th></tr></thead><tbody>${eventRows}</tbody></table></div></div>`));
+      const bk = $("#bk"); if (bk) bk.onclick = () => history.back();
+    } catch (e) { setView(el(`<div class="card err">Token not found: ${esc(e.message)}</div>`)); }
+  }
+
   // ---------- router ----------
   function route() {
     if (location.hash === "#/mempool") return mempool();
@@ -650,6 +691,9 @@
     if (location.hash === "#/phase7") return phase7Page();
     if (location.hash === "#/mining") return miningPage();
     if (location.hash === "#/api") return apiDocs();
+    if (location.hash === "#/tokens") return tokensPage();
+    const tokenMatch = location.hash.match(/^#\/token\/(.+)$/);
+    if (tokenMatch) return tokenPage(decodeURIComponent(tokenMatch[1]));
     const checkoutMatch = location.hash.match(/^#\/checkout\/(.+)$/);
     if (checkoutMatch) return checkoutPage(decodeURIComponent(checkoutMatch[1]));
     const receiptMatch = location.hash.match(/^#\/receipt\/(.+)$/);

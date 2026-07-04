@@ -1,11 +1,11 @@
 NetCoin wallet build manifest
-source_commit: 07e0728581f03c4683dd67f100bbbf9586d49edf
+source_commit: 083d2027cf729a2ea63d27653175290ad2d08d3e
 built_from: webwallet-browser/ (npm ci + npm run build)
 
 public/netcoin-wallet.js   sha384=sha384-bPC3d74AR1XU9mKU6s1766pYvU/iePmxNHlEbLrixSEbsOc9NdEBt/Wm/AeN2kCW
-public/wallet-app.js       sha384=sha384-EVacXsM9V3RJ2PoMFY4HQKhkZoRmG5OvP1MxmwzvNO9F4RrSo4JBdcDxSPIIbn7/
+public/wallet-app.js       sha384=sha384-VTjJF80FOU+1fbPpvtd9L/1cPttD4S0Z2wjvPVA0qWxjLYrkefmnDgXB1BccHu3/
 
 sha256 (base64):
   netcoin-wallet.js        2OU0vxOCIpprtguewxi2hjmCi5MxQrghrm2n/GlbDJg=
-  wallet-app.js            TOp3wom2b/cjDBs3WqI3wnP8JchD4EjsVxZEqZ4L8So=
-  wallet.html              7wpH53KxcawvRsFpEPgGSg/MlZU2b/Q0rfGHFS8a11Q=
+  wallet-app.js            EoFmE3DLYrzZA/euay7fSGVZRc5LcfFBt/rXPmYirM8=
+  wallet.html              IokafKmJ5mr1LR7FfGN0Jk0D3MiY2Y9a71EAE+GmLXo=

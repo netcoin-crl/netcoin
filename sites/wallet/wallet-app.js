@@ -85,6 +85,7 @@
     { id: "activity", label: "Activity", modes: ["simple", "business", "advanced", "developer"] },
     { id: "contacts", label: "Contacts", modes: ["simple", "business", "advanced", "developer"] },
     { id: "mining", label: "Mining", modes: ["simple", "advanced", "developer"] },
+    { id: "tokens", label: "Tokens", modes: ["business", "advanced", "developer"] },
     { id: "payments", label: "Payments", modes: ["business", "advanced", "developer"] },
     { id: "reports", label: "Reports", modes: ["business", "advanced", "developer"] },
     { id: "watch", label: "Watch-only", modes: ["advanced", "developer"] },
@@ -192,6 +193,11 @@
       <button id="btnCopyMineCommand" class="secondary" type="button">Copy mining command</button>
       <p class="muted">Mining rewards show under your balance as "maturing" and unlock after 100 blocks. If the netcoin.online domain is blocked on your network, the command above already uses the raw seed IP.</p>
       <div class="section-links"><a href="https://learn.netcoin.online/"><b>Full mining guide</b><br><span class="muted">Install steps, Windows/macOS/Linux notes, troubleshooting.</span></a></div>`, "mining"), $("btnLock"));
+    wallet.insertBefore(walletSection("Tokens", `
+      <p class="muted">App-layer NET-20 tokens tracked by this node. Read-only here: token transfers are an API-level demo protected by developer keys, not by chain signatures, so this wallet will not move them for you.</p>
+      <button id="btnRefreshTokens" class="secondary" type="button">Refresh token balances</button>
+      <div id="tokenList" class="watch-list"><span class="muted">Unlock the wallet, then refresh to load tokens.</span></div>
+      <p class="muted">Create and manage tokens via the API — see <a href="https://api.netcoin.online/openapi.yaml" target="_blank" rel="noreferrer">the OpenAPI spec</a> or the SDKs.</p>`, "tokens"), $("btnLock"));
     wallet.insertBefore(walletSection("Escrow", `
       <p class="muted">Escrow is an advanced app-layer workflow. Create and monitor 2-of-3 escrow deals from the separated markets/contract page.</p>
       <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"), $("btnLock"));
@@ -917,6 +923,7 @@
     refreshDescriptorPanel();
     updateFeeEstimates();
     refreshMiningPanel();
+    refreshTokenBalances();
   }
 
   function loadWalletSecret(secret, profile = loadProfiles().active, remember = true) {
@@ -1004,6 +1011,7 @@
     refreshDescriptorPanel();
     updateFeeEstimates();
     refreshMiningPanel();
+    refreshTokenBalances();
   }
 
 
@@ -1224,6 +1232,34 @@
       $("balNet").textContent = "—";
       $("balImmature").textContent = "offline: " + e.message;
       setWalletStatus("Offline or stale data · " + e.message, false);
+    }
+  }
+
+  async function refreshTokenBalances() {
+    const box = $("tokenList");
+    if (!box) return;
+    box.innerHTML = '<span class="muted">Loading tokens…</span>';
+    try {
+      const d = await api("/tokens");
+      const tokens = d.tokens || [];
+      if (!tokens.length) {
+        box.innerHTML = '<span class="muted">No app-layer tokens exist on this node yet.</span>';
+        return;
+      }
+      const parts = [];
+      for (const t of tokens.slice(0, 25)) {
+        let mine = "—";
+        if (state) {
+          try {
+            const b = await api(`/tokens/${encodeURIComponent(t.token_id)}/balance/${encodeURIComponent(state.address)}`);
+            mine = `${b.amount} ${t.symbol}`;
+          } catch { mine = "0"; }
+        }
+        parts.push(`<div class="watch-item"><div><strong>${esc(t.symbol)}</strong> — ${esc(t.name)}</div><div class="muted">Your balance: ${esc(mine)} · holders ${t.holder_count ?? 0} · ${t.mintable ? "mintable" : "fixed supply"}</div></div>`);
+      }
+      box.innerHTML = parts.join("");
+    } catch (e) {
+      box.innerHTML = `<span class="err">Tokens unavailable: ${esc(e.message)}</span>`;
     }
   }
 
@@ -1458,6 +1494,9 @@
 
   $("btnCopy").onclick = () => navigator.clipboard?.writeText(state.address);
   $("btnRefresh").onclick = refresh;
+  document.addEventListener("click", (ev) => {
+    if (ev.target && ev.target.id === "btnRefreshTokens") refreshTokenBalances();
+  });
   document.addEventListener("click", (ev) => {
     if (ev.target && ev.target.id === "btnCopyMineCommand") navigator.clipboard?.writeText($("mineCommand")?.textContent || "");
   });
