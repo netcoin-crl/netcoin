@@ -11,6 +11,19 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-07-04 — spacing v2 activation moved up to height 5,010; README overhaul
+
+### Changed (consensus — activation height only; chain NOT reset)
+- **Spacing v2 (5-minute blocks) now activates at height 5,010** instead of
+  6,000 (5,010 is the nearest retarget boundary to the requested 5,000; the
+  public tip was ~4,745 and every public seed was upgraded in the same
+  rollout). **All miners must run ≥0.10.1 before height 5,010 or they fork.**
+
+### Docs
+- README rewritten around a 5-minute quickstart (wallet → faucet → mine →
+  balance), Docker one-liner, developer quickstart (API keys, OpenAPI, SDKs,
+  examples, tokens), and a key-network-facts table.
+
 ## [0.10.0] - 2026-07-04 — Phase 0 complete: developer-key auth on app-layer writes; token UI
 
 ### Added (security / API — NIP-0004)
