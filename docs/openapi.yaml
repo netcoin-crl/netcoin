@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: NetCoin Public API
-  version: 0.9.0
+  version: 0.10.0
   description: |
     Public HTTP API served by every NetCoin node (default port 28444) and by the
     hosted relay at `https://api.netcoin.online/api`.
@@ -210,6 +210,21 @@ paths:
       summary: Server-sent events stream (new blocks and transactions)
       responses:
         "200": { description: "`text/event-stream` of chain events." }
+  /keys/register:
+    post:
+      tags: [apps]
+      summary: Get a free developer API key (open, per-IP daily cap)
+      description: |
+        App-layer writes require a key when the node runs with
+        `NETCOIN_APP_REQUIRE_API_KEY=1` (the hosted relay does). Send the key
+        as the `X-Netcoin-Api-Key` header. Reads and `POST /tx` stay open.
+      responses:
+        "200":
+          description: New key (only its hash is stored).
+          content:
+            application/json:
+              example: { key_id: "key_ab12", app: "my-app", api_key: "nck_..." }
+        "429": { description: Per-IP registration cap reached. }
   /payments:
     post:
       tags: [apps]

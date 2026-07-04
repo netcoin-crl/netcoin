@@ -11,6 +11,25 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-07-04 — Phase 0 complete: developer-key auth on app-layer writes; token UI
+
+### Added (security / API — NIP-0004)
+- **Self-service developer API keys**: open `POST /api/keys/register` returns a
+  free `nck_…` key (SHA-256 hash stored, per-IP daily cap). With
+  `NETCOIN_APP_REQUIRE_API_KEY=1` (on for the hosted relay) all app-layer
+  writes require the key via `X-Netcoin-Api-Key`; reads, `POST /tx`, and the
+  community carve-outs stay open. `docs/nips/NIP-0004.md` specifies the
+  standard, including the explicit limitation that keys identify apps, not
+  coin owners (signature-bound app writes are the planned follow-up).
+- `site-shell.js` now auto-registers and attaches a key per browser, so every
+  official site keeps working unchanged with enforcement on.
+
+### Added (token UI)
+- Explorer: `#/tokens` list + `#/token/<ref>` detail pages (supply, holders,
+  events) and a home-page tokens card.
+- Wallet: read-only **Tokens** tab (business/advanced/developer modes) showing
+  your balance in every app-layer token, with the security caveat stated.
+
 ## [0.9.0] - 2026-07-03 — 5-minute blocks (activation-gated), hourly faucet, NIP process
 
 ### Changed (consensus — activation-gated at height 6,000; chain NOT reset)
