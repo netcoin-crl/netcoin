@@ -24,11 +24,19 @@ jobs:
           python -m pip install -e ".[test]"
           python tools/run_test_suite_by_file.py --timeout 180
       - name: Import release signing key when configured
-        if: ${{ secrets.NETCOIN_GPG_PRIVATE_KEY != '' }}
+        # The secrets context is not allowed in step `if:` expressions (it
+        # breaks workflow-file parsing), so gate inside the script via env.
+        env:
+          GPG_KEY: ${{ secrets.NETCOIN_GPG_PRIVATE_KEY }}
+          GPG_KEY_ID: ${{ secrets.NETCOIN_GPG_KEY_ID }}
         run: |
-          printf '%s' "${{ secrets.NETCOIN_GPG_PRIVATE_KEY }}" | gpg --batch --import
-          if [ -n "${{ secrets.NETCOIN_GPG_KEY_ID }}" ]; then
-            echo "NETCOIN_SIGNING_KEY=${{ secrets.NETCOIN_GPG_KEY_ID }}" >> "$GITHUB_ENV"
+          if [ -z "$GPG_KEY" ]; then
+            echo "no signing key configured; skipping import"
+            exit 0
+          fi
+          printf '%s' "$GPG_KEY" | gpg --batch --import
+          if [ -n "$GPG_KEY_ID" ]; then
+            echo "NETCOIN_SIGNING_KEY=$GPG_KEY_ID" >> "$GITHUB_ENV"
           fi
       - name: Build signed-ready release artifact
         run: |
