@@ -1159,6 +1159,23 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     header_api_key = self.app_api_key_from_headers()
                     if header_api_key and "api_key" not in data:
                         data["api_key"] = header_api_key
+                    if parsed.path in ("/keys/register", "/api/keys/register", "/app/keys/register"):
+                        # Free self-service developer keys (NIP-0004), per-IP capped.
+                        try:
+                            self.send_json(app_store.register_public_api_key(data, self.client_address[0]))
+                        except AppError as app_exc:
+                            self.send_error_json(str(app_exc), status=429)
+                        return
+                    if (
+                        os.environ.get("NETCOIN_APP_REQUIRE_API_KEY", "0") == "1"
+                        and not public_app_write
+                        and not app_store.check_api_key(data.get("api_key"))
+                    ):
+                        self.send_error_json(
+                            "api key required: POST /api/keys/register for a free developer key, then send it as X-Netcoin-Api-Key",
+                            status=401,
+                        )
+                        return
                     try:
                         status, payload = route_app_post(app_store, node.chain, parsed.path, data, node=node)
                     except AppError as app_exc:
