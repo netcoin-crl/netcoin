@@ -160,3 +160,49 @@
   buildGithubQuickstart();
   closeMoreOnOutside();
 })();
+
+/* NetCoin API-key shim (NIP-0004): the hosted relay requires a free developer
+   key for app-layer writes. Transparently register one per browser and attach
+   it to same-origin /api POSTs so every NetCoin site keeps working unchanged. */
+(function () {
+  var KEY_STORE = "nc.apiKey.v1";
+  var origFetch = window.fetch.bind(window);
+  function isApiWrite(url, method) {
+    if (!url) return false;
+    var u = String(url);
+    var sameOrigin = u.indexOf("/") === 0 ? u : (u.indexOf(location.origin) === 0 ? u.slice(location.origin.length) : "");
+    if (!sameOrigin || sameOrigin.indexOf("/api") !== 0) return false;
+    if (sameOrigin.indexOf("/keys/register") !== -1) return false;
+    return String(method || "GET").toUpperCase() !== "GET";
+  }
+  async function ensureKey(force) {
+    try {
+      if (!force) {
+        var existing = localStorage.getItem(KEY_STORE);
+        if (existing) return existing;
+      }
+      var r = await origFetch("/api/keys/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "netcoin-site:" + location.hostname }) });
+      var d = await r.json();
+      if (d && d.api_key) { localStorage.setItem(KEY_STORE, d.api_key); return d.api_key; }
+    } catch (e) { /* offline or old node: proceed without a key */ }
+    return "";
+  }
+  window.fetch = async function (input, init) {
+    var url = typeof input === "string" ? input : (input && input.url) || "";
+    var method = (init && init.method) || (input && input.method) || "GET";
+    if (isApiWrite(url, method)) {
+      var key = await ensureKey(false);
+      init = init || {};
+      var headers = new Headers(init.headers || (typeof input !== "string" && input && input.headers) || {});
+      if (key) headers.set("X-Netcoin-Api-Key", key);
+      init.headers = headers;
+      var res = await origFetch(input, init);
+      if (res.status === 401) {
+        var fresh = await ensureKey(true); // stale/revoked key: re-register once
+        if (fresh) { headers.set("X-Netcoin-Api-Key", fresh); return origFetch(input, init); }
+      }
+      return res;
+    }
+    return origFetch(input, init);
+  };
+})();

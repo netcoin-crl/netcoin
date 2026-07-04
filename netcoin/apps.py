@@ -100,6 +100,7 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     "tip_buttons": {},
     "tokens": {},
     "token_events": [],
+    "api_key_registrations": {},
     "treasury_addresses": [],
     "node_reports": [],
     "contract_templates": {},
@@ -687,6 +688,50 @@ class AppStore:
         data["merchants"].setdefault(merchant_id, {"merchant_id": merchant_id, "created_at": now()})
         self.save(data)
         return {"key_id": key_id, "merchant_id": merchant_id, "api_key": raw, "warning": "Store this API key now. Only its hash is saved."}
+
+    def register_public_api_key(self, payload: dict[str, Any], client_ip: str) -> dict[str, Any]:
+        """Free self-service developer key (NIP-0004 auth). Public reads stay
+        open; writes need a key when NETCOIN_APP_REQUIRE_API_KEY=1. A per-IP
+        daily cap keeps the open registration endpoint from minting unlimited
+        spam identities."""
+        app_name = str(payload.get("app") or payload.get("name") or "public")[:80]
+        ip = str(client_ip or "unknown")[:64]
+        data = self.load()
+        regs = data.setdefault("api_key_registrations", {})
+        cutoff = now() - 24 * 3600
+        recent = [t for t in regs.get(ip, []) if t > cutoff]
+        if len(recent) >= 10:
+            raise AppError("API key registration limit reached for today; reuse the key you already have")
+        raw = "nck_" + secrets.token_urlsafe(24)
+        key_id = clean_id("key")
+        data["api_keys"][key_id] = {
+            "key_id": key_id,
+            "merchant_id": app_name,
+            "key_hash": hashlib.sha256(raw.encode()).hexdigest(),
+            "permissions": ["app:write"],
+            "self_service": True,
+            "registered_ip": ip,
+            "created_at": now(),
+            "last_used_at": None,
+        }
+        regs[ip] = recent + [now()]
+        # Bound the registration log so it cannot grow without limit.
+        if len(regs) > 10_000:
+            data["api_key_registrations"] = dict(sorted(regs.items(), key=lambda kv: max(kv[1] or [0]))[-5_000:])
+        self.save(data)
+        return {"key_id": key_id, "app": app_name, "api_key": raw, "warning": "Store this API key now. Only its hash is saved. Send it as the X-Netcoin-Api-Key header on write requests."}
+
+    def check_api_key(self, raw: Any) -> bool:
+        """True if the presented key matches any stored key hash (self-service
+        or merchant). Does not persist last-used to avoid a disk write per request."""
+        candidate = str(raw or "")
+        if not candidate:
+            return False
+        digest = hashlib.sha256(candidate.encode()).hexdigest()
+        return any(
+            hmac.compare_digest(rec.get("key_hash", ""), digest)
+            for rec in self.load()["api_keys"].values()
+        )
 
     def register_webhook(self, payload: dict[str, Any]) -> dict[str, Any]:
         merchant_id = str(payload.get("merchant_id") or "default")[:80]
