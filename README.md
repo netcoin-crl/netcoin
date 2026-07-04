@@ -4,7 +4,7 @@ NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in 
 
 NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should not be used as real money software. Public-testnet NET has no real-money value.
 
-> Current release: **v0.7.7**
+> Current release: **v0.10.1** · 3 public seeds · deterministic emission (50 NET −10% / 265k blocks) · 5-minute blocks from height 5,010 · app-layer tokens + developer API keys
 
 ## Start here
 
@@ -17,6 +17,61 @@ NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should 
 | [ROADMAP.md](ROADMAP.md) | The plan: how NetCoin grows into simple money + a builder platform + strong infrastructure, layered so the base chain stays simple and secure. Every proposed feature, phased and risk-tagged. |
 | [SECURITY.md](SECURITY.md) | How to report security issues. |
 | [docs/PUBLIC_SITE_MAP.md](docs/PUBLIC_SITE_MAP.md) | Public site purpose map for Wallet, Explorer, Pay, Merchant, Community, Nodes, Security, Governance, Treasury, Docs, and API. |
+
+## 5-minute quickstart (join the public testnet)
+
+```bash
+git clone https://github.com/netcoin-crl/netcoin.git && cd netcoin
+python3 -m venv .venv && source .venv/bin/activate      # Windows: py -3 -m venv .venv ; .\.venv\Scripts\Activate.ps1
+pip install -e .
+
+# 1) Create a wallet (WRITE DOWN the recovery phrase it prints)
+python -m netcoin wallet-new --out my-wallet.json --mnemonic
+
+# 2) Get free test coins: paste your net1... address at https://faucet.netcoin.online
+#    (or use the raw-IP faucet http://18.220.89.128/faucet if your ISP blocks the domain)
+#    You can claim once per hour.
+
+# 3) Mine a block yourself (optional, ~minutes on a laptop; rewards unlock after 100 blocks)
+python -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after
+
+# 4) Check your balance
+python -m netcoin balance --node http://18.220.89.128/api --wallet my-wallet.json
+```
+
+Prefer a browser? Use the hosted non-custodial wallet at <https://wallet.netcoin.online> — keys never leave your browser, and the Mining tab gives you a personal copy-paste mining command.
+
+### Or run a node with Docker
+
+```bash
+docker compose up --build node        # joins the public testnet, API on http://127.0.0.1:28444
+```
+
+## Developer quickstart
+
+```bash
+# All app-layer writes on the hosted relay need a free developer key (NIP-0004):
+curl -s -X POST https://api.netcoin.online/api/keys/register -H 'Content-Type: application/json' -d '{"app":"my-app"}'
+# -> {"api_key":"nck_..."}  Send it as the X-Netcoin-Api-Key header on writes. Reads are open.
+```
+
+- **API reference:** [docs/openapi.yaml](docs/openapi.yaml) (served at <https://api.netcoin.online/openapi.yaml>)
+- **SDKs:** [sdk/netcoin-python](sdk/netcoin-python/) · [sdk/netcoin-js](sdk/netcoin-js/)
+- **Starter apps:** [examples/](examples/) (store checkout, loyalty tokens) · tip bots in [bots/](bots/)
+- **App-layer NET-20 tokens:** create/mint/transfer via `/api/tokens` — indexed ledger, not consensus ([NIP-0004](docs/nips/NIP-0004.md) explains the auth model and its limits)
+- **Improvement process:** [docs/nips/NIP-0001.md](docs/nips/NIP-0001.md) · upgrade activations: [docs/nips/NIP-0005.md](docs/nips/NIP-0005.md)
+
+## Key network facts
+
+| Parameter | Value |
+| --- | --- |
+| Block time | 2 min → **5 min from height 5,010** (activation-gated, no chain reset) |
+| Block reward | 50 NET, −10% every 265,000 blocks (~132.5M NET max supply) |
+| Reward maturity | 100 blocks |
+| Difficulty retarget | every 30 blocks (+ lone-miner floor rule so the chain never stalls) |
+| Faucet | 5 NET, once per hour |
+| Node API port | 28444 (HTTP JSON) |
+| Write auth | free self-service developer keys (`POST /api/keys/register`) |
 
 ## Public Testnet Apps
 
