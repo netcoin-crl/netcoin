@@ -103,6 +103,12 @@ class Blockchain:
         self.address_index: Dict[str, set] = {}
         self._utxo_addr: Dict[str, str] = {}  # outpoint -> address, for the address index
         self._utxos: Dict[str, SpendableOutput] = {}  # persistent authoritative UTXO set
+        # Per-address UTXO index (address -> {outpoint -> SpendableOutput}) so
+        # balance/utxos lookups are O(coins-at-address) instead of scanning the
+        # whole UTXO set on every call. Mirrors self._utxos exactly; maintained
+        # at the three mutation points (reindex, snapshot load, block connect)
+        # and asserted consistent in self_check().
+        self._utxos_by_addr: Dict[str, Dict[str, SpendableOutput]] = {}
         self.pruned = False  # True when running from a pruned store (no old block bodies)
         self.pruned_below = 0
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -146,12 +152,14 @@ class Blockchain:
         # A pruned node's UTXO set comes from its snapshot, not a full rescan.
         if not self.pruned:
             self._utxos = self._recompute_utxos_from_chain()
+            self._rebuild_utxo_addr_index()
 
     def _load_utxos_from_snapshot(self, snapshot: Dict[str, Any]) -> None:
         self._utxos = {}
         for item in snapshot.get("utxos", []):
             spendable = SpendableOutput.from_dict(item)
             self._utxos[spendable.outpoint()] = spendable
+        self._rebuild_utxo_addr_index()
 
     def address_summary(self, address: str) -> Dict[str, Any]:
         if not validate_address(address):
@@ -446,6 +454,40 @@ class Blockchain:
             self._apply_block_to_utxos(block, utxos)
         return utxos
 
+    def _rebuild_utxo_addr_index(self) -> None:
+        """Recompute the per-address UTXO index from the authoritative set.
+        Called after any wholesale rebuild of self._utxos."""
+        index: Dict[str, Dict[str, SpendableOutput]] = {}
+        for outpoint, spendable in self._utxos.items():
+            index.setdefault(spendable.output.address, {})[outpoint] = spendable
+        self._utxos_by_addr = index
+
+    def _apply_block_to_persistent_utxos(self, block: Block) -> None:
+        """Connect a block to the authoritative UTXO set AND keep the per-address
+        index in lockstep. Use this (not the bare _apply_block_to_utxos) for the
+        real persistent set so lookups stay correct."""
+        for tx in block.transactions:
+            if not tx.is_coinbase:
+                for txin in tx.inputs:
+                    op = txin.outpoint()
+                    spent = self._utxos.pop(op, None)
+                    if spent is not None:
+                        bucket = self._utxos_by_addr.get(spent.output.address)
+                        if bucket is not None:
+                            bucket.pop(op, None)
+                            if not bucket:
+                                self._utxos_by_addr.pop(spent.output.address, None)
+            txid = tx.txid()
+            for index, output in enumerate(tx.outputs):
+                if output.amount > 0:
+                    op = f"{txid}:{index}"
+                    spendable = SpendableOutput(
+                        txid=txid, vout=index, output=output,
+                        height=block.header.height, coinbase=tx.is_coinbase,
+                    )
+                    self._utxos[op] = spendable
+                    self._utxos_by_addr.setdefault(output.address, {})[op] = spendable
+
     def _apply_block_to_utxos(self, block: Block, utxos: Dict[str, SpendableOutput]) -> None:
         for tx in block.transactions:
             if not tx.is_coinbase:
@@ -477,9 +519,10 @@ class Blockchain:
             raise ChainError("address is not a valid NetCoin address")
         spend_height = self.height() + 1
         result = []
-        for utxo in self.utxo_set().values():
-            if utxo.output.address != address:
-                continue
+        # O(coins-at-address) via the per-address index instead of scanning the
+        # whole UTXO set. Semantics identical to iterating utxo_set() (confirmed
+        # set only; mempool-spend filtering happens at the node layer).
+        for utxo in self._utxos_by_addr.get(address, {}).values():
             if utxo.coinbase and not include_immature and spend_height - utxo.height < COINBASE_MATURITY:
                 continue
             result.append(utxo)
@@ -493,9 +536,7 @@ class Blockchain:
         spendable = 0
         immature = 0
         spend_height = self.height() + 1
-        for utxo in self.utxo_set().values():
-            if utxo.output.address != address:
-                continue
+        for utxo in self._utxos_by_addr.get(address, {}).values():
             total += utxo.output.amount
             if utxo.coinbase and spend_height - utxo.height < COINBASE_MATURITY:
                 immature += utxo.output.amount
@@ -1045,7 +1086,7 @@ class Blockchain:
 
         self.chain.append(candidate)
         self._index_block(candidate)
-        self._apply_block_to_utxos(candidate, self._utxos)
+        self._apply_block_to_persistent_utxos(candidate)
         self.remove_mempool_transactions(selected_txids)
         self.purge_invalid_mempool()
         self.save_chain()
@@ -1062,7 +1103,7 @@ class Blockchain:
             self.validate_block_against(block, self.tip(), self.utxo_set(), self.chain)
             self.chain.append(block)
             self._index_block(block)
-            self._apply_block_to_utxos(block, self._utxos)
+            self._apply_block_to_persistent_utxos(block)
             included = [tx.txid() for tx in block.transactions[1:]]
             self.remove_mempool_transactions(included)
             self.purge_invalid_mempool()
@@ -1271,8 +1312,15 @@ class Blockchain:
         # The persistent UTXO cache must match a fresh full-scan recomputation.
         recomputed = self._recompute_utxos_from_chain()
         utxo_consistent = set(self._utxos) == set(recomputed)
+        # The per-address index must mirror the authoritative set exactly.
+        fresh_addr_index = {op for bucket in self._utxos_by_addr.values() for op in bucket}
+        addr_index_consistent = fresh_addr_index == set(self._utxos) and all(
+            self._utxos[op].output.address == addr
+            for addr, bucket in self._utxos_by_addr.items() for op in bucket
+        )
         return {
-            "ok": index_consistent and utxo_consistent,
+            "ok": index_consistent and utxo_consistent and addr_index_consistent,
+            "utxo_addr_index_consistent": addr_index_consistent,
             "height": self.height(),
             "blocks": len(self.chain),
             "indexed_blocks": len(self.block_index),

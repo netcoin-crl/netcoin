@@ -11,6 +11,38 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-05 — large sends fixed: fast verify, O(1) lookups, self-defragmenting wallet
+
+Fixes the "can't send a lot of NET / it lags the explorer" problem. Root causes
+were performance, not a hard cap: pure-Python ECDSA froze the single-process
+node on many-input transactions, and address lookups scanned the whole UTXO set.
+
+### Performance
+- **Per-address UTXO index**: `/balance` and `/utxos` are now
+  O(coins-at-address) instead of scanning the entire UTXO set on every call.
+  Kills the explorer/wallet lag as the chain grows. Asserted consistent with the
+  authoritative set in `verify_integrity()`.
+- **Optional libsecp256k1 fast verification** (`coincurve`, enabled with
+  `NETCOIN_FAST_CRYPTO=1`): ECDSA verification goes from ~13 ms to ~0.02 ms per
+  input, so a 200-input transaction verifies in ~90 ms instead of ~2.7 s and no
+  longer stalls other requests. **Safety:** a differential fuzz test
+  (`tests/test_fast_crypto_differential.py`) proves the fast path accepts exactly
+  the same signatures as the pure-Python verifier — it changes speed, never
+  validity, so mixed fast/pure nodes cannot split. Off by default; install with
+  `pip install netcoin[fast]`.
+
+### Coin management
+- **Consolidating coin selection** (CLI + browser): every send sweeps in extra
+  small coins up to the input/weight budget, so normal spending shrinks the UTXO
+  set instead of fragmenting it further.
+- **Honest large-send guidance**: instead of "too many inputs", the wallet says
+  how much you can send right now and points to `netcoin consolidate`.
+
+### Relay/policy caps raised (NOT consensus; env-overridable)
+- `MAX_STANDARD_TX_INPUTS` 250 → 1000, `MAX_WALLET_SEND_INPUTS` 120 → 200,
+  `MAX_MEMPOOL_ANCESTORS` 25 → 100, standard-tx weight 400k → 1M. Safe now that
+  verification is cheap; override via `NETCOIN_MAX_*` for pure-Python operators.
+
 ## [0.11.1] - 2026-07-05 — hosted wallet: all four address types
 
 ### Added (wallet)

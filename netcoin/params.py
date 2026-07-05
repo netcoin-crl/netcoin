@@ -7,6 +7,7 @@ chain can be mined on a laptop for learning and testing.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Dict
 
@@ -97,7 +98,7 @@ DEFAULT_POOL_PORT = 18446
 DEFAULT_P2P_PORT = 18447
 PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
-NODE_VERSION = "0.11.1"
+NODE_VERSION = "0.12.0"
 NETWORK_NAME = "testnet"
 USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")
@@ -123,7 +124,6 @@ GENESIS_MESSAGE = "NetCoin testnet v2 - real proof-of-work relaunch - not Bitcoi
 
 # Policy and standardness knobs.
 MAX_BLOCK_WEIGHT = 4_000_000
-MAX_STANDARD_TX_WEIGHT = 400_000
 MIN_RELAY_FEE_PER_KB = 1000
 INCREMENTAL_RELAY_FEE = 1000
 DUST_LIMIT = 546
@@ -134,11 +134,17 @@ MAX_MEMPOOL_TRANSACTIONS = 50_000
 # limits only; they do not change consensus validation for confirmed blocks.
 MAX_MEMPOOL_BYTES = 32 * 1024 * 1024
 MEMPOOL_EXPIRY_SECONDS = 24 * 60 * 60
-MAX_STANDARD_TX_INPUTS = 250
-MAX_WALLET_SEND_INPUTS = 120
-MAX_WALLET_SEND_WEIGHT = 180_000
-MAX_ANCESTORS = 25
-MAX_DESCENDANTS = 25
+# Relay/standardness caps. NOT consensus (blocks may contain larger txs); these
+# only bound what a node will relay/mempool, protecting public nodes. Raised in
+# v0.12.0 now that fast verification (NETCOIN_FAST_CRYPTO / libsecp256k1) keeps
+# big-transaction validation cheap. All env-overridable so an operator on the
+# pure-Python path can stay conservative.
+MAX_STANDARD_TX_INPUTS = int(os.environ.get("NETCOIN_MAX_STD_TX_INPUTS", "1000"))
+MAX_STANDARD_TX_WEIGHT = int(os.environ.get("NETCOIN_MAX_STD_TX_WEIGHT", "1000000"))
+MAX_WALLET_SEND_INPUTS = int(os.environ.get("NETCOIN_MAX_WALLET_INPUTS", "200"))
+MAX_WALLET_SEND_WEIGHT = int(os.environ.get("NETCOIN_MAX_WALLET_WEIGHT", "600000"))
+MAX_ANCESTORS = int(os.environ.get("NETCOIN_MAX_ANCESTORS", "100"))
+MAX_DESCENDANTS = int(os.environ.get("NETCOIN_MAX_DESCENDANTS", "100"))
 MAX_MEMPOOL_ANCESTORS = MAX_ANCESTORS
 MAX_MEMPOOL_DESCENDANTS = MAX_DESCENDANTS
 LOCKTIME_THRESHOLD = 500_000_000
