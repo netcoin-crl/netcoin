@@ -11,7 +11,8 @@
 #   tools/deploy_seed.sh --source /path/to/new/netcoin-v2
 #   tools/deploy_seed.sh --zip /path/to/netcoin-v2-public-testnet-ready.zip
 #
-# Env overrides: NETCOIN_PREFIX, NETCOIN_SERVICE, NETCOIN_PORT, NETCOIN_DATA_DIR.
+# Env overrides: NETCOIN_PREFIX, NETCOIN_SERVICE, NETCOIN_PORT, NETCOIN_DATA_DIR,
+# NETCOIN_DEPLOY_PYTHON, NETCOIN_ENABLE_FAST_CRYPTO.
 set -euo pipefail
 
 PREFIX="${NETCOIN_PREFIX:-/opt/netcoin}"
@@ -19,6 +20,8 @@ SRC_DIR="$PREFIX/netcoin-v2"
 VENV="$SRC_DIR/.venv"
 SERVICE="${NETCOIN_SERVICE:-netcoin-node.service}"
 PORT="${NETCOIN_PORT:-28444}"
+DEPLOY_PYTHON="${NETCOIN_DEPLOY_PYTHON:-3.13}"
+ENABLE_FAST_CRYPTO="${NETCOIN_ENABLE_FAST_CRYPTO:-1}"
 SOURCE=""
 ZIP=""
 
@@ -34,6 +37,35 @@ if [ -z "$SOURCE" ] && [ -z "$ZIP" ]; then
   echo "error: provide --source <dir> or --zip <file>" >&2
   exit 2
 fi
+
+ensure_uv() {
+  if ! command -v uv >/dev/null 2>&1; then
+    if [ -x "$HOME/.local/bin/uv" ]; then
+      export PATH="$HOME/.local/bin:$PATH"
+    else
+      echo "==> Installing uv for managed Python $DEPLOY_PYTHON"
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      export PATH="$HOME/.local/bin:$PATH"
+    fi
+  fi
+}
+
+install_venv() {
+  echo "==> Reinstalling venv with Python $DEPLOY_PYTHON"
+  ensure_uv
+  rm -rf "$VENV"
+  uv python install "$DEPLOY_PYTHON"
+  uv venv --python "$DEPLOY_PYTHON" "$VENV"
+  uv pip install --python "$VENV/bin/python" -q -e "$SRC_DIR[test,fast]"
+}
+
+configure_fast_crypto() {
+  if [ "$ENABLE_FAST_CRYPTO" = "1" ]; then
+    echo "==> Enabling NETCOIN_FAST_CRYPTO for $SERVICE"
+    mkdir -p "/etc/systemd/system/$SERVICE.d"
+    printf "[Service]\nEnvironment=NETCOIN_FAST_CRYPTO=1\n" >"/etc/systemd/system/$SERVICE.d/fastcrypto.conf"
+  fi
+}
 
 echo "==> Backing up before deploy"
 if [ -x "$SRC_DIR/tools/backup_node.sh" ]; then
@@ -61,15 +93,8 @@ fi
 rm -rf "$SRC_DIR"
 cp -a "$NEW" "$SRC_DIR"
 
-echo "==> Reinstalling venv"
-if [ ! -d "$VENV" ]; then
-  python3 -m venv "$VENV"
-fi
-"$VENV/bin/python" -m pip install -q --upgrade pip
-"$VENV/bin/python" -m pip install -q -e "$SRC_DIR"
-# The venv lives inside $SRC_DIR and is recreated on each deploy, so the test
-# dependency must be (re)installed here or the test gate below cannot run.
-"$VENV/bin/python" -m pip install -q pytest
+install_venv
+configure_fast_crypto
 
 echo "==> Running tests"
 if ! ( cd "$SRC_DIR" && "$VENV/bin/python" -m pytest -q ); then

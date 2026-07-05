@@ -1579,6 +1579,19 @@
       $("sendMsg").textContent = "Failed: " + e.message;
     }
   };
+  $("btnConsolidateSelf").onclick = () => {
+    try {
+      if (!state?.address) throw new Error("unlock a wallet first");
+      $("toAddr").value = state.address;
+      $("amount").value = satsToInput(Math.max(0, lastSpendableSats - currentFeeSats()));
+      $("sendMsg").className = "muted";
+      $("sendMsg").textContent = "Prepared a max self-send. Review it before broadcasting; mine one block after sending to confirm the consolidation.";
+      syncContactNameFromAddress();
+    } catch (e) {
+      $("sendMsg").className = "err";
+      $("sendMsg").textContent = "Failed: " + e.message;
+    }
+  };
   async function reviewSend() {
     const msg = $("sendMsg"); msg.className = ""; msg.textContent = "";
     try {

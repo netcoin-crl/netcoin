@@ -94,12 +94,14 @@ In the hosted browser wallet, sending **Max to your own address** does the same.
 large transactions validate instantly and never lag your node:
 
 ```bash
-pip install netcoin[fast]        # libsecp256k1 via coincurve
+pip install "netcoin[fast]"      # libsecp256k1 via coincurve
 NETCOIN_FAST_CRYPTO=1 python -m netcoin node --host 0.0.0.0 --seeds
 ```
 
 It changes verification *speed* only, never which signatures are valid (proven
 by a differential fuzz test), so it is safe to mix with pure-Python nodes.
+For public Linux seeds, Python 3.13 is the recommended runtime today; Ubuntu
+26.04's Python 3.14 can currently miss the `coincurve` wheel/build path.
 
 **Address types:** new wallets default to **SegWit** (`net1q…`) everywhere —
 lowest fees, best support. **Taproot** (`net1p…`) is available in the CLI and
