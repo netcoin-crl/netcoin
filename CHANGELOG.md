@@ -11,6 +11,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-07-05 — hosted wallet: all four address types
+
+### Added (wallet)
+- The hosted browser wallet now derives, displays, **and spends** every
+  address era of a key: SegWit (default), Taproot, Legacy, and P2SH-SegWit.
+  The Address-type selector shows each type's live balance, so coins on any
+  address the wallet has are visible and usable. Sends accept all four
+  address formats.
+- JS crypto core gained base58check derivation plus p2pkh field-signing and
+  nested-P2SH-SegWit redeem+witness signing. Verified: address derivation
+  matches Python byte-for-byte (crosscheck) and fully JS-signed legacy and
+  P2SH-SegWit spends are accepted by the node's own validation.
+
+
 ## [0.11.0] - 2026-07-04 — SegWit by default, browser Taproot, coin consolidation
 
 ### Changed (defaults — no consensus change)
