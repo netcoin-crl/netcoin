@@ -3,5 +3,5 @@ export { privToPub, p2wpkhAddress, p2trAddress, xonlyFromPriv } from "./netcoin.
 export {
   newSeedPhrase, seedPhraseToEntropy, verifySeedPhrase,
   privateKeyFromSeedPhrase, newRandomPrivateKey, walletFromPrivateKey,
-  buildSignedPayment, selectCoins, addressToScriptPubkey,
+  buildSignedPayment, selectCoins, addressToScriptPubkey, allWalletAddresses,
 } from "./wallet.mjs";
