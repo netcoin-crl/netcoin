@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { hexToBytes } from "@noble/hashes/utils";
+import { schnorr } from "@noble/curves/secp256k1";
 import {
   privToPub, p2wpkhAddress, p2wpkhScriptPubkey, sighashAll, signP2wpkhInput,
+  xonlyFromPriv, p2trAddress, p2trScriptPubkey, signP2trInput,
 } from "../src/netcoin.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -84,3 +86,13 @@ check("zero-fee payment is rejected", zeroFeeRejected, true);
 
 console.log(fails === 0 ? "\nALL CHECKS PASSED ✅" : `\n${fails} CHECK(S) FAILED ❌`);
 process.exit(fails === 0 ? 0 : 1);
+
+// 5. Taproot key-path: address, scriptPubkey, digest, and a verifying BIP340 sig
+check("taproot xonly", xonlyFromPriv(fx.priv_hex), fx.taproot_xonly_hex);
+check("taproot address", p2trAddress(fx.taproot_xonly_hex), fx.taproot_address);
+check("taproot scriptPubkey", p2trScriptPubkey(fx.taproot_xonly_hex), fx.taproot_prevout_script_pubkey);
+const trTx = { version: 1, locktime: 0, inputs: [{ txid: "bb".repeat(32), vout: 0 }], outputs: [{ amount: 399000000, address: fx.p2wpkh_address }] };
+const trPrev = { txid: "bb".repeat(32), vout: 0, amount: 400000000, address: fx.taproot_address, script_pubkey: fx.taproot_prevout_script_pubkey };
+check("taproot sighash digest", Buffer.from(sighashAll(trTx, 0, trPrev)).toString("hex"), fx.taproot_sighash_digest_hex);
+const [trSigHex] = signP2trInput(trTx, 0, fx.priv_hex, trPrev);
+check("taproot BIP340 sig verifies", String(schnorr.verify(hexToBytes(trSigHex), sighashAll(trTx, 0, trPrev), hexToBytes(fx.taproot_xonly_hex))), "true");
