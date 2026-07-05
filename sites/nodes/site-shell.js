@@ -10,7 +10,7 @@
     labs: 'Labs'
   };
   const modeHelp = {
-    simple: 'Simple mode keeps the main path focused: wallet, pay, explorer, faucet, learn, and community. All advanced areas remain available inside More tools.',
+    simple: 'Simple mode starts at NetCoin Start: wallet, faucet, basic payment links, community, explorer, and download. Advanced areas remain available inside More tools.',
     merchant: 'Merchant mode brings business tools forward: invoices, POS checkout, reports, refunds, API keys, webhooks, and receipts.',
     developer: 'Developer mode brings API docs, SDKs, local development, explorers, test data, and release verification forward.',
     node: 'Node operator mode brings network health, public seeds, mining, status, versions, and run-a-seed guides forward.',
@@ -18,6 +18,7 @@
     labs: 'Labs mode brings experimental markets, polls, escrow, contracts, Phase 7 demos, and advanced testnet features forward.'
   };
   const toolLinks = [
+    ['https://netcoin.online', 'simple community', 'Start', 'wallet, pay, community basics'],
     ['https://nodes.netcoin.online', 'node developer', 'Network', 'nodes, seeds, status, mining'],
     ['https://api.netcoin.online', 'developer merchant node labs', 'Developers', 'API, SDKs, webhooks, examples'],
     ['https://governance.netcoin.online', 'community node developer labs', 'Governance', 'NIPs, votes, treasury, roadmap'],
@@ -95,6 +96,7 @@
     let url = 'https://explorer.netcoin.online/?q=' + encodeURIComponent(s);
     const routes = [
       [/wallet|private key|seed phrase|backup|send|receive|contact/, 'https://wallet.netcoin.online'],
+      [/start|basic|beginner|home|community basic|pay basic/, 'https://netcoin.online'],
       [/invoice|checkout|pay|payment|receipt/, 'https://pay.netcoin.online'],
       [/merchant|pos|webhook|api key|refund|report/, 'https://merchant.netcoin.online'],
       [/faucet|test coin/, 'https://faucet.netcoin.online'],
@@ -141,7 +143,7 @@
     section.innerHTML = '<details><summary>Run NetCoin from GitHub</summary>' +
       '<div class="github-quickstart-grid">' +
       '<div><h2>Install</h2><pre>git clone https://github.com/netcoin-crl/netcoin.git\ncd netcoin\npython3 -m venv .venv\nsource .venv/bin/activate\npython -m pip install -e .</pre></div>' +
-      '<div><h2>Wallet and mining</h2><pre>python -m netcoin wallet-new --out my-wallet.json --mnemonic\npython -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 1 --sync-after\npython -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online</pre></div>' +
+      '<div><h2>Wallet and mining</h2><pre>python -m netcoin wallet-new --out my-wallet.json --mnemonic\npython -m netcoin miner --node http://18.220.89.128/api --wallet my-wallet.json --blocks 0 --sync-after\npython -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online\npython tools/check_public_network.py</pre></div>' +
       '<p class="muted github-quickstart-note">Preferred API domain: <code>https://api.netcoin.online/api</code>. If a home router, ISP filter, or TLS issue blocks that domain, use <code>http://18.220.89.128/api</code>. Reward schedule: 50 NET starting subsidy, then 20% lower every 210,000 blocks. Legacy, p2sh-segwit, segwit, and taproot are different receiving addresses controlled by the same wallet.</p>' +
       '</div></details>';
     footer.insertAdjacentElement('beforebegin', section);

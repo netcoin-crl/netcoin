@@ -571,14 +571,40 @@ def ecdsa_sign(private_key: int, digest: bytes) -> bytes:
 # signature iff it accepts its s <-> N-s twin; libsecp256k1 accepts only low-s).
 # tests/test_fast_crypto_differential.py fuzzes both against each other; because
 # they agree, a network of mixed fast/pure nodes cannot split on validity.
-def _fast_crypto_enabled() -> bool:
-    if os.environ.get("NETCOIN_FAST_CRYPTO", "0") != "1":
-        return False
+def _fast_crypto_requested() -> bool:
+    return os.environ.get("NETCOIN_FAST_CRYPTO", "0") == "1"
+
+
+def _coincurve_available() -> bool:
     try:
         import coincurve  # noqa: F401
         return True
     except Exception:
         return False
+
+
+def _fast_crypto_enabled() -> bool:
+    return _fast_crypto_requested() and _coincurve_available()
+
+
+def crypto_backend_status() -> Dict[str, object]:
+    """Return public, non-secret crypto backend status for operators.
+
+    NetCoin keeps the pure-Python implementation as the readable reference. The
+    optional fast backend is only used when explicitly requested and available,
+    and differential tests keep the accept/reject set aligned.
+    """
+    requested = _fast_crypto_requested()
+    available = _coincurve_available()
+    enabled = requested and available
+    return {
+        "ecdsa_verify": "libsecp256k1/coincurve" if enabled else "pure-python",
+        "fast_crypto_requested": requested,
+        "coincurve_available": available,
+        "fast_crypto_enabled": enabled,
+        "schnorr": "pure-python-bip340-style",
+        "note": "Fast ECDSA changes verification speed only; consensus validity must match the pure path.",
+    }
 
 
 def _ecdsa_verify_fast(public_key: bytes, digest: bytes, signature: bytes) -> bool:
