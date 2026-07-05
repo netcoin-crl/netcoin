@@ -73,19 +73,33 @@ curl -s -X POST https://api.netcoin.online/api/keys/register -H 'Content-Type: a
 | Node API port | 28444 (HTTP JSON) |
 | Write auth | free self-service developer keys (`POST /api/keys/register`) |
 
-## Sending large amounts (and the `consolidate` command)
+## Sending large amounts
 
 Mining pays 50 NET per block, so a big balance is really hundreds of small
-coins. A single send may use at most **120 inputs / 180k weight** (protects
-public nodes), so very large sends can fail with *"too many inputs"*. The fix
-is one command — sweep your small coins into one, then send normally:
+coins. As of **v0.12.0** the wallet handles this for you: every send uses
+**consolidating coin selection** (it sweeps in extra small coins up to the
+per-transaction limit), so normal spending steadily shrinks your coin count
+instead of fragmenting it. A single send can use up to **200 inputs**.
+
+If a send is still larger than one transaction can hold, the wallet tells you
+exactly how much you can send right now and points you to consolidation:
 
 ```bash
 python -m netcoin consolidate --node http://18.220.89.128/api --wallet my-wallet.json
 ```
 
-Run it again after a confirmation if you have thousands of coins. In the
-hosted browser wallet, sending **Max to your own address** does the same thing.
+In the hosted browser wallet, sending **Max to your own address** does the same.
+
+**Running a public node?** Install the optional fast-verification accelerator so
+large transactions validate instantly and never lag your node:
+
+```bash
+pip install netcoin[fast]        # libsecp256k1 via coincurve
+NETCOIN_FAST_CRYPTO=1 python -m netcoin node --host 0.0.0.0 --seeds
+```
+
+It changes verification *speed* only, never which signatures are valid (proven
+by a differential fuzz test), so it is safe to mix with pure-Python nodes.
 
 **Address types:** new wallets default to **SegWit** (`net1q…`) everywhere —
 lowest fees, best support. **Taproot** (`net1p…`) is available in the CLI and
