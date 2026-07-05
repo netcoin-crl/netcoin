@@ -1,5 +1,5 @@
 // Public browser API surface (bundled to dist/netcoin-wallet.js).
-export { privToPub, p2wpkhAddress } from "./netcoin.mjs";
+export { privToPub, p2wpkhAddress, p2trAddress, xonlyFromPriv } from "./netcoin.mjs";
 export {
   newSeedPhrase, seedPhraseToEntropy, verifySeedPhrase,
   privateKeyFromSeedPhrase, newRandomPrivateKey, walletFromPrivateKey,

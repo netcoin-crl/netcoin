@@ -10,6 +10,7 @@
   const LABELS_STORE = "ncw.txlabels.v1";
   const WATCH_STORE = "ncw.watch.v1";
   const UI_MODE_STORE = "ncw.walletMode.v1";
+  const ADDR_TYPE_STORE = "ncw.addrType.v1";
   const UI_TAB_STORE = "ncw.walletTab.v1";
   const SITE_MODE_STORE = "nc.siteMode.v1";
   const COIN = 100000000;
@@ -19,6 +20,22 @@
   let state = null; // { secretType, seed?, privHex, address, profile }
   let lastSpendableSats = 0;
   let nodeSpacingSeconds = 120; // refreshed from /info; spacing v2 reports 300
+  function walletAddressType() {
+    const t = localStorage.getItem(ADDR_TYPE_STORE);
+    return t === "taproot" ? "taproot" : "segwit";
+  }
+  function setWalletAddressType(t) {
+    localStorage.setItem(ADDR_TYPE_STORE, t === "taproot" ? "taproot" : "segwit");
+    if (state) {
+      const w = W.walletFromPrivateKey(state.privHex, walletAddressType());
+      state.address = w.address;
+      $("addr").textContent = w.address;
+      if ($("addrTypeSel")) $("addrTypeSel").value = walletAddressType();
+      makePaymentRequest();
+      refresh();
+      refreshMiningPanel();
+    }
+  }
   let pendingSend = null;
   let scanStream = null;
   let lastUtxos = [];
@@ -307,14 +324,14 @@
       const raw = $("toAddr").value.trim();
       if (!raw) {
         msg.className = "muted";
-        msg.textContent = "Enter a NetCoin SegWit address or payment link.";
+        msg.textContent = "Enter a NetCoin SegWit or Taproot address, or a payment link.";
         return false;
       }
       const parsed = parsePaymentUri(raw);
       const address = parsed ? parsed.address : raw;
       W.addressToScriptPubkey(address);
       msg.className = "ok";
-      msg.textContent = parsed ? "Valid NetCoin payment link." : "Valid NetCoin SegWit address.";
+      msg.textContent = parsed ? "Valid NetCoin payment link." : "Valid NetCoin address.";
       return true;
     } catch (e) {
       msg.className = "err";
@@ -908,7 +925,7 @@
 
   function loadWalletFromPrivateKey(privHex, profile = loadProfiles().active, remember = true) {
     const clean = normalizePrivateKeyHex(privHex);
-    const w = W.walletFromPrivateKey(clean);
+    const w = W.walletFromPrivateKey(clean, walletAddressType());
     state = { secretType: "privateKey", privHex: clean, address: w.address, profile };
     $("addr").textContent = w.address;
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · private key · session unlocked`;
@@ -996,7 +1013,7 @@
 
   function loadWallet(seed, profile = loadProfiles().active, remember = true) {
     const privHex = W.privateKeyFromSeedPhrase(seed, 0);
-    const w = W.walletFromPrivateKey(privHex);
+    const w = W.walletFromPrivateKey(privHex, walletAddressType());
     state = { secretType: "seed", seed, privHex, address: w.address, profile };
     $("addr").textContent = w.address;
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · seed phrase · session unlocked`;
@@ -1494,6 +1511,10 @@
 
   $("btnCopy").onclick = () => navigator.clipboard?.writeText(state.address);
   $("btnRefresh").onclick = refresh;
+  if ($("addrTypeSel")) {
+    $("addrTypeSel").value = walletAddressType();
+    $("addrTypeSel").onchange = () => setWalletAddressType($("addrTypeSel").value);
+  }
   document.addEventListener("click", (ev) => {
     if (ev.target && ev.target.id === "btnRefreshTokens") refreshTokenBalances();
   });

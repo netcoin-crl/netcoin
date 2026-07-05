@@ -899,6 +899,24 @@ def cmd_script(args: argparse.Namespace) -> None:
     print_json({"address": args.address, "type": template.kind, "script_pubkey": template.script_pubkey.hex() if hasattr(template.script_pubkey, "hex") else template.script_pubkey, "description": template.description})
 
 
+def cmd_consolidate(args: argparse.Namespace) -> None:
+    """Sweep many small coins into one so large sends stop hitting input limits."""
+    from .tx import amount_to_sats
+    from .wallet import Wallet
+    from .webwallet import consolidate_coins
+
+    wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
+    from_type = {"p2pkh": "legacy", "p2wpkh": "segwit", "p2tr": "taproot", "p2sh-segwit": "p2sh-segwit"}[args.address_type]
+    result = consolidate_coins(
+        wallet,
+        from_type,
+        args.node.rstrip("/"),
+        fee_sats=amount_to_sats(args.fee),
+        max_inputs=args.max_inputs,
+    )
+    print(json.dumps(result, indent=2))
+
+
 def cmd_node(args: argparse.Namespace) -> None:
     host, port, advertise = args.host, args.port, getattr(args, "advertise", None)
     use_seeds = getattr(args, "seeds", False)
@@ -1149,7 +1167,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("balance", help="show address balance")
     p.add_argument("--wallet")
     p.add_argument("--address")
-    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--address-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
     p.add_argument("--passphrase")
     p.add_argument("--node", help="query a remote node instead of local chain data")
     p.set_defaults(func=cmd_balance)
@@ -1157,7 +1175,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("utxos", help="list UTXOs for an address")
     p.add_argument("--wallet")
     p.add_argument("--address")
-    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--address-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
     p.add_argument("--include-immature", action="store_true")
     p.add_argument("--passphrase")
     p.set_defaults(func=cmd_utxos)
@@ -1165,7 +1183,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("mine", help="mine one or more blocks")
     p.add_argument("--wallet")
     p.add_argument("--address")
-    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--address-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
     p.add_argument("--blocks", type=int, default=1)
     p.add_argument("--passphrase")
     p.set_defaults(func=cmd_mine)
@@ -1173,7 +1191,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("send", help="create, sign, and queue a transaction")
     p.add_argument("--wallet", required=True, help="sender wallet file")
     p.add_argument("--passphrase")
-    p.add_argument("--from-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--from-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
     p.add_argument("--from-address", help="explicit source address")
     p.add_argument("--change-address")
     p.add_argument("--to", required=True, help="destination NetCoin address")
@@ -1218,7 +1236,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("template", help="show getblocktemplate-style mining data")
     p.add_argument("--wallet")
     p.add_argument("--address")
-    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--address-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
     p.add_argument("--passphrase")
     p.set_defaults(func=cmd_template)
 
@@ -1231,7 +1249,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--node", default="http://127.0.0.1:18444", help="node URL")
     p.add_argument("--wallet", help="payout wallet file")
     p.add_argument("--address", help="payout address")
-    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--address-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
     p.add_argument("--passphrase")
     p.add_argument("--blocks", type=int, default=1)
     p.add_argument("--save-blocks", help="optional directory for solved block JSON files")
@@ -1334,6 +1352,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.set_defaults(func=cmd_import)
 
+    p = sub.add_parser("consolidate", help="sweep many small coins into one so large sends work (fixes 'too many inputs')")
+    p.add_argument("--node", required=True, help="node URL, e.g. http://18.220.89.128/api")
+    p.add_argument("--wallet", required=True, help="wallet JSON path")
+    p.add_argument("--address-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--fee", default="0.0001", help="fee per consolidation transaction in NET (default 0.0001)")
+    p.add_argument("--max-inputs", type=int, default=120, help="coins to sweep per transaction (default/max 120)")
+    p.add_argument("--passphrase")
+    p.set_defaults(func=cmd_consolidate)
+
     p = sub.add_parser("node", help="run a peer node (HTTP API + binary P2P transport)")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_NODE_PORT)
@@ -1362,7 +1389,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("pool", help="run educational mining-pool server")
     p.add_argument("--wallet")
     p.add_argument("--address")
-    p.add_argument("--address-type", default="p2pkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
+    p.add_argument("--address-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
     p.add_argument("--passphrase")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_POOL_PORT)
