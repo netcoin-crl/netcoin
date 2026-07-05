@@ -5,9 +5,10 @@ import { sha256 } from "@noble/hashes/sha256";
 import { hmac } from "@noble/hashes/hmac";
 import { pbkdf2 } from "@noble/hashes/pbkdf2";
 import { bytesToHex, hexToBytes, utf8ToBytes, randomBytes } from "@noble/hashes/utils";
-import { bech32 } from "@scure/base";
+import { bech32, bech32m } from "@scure/base";
 import {
-  privToPub, p2wpkhAddress, p2wpkhScriptPubkey, signP2wpkhInput, HRP,
+  privToPub, p2wpkhAddress, p2wpkhScriptPubkey, signP2wpkhInput,
+  xonlyFromPriv, p2trAddress, p2trScriptPubkey, signP2trInput, HRP,
 } from "./netcoin.mjs";
 import WORD_LIST from "./wordlist.json" with { type: "json" };
 
@@ -67,26 +68,33 @@ export function newRandomPrivateKey() {
 }
 
 // A wallet view: address + scriptPubkey from a private key hex.
-export function walletFromPrivateKey(privHex) {
+// addressType: "segwit" (default) or "taproot".
+export function walletFromPrivateKey(privHex, addressType = "segwit") {
   const pubHex = privToPub(privHex, true);
-  return { privHex, pubHex, address: p2wpkhAddress(pubHex), scriptPubkey: p2wpkhScriptPubkey(pubHex) };
+  if (addressType === "taproot") {
+    const xonly = xonlyFromPriv(privHex);
+    return { privHex, pubHex, xonlyHex: xonly, addressType, address: p2trAddress(xonly), scriptPubkey: p2trScriptPubkey(xonly) };
+  }
+  return { privHex, pubHex, addressType: "segwit", address: p2wpkhAddress(pubHex), scriptPubkey: p2wpkhScriptPubkey(pubHex) };
 }
 
 // ---- transactions ----
-// Derive the effective scriptPubkey for a P2WPKH bech32 address: "OP_0 <hash160>".
+// Derive the effective scriptPubkey for a NetCoin bech32/bech32m address:
+// SegWit v0 -> "OP_0 <hash160>", Taproot v1 -> "OP_1 <xonly>".
 export function addressToScriptPubkey(address) {
-  let decoded;
+  const fail = () => { throw new Error("browser wallet sends only to net1... SegWit or Taproot addresses"); };
   try {
-    decoded = bech32.decode(address);
-  } catch {
-    throw new Error("browser wallet sends only to net1... SegWit v0 addresses");
-  }
-  const { prefix, words } = decoded;
-  if (prefix !== HRP) throw new Error("browser wallet sends only to net1... SegWit v0 addresses");
-  const witver = words[0];
-  if (witver !== 0) throw new Error("browser wallet sends only to net1... SegWit v0 addresses");
-  const program = bech32.fromWords(words.slice(1));
-  return "OP_0 " + bytesToHex(Uint8Array.from(program));
+    const { prefix, words } = bech32.decode(address);
+    if (prefix !== HRP || words[0] !== 0) fail();
+    return "OP_0 " + bytesToHex(Uint8Array.from(bech32.fromWords(words.slice(1))));
+  } catch { /* not bech32 v0: try bech32m v1 below */ }
+  try {
+    const { prefix, words } = bech32m.decode(address);
+    if (prefix !== HRP || words[0] !== 1) fail();
+    const program = Uint8Array.from(bech32m.fromWords(words.slice(1)));
+    if (program.length !== 32) fail();
+    return "OP_1 " + bytesToHex(program);
+  } catch { fail(); }
 }
 
 // Largest-first coin selection. utxos: [{txid,vout,amount,(script_pubkey)}].
@@ -129,7 +137,10 @@ export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, cha
       address: u.address || changeAddress,
       script_pubkey: u.script_pubkey || addressToScriptPubkey(u.address || changeAddress),
     };
-    const witness = signP2wpkhInput(txCore, i, privHex, prevout);
+    // Sign per prevout kind: Taproot (OP_1) uses BIP340 schnorr, SegWit ECDSA.
+    const witness = prevout.script_pubkey.startsWith("OP_1 ")
+      ? signP2trInput(txCore, i, privHex, prevout)
+      : signP2wpkhInput(txCore, i, privHex, prevout);
     return { txid: u.txid, vout: u.vout, signature: "", public_key: "", coinbase: "", witness };
   });
 

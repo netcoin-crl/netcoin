@@ -1,5 +1,9 @@
 {
   "priv_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+  "taproot_address": "net1pfu64hh9hes90w2808n8tjc2ajp5yhddjef0ctx4s7zmsgp6cwx4qdez0vz",
+  "taproot_xonly_hex": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+  "taproot_prevout_script_pubkey": "OP_1 4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+  "taproot_sighash_digest_hex": "abf9d27132ff04926ad0e715f10734de488eea926be743291ec239357a5ef2ee",
   "pubkey_hex": "034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
   "p2wpkh_address": "net1ql3e9pgs3mmwuwrh95fecme0s0qtn2880pdf9sc",
   "legacy_address": "NivnQqietnnoBQ15ibFmsxYkPGkPe4TG61",

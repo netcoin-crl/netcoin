@@ -5,11 +5,11 @@
 //   * compressed secp256k1 keys, P2WPKH (bech32, hrp "net", witver 0)
 //   * sighash = double_sha256(canonical_json(payload))  (SIGHASH_ALL)
 //   * ECDSA compact 64-byte r||s, low-s  (SIGHASH_ALL => no trailing flag byte)
-import { secp256k1 } from "@noble/curves/secp256k1";
+import { secp256k1, schnorr } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
-import { bech32 } from "@scure/base";
+import { bech32, bech32m } from "@scure/base";
 
 export const HRP = "net";
 
@@ -30,6 +30,23 @@ export function p2wpkhAddress(pubHex) {
 // effective_script_pubkey for a P2WPKH output: "OP_0 <hash160hex>".
 export function p2wpkhScriptPubkey(pubHex) {
   return "OP_0 " + bytesToHex(hash160(hexToBytes(pubHex)));
+}
+
+// ---- Taproot (key-path, BIP340) ----
+// NetCoin key-path Taproot: witness v1 program = x-only pubkey (no tweak),
+// bech32m address, schnorr signature over the same canonical-JSON sighash.
+export function xonlyFromPriv(privHex) {
+  return bytesToHex(schnorr.getPublicKey(hexToBytes(privHex)));
+}
+
+export function p2trAddress(xonlyHex) {
+  const words = [1, ...bech32m.toWords(hexToBytes(xonlyHex))];
+  return bech32m.encode(HRP, words);
+}
+
+// effective_script_pubkey for a P2TR output: "OP_1 <xonlyhex>".
+export function p2trScriptPubkey(xonlyHex) {
+  return "OP_1 " + xonlyHex;
 }
 
 // Canonical JSON identical to Python json.dumps(sort_keys=True,
@@ -94,4 +111,13 @@ export function signP2wpkhInput(tx, inputIndex, privHex, prevout) {
   const digest = sighashAll(tx, inputIndex, prevout);
   const sig = secp256k1.sign(digest, hexToBytes(privHex)); // low-s + RFC6979 by default
   return [bytesToHex(sig.toCompactRawBytes()), pubHex];
+}
+
+// Sign a key-path P2TR input. Witness is [sigHex] only (BIP340 schnorr, 64
+// bytes; SIGHASH_ALL adds no flag byte). Any valid BIP340 signature verifies —
+// the node does not require a specific nonce derivation.
+export function signP2trInput(tx, inputIndex, privHex, prevout) {
+  const digest = sighashAll(tx, inputIndex, prevout);
+  const sig = schnorr.sign(digest, hexToBytes(privHex), new Uint8Array(32));
+  return [bytesToHex(sig)];
 }
