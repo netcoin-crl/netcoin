@@ -8,8 +8,11 @@ import { bytesToHex, hexToBytes, utf8ToBytes, randomBytes } from "@noble/hashes/
 import { bech32, bech32m } from "@scure/base";
 import {
   privToPub, p2wpkhAddress, p2wpkhScriptPubkey, signP2wpkhInput,
-  xonlyFromPriv, p2trAddress, p2trScriptPubkey, signP2trInput, HRP,
+  xonlyFromPriv, p2trAddress, p2trScriptPubkey, signP2trInput,
+  legacyAddress, p2pkhScriptPubkey, p2shSegwitAddress, p2shScriptPubkey,
+  signP2pkhInput, signP2shSegwitInput, b58check, P2PKH_VERSION, P2SH_VERSION, HRP,
 } from "./netcoin.mjs";
+import { bytesToHex as b2h } from "@noble/hashes/utils";
 import WORD_LIST from "./wordlist.json" with { type: "json" };
 
 const N = secp256k1.CURVE.n;
@@ -75,14 +78,30 @@ export function walletFromPrivateKey(privHex, addressType = "segwit") {
     const xonly = xonlyFromPriv(privHex);
     return { privHex, pubHex, xonlyHex: xonly, addressType, address: p2trAddress(xonly), scriptPubkey: p2trScriptPubkey(xonly) };
   }
+  if (addressType === "legacy") {
+    return { privHex, pubHex, addressType, address: legacyAddress(pubHex), scriptPubkey: p2pkhScriptPubkey(pubHex) };
+  }
+  if (addressType === "p2sh-segwit") {
+    return { privHex, pubHex, addressType, address: p2shSegwitAddress(pubHex), scriptPubkey: p2shScriptPubkey(pubHex) };
+  }
   return { privHex, pubHex, addressType: "segwit", address: p2wpkhAddress(pubHex), scriptPubkey: p2wpkhScriptPubkey(pubHex) };
+}
+
+// Every address this key controls, one per type.
+export function allWalletAddresses(privHex) {
+  return {
+    segwit: walletFromPrivateKey(privHex, "segwit").address,
+    taproot: walletFromPrivateKey(privHex, "taproot").address,
+    legacy: walletFromPrivateKey(privHex, "legacy").address,
+    "p2sh-segwit": walletFromPrivateKey(privHex, "p2sh-segwit").address,
+  };
 }
 
 // ---- transactions ----
 // Derive the effective scriptPubkey for a NetCoin bech32/bech32m address:
 // SegWit v0 -> "OP_0 <hash160>", Taproot v1 -> "OP_1 <xonly>".
 export function addressToScriptPubkey(address) {
-  const fail = () => { throw new Error("browser wallet sends only to net1... SegWit or Taproot addresses"); };
+  const fail = () => { throw new Error("not a valid NetCoin address (SegWit net1q…, Taproot net1p…, Legacy, or P2SH)"); };
   try {
     const { prefix, words } = bech32.decode(address);
     if (prefix !== HRP || words[0] !== 0) fail();
@@ -94,6 +113,14 @@ export function addressToScriptPubkey(address) {
     const program = Uint8Array.from(bech32m.fromWords(words.slice(1)));
     if (program.length !== 32) fail();
     return "OP_1 " + bytesToHex(program);
+  } catch { /* not bech32m: try base58check below */ }
+  try {
+    const payload = b58check.decode(address);
+    if (payload.length !== 21) fail();
+    const h160 = b2h(payload.slice(1));
+    if (payload[0] === P2PKH_VERSION) return `OP_DUP OP_HASH160 ${h160} OP_EQUALVERIFY OP_CHECKSIG`;
+    if (payload[0] === P2SH_VERSION) return `OP_HASH160 ${h160} OP_EQUAL`;
+    fail();
   } catch { fail(); }
 }
 
@@ -137,11 +164,20 @@ export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, cha
       address: u.address || changeAddress,
       script_pubkey: u.script_pubkey || addressToScriptPubkey(u.address || changeAddress),
     };
-    // Sign per prevout kind: Taproot (OP_1) uses BIP340 schnorr, SegWit ECDSA.
-    const witness = prevout.script_pubkey.startsWith("OP_1 ")
-      ? signP2trInput(txCore, i, privHex, prevout)
-      : signP2wpkhInput(txCore, i, privHex, prevout);
-    return { txid: u.txid, vout: u.vout, signature: "", public_key: "", coinbase: "", witness };
+    // Sign per prevout kind. All four address eras of this key are spendable.
+    const spk = prevout.script_pubkey;
+    if (spk.startsWith("OP_1 ")) {
+      return { txid: u.txid, vout: u.vout, signature: "", public_key: "", coinbase: "", witness: signP2trInput(txCore, i, privHex, prevout) };
+    }
+    if (spk.startsWith("OP_DUP ")) {
+      const f = signP2pkhInput(txCore, i, privHex, prevout);
+      return { txid: u.txid, vout: u.vout, signature: f.signature, public_key: f.public_key, coinbase: "", script_sig: f.script_sig };
+    }
+    if (spk.startsWith("OP_HASH160 ")) {
+      const f = signP2shSegwitInput(txCore, i, privHex, prevout);
+      return { txid: u.txid, vout: u.vout, signature: "", public_key: "", coinbase: "", script_sig: f.script_sig, witness: f.witness };
+    }
+    return { txid: u.txid, vout: u.vout, signature: "", public_key: "", coinbase: "", witness: signP2wpkhInput(txCore, i, privHex, prevout) };
   });
 
   return { version: 1, locktime: 0, inputs, outputs, fee, change };

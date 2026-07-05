@@ -9,6 +9,7 @@ import { schnorr } from "@noble/curves/secp256k1";
 import {
   privToPub, p2wpkhAddress, p2wpkhScriptPubkey, sighashAll, signP2wpkhInput,
   xonlyFromPriv, p2trAddress, p2trScriptPubkey, signP2trInput,
+  legacyAddress, p2shSegwitAddress,
 } from "../src/netcoin.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -61,13 +62,9 @@ check("seed phrase -> private key", seedPriv, fx.seed.priv_hex);
 check("seed phrase -> p2wpkh address", walletFromPrivateKey(seedPriv).address, fx.seed.p2wpkh_address);
 check("seed phrase validates", verifySeedPhrase(fx.seed.phrase), true);
 check("addressToScriptPubkey round-trips", addressToScriptPubkey(fx.p2wpkh_address), fx.prevout_effective_script_pubkey);
-let legacyRejected = false;
-try {
-  addressToScriptPubkey(fx.legacy_address);
-} catch (e) {
-  legacyRejected = /net1/.test(e.message);
-}
-check("legacy send address explains browser limit", legacyRejected, true);
+// Legacy and P2SH base58 addresses are now first-class send targets.
+check("legacy address resolves to p2pkh script", addressToScriptPubkey(fx.legacy_address).startsWith("OP_DUP OP_HASH160 "), true);
+check("p2sh address resolves to p2sh script", addressToScriptPubkey(fx.p2sh_segwit_address).startsWith("OP_HASH160 "), true);
 
 let zeroFeeRejected = false;
 try {
@@ -96,3 +93,7 @@ const trPrev = { txid: "bb".repeat(32), vout: 0, amount: 400000000, address: fx.
 check("taproot sighash digest", Buffer.from(sighashAll(trTx, 0, trPrev)).toString("hex"), fx.taproot_sighash_digest_hex);
 const [trSigHex] = signP2trInput(trTx, 0, fx.priv_hex, trPrev);
 check("taproot BIP340 sig verifies", String(schnorr.verify(hexToBytes(trSigHex), sighashAll(trTx, 0, trPrev), hexToBytes(fx.taproot_xonly_hex))), "true");
+
+// 6. Legacy + nested-segwit address derivation matches Python base58check
+check("legacy address", legacyAddress(fx.pubkey_hex), fx.legacy_address);
+check("p2sh-segwit address", p2shSegwitAddress(fx.pubkey_hex), fx.p2sh_segwit_address);
