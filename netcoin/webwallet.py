@@ -16,7 +16,7 @@ import json
 import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
@@ -65,6 +65,20 @@ def _wallet_addresses(wallet: Wallet) -> Dict[str, str]:
     return {kind: wallet.address_for(kind) for kind in ADDRESS_TYPES}
 
 
+# Rough per-input weight estimates (weight units) for coin selection without
+# signing every trial. Conservative; the real weight is re-checked after signing.
+_INPUT_WEIGHT_ESTIMATE = {"segwit": 275, "taproot": 240, "legacy": 600, "p2sh-segwit": 370,
+                          "p2wpkh": 275, "p2tr": 240, "p2pkh": 600}
+_OUTPUT_WEIGHT_ESTIMATE = 140
+
+
+def _max_sendable_sats(by_value_desc, fee_sats: int) -> int:
+    """Largest amount sendable in one transaction right now: the sum of the
+    largest MAX_WALLET_SEND_INPUTS coins minus the fee (>=0)."""
+    top = by_value_desc[:MAX_WALLET_SEND_INPUTS]
+    return max(0, sum(s.output.amount for s in top) - fee_sats)
+
+
 def build_and_broadcast(
     wallet: Wallet,
     to_address: str,
@@ -100,37 +114,70 @@ def build_and_broadcast(
             f"need {(needed) / COIN:.8f} {TICKER}. Mining rewards must mature before spending."
         )
 
-    spendables.sort(key=lambda s: s.output.amount, reverse=True)
-    selected: List[SpendableOutput] = []
+    # Consolidating coin selection (Option A): cover the target largest-first,
+    # then top up with the smallest coins so every send also shrinks the UTXO
+    # set — defragmenting passively instead of letting the coin count grow.
+    by_value_desc = sorted(spendables, key=lambda s: s.output.amount, reverse=True)
+    core: List[SpendableOutput] = []
     total = 0
-    for utxo in spendables:
-        selected.append(utxo)
+    for utxo in by_value_desc:
+        core.append(utxo)
         total += utxo.output.amount
-        if len(selected) > MAX_WALLET_SEND_INPUTS:
-            raise ValueError(
-                f"transaction would need more than {MAX_WALLET_SEND_INPUTS} inputs. "
-                "Try a smaller send, wait for confirmations, or consolidate coins first."
-            )
         if total >= needed:
             break
     if total < needed:
         raise ValueError(f"insufficient balance: have {total / COIN:.8f}, need {needed / COIN:.8f} {TICKER}")
+    if len(core) > MAX_WALLET_SEND_INPUTS:
+        affordable = _max_sendable_sats(by_value_desc, fee_sats)
+        raise ValueError(
+            f"this send needs more than {MAX_WALLET_SEND_INPUTS} coins as inputs. "
+            f"You can send up to {affordable / COIN:.8f} {TICKER} right now; "
+            f"run `netcoin consolidate` (or send Max to yourself) to combine coins and send more."
+        )
+    extras = [u for u in sorted(spendables, key=lambda s: s.output.amount)
+              if u.outpoint() not in {c.outpoint() for c in core}]
 
-    inputs = [TxInput(txid=s.txid, vout=s.vout) for s in selected]
+    # Choose how many dust coins to add using a WEIGHT ESTIMATE (per-input
+    # weight is ~constant for a single-key wallet), signing only once at the end.
+    # Signing per trial would be O(N^2) — the very cost this release fixes.
+    per_input_weight = _INPUT_WEIGHT_ESTIMATE.get(from_type, 600)
+    overhead = 400 + 2 * _OUTPUT_WEIGHT_ESTIMATE  # version/locktime/counts + up to 2 outputs
+    max_by_weight = max(len(core), (MAX_WALLET_SEND_WEIGHT - overhead) // per_input_weight)
+    cap = min(MAX_WALLET_SEND_INPUTS, max_by_weight)
+    selected = list(core)
+    for extra in extras:
+        if len(selected) >= cap:
+            break
+        selected.append(extra)
+
+    sel_total = sum(s.output.amount for s in selected)
     outputs = [TxOutput(amount=amount_sats, address=to_address)]
-    change = total - needed
+    change = sel_total - needed
     if change > 0:
         outputs.append(TxOutput(amount=change, address=from_address))
-    tx = Transaction(inputs=inputs, outputs=outputs, locktime=0)
+    tx = Transaction(inputs=[TxInput(txid=s.txid, vout=s.vout) for s in selected], outputs=outputs, locktime=0)
     for index, utxo in enumerate(selected):
         tx.sign_input(index, wallet.private_key, utxo)
 
     weight = transaction_weight(tx)
     if weight > MAX_WALLET_SEND_WEIGHT:
-        raise ValueError(
-            f"transaction too large ({weight} weight units > {MAX_WALLET_SEND_WEIGHT}). "
-            "Try sending a smaller amount or use coin consolidation first."
-        )
+        # Estimate was optimistic: drop dust back to the minimal covering set.
+        selected = list(core)
+        sel_total = sum(s.output.amount for s in selected)
+        outputs = [TxOutput(amount=amount_sats, address=to_address)]
+        change = sel_total - needed
+        if change > 0:
+            outputs.append(TxOutput(amount=change, address=from_address))
+        tx = Transaction(inputs=[TxInput(txid=s.txid, vout=s.vout) for s in selected], outputs=outputs, locktime=0)
+        for index, utxo in enumerate(selected):
+            tx.sign_input(index, wallet.private_key, utxo)
+        weight = transaction_weight(tx)
+        if weight > MAX_WALLET_SEND_WEIGHT:
+            affordable = _max_sendable_sats(by_value_desc, fee_sats)
+            raise ValueError(
+                f"this send is too large to fit one transaction. You can send up to "
+                f"{affordable / COIN:.8f} {TICKER} right now; run `netcoin consolidate` to send more."
+            )
 
     response = _node_post(node_url, "/tx", tx.to_dict(), timeout=30)
     return {

@@ -15,6 +15,7 @@ import base64
 import binascii
 import hashlib
 import hmac
+import os
 import secrets
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -559,9 +560,45 @@ def ecdsa_sign(private_key: int, digest: bytes) -> bytes:
         return r.to_bytes(32, "big") + s.to_bytes(32, "big")
 
 
-def ecdsa_verify(public_key: bytes, digest: bytes, signature: bytes) -> bool:
-    if len(digest) != 32 or len(signature) != 64:
+# Optional libsecp256k1 (coincurve) fast-verify accelerator. Pure-Python ECDSA
+# verification costs ~13 ms per input, which freezes the single-process node on
+# large transactions. When NETCOIN_FAST_CRYPTO=1 and coincurve is importable,
+# ECDSA verification is delegated to libsecp256k1 (~1000x faster).
+#
+# SAFETY: this changes SPEED, never the accept/reject decision. The fast path
+# reproduces the pure-Python acceptance rules exactly — same r,s bounds, and it
+# normalizes s to low-s so the accept-set matches (pure-Python accepts a
+# signature iff it accepts its s <-> N-s twin; libsecp256k1 accepts only low-s).
+# tests/test_fast_crypto_differential.py fuzzes both against each other; because
+# they agree, a network of mixed fast/pure nodes cannot split on validity.
+def _fast_crypto_enabled() -> bool:
+    if os.environ.get("NETCOIN_FAST_CRYPTO", "0") != "1":
         return False
+    try:
+        import coincurve  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _ecdsa_verify_fast(public_key: bytes, digest: bytes, signature: bytes) -> bool:
+    r = int.from_bytes(signature[:32], "big")
+    s = int.from_bytes(signature[32:], "big")
+    if not (1 <= r < N and 1 <= s < N):
+        return False
+    s_low = s if s <= N // 2 else N - s  # match pure-Python (accepts s and N-s alike)
+    try:
+        import coincurve.ecdsa as _ce
+        from coincurve import PublicKey as _PublicKey
+
+        compact = signature[:32] + s_low.to_bytes(32, "big")
+        der = _ce.cdata_to_der(_ce.deserialize_compact(compact))
+        return bool(_PublicKey(public_key).verify(der, digest, hasher=None))
+    except Exception:
+        return False
+
+
+def _ecdsa_verify_pure(public_key: bytes, digest: bytes, signature: bytes) -> bool:
     try:
         point = decode_public_key(public_key)
     except ValueError:
@@ -581,6 +618,14 @@ def ecdsa_verify(public_key: bytes, digest: bytes, signature: bytes) -> bool:
     if check is None:
         return False
     return check[0] % N == r
+
+
+def ecdsa_verify(public_key: bytes, digest: bytes, signature: bytes) -> bool:
+    if len(digest) != 32 or len(signature) != 64:
+        return False
+    if _fast_crypto_enabled():
+        return _ecdsa_verify_fast(public_key, digest, signature)
+    return _ecdsa_verify_pure(public_key, digest, signature)
 
 
 # ---------------------------------------------------------------------------

@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
 from .apps import AppError, AppStore, route_app_get, route_app_post
+from .crypto import _fast_crypto_enabled
 from .block import Block
 from .chain import Blockchain
 from .compact import CompactBlock, CompactBlockError, compact_missing_payload, make_compact_block, missing_transactions, reconstruct_compact_block
@@ -407,6 +408,7 @@ class NetCoinNode:
                 "uptime_seconds": self.uptime_seconds(),
                 "target_spacing_seconds": target_spacing_at(self.chain.height() + 1),
                 "spacing_v2_activation_height": SPACING_V2_ACTIVATION_HEIGHT,
+                "fast_crypto": _fast_crypto_enabled(),
                 "peers": sorted(self.peers),
                 "banned": len(self.banned),
                 "orphans": len(self.orphans),

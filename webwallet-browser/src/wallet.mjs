@@ -124,17 +124,31 @@ export function addressToScriptPubkey(address) {
   } catch { fail(); }
 }
 
-// Largest-first coin selection. utxos: [{txid,vout,amount,(script_pubkey)}].
-export function selectCoins(utxos, target) {
-  const sorted = [...utxos].sort((a, b) => b.amount - a.amount);
-  const chosen = [];
+// Consolidating coin selection: cover the target largest-first, then sweep in
+// the smallest coins up to maxInputs so every send also shrinks the UTXO set.
+// utxos: [{txid,vout,amount,(script_pubkey)}].
+export function selectCoins(utxos, target, maxInputs = 200) {
+  const desc = [...utxos].sort((a, b) => b.amount - a.amount);
+  const core = [];
   let total = 0;
-  for (const u of sorted) {
-    chosen.push(u);
+  for (const u of desc) {
+    core.push(u);
     total += u.amount;
-    if (total >= target) return { chosen, total };
+    if (total >= target) break;
   }
-  throw new Error(`insufficient funds: have ${total}, need ${target}`);
+  if (total < target) throw new Error(`insufficient funds: have ${total}, need ${target}`);
+  if (core.length > maxInputs) {
+    const affordable = desc.slice(0, maxInputs).reduce((s, u) => s + u.amount, 0);
+    throw new Error(`this send needs more than ${maxInputs} coins; you can send up to ${affordable} sats now — consolidate (send Max to yourself) to send more`);
+  }
+  const coreOps = new Set(core.map((u) => u.txid + ":" + u.vout));
+  const chosen = [...core];
+  for (const u of [...utxos].sort((a, b) => a.amount - b.amount)) {
+    if (chosen.length >= maxInputs) break;
+    if (coreOps.has(u.txid + ":" + u.vout)) continue;
+    chosen.push(u); total += u.amount;
+  }
+  return { chosen, total };
 }
 
 const DUST = 546;
