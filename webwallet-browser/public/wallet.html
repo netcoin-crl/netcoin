@@ -276,6 +276,12 @@ body{letter-spacing:-.01em}
           <section class="overview-panel address-panel">
             <div class="muted">Your address</div>
             <div class="mono overview-address" id="addr"></div>
+            <label for="addrTypeSel">Address type</label>
+            <select id="addrTypeSel" aria-label="Address type">
+              <option value="segwit">SegWit — recommended default</option>
+              <option value="taproot">Taproot — modern, Schnorr-based</option>
+            </select>
+            <p class="muted">Both types come from the same recovery phrase. Coins sent to either address belong to this wallet; switch types to see and spend each balance.</p>
             <div class="row overview-actions">
               <button id="btnCopy" class="secondary">Copy address</button>
               <button id="btnRefresh" class="secondary">Refresh</button>
@@ -339,7 +345,7 @@ body{letter-spacing:-.01em}
         </div>
         <button id="btnDeleteContact" class="secondary" type="button">Delete selected contact</button>
         <p class="muted" id="contactMsg">Contacts are saved only in this browser.</p>
-        <p class="muted">Browser wallet sends to net1... SegWit addresses only. Use the CLI or local wallet for legacy, P2SH, or Taproot sends.</p>
+        <p class="muted">Browser wallet sends to SegWit (net1q...) and Taproot (net1p...) addresses. Use the CLI for legacy or P2SH sends.</p>
         <label>Amount (NET)</label>
         <div class="row">
           <input id="amount" inputmode="decimal" placeholder="0.0" />
@@ -464,6 +470,6 @@ body{letter-spacing:-.01em}
   </div>
 
   <script src="netcoin-wallet.js"></script>
-  <script src="wallet-app.js?v=20260704-tokens-auth"></script>
+  <script src="wallet-app.js?v=20260704-taproot"></script>
 </body>
 </html>

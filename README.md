@@ -73,6 +73,25 @@ curl -s -X POST https://api.netcoin.online/api/keys/register -H 'Content-Type: a
 | Node API port | 28444 (HTTP JSON) |
 | Write auth | free self-service developer keys (`POST /api/keys/register`) |
 
+## Sending large amounts (and the `consolidate` command)
+
+Mining pays 50 NET per block, so a big balance is really hundreds of small
+coins. A single send may use at most **120 inputs / 180k weight** (protects
+public nodes), so very large sends can fail with *"too many inputs"*. The fix
+is one command — sweep your small coins into one, then send normally:
+
+```bash
+python -m netcoin consolidate --node http://18.220.89.128/api --wallet my-wallet.json
+```
+
+Run it again after a confirmation if you have thousands of coins. In the
+hosted browser wallet, sending **Max to your own address** does the same thing.
+
+**Address types:** new wallets default to **SegWit** (`net1q…`) everywhere —
+lowest fees, best support. **Taproot** (`net1p…`) is available in the CLI and
+the hosted wallet (Address type selector). Legacy and P2SH-SegWit remain
+spendable for existing coins but are no longer defaults.
+
 ## Public Testnet Apps
 
 Use the hosted public-testnet apps here:

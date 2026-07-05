@@ -26,7 +26,8 @@ from .serialization import transaction_weight
 from .tx import SpendableOutput, Transaction, TxInput, TxOutput, amount_to_sats
 from .wallet import Wallet
 
-ADDRESS_TYPES = ["legacy", "segwit", "taproot", "p2sh-segwit"]
+# SegWit first and default; legacy/p2sh-segwit kept only so existing coins stay spendable.
+ADDRESS_TYPES = ["segwit", "taproot", "legacy", "p2sh-segwit"]
 
 
 # --------------------------------------------------------------------------- #
@@ -143,6 +144,65 @@ def build_and_broadcast(
     }
 
 
+def consolidate_coins(
+    wallet: Wallet,
+    from_type: str,
+    node_url: str,
+    fee_sats: int = 10_000,
+    max_inputs: int = MAX_WALLET_SEND_INPUTS,
+) -> Dict[str, Any]:
+    """Sweep many small UTXOs into one output back to the same address.
+
+    Mining pays 50 NET per block, so a large balance is often hundreds of small
+    coins; a big send then needs more inputs than the wallet/node policy allows
+    (MAX_WALLET_SEND_INPUTS / MAX_WALLET_SEND_WEIGHT). Consolidation spends up
+    to `max_inputs` coins per transaction back to yourself, in as many batches
+    as needed. Batch outputs are unconfirmed until mined, so run it again after
+    a confirmation if you want to converge further.
+    """
+    from_address = wallet.address_for(from_type)
+    info = _node_get(node_url, "/info").get("node", {})
+    tip_height = int(info.get("height", 0))
+    data = _node_get(node_url, f"/utxos?address={from_address}")
+    spendables = [SpendableOutput.from_dict(item) for item in data.get("utxos", [])]
+    spendables = [s for s in spendables if not s.coinbase or (tip_height - s.height) >= COINBASE_MATURITY]
+    spendables.sort(key=lambda s: s.output.amount)  # sweep the dust first
+    if len(spendables) < 2:
+        return {"batches": [], "note": "nothing to consolidate: fewer than two spendable coins", "utxos": len(spendables)}
+
+    max_inputs = max(2, min(max_inputs, MAX_WALLET_SEND_INPUTS))
+    batches: List[Dict[str, Any]] = []
+    position = 0
+    while position + 1 < len(spendables):
+        size = min(max_inputs, len(spendables) - position)
+        while size >= 2:
+            batch = spendables[position:position + size]
+            total = sum(s.output.amount for s in batch)
+            if total <= fee_sats:
+                return {"batches": batches, "note": "remaining coins are smaller than the fee; stopping", "utxos_left": len(spendables) - position}
+            tx = Transaction(
+                inputs=[TxInput(txid=s.txid, vout=s.vout) for s in batch],
+                outputs=[TxOutput(amount=total - fee_sats, address=from_address)],
+                locktime=0,
+            )
+            for index, utxo in enumerate(batch):
+                tx.sign_input(index, wallet.private_key, utxo)
+            if transaction_weight(tx) <= MAX_WALLET_SEND_WEIGHT:
+                response = _node_post(node_url, "/tx", tx.to_dict(), timeout=30)
+                batches.append({
+                    "txid": response.get("txid") or tx.txid(),
+                    "inputs": len(batch),
+                    "consolidated": (total - fee_sats) / COIN,
+                    "fee": fee_sats / COIN,
+                })
+                position += size
+                break
+            size //= 2  # too heavy: halve the batch and retry
+        else:
+            break
+    return {"address": from_address, "batches": batches, "transactions": len(batches), "utxos_left_unbatched": max(0, len(spendables) - position)}
+
+
 # --------------------------------------------------------------------------- #
 # Single-page UI
 # --------------------------------------------------------------------------- #
@@ -214,7 +274,7 @@ PAGE = """<!doctype html>
    <h2>Balance</h2>
    <div class="big" id="balSpendable">—</div>
    <div class="muted" id="balDetail"></div>
-   <label>Address (<span id="addrType">legacy</span>)</label>
+   <label>Address (<span id="addrType">segwit</span>)</label>
    <div class="mono" id="addr"></div>
    <div class="row" style="margin-top:8px">
      <button class="ghost" onclick="copyAddr()">Copy address</button>
@@ -271,7 +331,7 @@ PAGE = """<!doctype html>
  </section>
 </div>
 	<script>
-	let CFG={}, ADDRS={}, curType="legacy", BAL={};
+	let CFG={}, ADDRS={}, curType="segwit", BAL={};
 	const $=s=>document.querySelector(s);
 	const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 	const jsq=s=>JSON.stringify(String(s??''));
@@ -296,7 +356,7 @@ function showWallet(w){ADDRS=w.addresses;const sel=$('#typeSel');sel.innerHTML='
   $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');$('#historyCard').classList.remove('hide');
 	  if(w.mnemonic){$('#mnemonicBox').innerHTML='<div class="warn"><b>Recovery phrase (shown once):</b><div class="mono">'+esc(w.mnemonic)+'</div>Write it down. <a href="data:application/json,'+encodeURIComponent(JSON.stringify(w.wallet_file))+'" download="wallet.json">Download wallet.json</a></div>';}
 	  switchType();}
-function switchType(){curType=$('#typeSel').value||'legacy';$('#addrType').textContent=curType;
+function switchType(){curType=$('#typeSel').value||'segwit';$('#addrType').textContent=curType;
   $('#addr').textContent=ADDRS[curType];$('#faucetAddr').textContent=ADDRS[curType];
 	  const faucet=safeUrl(CFG.faucet);
 	  $('#faucetLink').innerHTML=faucet?'<a class="act" style="display:inline-block;text-decoration:none" href="'+esc(faucet)+'" target="_blank" rel="noopener noreferrer">Open faucet ↗</a> <span class="muted">paste the address above</span>':'<span class="muted">No faucet configured.</span>';
@@ -414,7 +474,7 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     self._send({"node": node_url, "faucet": faucet_url, "network": NETWORK_NAME, "ticker": TICKER, "version": NODE_VERSION})
                 elif parsed.path == "/api/wallet/current":
                     w = state["wallet"]
-                    self._send({"address": w.address_for("legacy"), "addresses": _wallet_addresses(w)} if w else {"address": None})
+                    self._send({"address": w.address_for("segwit"), "addresses": _wallet_addresses(w)} if w else {"address": None})
                 elif parsed.path == "/api/balance":
                     address = parse_qs(parsed.query).get("address", [""])[0]
                     self._send(_node_get(node_url, f"/balance/{address}"))
@@ -454,7 +514,7 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     wallet, mnemonic = Wallet.create_with_mnemonic()
                     state["wallet"] = wallet
                     self._send({
-                        "address": wallet.address_for("legacy"),
+                        "address": wallet.address_for("segwit"),
                         "addresses": _wallet_addresses(wallet),
                         "mnemonic": mnemonic,
                         "wallet_file": wallet.to_dict(passphrase=None),
@@ -463,12 +523,12 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     body = self._read()
                     wallet = self._load_wallet(body.get("json", ""), body.get("passphrase") or None)
                     state["wallet"] = wallet
-                    self._send({"address": wallet.address_for("legacy"), "addresses": _wallet_addresses(wallet)})
+                    self._send({"address": wallet.address_for("segwit"), "addresses": _wallet_addresses(wallet)})
                 elif parsed.path == "/api/wallet/private-key":
                     body = self._read()
                     wallet = self._load_private_key(body.get("private_key_hex", ""))
                     state["wallet"] = wallet
-                    self._send({"address": wallet.address_for("legacy"), "addresses": _wallet_addresses(wallet)})
+                    self._send({"address": wallet.address_for("segwit"), "addresses": _wallet_addresses(wallet)})
                 elif parsed.path == "/api/wallet/send":
                     self._send(self._send_tx(self._read()))
                 else:
@@ -512,7 +572,7 @@ def make_handler(node_url: str, faucet_url: str = ""):
                 raise ValueError("destination address required")
             amount_sats = amount_to_sats(str(body.get("amount", "")))
             fee_sats = amount_to_sats(str(body.get("fee", "0") or "0"))
-            from_type = str(body.get("from_type") or "legacy")
+            from_type = str(body.get("from_type") or "segwit")
             return build_and_broadcast(wallet, to, amount_sats, fee_sats, from_type, node_url)
 
         def _search(self, query: str) -> Dict[str, Any]:

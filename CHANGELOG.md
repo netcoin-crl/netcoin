@@ -11,6 +11,29 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-07-04 — SegWit by default, browser Taproot, coin consolidation
+
+### Changed (defaults — no consensus change)
+- **SegWit (`net1q…`) is the default address type everywhere**: all CLI
+  `--address-type`/`--from-type` defaults moved from `p2pkh` to `p2wpkh`, and
+  the local web wallet now defaults to the SegWit view (was legacy). Legacy and
+  P2SH-SegWit remain fully spendable for existing coins but are
+  compatibility-only, listed last.
+
+### Added
+- **`netcoin consolidate`** — sweeps many small coins into one (batches of up
+  to 120 inputs, weight-checked, via any node's API) so large sends stop
+  failing with "too many inputs". Plus a README section explaining the
+  120-input/180k-weight wallet-send policy.
+- **Browser-wallet Taproot**: the hosted wallet gains an Address-type selector
+  (SegWit default / Taproot). Key-path P2TR receive **and spend** in JS
+  (BIP340 schnorr via @noble, bech32m `net1p…`), crosschecked byte-for-byte
+  against Python fixtures (address/scriptPubkey/sighash) and proven end-to-end:
+  a fully JS-signed taproot spend is accepted by the node's own validation.
+  Sends now accept both `net1q…` and `net1p…` recipients.
+- `tools/gen_fixtures.py` now emits the taproot and seed-phrase fixtures
+  (previously the seed block was hand-maintained in fixtures.json).
+
 ## [0.10.1] - 2026-07-04 — spacing v2 activation moved up to height 5,010; README overhaul
 
 ### Changed (consensus — activation height only; chain NOT reset)
