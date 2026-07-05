@@ -851,24 +851,36 @@ def cmd_miner(args: argparse.Namespace) -> None:
     timeout = max(5, int(getattr(args, "timeout", 45)))
     warn_if_node_incompatible(node, need_service="block-template")
     mined = []
-    for _ in range(args.blocks):
-        query = urlencode({"address": payout})
-        template = get_json(f"{node}/blocktemplate?{query}", timeout=timeout)
-        block = solve_template(template, payout)
-        if args.save_blocks:
-            out_dir = Path(args.save_blocks)
-            out_dir.mkdir(parents=True, exist_ok=True)
-            (out_dir / f"block-{block.header.height}-{block.hash()}.json").write_text(
-                json.dumps(block.to_dict(), indent=2, sort_keys=True)
-            )
-        response = post_json(f"{node}/submitblock", block.to_dict(), timeout=timeout)
-        mined.append({"block": block_summary(block), "response": response})
-        if args.sync_after:
-            try:
-                post_json(f"{node}/sync", {}, timeout=timeout)
-            except Exception:
-                pass
-    print_json({"ok": True, "node": node, "payout_address": payout, "mined": mined})
+    unlimited = args.blocks <= 0
+    target = None if unlimited else args.blocks
+    count = 0
+    try:
+        while target is None or count < target:
+            query = urlencode({"address": payout})
+            template = get_json(f"{node}/blocktemplate?{query}", timeout=timeout)
+            block = solve_template(template, payout)
+            if args.save_blocks:
+                out_dir = Path(args.save_blocks)
+                out_dir.mkdir(parents=True, exist_ok=True)
+                (out_dir / f"block-{block.header.height}-{block.hash()}.json").write_text(
+                    json.dumps(block.to_dict(), indent=2, sort_keys=True)
+                )
+            response = post_json(f"{node}/submitblock", block.to_dict(), timeout=timeout)
+            record = {"block": block_summary(block), "response": response}
+            mined.append(record)
+            count += 1
+            if unlimited:
+                print_json({"ok": True, "node": node, "payout_address": payout, "mined": [record], "count": count, "running": True})
+                sys.stdout.flush()
+            if args.sync_after:
+                try:
+                    post_json(f"{node}/sync", {}, timeout=timeout)
+                except Exception:
+                    pass
+    except KeyboardInterrupt:
+        print_json({"ok": True, "node": node, "payout_address": payout, "mined": mined, "count": count, "stopped": "keyboard_interrupt"})
+        return
+    print_json({"ok": True, "node": node, "payout_address": payout, "mined": mined, "count": count})
 
 
 def cmd_rawtx(args: argparse.Namespace) -> None:
@@ -1184,7 +1196,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--wallet")
     p.add_argument("--address")
     p.add_argument("--address-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
-    p.add_argument("--blocks", type=int, default=1)
+    p.add_argument("--blocks", type=int, default=1, help="blocks to mine; use 0 to mine until stopped with Ctrl-C")
     p.add_argument("--passphrase")
     p.set_defaults(func=cmd_mine)
 

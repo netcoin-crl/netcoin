@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 import pytest
 
 from netcoin.chain import Blockchain
+from netcoin.crypto import crypto_backend_status
 from netcoin.miner import solve_template
 from netcoin.node import NetCoinNode, RateLimiter, client_ip_from_headers, make_handler
 from netcoin.tx import amount_to_sats
@@ -47,6 +48,15 @@ def test_rate_limiter_unit():
     assert rl.allow("k") is False
     assert rl.allow("other") is True  # different key independent
     assert RateLimiter(max_requests=0).allow("k") is True  # 0 = disabled
+
+
+def test_crypto_backend_status_is_public_operator_metadata(tmp_path: Path):
+    node = NetCoinNode(Blockchain(tmp_path / "chain"), persist=False)
+    info = node.info()
+    status = crypto_backend_status()
+    assert info["crypto_backend"]["ecdsa_verify"] in ("pure-python", "libsecp256k1/coincurve")
+    assert info["crypto_backend"]["fast_crypto_enabled"] == info["fast_crypto"]
+    assert status["schnorr"] == "pure-python-bip340-style"
 
 
 def test_client_ip_ignores_forwarded_header_unless_trusted():

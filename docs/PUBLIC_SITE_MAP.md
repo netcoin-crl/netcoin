@@ -6,12 +6,13 @@ This document lists the public NetCoin sites and the intended purpose of each on
 
 | Site | Purpose |
 |---|---|
+| `netcoin.online` / `www.netcoin.online` | Start hub merging the simple wallet/pay/community basics plus download, faucet, explorer, and safety links. |
 | `wallet.netcoin.online` | Non-custodial browser wallet. |
 | `explorer.netcoin.online` | Chain lookup, latest blocks/transactions, and network health summary. |
-| `pay.netcoin.online` | Customer checkout and payment request pages. |
+| `pay.netcoin.online` | Focused customer checkout, payment request, invoice, and receipt pages; basic payment guidance links back to Start. |
 | `merchant.netcoin.online` | Merchant invoices, POS, refunds, API keys, webhooks, and reports. |
 | `faucet.netcoin.online` | Public-testnet faucet. |
-| `community.netcoin.online` | Public discussion, improvement ideas, bounties, and leaderboards. |
+| `community.netcoin.online` | Deeper public discussion, improvement ideas, bounties, and leaderboards; basic community guidance links back to Start. |
 | `markets.netcoin.online` | Testnet-only prediction-market demos and Phase 7 experiments. |
 | `nodes.netcoin.online` | Network hub: public seeds, status, peers, mining, and node-operator onboarding. |
 | `status.netcoin.online` | Companion/legacy status link that points users to the Network hub. |
@@ -29,7 +30,9 @@ Operators who host all public sites on one Nginx server can route by hostname us
 
 ```nginx
 map $host $netcoin_site_root {
-    default                  /opt/netcoin/sites/explorer;
+    default                  /opt/netcoin/sites/www;
+    netcoin.online           /opt/netcoin/sites/www;
+    www.netcoin.online       /opt/netcoin/sites/www;
     wallet.netcoin.online    /opt/netcoin/sites/wallet;
     explorer.netcoin.online  /opt/netcoin/sites/explorer;
     pay.netcoin.online       /opt/netcoin/sites/pay;

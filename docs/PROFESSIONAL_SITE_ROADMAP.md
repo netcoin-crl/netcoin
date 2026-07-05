@@ -4,6 +4,9 @@ This roadmap tracks the professional public information architecture and trust u
 
 ## Site grouping
 
+- Start (`netcoin.online`) merges the simple/community/pay basics into one beginner hub.
+- Pay remains focused on payment requests, invoices, and receipts.
+- Community remains focused on discussion, ideas, bounties, and contributor coordination.
 - Learn includes Download and install instructions.
 - Governance includes Treasury transparency and NIP-style proposals.
 - Network includes Nodes, Status, public seeds, mining, versions, and health checks.
@@ -13,7 +16,7 @@ This roadmap tracks the professional public information architecture and trust u
 
 ## Site-wide modes
 
-- Simple: Wallet, Pay, Explorer, Faucet, Learn, Community.
+- Simple: Start, Wallet, Explorer, Faucet, Learn.
 - Merchant: Pay, Merchant, Reports, API, Security.
 - Developer: Developers, API, Explorer, Download, Security.
 - Node Operator: Network, Explorer, Learn, Security, Governance.

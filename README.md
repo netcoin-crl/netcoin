@@ -112,12 +112,13 @@ Use the hosted public-testnet apps here:
 
 | App | Link | Purpose |
 | --- | --- | --- |
+| Start | <https://netcoin.online> | The beginner hub that merges wallet/pay/community basics plus download, faucet, explorer, and safety links. |
 | Wallet | <https://wallet.netcoin.online> | Create, restore, import private keys, receive, send, contacts, backups, and wallet tools. |
 | Explorer | <https://explorer.netcoin.online> | Chain lookup, latest blocks, latest transactions, and network health. |
-| Pay | <https://pay.netcoin.online> | Customer checkout, payment requests, invoices, and receipts. |
+| Pay | <https://pay.netcoin.online> | Focused checkout, payment requests, invoices, and receipts. |
 | Merchant | <https://merchant.netcoin.online> | Business dashboard, POS, invoices, refunds, API keys, webhooks, exports, agreements, and reports. |
 | Faucet | <https://faucet.netcoin.online> | Request public-testnet NET. |
-| Community | <https://community.netcoin.online> | Public discussion, improvement ideas, campaigns, bounties, gifts, and leaderboards. |
+| Community | <https://community.netcoin.online> | Deeper discussion, improvement ideas, campaigns, bounties, gifts, and leaderboards. |
 | Governance | <https://governance.netcoin.online> | Proposal board and community voting for improvement ideas. |
 | Treasury | <https://treasury.netcoin.online> | Read-only transparency page for project-fund records if a treasury exists. |
 | Markets | <https://markets.netcoin.online> | Phase 7 prediction-market demos and market experiments. |
@@ -378,14 +379,14 @@ The wallet also supports importing a single private key as an encrypted profile 
 
 NetCoin uses a mode-based public ecosystem so new users are not overwhelmed and advanced users can still find deeper tools.
 
-- **Simple mode:** Wallet, Pay, Explorer, Faucet, Learn, and Community basics.
+- **Simple mode:** Start, Wallet, Explorer, Faucet, and Learn.
 - **Merchant mode:** Merchant dashboard, invoices, POS, reports, API keys, and webhooks.
 - **Developer mode:** API docs, SDK examples, explorer APIs, downloads, and release verification.
 - **Node Operator mode:** Network health, public seeds, status, mining, and public-seed guides.
 - **Community mode:** Discussion, ideas, bounties, governance, roadmap, and treasury transparency.
 - **Advanced / Labs mode:** Experimental markets, polls, and contract-template demos.
 
-The public navigation is intentionally grouped: Learn includes Download, Governance includes Treasury, Nodes/Status live under Network, API docs live under the developer hub, and Markets are labeled as Labs/demo features.
+The public navigation is intentionally grouped: Start merges basic Pay and Community flows, Learn includes Download, Governance includes Treasury, Nodes/Status live under Network, API docs live under the developer hub, and Markets are labeled as Labs/demo features.
 
 ## Professional/security roadmap now included
 
@@ -396,11 +397,12 @@ The site package includes a Trust Center, Network hub, Developer hub, release-ve
 
 NetCoin now uses a mode-aware public ecosystem so new users see a simple path and curious users can explore deeper tools without every page becoming crowded.
 
+- **Start** — beginner path for wallet, faucet, simple payment links, community basics, explorer, download, and safety.
 - **Wallet** — create, restore, import private keys, send, receive, contacts, and session unlock.
-- **Pay** — customer checkout, payment requests, QR/payment links, and receipts.
+- **Pay** — focused customer checkout, payment requests, QR/payment links, and receipts.
 - **Explorer** — chain lookup only: blocks, transactions, addresses, fees, mempool summary, and network snapshot.
 - **Merchant** — invoices, POS checkout, refunds, reports, API keys, webhooks, recurring payments, and escrow-style business workflows.
-- **Community** — discussion, improvement ideas, bounties, roadmap participation, and safety guidelines.
+- **Community** — deeper discussion, improvement ideas, bounties, roadmap participation, and safety guidelines.
 - **Learn** — beginner education plus download/install/run instructions for macOS, Windows, and Linux.
 - **Network** — nodes, public seeds, status, mining, uptime, versions, and seed-operator guidance.
 - **Developers** — API docs, SDKs, webhook examples, local development, and integration notes.
