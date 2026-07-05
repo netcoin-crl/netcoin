@@ -9,9 +9,12 @@ import { secp256k1, schnorr } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
-import { bech32, bech32m } from "@scure/base";
+import { bech32, bech32m, createBase58check } from "@scure/base";
 
 export const HRP = "net";
+export const P2PKH_VERSION = 0x35;
+export const P2SH_VERSION = 0x75;
+export const b58check = createBase58check(sha256);
 
 export const doubleSha256 = (b) => sha256(sha256(b));
 export const hash160 = (b) => ripemd160(sha256(b));
@@ -30,6 +33,37 @@ export function p2wpkhAddress(pubHex) {
 // effective_script_pubkey for a P2WPKH output: "OP_0 <hash160hex>".
 export function p2wpkhScriptPubkey(pubHex) {
   return "OP_0 " + bytesToHex(hash160(hexToBytes(pubHex)));
+}
+
+// ---- Legacy p2pkh + nested P2SH-SegWit (compatibility: existing coins) ----
+export function legacyAddress(pubHex) {
+  const payload = new Uint8Array(21);
+  payload[0] = P2PKH_VERSION;
+  payload.set(hash160(hexToBytes(pubHex)), 1);
+  return b58check.encode(payload);
+}
+
+export function p2pkhScriptPubkey(pubHex) {
+  return `OP_DUP OP_HASH160 ${bytesToHex(hash160(hexToBytes(pubHex)))} OP_EQUALVERIFY OP_CHECKSIG`;
+}
+
+// NetCoin scripts are text; the P2SH redeem script for nested segwit is the
+// literal string "OP_0 <hash160hex>", hashed as UTF-8 bytes.
+export function p2wpkhRedeemScript(pubHex) {
+  return "OP_0 " + bytesToHex(hash160(hexToBytes(pubHex)));
+}
+
+export function p2shSegwitAddress(pubHex) {
+  const redeemHash = hash160(new TextEncoder().encode(p2wpkhRedeemScript(pubHex)));
+  const payload = new Uint8Array(21);
+  payload[0] = P2SH_VERSION;
+  payload.set(redeemHash, 1);
+  return b58check.encode(payload);
+}
+
+export function p2shScriptPubkey(pubHex) {
+  const redeemHash = hash160(new TextEncoder().encode(p2wpkhRedeemScript(pubHex)));
+  return `OP_HASH160 ${bytesToHex(redeemHash)} OP_EQUAL`;
 }
 
 // ---- Taproot (key-path, BIP340) ----
@@ -111,6 +145,24 @@ export function signP2wpkhInput(tx, inputIndex, privHex, prevout) {
   const digest = sighashAll(tx, inputIndex, prevout);
   const sig = secp256k1.sign(digest, hexToBytes(privHex)); // low-s + RFC6979 by default
   return [bytesToHex(sig.toCompactRawBytes()), pubHex];
+}
+
+// Sign a legacy p2pkh input: signature/public_key travel as fields (plus
+// script_sig = "<sig> <pub>"), no witness.
+export function signP2pkhInput(tx, inputIndex, privHex, prevout) {
+  const pubHex = privToPub(privHex, true);
+  const digest = sighashAll(tx, inputIndex, prevout);
+  const sig = bytesToHex(secp256k1.sign(digest, hexToBytes(privHex)).toCompactRawBytes());
+  return { signature: sig, public_key: pubHex, script_sig: `${sig} ${pubHex}` };
+}
+
+// Sign a nested P2SH-SegWit input: scriptSig reveals the redeem script,
+// signature+pubkey go in the witness (same digest as everything else).
+export function signP2shSegwitInput(tx, inputIndex, privHex, prevout) {
+  const pubHex = privToPub(privHex, true);
+  const digest = sighashAll(tx, inputIndex, prevout);
+  const sig = bytesToHex(secp256k1.sign(digest, hexToBytes(privHex)).toCompactRawBytes());
+  return { script_sig: p2wpkhRedeemScript(pubHex), witness: [sig, pubHex] };
 }
 
 // Sign a key-path P2TR input. Witness is [sigHex] only (BIP340 schnorr, 64

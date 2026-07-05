@@ -41,6 +41,7 @@ seed_pub = crypto.private_key_to_public_key(seed_priv, compressed=True)
 print(json.dumps({
     "priv_hex": f"{priv:064x}",
     "taproot_address": taproot_addr,
+    "p2sh_segwit_address": crypto.script_hash_to_p2sh_address(crypto.hash160(f"OP_0 {crypto.hash160(pub).hex()}".encode())),
     "taproot_xonly_hex": crypto.private_key_to_xonly_public_key(priv).hex(),
     "taproot_prevout_script_pubkey": tr_prev.output.effective_script_pubkey(),
     "taproot_sighash_digest_hex": tr_digest.hex(),

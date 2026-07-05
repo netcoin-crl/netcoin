@@ -22,10 +22,27 @@
   let nodeSpacingSeconds = 120; // refreshed from /info; spacing v2 reports 300
   function walletAddressType() {
     const t = localStorage.getItem(ADDR_TYPE_STORE);
-    return t === "taproot" ? "taproot" : "segwit";
+    return ["taproot", "legacy", "p2sh-segwit"].includes(t) ? t : "segwit";
+  }
+  async function annotateAddressTypeBalances() {
+    // "All addresses are available if the wallet has them": show each type's
+    // live balance in the selector so funds on any era of this key are visible.
+    const sel = $("addrTypeSel");
+    if (!sel || !state) return;
+    const labels = { segwit: "SegWit — recommended default", taproot: "Taproot — modern, Schnorr-based", legacy: "Legacy — compatibility", "p2sh-segwit": "P2SH-SegWit — compatibility" };
+    const addrs = W.allWalletAddresses(state.privHex);
+    for (const opt of sel.options) {
+      const type = opt.value;
+      if (!addrs[type]) continue;
+      try {
+        const b = await api("/balance/" + encodeURIComponent(addrs[type]));
+        const total = (b.total_sats ?? 0) / COIN;
+        opt.textContent = labels[type] + (total > 0 ? ` · ${total.toLocaleString(undefined, { maximumFractionDigits: 8 })} NET` : "");
+      } catch { /* offline: keep plain labels */ }
+    }
   }
   function setWalletAddressType(t) {
-    localStorage.setItem(ADDR_TYPE_STORE, t === "taproot" ? "taproot" : "segwit");
+    localStorage.setItem(ADDR_TYPE_STORE, ["taproot", "legacy", "p2sh-segwit"].includes(t) ? t : "segwit");
     if (state) {
       const w = W.walletFromPrivateKey(state.privHex, walletAddressType());
       state.address = w.address;
@@ -1241,6 +1258,7 @@
       }
       $("balImmature").textContent = maturing;
       setWalletStatus("Online · balance refreshed " + new Date().toLocaleTimeString(), true);
+      annotateAddressTypeBalances();
       updateFeeHint();
       loadHistory();
       loadUtxos();
