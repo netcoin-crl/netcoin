@@ -22,6 +22,7 @@ SERVICE="${NETCOIN_SERVICE:-netcoin-node.service}"
 PORT="${NETCOIN_PORT:-28444}"
 DEPLOY_PYTHON="${NETCOIN_DEPLOY_PYTHON:-3.13}"
 ENABLE_FAST_CRYPTO="${NETCOIN_ENABLE_FAST_CRYPTO:-1}"
+UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-$PREFIX/uv-python}"
 SOURCE=""
 ZIP=""
 
@@ -53,10 +54,13 @@ ensure_uv() {
 install_venv() {
   echo "==> Reinstalling venv with Python $DEPLOY_PYTHON"
   ensure_uv
+  mkdir -p "$UV_PYTHON_INSTALL_DIR"
+  export UV_PYTHON_INSTALL_DIR
   rm -rf "$VENV"
   uv python install "$DEPLOY_PYTHON"
   uv venv --python "$DEPLOY_PYTHON" "$VENV"
   uv pip install --python "$VENV/bin/python" -q -e "$SRC_DIR[test,fast]"
+  chmod -R a+rX "$UV_PYTHON_INSTALL_DIR" "$VENV"
 }
 
 configure_fast_crypto() {
