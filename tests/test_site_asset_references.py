@@ -42,13 +42,13 @@ def test_markets_site_loads_real_markets_app_not_missing_labs_script():
 def test_shared_site_shell_wrappers_have_existing_targets():
     assert (SITES / "shared" / "site-shell.css").exists()
     assert (SITES / "shared" / "site-shell.js").exists()
+    shared_css = (SITES / "shared" / "site-shell.css").read_text()
+    shared_js = (SITES / "shared" / "site-shell.js").read_text()
     for wrapper in sorted(SITES.glob("*/site-shell.css")):
         if wrapper.parent.name == "shared":
             continue
-        text = wrapper.read_text()
-        assert "../shared/site-shell.css" in text
+        assert wrapper.read_text() == shared_css
     for wrapper in sorted(SITES.glob("*/site-shell.js")):
         if wrapper.parent.name == "shared":
             continue
-        text = wrapper.read_text()
-        assert "../shared/site-shell.js" in text
+        assert wrapper.read_text() == shared_js
