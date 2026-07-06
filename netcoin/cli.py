@@ -845,12 +845,55 @@ def cmd_submitblock(args: argparse.Namespace) -> None:
     print_json({"ok": True, "block_hash": block_hash, "block": block_summary(block), "chain": chain.chain_info()})
 
 
+def _wallet_from_address_type(address_type: str) -> str:
+    return {"p2pkh": "legacy", "p2wpkh": "segwit", "p2tr": "taproot", "p2sh-segwit": "p2sh-segwit"}[address_type]
+
+
+def _maybe_harvest_miner_rewards(
+    *,
+    wallet: Wallet,
+    from_type: str,
+    node: str,
+    fee_sats: int,
+    min_utxos: int,
+    max_inputs: int,
+) -> Dict[str, Any]:
+    from .webwallet import consolidation_status, consolidate_coins
+
+    status = consolidation_status(wallet, from_type, node, fee_sats=fee_sats, max_inputs=max_inputs)
+    if status["spendable_utxos"] < min_utxos:
+        return {
+            "ok": True,
+            "skipped": "below_min_utxos",
+            "spendable_utxos": status["spendable_utxos"],
+            "min_utxos": min_utxos,
+            "max_sendable": status["max_sendable"],
+        }
+    if status["spendable_utxos"] < 2:
+        return {
+            "ok": True,
+            "skipped": "already_compact",
+            "spendable_utxos": status["spendable_utxos"],
+            "max_sendable": status["max_sendable"],
+        }
+    result = consolidate_coins(wallet, from_type, node, fee_sats=fee_sats, max_inputs=max_inputs)
+    return {"ok": True, "status": status, "result": result}
+
+
 def cmd_miner(args: argparse.Namespace) -> None:
+    if args.auto_harvest and not args.wallet:
+        raise ChainError("--auto-harvest requires --wallet so the miner can sign consolidation transactions")
     payout = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
+    harvest_wallet = Wallet.load(args.wallet, passphrase=args.passphrase) if args.auto_harvest else None
+    harvest_from_type = _wallet_from_address_type(args.address_type)
+    harvest_every = max(1, int(args.harvest_every))
+    harvest_fee_sats = amount_to_sats(args.harvest_fee)
     node = args.node.rstrip("/")
     timeout = max(5, int(getattr(args, "timeout", 45)))
     warn_if_node_incompatible(node, need_service="block-template")
     mined = []
+    harvests = []
+    last_harvest_count = 0
     unlimited = args.blocks <= 0
     target = None if unlimited else args.blocks
     count = 0
@@ -869,6 +912,22 @@ def cmd_miner(args: argparse.Namespace) -> None:
             record = {"block": block_summary(block), "response": response}
             mined.append(record)
             count += 1
+            if harvest_wallet and count % harvest_every == 0:
+                try:
+                    harvest = _maybe_harvest_miner_rewards(
+                        wallet=harvest_wallet,
+                        from_type=harvest_from_type,
+                        node=node,
+                        fee_sats=harvest_fee_sats,
+                        min_utxos=max(2, int(args.harvest_min_utxos)),
+                        max_inputs=max(2, int(args.harvest_max_inputs)),
+                    )
+                    harvest["after_blocks_mined"] = count
+                except Exception as exc:
+                    harvest = {"ok": False, "after_blocks_mined": count, "error": str(exc)}
+                record["harvest"] = harvest
+                harvests.append(harvest)
+                last_harvest_count = count
             if unlimited:
                 print_json({"ok": True, "node": node, "payout_address": payout, "mined": [record], "count": count, "running": True})
                 sys.stdout.flush()
@@ -878,9 +937,29 @@ def cmd_miner(args: argparse.Namespace) -> None:
                 except Exception:
                     pass
     except KeyboardInterrupt:
-        print_json({"ok": True, "node": node, "payout_address": payout, "mined": mined, "count": count, "stopped": "keyboard_interrupt"})
+        payload = {"ok": True, "node": node, "payout_address": payout, "mined": mined, "count": count, "stopped": "keyboard_interrupt"}
+        if harvests:
+            payload["harvests"] = harvests
+        print_json(payload)
         return
-    print_json({"ok": True, "node": node, "payout_address": payout, "mined": mined, "count": count})
+    if harvest_wallet and count and count != last_harvest_count:
+        try:
+            harvest = _maybe_harvest_miner_rewards(
+                wallet=harvest_wallet,
+                from_type=harvest_from_type,
+                node=node,
+                fee_sats=harvest_fee_sats,
+                min_utxos=max(2, int(args.harvest_min_utxos)),
+                max_inputs=max(2, int(args.harvest_max_inputs)),
+            )
+            harvest["after_blocks_mined"] = count
+        except Exception as exc:
+            harvest = {"ok": False, "after_blocks_mined": count, "error": str(exc)}
+        harvests.append(harvest)
+    payload = {"ok": True, "node": node, "payout_address": payout, "mined": mined, "count": count}
+    if harvests:
+        payload["harvests"] = harvests
+    print_json(payload)
 
 
 def cmd_rawtx(args: argparse.Namespace) -> None:
@@ -1267,6 +1346,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--save-blocks", help="optional directory for solved block JSON files")
     p.add_argument("--sync-after", action="store_true", help="ask the node to sync after each submission")
     p.add_argument("--timeout", type=int, default=45, help="node request timeout seconds (default 45)")
+    p.add_argument("--auto-harvest", action="store_true", help="periodically consolidate matured mining rewards back to this wallet")
+    p.add_argument("--harvest-every", type=int, default=25, help="with --auto-harvest, check consolidation every N mined blocks (default 25)")
+    p.add_argument("--harvest-min-utxos", type=int, default=50, help="with --auto-harvest, skip unless at least N mature coins exist (default 50)")
+    p.add_argument("--harvest-fee", default="0.00010000", help="fee per auto-harvest consolidation transaction (default 0.00010000)")
+    p.add_argument("--harvest-max-inputs", type=int, default=200, help="max inputs per auto-harvest transaction (default 200)")
     p.set_defaults(func=cmd_miner)
 
     p = sub.add_parser("rawtx", help="export a transaction in Bitcoin-style raw hex")

@@ -14,6 +14,7 @@
   const UI_TAB_STORE = "ncw.walletTab.v1";
   const SITE_MODE_STORE = "nc.siteMode.v1";
   const COIN = 100000000;
+  const MAX_WALLET_SEND_INPUTS = 200;
   const SESSION_STORE = "ncw.unlockedSession.v2";
   const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -93,6 +94,62 @@
       $("feeHint").textContent = `Amount + fee must be less than your spendable balance. Max send now: ${satsToInput(max)} NET.`;
     } catch {
       $("feeHint").textContent = "Enter a positive network fee in NET, up to 8 decimal places.";
+    }
+    updateCoinHealth();
+  }
+
+  function walletMaxSendableSats(feeSats = 0) {
+    const top = [...lastUtxos].sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0)).slice(0, MAX_WALLET_SEND_INPUTS);
+    return Math.max(0, top.reduce((sum, u) => sum + Number(u.amount || 0), 0) - feeSats);
+  }
+
+  function updateCoinHealth() {
+    const el = $("coinHealth");
+    if (!el) return;
+    if (!state) {
+      el.className = "muted";
+      el.textContent = "Coin status loads after unlock.";
+      return;
+    }
+    if (!lastUtxos.length) {
+      el.className = "muted";
+      el.textContent = "Coin status loads after balance refresh.";
+      return;
+    }
+    let fee = 0;
+    try { fee = currentFeeSats(); } catch { /* fee field may be mid-edit */ }
+    const maxOneSend = walletMaxSendableSats(fee);
+    const stranded = Math.max(0, lastSpendableSats - fee - maxOneSend);
+    const parts = [
+      `${lastUtxos.length} spendable coin${lastUtxos.length === 1 ? "" : "s"}`,
+      `max one-send ${satsToInput(maxOneSend)} NET`,
+    ];
+    if (lastUtxos.length > MAX_WALLET_SEND_INPUTS || stranded > 0) {
+      el.className = "warn";
+      parts.push(`consolidate to unlock ${satsToInput(stranded)} NET more in one payment`);
+    } else if (lastUtxos.length > 120) {
+      el.className = "warn";
+      parts.push("consolidate soon to keep large sends smooth");
+    } else {
+      el.className = "muted";
+      parts.push("coin set looks healthy");
+    }
+    el.textContent = parts.join(" · ");
+  }
+
+  function describeCoinSelectionProblem(amountSats, feeSats) {
+    if (!lastUtxos.length) return "";
+    try {
+      W.selectCoins(lastUtxos, amountSats + feeSats, MAX_WALLET_SEND_INPUTS);
+      return "";
+    } catch (e) {
+      const text = String(e?.message || e);
+      if (!/more than|insufficient funds/i.test(text)) return text;
+      const maxOneSend = walletMaxSendableSats(feeSats);
+      if (amountSats + feeSats > lastSpendableSats) {
+        return `Amount + fee is too high. Max spendable now is ${satsToInput(Math.max(0, lastSpendableSats - feeSats))} NET with this fee.`;
+      }
+      return `This payment needs too many small coins. Max one-send right now is ${satsToInput(maxOneSend)} NET. Use "Consolidate to self", confirm/mine that transaction, then send again.`;
     }
   }
 
@@ -1405,8 +1462,10 @@
         else selectedOutpoints.delete(input.dataset.op);
         renderUtxos();
         updateFeeHint();
+        updateCoinHealth();
       };
     });
+    updateCoinHealth();
   }
 
   async function send(toAddress, amountSats, feeSats, forcedOutpoints = []) {
@@ -1601,6 +1660,11 @@
       const fee = netToSats($("fee").value);
       if (lastSpendableSats && amt + fee > lastSpendableSats) {
         throw new Error(`amount + fee is too high. Max send is ${satsToInput(Math.max(0, lastSpendableSats - fee))} NET with this fee.`);
+      }
+      if (!lastUtxos.length) await loadUtxos();
+      const coinProblem = selectedUtxos().length ? "" : describeCoinSelectionProblem(amt, fee);
+      if (coinProblem) {
+        throw new Error(coinProblem);
       }
       const selected = selectedUtxos();
       if (selected.length) {

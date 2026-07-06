@@ -79,6 +79,47 @@ def _max_sendable_sats(by_value_desc, fee_sats: int) -> int:
     return max(0, sum(s.output.amount for s in top) - fee_sats)
 
 
+def consolidation_status(
+    wallet: Wallet,
+    from_type: str,
+    node_url: str,
+    fee_sats: int = 10_000,
+    max_inputs: int = MAX_WALLET_SEND_INPUTS,
+) -> Dict[str, Any]:
+    """Return the wallet's current one-transaction send capacity.
+
+    This is intentionally read-only: it lets CLIs and UIs warn users before a
+    fragmented mining wallet hits the input cap.
+    """
+    from_address = wallet.address_for(from_type)
+    info = _node_get(node_url, "/info").get("node", {})
+    tip_height = int(info.get("height", 0))
+    data = _node_get(node_url, f"/utxos?address={from_address}")
+    spendables = [SpendableOutput.from_dict(item) for item in data.get("utxos", [])]
+    spendables = [
+        s for s in spendables
+        if not s.coinbase or (tip_height - s.height) >= COINBASE_MATURITY
+    ]
+    spendables_by_value = sorted(spendables, key=lambda s: s.output.amount, reverse=True)
+    max_inputs = max(1, min(max_inputs, MAX_WALLET_SEND_INPUTS))
+    total_sats = sum(s.output.amount for s in spendables)
+    max_sendable_sats = max(0, sum(s.output.amount for s in spendables_by_value[:max_inputs]) - fee_sats)
+    full_after_fee = max(0, total_sats - fee_sats)
+    stranded_sats = max(0, full_after_fee - max_sendable_sats)
+    return {
+        "address": from_address,
+        "spendable_utxos": len(spendables),
+        "spendable_sats": total_sats,
+        "spendable": total_sats / COIN,
+        "max_inputs": max_inputs,
+        "max_sendable_sats": max_sendable_sats,
+        "max_sendable": max_sendable_sats / COIN,
+        "stranded_until_consolidated_sats": stranded_sats,
+        "stranded_until_consolidated": stranded_sats / COIN,
+        "needs_consolidation": len(spendables) > max_inputs or stranded_sats > 0,
+    }
+
+
 def build_and_broadcast(
     wallet: Wallet,
     to_address: str,

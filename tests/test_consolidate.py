@@ -6,9 +6,10 @@ from threading import Thread
 from urllib.request import urlopen
 
 from netcoin.chain import Blockchain
+from netcoin.cli import _maybe_harvest_miner_rewards
 from netcoin.node import NetCoinNode, make_handler
 from netcoin.wallet import Wallet
-from netcoin.webwallet import consolidate_coins
+from netcoin.webwallet import consolidation_status, consolidate_coins
 
 
 class served:
@@ -59,3 +60,48 @@ def test_consolidate_with_nothing_to_do(tmp_path: Path):
     with served(NetCoinNode(chain, persist=False)) as s:
         result = consolidate_coins(lone, "segwit", s.url)
     assert result["batches"] == []
+
+
+def test_consolidation_status_reports_one_send_capacity(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    other = Wallet.create()
+    for _ in range(3):
+        chain.mine_block(miner.segwit_address)
+    for _ in range(100):
+        chain.mine_block(other.segwit_address)
+
+    with served(NetCoinNode(chain, persist=False)) as s:
+        status = consolidation_status(miner, "segwit", s.url, fee_sats=10_000, max_inputs=2)
+
+    assert status["spendable_utxos"] == 3
+    assert status["max_sendable_sats"] == 2 * 50 * 100_000_000 - 10_000
+    assert status["needs_consolidation"] is True
+    assert status["stranded_until_consolidated_sats"] == 50 * 100_000_000
+
+
+def test_miner_auto_harvest_helper_consolidates_above_threshold(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    other = Wallet.create()
+    for _ in range(4):
+        chain.mine_block(miner.segwit_address)
+    for _ in range(100):
+        chain.mine_block(other.segwit_address)
+
+    with served(NetCoinNode(chain, persist=False)) as s:
+        harvest = _maybe_harvest_miner_rewards(
+            wallet=miner,
+            from_type="segwit",
+            node=s.url,
+            fee_sats=10_000,
+            min_utxos=4,
+            max_inputs=200,
+        )
+        with urlopen(s.url + "/info", timeout=5) as r:
+            info = json.loads(r.read().decode())["node"]
+
+    assert harvest["ok"] is True
+    assert harvest["result"]["transactions"] == 1
+    assert harvest["result"]["batches"][0]["inputs"] == 4
+    assert info["mempool_transactions"] == 1
