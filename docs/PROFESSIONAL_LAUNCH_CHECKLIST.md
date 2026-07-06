@@ -64,6 +64,7 @@ Legend:
 
 - done: Three public seeds, deploy rollback script, health endpoints, public node checks, fast crypto on seeds.
 - done: Rate limits, mempool policy caps, public status endpoints.
+- done: Exchange-facing private RPC helpers for address validation, address balances, UTXOs, tx status, and exchange info.
 - next: Public node dashboard with height, tip, version, latency, mempool, peers, and crypto backend.
 - next: Alerts for fork, stuck height, seed down, faucet low, and version mismatch.
 - later: DNS seeds, better peer discovery, binary P2P as primary network path, compact-block relay at production depth.
@@ -87,6 +88,7 @@ Legend:
 
 - done: Beginner guides, OS-specific instructions, deployment docs, security testing docs, roadmap, NIPs.
 - done: Public API docs note optional wallet-signed token actions.
+- done: Sandbox exchange integration guide with deposit, withdrawal, reorg, and private RPC policy.
 - next: Rewrite top-level README to reflect the current 0.12.x state and recommended public commands.
 - next: Add "new terminal / activate venv" reminders anywhere commands span sessions.
 - later: Video walkthroughs and guided troubleshooting pages.

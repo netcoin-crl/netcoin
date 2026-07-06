@@ -17,6 +17,7 @@ NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should 
 | [ROADMAP.md](ROADMAP.md) | The plan: how NetCoin grows into simple money + a builder platform + strong infrastructure, layered so the base chain stays simple and secure. Every proposed feature, phased and risk-tagged. |
 | [SECURITY.md](SECURITY.md) | How to report security issues. |
 | [docs/PUBLIC_SITE_MAP.md](docs/PUBLIC_SITE_MAP.md) | Public site purpose map for Wallet, Explorer, Pay, Merchant, Community, Nodes, Security, Governance, Treasury, Docs, and API. |
+| [docs/EXCHANGE_INTEGRATION.md](docs/EXCHANGE_INTEGRATION.md) | Sandbox exchange integration guide: private RPC, deposits, withdrawals, confirmations, and reorg handling. |
 
 ## 5-minute quickstart (join the public testnet)
 
@@ -59,6 +60,7 @@ curl -s -X POST https://api.netcoin.online/api/keys/register -H 'Content-Type: a
 - **SDKs:** [sdk/netcoin-python](sdk/netcoin-python/) · [sdk/netcoin-js](sdk/netcoin-js/)
 - **Starter apps:** [examples/](examples/) (store checkout, loyalty tokens) · tip bots in [bots/](bots/)
 - **App-layer NET-20 tokens:** create/mint/transfer via `/api/tokens` — indexed ledger, not consensus ([NIP-0004](docs/nips/NIP-0004.md) explains the auth model and its limits)
+- **Exchange sandbox integration:** [docs/EXCHANGE_INTEGRATION.md](docs/EXCHANGE_INTEGRATION.md) covers private RPC, deposit watching, withdrawals, confirmation policy, and reorg handling. This is not a real-money listing claim.
 - **Improvement process:** [docs/nips/NIP-0001.md](docs/nips/NIP-0001.md) · upgrade activations: [docs/nips/NIP-0005.md](docs/nips/NIP-0005.md)
 
 ## Key network facts

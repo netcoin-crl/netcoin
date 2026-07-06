@@ -8,10 +8,10 @@
     {"name": "App layer", "status": "in progress", "done": ["API keys", "tokens", "payments", "community endpoints", "optional signed token actions"], "next": ["mandatory signature rollout", "nonce/replay protection"]},
     {"name": "Faucet", "status": "in progress", "done": ["cooldowns", "rate limits", "queue", "public status", "clear balance/queue panel"], "next": ["refill alert", "abuse dashboard"]},
     {"name": "Wallet features", "status": "in progress", "done": ["contacts", "activity", "fees", "coin status", "consolidation"], "next": ["activity polish", "old JSON import UX", "HD address rotation"]},
-    {"name": "Node ops", "status": "in progress", "done": ["3 seeds", "rollback deploys", "health checks", "fast crypto"], "next": ["public node dashboard", "alerts", "version mismatch warnings"]},
+    {"name": "Node ops", "status": "in progress", "done": ["3 seeds", "rollback deploys", "health checks", "fast crypto", "exchange-facing RPC helpers"], "next": ["public node dashboard", "alerts", "version mismatch warnings"]},
     {"name": "Consensus", "status": "in progress", "done": ["activation policy", "reward schedule", "spacing v2"], "next": ["consensus test vectors", "reindex docs"]},
     {"name": "Cryptography", "status": "in progress", "done": ["coincurve acceleration", "differential tests"], "next": ["external review", "backend compatibility CI"]},
-    {"name": "Docs", "status": "in progress", "done": ["OS guides", "NIPs", "security testing docs", "signed token action API notes"], "next": ["README refresh", "beginner terminal/venv reminders"]},
+    {"name": "Docs", "status": "in progress", "done": ["OS guides", "NIPs", "security testing docs", "signed token action API notes", "sandbox exchange integration guide"], "next": ["README refresh", "beginner terminal/venv reminders"]},
     {"name": "Release/DevOps", "status": "in progress", "done": ["GitHub releases", "test-gated deploy", "rollback"], "next": ["reproducible zip fix", "signed automated releases"]},
     {"name": "Security", "status": "next", "done": ["SECURITY.md", "API key enforcement", "SSRF/faucet hardening", "optional signed token writes"], "next": ["mandatory signature rollout", "threat model", "secret-caching reduction"]},
     {"name": "Governance", "status": "in progress", "done": ["NIP process", "governance site"], "next": ["decision log", "upgrade calendar", "independent runner campaign"]}

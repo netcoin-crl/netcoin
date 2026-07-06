@@ -26,6 +26,8 @@ of the project. Read this before relying on NetCoin for anything.
 - **Small network:** few nodes/miners; low hashpower means low reorg cost. Do not
   treat confirmations as strong security.
 - **No package relay, descriptors, coin control, or hardware-wallet support.**
+- **Not exchange-listed/mainnet-ready.** The exchange guide is for sandbox
+  integration and future review, not real-money custody.
 
 ## Operational limitations
 

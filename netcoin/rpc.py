@@ -9,7 +9,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 
 from .chain import Blockchain
-from .params import DEFAULT_RPC_PORT, MAX_REQUEST_BODY_BYTES, TICKER
+from .crypto import decode_address, validate_address
+from .params import COINBASE_MATURITY, DEFAULT_RPC_PORT, MAX_REQUEST_BODY_BYTES, TICKER
 from .block import Block
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .tx import Transaction, sats_to_amount
@@ -80,6 +81,102 @@ class RPCServer:
             target = int(params[0]) if params else 1
             sat_vb = self.chain.estimate_fee_rate(target)
             return {"feerate_sat_vb": sat_vb, "feerate_net_kvb": sats_to_amount(sat_vb * 1000), "blocks": target}
+        if method == "validateaddress":
+            address = str(params[0]) if params else ""
+            valid = validate_address(address)
+            payload: dict[str, Any] = {"isvalid": valid, "address": address}
+            if valid:
+                decoded = decode_address(address)
+                payload.update({
+                    "network": "netcoin",
+                    "type": decoded.get("type"),
+                    "isscript": decoded.get("type") == "p2sh",
+                    "iswitness": str(decoded.get("type", "")).startswith("p2w") or decoded.get("type") == "p2tr",
+                })
+            return payload
+        if method == "getaddressbalance":
+            address = str(params[0])
+            return self.chain.address_balance_summary(address)
+        if method == "getaddresssummary":
+            address = str(params[0])
+            limit = int(params[1]) if len(params) > 1 else 100
+            offset = int(params[2]) if len(params) > 2 else 0
+            summary = self.chain.address_summary(address)
+            txids = list(summary.get("transaction_ids", []))
+            limit = max(1, min(limit, 500))
+            offset = max(0, offset)
+            summary["transaction_ids_total"] = len(txids)
+            summary["transaction_ids_offset"] = offset
+            summary["transaction_ids_limit"] = limit
+            summary["transaction_ids"] = txids[offset:offset + limit]
+            summary["has_next"] = offset + limit < len(txids)
+            return summary
+        if method == "listaddressutxos":
+            address = str(params[0])
+            include_immature = bool(params[1]) if len(params) > 1 else False
+            include_mempool_spent = bool(params[2]) if len(params) > 2 else False
+            utxos = self.chain.utxos_for_address(address, include_immature=include_immature)
+            mempool_spent = {txin.outpoint() for tx in self.chain.mempool for txin in tx.inputs}
+            available = [utxo for utxo in utxos if include_mempool_spent or utxo.outpoint() not in mempool_spent]
+            spend_height = self.chain.height() + 1
+            return {
+                "address": address,
+                "height": self.chain.height(),
+                "tip_hash": self.chain.tip_hash(),
+                "utxos": [
+                    utxo.to_dict() | {
+                        "amount_sats": utxo.output.amount,
+                        "amount": sats_to_amount(utxo.output.amount),
+                        "confirmations": max(0, self.chain.height() - utxo.height + 1),
+                        "spendable": not (utxo.coinbase and spend_height - utxo.height < COINBASE_MATURITY),
+                    }
+                    for utxo in available
+                ],
+                "excluded_mempool_spent": len(utxos) - len(available),
+            }
+        if method == "gettransactionstatus":
+            txid = str(params[0])
+            found = self.chain.get_transaction(txid)
+            if found is None:
+                raise RPCError("transaction not found")
+            tx, block = found
+            confirmed = block is not None
+            confirmations = max(0, self.chain.height() - block.header.height + 1) if block else 0
+            return {
+                "txid": tx.txid(),
+                "wtxid": tx.wtxid(),
+                "confirmed": confirmed,
+                "confirmations": confirmations,
+                "block_hash": block.hash() if block else None,
+                "block_height": block.header.height if block else None,
+                "mempool": not confirmed,
+                "rbf": tx.signals_rbf,
+                "weight": tx.weight(),
+                "vsize": tx.vsize(),
+                "total_output_sats": tx.total_output(),
+                "total_output": sats_to_amount(tx.total_output()),
+                "outputs": tx.to_dict(include_scripts=True, include_witness=True)["outputs"],
+            }
+        if method == "getexchangeinfo":
+            info = self.chain.chain_info()
+            return {
+                "chain": "netcoin",
+                "network": info.get("network", "testnet"),
+                "ticker": TICKER,
+                "height": self.chain.height(),
+                "tip_hash": self.chain.tip_hash(),
+                "recommended_min_confirmations": 20,
+                "coinbase_maturity": COINBASE_MATURITY,
+                "deposit_address_types": ["p2wpkh", "p2pkh", "p2sh", "p2tr"],
+                "preferred_deposit_address_type": "p2wpkh",
+                "withdrawal_broadcast_method": "sendrawtransaction",
+                "rpc_auth_recommended": True,
+                "notes": [
+                    "Keep RPC bound to localhost or behind a private network plus bearer token.",
+                    "Treat NetCoin as public testnet/experimental until independent security review.",
+                    "Re-scan recent deposits after any tip hash change at the same or lower height.",
+                ],
+            }
         if method == "getblocktemplate":
             address = str(params[0]) if params else None
             return self.chain.get_block_template(miner_address=address)
@@ -164,6 +261,12 @@ RPC_METHODS = [
     "getrawtransaction",
     "sendrawtransaction",
     "estimatesmartfee",
+    "validateaddress",
+    "getaddressbalance",
+    "getaddresssummary",
+    "listaddressutxos",
+    "gettransactionstatus",
+    "getexchangeinfo",
     "getblocktemplate",
     "submitblock",
     "validatechain",

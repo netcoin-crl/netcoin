@@ -37,6 +37,7 @@ NetCoin is **not Bitcoin** and public-testnet NET has no real-money value.
 - [Mining guide](MINING.md)
 - [Node runner guide](NODE_RUNNER.md)
 - [Public seed hosting guide](PUBLIC_SEED_HOSTING.md)
+- [Exchange integration guide](EXCHANGE_INTEGRATION.md)
 - [Public site map](PUBLIC_SITE_MAP.md)
 - [API and architecture overview](ARCHITECTURE.md)
 - [Roadmap](ROADMAP.md)
