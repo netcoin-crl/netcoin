@@ -6,7 +6,7 @@
   const COIN = 100000000;
   const CONTACTS_STORE = "ncw.contacts.v1";
   // NetCoin reward params (display only; mirror netcoin/params.py).
-  const SCHEDULE_ACTIVATION = 4200, START_SUBSIDY = 50, REDUCTION_INTERVAL = 210000, REDUCTION_RATIO = 0.8;
+  const SCHEDULE_ACTIVATION = 4200, START_SUBSIDY = 50, REDUCTION_INTERVAL = 265000, REDUCTION_RATIO = 0.9;
   function rewardAtHeight(height) {
     let subsidy = START_SUBSIDY;
     const epochs = Math.floor(Math.max(0, height) / REDUCTION_INTERVAL);
@@ -237,8 +237,8 @@
       ? Math.min(100, ((height % REDUCTION_INTERVAL) / REDUCTION_INTERVAL) * 100)
       : Math.min(100, (height / SCHEDULE_ACTIVATION) * 100);
     const status = active
-      ? `Reward schedule <b class="acc">active</b> — starts at ${START_SUBSIDY} NET and decreases 20% every ${REDUCTION_INTERVAL.toLocaleString()} blocks. Next reduction at height ${nextEvent.toLocaleString()} (<b>${blocksLeft.toLocaleString()}</b> blocks).`
-      : `Upgrade pending — deterministic 20% reward schedule activates at height ${SCHEDULE_ACTIVATION.toLocaleString()} (<b>${blocksLeft.toLocaleString()}</b> blocks to go).`;
+      ? `Reward schedule <b class="acc">active</b> — starts at ${START_SUBSIDY} NET and decreases 10% every ${REDUCTION_INTERVAL.toLocaleString()} blocks. Next reduction at height ${nextEvent.toLocaleString()} (<b>${blocksLeft.toLocaleString()}</b> blocks).`
+      : `Upgrade pending — deterministic 10% reward schedule activates at height ${SCHEDULE_ACTIVATION.toLocaleString()} (<b>${blocksLeft.toLocaleString()}</b> blocks to go).`;
     return el(`<div class="card">
       <h2>Emission</h2>
       <div class="muted" style="margin-bottom:10px">${status}</div>

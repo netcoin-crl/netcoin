@@ -29,12 +29,12 @@ from threading import RLock
 from typing import Any, Iterable
 from urllib.parse import quote, urlencode, urlparse
 
-from .crypto import decode_address, validate_address, verify_message
-from .descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
-from .script import ScriptError, timelocked_redeem_script, script_to_p2sh_address
-from .params import REWARD_REDUCTION_INTERVAL, REWARD_SCHEDULE_ACTIVATION_HEIGHT
-from .emission import next_reduction_height
-from .tx import amount_to_sats, sats_to_amount
+from ..crypto import decode_address, validate_address, verify_message
+from ..descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
+from ..script import ScriptError, timelocked_redeem_script, script_to_p2sh_address
+from ..params import REWARD_REDUCTION_DENOMINATOR, REWARD_REDUCTION_INTERVAL, REWARD_REDUCTION_NUMERATOR, REWARD_SCHEDULE_ACTIVATION_HEIGHT
+from ..emission import next_reduction_height
+from ..tx import amount_to_sats, sats_to_amount
 
 
 class AppError(ValueError):
@@ -393,19 +393,17 @@ class ChainReceipt:
 
 
 class AppStore:
-    """Small JSON-backed app database.
+    """Small app-layer database.
 
-    This intentionally avoids dependencies so it works with the existing project.
-    A future production deployment can migrate the same schema to SQLite.
+    SQLite is the default backend for safer app-layer state durability. JSON remains available with NETCOIN_APP_STORAGE=json for local demos and migration debugging.
     """
 
     def __init__(self, data_dir: str | Path):
         self.data_dir = Path(data_dir)
         self.path = self.data_dir / "app_layer.json"
         self.sqlite_path = self.data_dir / "app_layer.sqlite3"
-        self.storage_backend = os.environ.get("NETCOIN_APP_STORAGE", "json").strip().lower()
-        if self.storage_backend not in {"json", "sqlite", "sqlite3"}:
-            self.storage_backend = "json"
+        from .storage import normalize_storage_backend
+        self.storage_backend = normalize_storage_backend(os.environ.get("NETCOIN_APP_STORAGE"))
         self.lock = RLock()
 
     def _sqlite_conn(self) -> sqlite3.Connection:
@@ -2413,143 +2411,36 @@ class AppStore:
         return self.poll_results(poll_id)
 
     def create_prediction_market(self, payload: dict[str, Any]) -> dict[str, Any]:
-        question = str(payload.get("question") or "").strip()
-        if not question:
-            raise AppError("market question is required")
-        outcomes = [str(x).strip().upper() for x in (payload.get("outcomes") or ["YES", "NO"]) if str(x).strip()]
-        if len(outcomes) < 2:
-            raise AppError("market requires at least two outcomes")
-        market_id = str(payload.get("market_id") or clean_id("mkt"))
-        mode = str(payload.get("mode") or "testnet_demo")
-        if mode not in {"testnet_demo", "play_money", "private_dev"}:
-            raise AppError("prediction markets are restricted to testnet_demo, play_money, or private_dev modes")
-        if os.environ.get("NETCOIN_REQUIRE_MARKET_LEGAL_ACK", "0") == "1" and not bool(payload.get("legal_acknowledged", False)):
-            raise AppError("prediction market creation requires legal_acknowledged=true in this deployment")
-        restricted_terms = {"election", "political", "sportsbook", "sports betting", "terror", "assassination"}
-        lowered_question = question.lower()
-        if any(term in lowered_question for term in restricted_terms) and not bool(payload.get("operator_override", False)):
-            raise AppError("restricted prediction-market topic requires operator_override=true and legal review")
-        record = {
-            "market_id": market_id,
-            "question": question[:240],
-            "description": str(payload.get("description") or "")[:2000],
-            "outcomes": [{"outcome_id": f"out{i+1}", "label": label} for i, label in enumerate(outcomes)],
-            "oracle": str(payload.get("oracle") or "manual")[:120],
-            "resolution_source": str(payload.get("resolution_source") or "")[:500],
-            "mode": mode,
-            "status": "open",
-            "close_time": int(payload.get("close_time", now() + 604800) or now() + 604800),
-            "orders": [],
-            "trades": [],
-            "positions": {},
-            "collateral_pool_sats": 0,
-            "created_at": now(),
-            "warning": "Demo/testnet-only event market. Do not use for regulated real-money markets without legal review.",
-            "legal_acknowledged": bool(payload.get("legal_acknowledged", False)),
-            "operator_override": bool(payload.get("operator_override", False)),
-            "compliance_status": "demo_restricted",
-        }
-        data = self.load()
-        data["prediction_markets"][market_id] = record
-        data["contracts"][market_id] = {"contract_id": market_id, "contract_type": "prediction_market", "status": record["status"], "terms": record, "created_at": now(), "updated_at": now()}
-        self._record_contract_event(data, "market.created", {"market_id": market_id})
-        self.save(data)
-        return self.prediction_market(market_id)
+        from .markets import create_prediction_market_impl
+        return create_prediction_market_impl(self, payload)
 
     def prediction_market(self, market_id: str) -> dict[str, Any]:
-        m = self.load().get("prediction_markets", {}).get(market_id)
-        if not m:
-            raise AppError("prediction market not found")
-        outcome_ids = {o["outcome_id"] for o in m.get("outcomes", [])}
-        orderbook = {oid: {"buys": [], "sells": []} for oid in outcome_ids}
-        for order in m.get("orders", []):
-            if order.get("status") != "open" or order.get("outcome_id") not in orderbook:
-                continue
-            side = "buys" if order.get("side") == "buy" else "sells"
-            orderbook[order["outcome_id"]][side].append(order)
-        for book in orderbook.values():
-            book["buys"].sort(key=lambda o: int(o.get("price_bps", 0)), reverse=True)
-            book["sells"].sort(key=lambda o: int(o.get("price_bps", 0)))
-        return m | {"orderbook": orderbook}
+        from .markets import prediction_market_impl
+        return prediction_market_impl(self, market_id)
+
+    def list_prediction_markets(self) -> dict[str, Any]:
+        from .markets import list_prediction_markets_impl
+        return list_prediction_markets_impl(self)
 
     def place_market_order(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        data = self.load()
-        m = data.get("prediction_markets", {}).get(market_id)
-        if not m:
-            raise AppError("prediction market not found")
-        if m.get("status") != "open" or now() > int(m.get("close_time", 0) or 0):
-            m["status"] = "closed"
-            self.save(data)
-            raise AppError("prediction market is closed")
-        outcome_id = str(payload.get("outcome_id") or "").strip()
-        if outcome_id not in {o["outcome_id"] for o in m.get("outcomes", [])}:
-            raise AppError("invalid market outcome")
-        side = str(payload.get("side") or "buy").lower()
-        if side not in {"buy", "sell"}:
-            raise AppError("side must be buy or sell")
-        trader = normalize_address(payload.get("trader_address") or payload.get("address"))
-        quantity = int(payload.get("quantity", payload.get("shares", 0)) or 0)
-        price_bps = int(payload.get("price_bps", round(float(payload.get("price", 0)) * 10000)) or 0)
-        if quantity <= 0:
-            raise AppError("quantity must be positive")
-        if not 1 <= price_bps <= 9999:
-            raise AppError("price_bps must be 1..9999")
-        order = {"order_id": clean_id("ord"), "market_id": market_id, "outcome_id": outcome_id, "side": side, "trader_address": trader, "quantity": quantity, "remaining": quantity, "price_bps": price_bps, "status": "open", "created_at": now()}
-        # Tiny same-outcome order matcher. This is an app-layer demo, not a custody/margin engine.
-        opposite = "sell" if side == "buy" else "buy"
-        for other in m.get("orders", []):
-            if order["remaining"] <= 0:
-                break
-            if other.get("status") != "open" or other.get("outcome_id") != outcome_id or other.get("side") != opposite:
-                continue
-            crosses = price_bps >= int(other.get("price_bps", 0)) if side == "buy" else int(other.get("price_bps", 0)) >= price_bps
-            if not crosses:
-                continue
-            qty = min(int(other.get("remaining", 0) or 0), int(order["remaining"]))
-            trade_price = int(other.get("price_bps", price_bps))
-            buyer = trader if side == "buy" else other["trader_address"]
-            seller = other["trader_address"] if side == "buy" else trader
-            trade = {"trade_id": clean_id("trd"), "market_id": market_id, "outcome_id": outcome_id, "quantity": qty, "price_bps": trade_price, "buyer": buyer, "seller": seller, "created_at": now()}
-            m.setdefault("trades", []).append(trade)
-            positions = m.setdefault("positions", {})
-            positions.setdefault(buyer, {}).setdefault(outcome_id, 0)
-            positions.setdefault(seller, {}).setdefault(outcome_id, 0)
-            positions[buyer][outcome_id] += qty
-            positions[seller][outcome_id] -= qty
-            order["remaining"] -= qty
-            other["remaining"] = int(other.get("remaining", 0) or 0) - qty
-            if other["remaining"] <= 0:
-                other["status"] = "filled"
-        if order["remaining"] <= 0:
-            order["status"] = "filled"
-        m.setdefault("orders", []).append(order)
-        self._record_contract_event(data, "market.order", {"market_id": market_id, "order_id": order["order_id"], "status": order["status"]})
-        self.save(data)
-        return self.prediction_market(market_id)
+        from .markets import place_market_order_impl
+        return place_market_order_impl(self, market_id, payload)
+
+    def cancel_market_order(self, market_id: str, order_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        from .markets import cancel_market_order_impl
+        return cancel_market_order_impl(self, market_id, order_id, payload)
+
+    def request_market_resolution(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from .markets import request_market_resolution_impl
+        return request_market_resolution_impl(self, market_id, payload)
 
     def resolve_prediction_market(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        data = self.load()
-        m = data.get("prediction_markets", {}).get(market_id)
-        if not m:
-            raise AppError("prediction market not found")
-        winning = str(payload.get("winning_outcome_id") or payload.get("winner") or "").strip()
-        if winning not in {o["outcome_id"] for o in m.get("outcomes", [])}:
-            raise AppError("invalid winning outcome")
-        payout_per_share_sats = parse_amount_sats(payload.get("payout_per_share_sats", payload.get("payout_per_share", "1")), "payout per share")
-        outputs = []
-        for address, positions in m.get("positions", {}).items():
-            qty = int(positions.get(winning, 0) or 0)
-            if qty > 0:
-                outputs.append({"address": address, "amount_sats": qty * payout_per_share_sats})
-        payout_plan = self.plan_payout("prediction_market", outputs, memo=f"Resolve market {market_id}: {winning}") if outputs else {"outputs": [], "total_sats": 0, "total": "0", "status": "no_winning_positions"}
-        m["status"] = "resolved"
-        m["winning_outcome_id"] = winning
-        m["resolved_at"] = now()
-        m["resolution_note"] = str(payload.get("resolution_note") or "")[:1000]
-        m["payout_plan"] = payout_plan
-        self._record_contract_event(data, "market.resolved", {"market_id": market_id, "winning_outcome_id": winning})
-        self.save(data)
-        return self.prediction_market(market_id)
+        from .markets import resolve_prediction_market_impl
+        return resolve_prediction_market_impl(self, market_id, payload)
+
+    def polymarket_markets(self, query: dict[str, list[str]] | None = None) -> dict[str, Any]:
+        from .markets import polymarket_markets_impl
+        return polymarket_markets_impl(self, query)
 
     # ----- explorer / network -----
     def upsert_known_label(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -2627,10 +2518,10 @@ class AppStore:
         activation = REWARD_SCHEDULE_ACTIVATION_HEIGHT
         if current < activation:
             event = activation
-            event_name = "20_percent_reward_schedule_activation"
+            event_name = "10_percent_reward_schedule_activation"
         else:
             event = next_reduction_height(current)
-            event_name = "20_percent_reward_reduction"
+            event_name = "10_percent_reward_reduction"
         subsidy = chain.subsidy(current + 1)
         return {
             "height": current,
@@ -2638,7 +2529,7 @@ class AppStore:
             "event_height": event,
             "blocks_remaining": max(0, event - current),
             "interval_blocks": REWARD_REDUCTION_INTERVAL,
-            "reduction_percent": 20,
+            "reduction_percent": int((REWARD_REDUCTION_DENOMINATOR - REWARD_REDUCTION_NUMERATOR) * 100 / REWARD_REDUCTION_DENOMINATOR),
             "current_subsidy_sats": subsidy,
             "current_subsidy": sats_to_amount(subsidy),
         }
@@ -2860,7 +2751,9 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
     if path.startswith("/polls/"):
         return 200, store.poll_results(path.split("/", 2)[2]), "application/json"
     if path == "/markets":
-        return 200, {"markets": [store.prediction_market(x["market_id"]) for x in store.load().get("prediction_markets", {}).values()]}, "application/json"
+        return 200, store.list_prediction_markets(), "application/json"
+    if path == "/markets/external/polymarket":
+        return 200, store.polymarket_markets(query), "application/json"
     if path.startswith("/markets/"):
         return 200, store.prediction_market(path.split("/", 2)[2]), "application/json"
     if path == "/network":
@@ -2977,6 +2870,14 @@ def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any],
         return 200, store.create_prediction_market(body)
     if path.startswith("/markets/") and path.endswith("/order"):
         return 200, store.place_market_order(path.split("/")[2], body)
+    if path.startswith("/markets/") and "/orders/" in path and path.endswith("/cancel"):
+        parts = path.split("/")
+        return 200, store.cancel_market_order(parts[2], parts[4], body)
+    if path.startswith("/markets/") and path.endswith("/cancel"):
+        parts = path.split("/")
+        return 200, store.cancel_market_order(parts[2], str(body.get("order_id") or ""), body)
+    if path.startswith("/markets/") and path.endswith("/resolution-request"):
+        return 200, store.request_market_resolution(path.split("/")[2], body)
     if path.startswith("/markets/") and path.endswith("/resolve"):
         return 200, store.resolve_prediction_market(path.split("/")[2], body)
     if path == "/wallet/categories":

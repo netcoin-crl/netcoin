@@ -11,6 +11,22 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+- Markets Labs is now a real play-money/testnet dashboard instead of a static
+  placeholder: create demo markets, place and cancel orders, view order books,
+  request/approve resolution, see demo wallets/positions, and load a read-only
+  Polymarket discovery feed through the NetCoin backend.
+
+### Changed
+- App-layer market logic moved into the `netcoin.apps` package split while
+  keeping the public `netcoin.apps` import path compatible.
+- Public microsites now use shared `sites/shared/site-shell.*` assets through
+  lightweight per-site wrappers, so navigation, mode hints, quickstart text,
+  and the Labs link stay consistent across Wallet, Explorer, Pay, Faucet, and
+  the other sites.
+- Explorer’s page shell was aligned with the rest of the public sites and no
+  longer shows the wallet contact manager as the first explorer panel.
+
 ## [0.12.0] - 2026-07-05 — large sends fixed: fast verify, O(1) lookups, self-defragmenting wallet
 
 Fixes the "can't send a lot of NET / it lags the explorer" problem. Root causes
