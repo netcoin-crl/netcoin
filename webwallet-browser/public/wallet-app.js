@@ -277,15 +277,16 @@
         <a href="https://merchant.netcoin.online/"><b>Merchant dashboard</b><br><span class="muted">Invoices, POS, refunds, API keys, webhooks, and exports.</span></a>
       </div>`, "payments"), $("btnLock"));
     wallet.insertBefore(walletSection("Mining", `
-      <p class="muted">Mine NetCoin on your own computer and get the block reward paid to this wallet. No pools, no signup — one command in a terminal.</p>
+      <p class="muted">Mine NetCoin on your own computer and get the block reward paid to this wallet. No pools, no signup.</p>
       <p id="miningStats" class="muted">Checking chain status…</p>
-      <p class="muted">1. Install NetCoin once (see the Learn site). 2. Activate your virtualenv. 3. Run:</p>
+      <p class="muted">1. Install NetCoin once (see the Learn site). 2. Activate your virtualenv. 3. Run the browser-address command below, or use the auto-harvest command if you mine with a local wallet file.</p>
       <pre id="mineCommand" class="mono">Unlock your wallet to see your personal mining command.</pre>
+      <pre id="harvestMineCommand" class="mono">python -m netcoin miner --node http://18.220.89.128:28444 --wallet miner.json --blocks 0 --auto-harvest --harvest-every 25 --harvest-min-utxos 50</pre>
       <button id="btnCopyMineCommand" class="secondary" type="button">Copy mining command</button>
       <p class="muted">Mining rewards show under your balance as "maturing" and unlock after 100 blocks. If the netcoin.online domain is blocked on your network, the command above already uses the raw seed IP.</p>
       <div class="section-links"><a href="https://learn.netcoin.online/"><b>Full mining guide</b><br><span class="muted">Install steps, Windows/macOS/Linux notes, troubleshooting.</span></a></div>`, "mining"), $("btnLock"));
     wallet.insertBefore(walletSection("Tokens", `
-      <p class="muted">App-layer NET-20 tokens tracked by this node. Read-only here: token transfers are an API-level demo protected by developer keys, not by chain signatures, so this wallet will not move them for you.</p>
+      <p class="muted">App-layer NET-20 tokens tracked by this node. Read-only here: token writes support wallet-signed app actions plus developer keys, but this browser wallet does not move app-layer tokens yet.</p>
       <button id="btnRefreshTokens" class="secondary" type="button">Refresh token balances</button>
       <div id="tokenList" class="watch-list"><span class="muted">Unlock the wallet, then refresh to load tokens.</span></div>
       <p class="muted">Create and manage tokens via the API — see <a href="https://api.netcoin.online/openapi.yaml" target="_blank" rel="noreferrer">the OpenAPI spec</a> or the SDKs.</p>`, "tokens"), $("btnLock"));
@@ -1367,7 +1368,7 @@
         $("miningStats").innerHTML = `Chain height <strong>${esc(n.height)}</strong> · block reward <strong>${esc(reward)}</strong> · target block time <strong>${esc(spacing)}</strong>`;
       }
       if ($("mineCommand") && state) {
-        $("mineCommand").textContent = `python -m netcoin miner --node http://18.220.89.128 --address ${state.address} --address-type p2wpkh --blocks 10 --sync-after`;
+        $("mineCommand").textContent = `python -m netcoin miner --node http://18.220.89.128:28444 --address ${state.address} --address-type p2wpkh --blocks 0 --sync-after`;
       }
     } catch { /* offline: leave the static copy */ }
   }

@@ -7,8 +7,9 @@ from urllib.request import Request, urlopen
 
 import pytest
 
-from netcoin.apps import AppError, AppStore, format_token_amount, parse_token_units, route_app_get, route_app_post
+from netcoin.apps import AppError, AppStore, canonical_app_action, format_token_amount, parse_token_units, route_app_get, route_app_post
 from netcoin.chain import Blockchain
+from netcoin.crypto import sign_message
 from netcoin.node import NetCoinNode, make_handler
 from netcoin.wallet import Wallet
 
@@ -90,6 +91,36 @@ def test_token_create_mint_transfer_burn(tmp_path: Path):
     assert holders["holder_count"] == 2
     events = store.token_events("DEMO")["events"]
     assert [e["kind"] for e in events[:4]] == ["burn", "transfer", "mint", "create"]
+
+
+def test_token_transfer_can_verify_signed_app_action(tmp_path: Path):
+    store, _, alice, bob = make_store(tmp_path)
+    store.create_token({"symbol": "SIG", "creator": alice.segwit_address, "initial_supply": "10", "decimals": 0})
+    payload = {"from": alice.segwit_address, "to": bob.segwit_address, "amount": "3"}
+    payload["signed_message"] = canonical_app_action("tokens.transfer", payload)
+    payload["signature"] = sign_message(alice.private_key, payload["signed_message"])
+
+    result = store.transfer_token("SIG", payload)
+
+    assert result["signature"]["verified"] is True
+    assert result["to"]["units"] == 3
+    event = store.token_events("SIG")["events"][0]
+    assert event["detail"]["signature_verified"] is True
+
+
+def test_token_signature_enforcement_can_be_enabled(tmp_path: Path, monkeypatch):
+    store, _, alice, bob = make_store(tmp_path)
+    store.create_token({"symbol": "REQ", "creator": alice.segwit_address, "initial_supply": "10", "decimals": 0})
+    monkeypatch.setenv("NETCOIN_APP_REQUIRE_SIGNATURES", "1")
+
+    with pytest.raises(AppError, match="signature is required"):
+        store.transfer_token("REQ", {"from": alice.segwit_address, "to": bob.segwit_address, "amount": "1"})
+
+    payload = {"from": alice.segwit_address, "to": bob.segwit_address, "amount": "1"}
+    payload["signed_message"] = canonical_app_action("tokens.transfer", payload)
+    payload["signature"] = sign_message(bob.private_key, payload["signed_message"])
+    with pytest.raises(AppError, match="signature does not verify"):
+        store.transfer_token("REQ", payload)
 
 
 def test_token_username_accounts_and_validation(tmp_path: Path):

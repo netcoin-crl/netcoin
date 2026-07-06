@@ -270,11 +270,12 @@ paths:
     post:
       tags: [tokens]
       summary: Create a token
+      description: Supports wallet-signed app actions with `signed_message` and `signature`. Sign the canonical action message for `tokens.create`. Signatures are optional by default and can be made required by operators.
       requestBody:
         required: true
         content:
           application/json:
-            example: { symbol: "DEMO", name: "Demo Points", decimals: 2, creator: "net1q...", initial_supply: "100", max_supply: "150", mintable: true }
+            example: { symbol: "DEMO", name: "Demo Points", decimals: 2, creator: "net1q...", initial_supply: "100", max_supply: "150", mintable: true, signed_message: "NetCoin app-layer action\nv1\ntokens.create\n{...}", signature: "base64..." }
       responses:
         "200": { description: Created token record. }
         "400": { description: Invalid symbol/decimals, duplicate symbol, or bad account. }
@@ -317,12 +318,13 @@ paths:
     post:
       tags: [tokens]
       summary: Mint new supply (creator only, capped by max_supply)
+      description: Supports wallet-signed app actions with `signed_message` and `signature`. Sign the canonical action message for `tokens.mint`.
       parameters:
         - { name: ref, in: path, required: true, schema: { type: string } }
       requestBody:
         content:
           application/json:
-            example: { minter: "net1q...", to: "@alice", amount: "50" }
+            example: { minter: "net1q...", to: "@alice", amount: "50", signed_message: "NetCoin app-layer action\nv1\ntokens.mint\n{...}", signature: "base64..." }
       responses:
         "200": { description: Recipient balance after mint. }
         "400": { description: Not mintable, wrong minter, or exceeds max supply. }
@@ -330,12 +332,13 @@ paths:
     post:
       tags: [tokens]
       summary: Transfer between accounts
+      description: Supports wallet-signed app actions with `signed_message` and `signature`. Sign the canonical action message for `tokens.transfer`.
       parameters:
         - { name: ref, in: path, required: true, schema: { type: string } }
       requestBody:
         content:
           application/json:
-            example: { from: "net1q...", to: "@bob", amount: "25.5" }
+            example: { from: "net1q...", to: "@bob", amount: "25.5", signed_message: "NetCoin app-layer action\nv1\ntokens.transfer\n{...}", signature: "base64..." }
       responses:
         "200": { description: Sender and recipient balances after transfer. }
         "400": { description: Insufficient balance or invalid account. }
@@ -343,12 +346,13 @@ paths:
     post:
       tags: [tokens]
       summary: Burn supply from an account
+      description: Supports wallet-signed app actions with `signed_message` and `signature`. Sign the canonical action message for `tokens.burn`.
       parameters:
         - { name: ref, in: path, required: true, schema: { type: string } }
       requestBody:
         content:
           application/json:
-            example: { from: "net1q...", amount: "0.5" }
+            example: { from: "net1q...", amount: "0.5", signed_message: "NetCoin app-layer action\nv1\ntokens.burn\n{...}", signature: "base64..." }
       responses:
         "200": { description: Account balance after burn. }
   /wallet/statement:

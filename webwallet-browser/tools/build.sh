@@ -56,12 +56,12 @@ echo "==> Wrote $MANIFEST"
 cat "$MANIFEST"
 
 # Optional signature (mirrors tools/make_release.sh in the node repo).
-if command -v gpg >/dev/null 2>&1; then
-  KEY_ARG=()
-  [ -n "${NETCOIN_SIGNING_KEY:-}" ] && KEY_ARG=(--local-user "$NETCOIN_SIGNING_KEY")
-  if gpg ${KEY_ARG[@]+"${KEY_ARG[@]}"} --armor --detach-sign --output "${MANIFEST}.asc" "$MANIFEST" 2>/dev/null; then
+if [ -n "${NETCOIN_SIGNING_KEY:-}" ] && command -v gpg >/dev/null 2>&1; then
+  if gpg --batch --yes --local-user "$NETCOIN_SIGNING_KEY" --armor --detach-sign --output "${MANIFEST}.asc" "$MANIFEST" 2>/dev/null; then
     echo "==> Signed ${MANIFEST}.asc"
   else
-    echo "note: gpg present but signing skipped (no usable key)." >&2
+    echo "note: gpg signing skipped (NETCOIN_SIGNING_KEY is not usable)." >&2
   fi
+else
+  echo "note: set NETCOIN_SIGNING_KEY to sign ${MANIFEST}.asc." >&2
 fi

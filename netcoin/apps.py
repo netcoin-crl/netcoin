@@ -259,6 +259,58 @@ def esc(value: Any) -> str:
     return html.escape(str(value), quote=True)
 
 
+SIGNED_ACTION_EXCLUDE_FIELDS = {"api_key", "signature", "signed_message", "message"}
+
+
+def canonical_app_action(action: str, payload: dict[str, Any]) -> str:
+    """Deterministic message that a wallet can sign for app-layer writes.
+
+    App-layer state is not consensus, so the signature proves "the address owner
+    asked this node to do this app action" rather than spending chain coins.
+    """
+    clean = {
+        str(k): v for k, v in payload.items()
+        if str(k) not in SIGNED_ACTION_EXCLUDE_FIELDS and v is not None
+    }
+    body = json.dumps(clean, sort_keys=True, separators=(",", ":"))
+    return f"NetCoin app-layer action\nv1\n{action}\n{body}"
+
+
+def app_signatures_required() -> bool:
+    return os.environ.get("NETCOIN_APP_REQUIRE_SIGNATURES", "0").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def verify_app_action_signature(action: str, signer: str, payload: dict[str, Any], *, required: bool | None = None) -> dict[str, Any]:
+    """Verify an optional signed app-layer action.
+
+    When ``required`` is true (or NETCOIN_APP_REQUIRE_SIGNATURES=1), missing or
+    invalid signatures reject the write. When false, valid signatures are
+    recorded and invalid/missing signatures leave legacy API behavior unchanged.
+    """
+    required = app_signatures_required() if required is None else required
+    if signer.startswith("@"):
+        if required:
+            raise AppError("signed app-layer writes require a NetCoin address account, not an @username")
+        return {"required": required, "verified": False, "reason": "username account"}
+    signer = normalize_address(signer)
+    expected = canonical_app_action(action, payload)
+    message = str(payload.get("signed_message") or payload.get("message") or expected)
+    signature = str(payload.get("signature") or "")
+    if message != expected:
+        if required:
+            raise AppError("signed app-layer message does not match the action payload")
+        return {"required": required, "verified": False, "reason": "message mismatch", "message": expected}
+    if not signature:
+        if required:
+            raise AppError("signature is required for this app-layer action")
+        return {"required": required, "verified": False, "reason": "missing signature", "message": expected}
+    if not verify_message(signer, expected, signature):
+        if required:
+            raise AppError("signature does not verify for the app-layer signer")
+        return {"required": required, "verified": False, "reason": "bad signature", "message": expected}
+    return {"required": required, "verified": True, "signer": signer, "message": expected}
+
+
 def app_html_page(title: str, body: str) -> str:
     return f"""<!doctype html>
 <html lang="en">
@@ -431,6 +483,8 @@ class AppStore:
             "storage_path": str(self.sqlite_path if self.storage_backend in {"sqlite", "sqlite3"} else self.path),
             "recommended_storage": security_settings.get("recommended_storage", "sqlite"),
             "admin_token_required": os.environ.get("NETCOIN_APP_REQUIRE_ADMIN", "0") == "1",
+            "app_action_signatures_required": app_signatures_required(),
+            "app_action_signature_mode": "required" if app_signatures_required() else "optional",
             "prediction_markets_require_ack": os.environ.get("NETCOIN_REQUIRE_MARKET_LEGAL_ACK", "0") == "1",
             "payout_signing_policy": data.get("payout_signing_policy", DEFAULT_APP_STATE["payout_signing_policy"]),
             "admin_event_count": len(data.get("admin_events", [])),
@@ -1308,6 +1362,7 @@ class AppStore:
         max_units = parse_token_units(payload.get("max_supply", 0), decimals, "max supply", allow_zero=True)
         if max_units and initial_units > max_units:
             raise AppError("initial supply exceeds max supply")
+        signature_status = verify_app_action_signature("tokens.create", creator, payload)
         data = self.load()
         for existing in data["tokens"].values():
             if existing["symbol"] == symbol:
@@ -1327,9 +1382,9 @@ class AppStore:
             "note": "App-layer indexed ledger. Not enforced by NetCoin consensus.",
         }
         data["tokens"][token["token_id"]] = token
-        self._token_event(data, token, "create", {"creator": creator, "initial_units": initial_units})
+        self._token_event(data, token, "create", {"creator": creator, "initial_units": initial_units, "signature_verified": signature_status["verified"]})
         self.save(data)
-        return token
+        return token | {"signature": signature_status}
 
     def token_info(self, token_ref: str) -> dict[str, Any]:
         token = dict(self._find_token(self.load(), token_ref))
@@ -1374,15 +1429,16 @@ class AppStore:
         minter = normalize_token_account(payload.get("minter") or payload.get("creator"))
         if minter != token["creator"]:
             raise AppError("only the token creator may mint")
+        signature_status = verify_app_action_signature("tokens.mint", minter, payload)
         to_account = normalize_token_account(payload.get("to") or minter)
         units = parse_token_units(payload.get("amount"), token["decimals"], "mint amount")
         if token["max_supply_units"] and token["supply_units"] + units > token["max_supply_units"]:
             raise AppError("mint would exceed max supply")
         token["supply_units"] += units
         token["balances"][to_account] = int(token["balances"].get(to_account, 0)) + units
-        self._token_event(data, token, "mint", {"to": to_account, "units": units})
+        self._token_event(data, token, "mint", {"to": to_account, "units": units, "signature_verified": signature_status["verified"]})
         self.save(data)
-        return self.token_balance_of(token["token_id"], to_account)
+        return self.token_balance_of(token["token_id"], to_account) | {"signature": signature_status}
 
     def transfer_token(self, token_ref: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = self.load()
@@ -1391,34 +1447,37 @@ class AppStore:
         recipient = normalize_token_account(payload.get("to") or payload.get("recipient"))
         if sender == recipient:
             raise AppError("cannot transfer a token to the same account")
+        signature_status = verify_app_action_signature("tokens.transfer", sender, payload)
         units = parse_token_units(payload.get("amount"), token["decimals"], "transfer amount")
         balance = int(token["balances"].get(sender, 0))
         if balance < units:
             raise AppError("insufficient token balance")
         token["balances"][sender] = balance - units
         token["balances"][recipient] = int(token["balances"].get(recipient, 0)) + units
-        self._token_event(data, token, "transfer", {"from": sender, "to": recipient, "units": units})
+        self._token_event(data, token, "transfer", {"from": sender, "to": recipient, "units": units, "signature_verified": signature_status["verified"]})
         self.save(data)
         return {
             "token_id": token["token_id"],
             "symbol": token["symbol"],
             "from": self.token_balance_of(token["token_id"], sender),
             "to": self.token_balance_of(token["token_id"], recipient),
+            "signature": signature_status,
         }
 
     def burn_token(self, token_ref: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = self.load()
         token = self._find_token(data, token_ref)
         account = normalize_token_account(payload.get("from") or payload.get("account"))
+        signature_status = verify_app_action_signature("tokens.burn", account, payload)
         units = parse_token_units(payload.get("amount"), token["decimals"], "burn amount")
         balance = int(token["balances"].get(account, 0))
         if balance < units:
             raise AppError("insufficient token balance")
         token["balances"][account] = balance - units
         token["supply_units"] -= units
-        self._token_event(data, token, "burn", {"from": account, "units": units})
+        self._token_event(data, token, "burn", {"from": account, "units": units, "signature_verified": signature_status["verified"]})
         self.save(data)
-        return self.token_balance_of(token["token_id"], account)
+        return self.token_balance_of(token["token_id"], account) | {"signature": signature_status}
 
     def create_gift(self, payload: dict[str, Any]) -> dict[str, Any]:
         amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "gift amount")
