@@ -14,7 +14,7 @@
     { href: 'https://api.netcoin.online', host: 'api.netcoin.online', label: 'Developers', detail: 'API, SDKs, examples', group: 'Builders' },
     { href: 'https://docs.netcoin.online', host: 'docs.netcoin.online', label: 'Docs', detail: 'reference map', group: 'Builders' },
     { href: 'https://nodes.netcoin.online', host: 'nodes.netcoin.online', label: 'Nodes', detail: 'public seeds and mining', group: 'Operators' },
-    { href: 'https://network.netcoin.online', host: 'network.netcoin.online', label: 'Network', detail: 'operator dashboard', group: 'Operators' },
+    { href: 'https://nodes.netcoin.online#network', host: 'nodes.netcoin.online', label: 'Network', detail: 'operator dashboard', group: 'Operators' },
     { href: 'https://status.netcoin.online', host: 'status.netcoin.online', label: 'Status', detail: 'service health', group: 'Operators' },
     { href: 'https://security.netcoin.online', host: 'security.netcoin.online', label: 'Security', detail: 'trust and safety', group: 'Trust' },
     { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and votes', group: 'Trust' },
