@@ -3,76 +3,85 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NetCoin Start</title>
+  <title>NetCoin</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="ui-polish.css?v=20260707-ui-overhaul" />
-  <link rel="stylesheet" href="site-shell.css?v=20260707-ui-overhaul" />
+  <link rel="stylesheet" href="ui-polish.css?v=20260707-professional-shell" />
+  <link rel="stylesheet" href="site-shell.css?v=20260707-professional-shell" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand"><div class="logo">N</div><div>NetCoin Start<small>one front door for every public tool</small></div></div>
+      <div class="brand"><div class="logo">N</div><div>NetCoin<small>public testnet operations hub</small></div></div>
       <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
     </header>
 
     <section class="hero dashboard-hero">
       <div class="card lead">
         <span class="pill">public testnet</span>
-        <h1>Start with NetCoin without hunting around.</h1>
-        <p>Wallet, Pay, Faucet, Explorer, Learn, Community, Merchant, Developers, Status, Security, Governance, Treasury, and Markets Labs are all reachable from one clean directory.</p>
+        <h1>A clean gateway for every NetCoin tool.</h1>
+        <p>Start, wallet, payments, explorer, faucet, developer docs, node operations, security, governance, treasury, and experimental labs now live behind one consistent interface.</p>
         <div class="actions">
           <a class="pill" href="https://wallet.netcoin.online">Open wallet</a>
-          <a class="pill" href="https://pay.netcoin.online">Create payment link</a>
-          <a class="pill" href="https://explorer.netcoin.online">Search Explorer</a>
-          <a class="pill" href="https://learn.netcoin.online#download">Install locally</a>
+          <a class="pill" href="https://explorer.netcoin.online">View Explorer</a>
+          <a class="pill" href="https://learn.netcoin.online#download">Download NetCoin</a>
+          <a class="pill" href="https://status.netcoin.online">Check status</a>
         </div>
       </div>
       <div class="card">
-        <h2>First five minutes</h2>
+        <h2>Launch path</h2>
         <ol class="compact-list">
-          <li>Create or unlock a wallet.</li>
-          <li>Save the seed phrase offline.</li>
-          <li>Request faucet coins.</li>
-          <li>Send a small test payment.</li>
-          <li>Verify the txid in Explorer.</li>
+          <li>Create or restore a wallet.</li>
+          <li>Request public-testnet coins from the faucet.</li>
+          <li>Send a small payment and verify it in Explorer.</li>
+          <li>Install locally when you are ready to mine or run a node.</li>
+          <li>Use Settings or <code>?mode=developer</code> to reorder tools for your role.</li>
         </ol>
       </div>
     </section>
 
     <section class="grid dashboard-grid">
-      <a class="biglink card" href="https://wallet.netcoin.online"><b>Wallet</b><span>Non-custodial browser wallet with contacts, activity, mining helpers, and fee controls.</span></a>
-      <a class="biglink card" href="https://pay.netcoin.online"><b>Pay</b><span>Simple payment requests and receipt flows for normal users.</span></a>
-      <a class="biglink card" href="https://faucet.netcoin.online"><b>Faucet</b><span>Request public-testnet NET. Testnet coins have no real-money value.</span></a>
-      <a class="biglink card" href="https://explorer.netcoin.online"><b>Explorer</b><span>Search blocks, transactions, addresses, tokens, mempool, and public network state.</span></a>
-      <a class="biglink card" href="https://learn.netcoin.online"><b>Learn & Download</b><span>Beginner setup, Mac/Windows/Linux commands, public mining, and node checks.</span></a>
+      <a class="biglink card" href="https://wallet.netcoin.online"><b>Wallet</b><span>Non-custodial browser wallet with contacts, activity, fee controls, coin status, and mining helpers.</span></a>
+      <a class="biglink card" href="https://pay.netcoin.online"><b>Pay</b><span>Simple payment requests and receipt flows for public-testnet transactions.</span></a>
+      <a class="biglink card" href="https://explorer.netcoin.online"><b>Explorer</b><span>Live blocks, transactions, addresses, mempool, token views, and public network state.</span></a>
+      <a class="biglink card" href="https://faucet.netcoin.online"><b>Faucet</b><span>Public-testnet NET for onboarding, demos, wallet testing, and transaction checks.</span></a>
+      <a class="biglink card" href="https://learn.netcoin.online"><b>Learn & Download</b><span>Beginner setup, Mac/Windows/Linux commands, public mining, node checks, and release safety.</span></a>
       <a class="biglink card" href="https://community.netcoin.online"><b>Community</b><span>Questions, ideas, bounties, contributor coordination, and public discussion.</span></a>
     </section>
 
     <section class="grid dashboard-grid" id="directory">
       <div class="card">
-        <h2>Run a business</h2>
-        <p class="muted">Use Merchant for invoices, POS, reports, refunds, API keys, and webhook setup. Keep Pay simple for one-off payment links.</p>
-        <div class="actions"><a class="pill" href="https://merchant.netcoin.online">Merchant</a><a class="pill" href="https://api.netcoin.online">API</a><a class="pill" href="https://docs.netcoin.online">Docs</a></div>
+        <h2>For merchants</h2>
+        <p class="muted">Merchant tools stay separate from simple Pay so invoices, reports, webhooks, refunds, and API keys have room without crowding the beginner flow.</p>
+        <div class="actions"><a class="pill" href="https://merchant.netcoin.online">Merchant</a><a class="pill" href="https://pay.netcoin.online">Pay</a><a class="pill" href="https://api.netcoin.online">API</a></div>
       </div>
       <div class="card">
-        <h2>Build or operate</h2>
-        <p class="muted">Developers get API docs and SDKs. Operators get seed health, public status, mining, and release verification.</p>
-        <div class="actions"><a class="pill" href="https://api.netcoin.online">Developers</a><a class="pill" href="https://nodes.netcoin.online">Nodes</a><a class="pill" href="https://status.netcoin.online">Status</a></div>
+        <h2>For builders</h2>
+        <p class="muted">Developers get OpenAPI, SDKs, examples, exchange readiness notes, token endpoints, and app-layer references in the builder surfaces.</p>
+        <div class="actions"><a class="pill" href="https://api.netcoin.online">Developers</a><a class="pill" href="https://docs.netcoin.online">Docs</a><a class="pill" href="https://learn.netcoin.online#download">Download</a></div>
       </div>
       <div class="card">
-        <h2>Trust and coordination</h2>
-        <p class="muted">Security holds trust notes. Governance and Treasury hold formal proposals, roadmap decisions, grants, and public spending records.</p>
-        <div class="actions"><a class="pill" href="https://security.netcoin.online">Security</a><a class="pill" href="https://governance.netcoin.online">Governance</a><a class="pill" href="https://treasury.netcoin.online">Treasury</a></div>
+        <h2>For operators</h2>
+        <p class="muted">Nodes, Status, and Security are the operational layer: seed health, public service checks, mining, release verification, and incident context.</p>
+        <div class="actions"><a class="pill" href="https://nodes.netcoin.online">Nodes</a><a class="pill" href="https://status.netcoin.online">Status</a><a class="pill" href="https://security.netcoin.online">Security</a></div>
+      </div>
+      <div class="card">
+        <h2>For governance</h2>
+        <p class="muted">Governance and Treasury hold the formal public record: proposals, roadmap decisions, grants, budgets, and accountability notes.</p>
+        <div class="actions"><a class="pill" href="https://governance.netcoin.online">Governance</a><a class="pill" href="https://treasury.netcoin.online">Treasury</a></div>
       </div>
       <div class="card">
         <h2>Experimental labs</h2>
-        <p class="muted">Markets Labs stays separate from the beginner path because it is experimental, demo-only, and needs extra safety context.</p>
+        <p class="muted">Markets Labs stays out of the default beginner path. It is available through the Directory and Labs mode because it is experimental demo infrastructure.</p>
         <div class="actions"><a class="pill" href="https://markets.netcoin.online">Markets Labs</a><a class="pill" href="https://security.netcoin.online">Safety notes</a></div>
+      </div>
+      <div class="card">
+        <h2>Interface profiles</h2>
+        <p class="muted">Modes are no longer visible page switches. Use Settings in the top navigation, or append <code>?mode=merchant</code>, <code>?mode=developer</code>, <code>?mode=operator</code>, <code>?mode=governance</code>, or <code>?mode=labs</code> to reorder the Directory.</p>
       </div>
     </section>
 
-    <p class="footer">Use the Directory button on any NetCoin site to reach the whole ecosystem. No page should be a dead end.</p>
+    <p class="footer">NetCoin is a public testnet. Public-testnet coins are for development, demonstrations, and network testing; they have no real-money value.</p>
   </div>
-  <script src="site-shell.js?v=20260707-ui-overhaul"></script>
+  <script src="site-shell.js?v=20260707-professional-shell"></script>
 </body>
 </html>
