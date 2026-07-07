@@ -1149,6 +1149,68 @@ def cmd_psbt_sign(args: argparse.Namespace) -> None:
     print_json({"ok": True, "fully_signed": psbt.is_fully_signed(), "psbt": None if args.out else psbt.to_base64()})
 
 
+def cmd_professional_check(args: argparse.Namespace) -> None:
+    from .professional import issue_report, professional_readiness, protocol_test_vectors, write_release_manifest
+
+    root = Path(args.root) if args.root else Path(__file__).resolve().parents[1]
+    if args.vectors:
+        print_json(protocol_test_vectors())
+        return
+    if args.manifest:
+        manifest = write_release_manifest(root, args.manifest)
+        print_json({"ok": True, "manifest": args.manifest, "sha256": manifest["manifest_sha256"]})
+        return
+    payload = issue_report(root) if args.issues else professional_readiness(root)
+    print_json(payload)
+    if args.fail_on_issues and not payload.get("ok"):
+        raise WalletError("professional readiness checks reported open issues")
+
+
+def cmd_competitive_check(args: argparse.Namespace) -> None:
+    if getattr(args, "level5", False):
+        from .competitive import all_area_smokes, build_level5_report, validate_level5
+
+        if getattr(args, "validate", False):
+            payload = validate_level5(args.area)
+        elif getattr(args, "smoke", False):
+            payload = all_area_smokes()
+            if args.area:
+                payload = {"ok": payload["areas"][args.area]["ok"], "area": args.area, "result": payload["areas"][args.area]}
+        else:
+            payload = build_level5_report(args.area)
+        print_json(payload)
+        if getattr(args, "fail_on_issues", False) and not payload.get("ok", True):
+            raise WalletError("competitive level-5 checks reported open issues")
+        return
+
+    from .competitive import build_competitive_gap_report
+
+    report = build_competitive_gap_report()
+    if args.area:
+        matches = [area for area in report["areas"] if area["slug"] == args.area]
+        if not matches:
+            raise WalletError(f"unknown competitive area: {args.area}")
+        report = {**report, "areas": matches, "area_count": 1, "feature_count": matches[0]["feature_count"]}
+    if args.markdown:
+        lines = [
+            "# NetCoin Competitive Feature Scaffold Report",
+            f"Area count: {report['area_count']}",
+            f"Feature count: {report['feature_count']}",
+            f"Production claim: {report['production_claim']}",
+            "",
+        ]
+        for area in report["areas"]:
+            lines.append(f"## {area['title']}")
+            lines.append(area["purpose"])
+            lines.append("")
+            for feature in area["features"]:
+                lines.append(f"- {feature['status']}: {feature['title']}")
+            lines.append("")
+        print("\n".join(lines))
+        return
+    print_json(report)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="netcoin", description="NetCoin: a Bitcoin-like cryptocurrency from scratch")
     parser.add_argument("--data", default=DEFAULT_DATA_DIR, help="NetCoin data directory")
@@ -1549,6 +1611,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=1234567)
     p.add_argument("--max-bytes", type=int, default=256)
     p.set_defaults(func=cmd_fuzz)
+
+    p = sub.add_parser("competitive-check", help="show the competitive-feature scaffold/level-5 registry")
+    p.add_argument("--area", help="limit output to one competitive area slug")
+    p.add_argument("--markdown", action="store_true", help="print a Markdown report instead of JSON")
+    p.add_argument("--level5", action="store_true", help="show the 5/10 midlevel implementation report")
+    p.add_argument("--validate", action="store_true", help="validate that all competitive features are at least 5/10")
+    p.add_argument("--smoke", action="store_true", help="run deterministic midlevel area smoke checks")
+    p.add_argument("--fail-on-issues", action="store_true", help="exit non-zero if level-5 validation/smoke checks fail")
+    p.set_defaults(func=cmd_competitive_check)
+
+    p = sub.add_parser("professional-check", help="run professional-readiness, issue, protocol-vector, and release-manifest checks")
+    p.add_argument("--root", help="repository root (default: package checkout root)")
+    p.add_argument("--issues", action="store_true", help="print compact issue report")
+    p.add_argument("--vectors", action="store_true", help="print protocol test vectors")
+    p.add_argument("--manifest", help="write release manifest JSON to this path")
+    p.add_argument("--fail-on-issues", action="store_true", help="exit non-zero if readiness checks are not passing")
+    p.set_defaults(func=cmd_professional_check)
 
     p = sub.add_parser("psbt-sign", help="sign a NetCoin PSBT-like base64 file")
     p.add_argument("--wallet", required=True)

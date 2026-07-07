@@ -1,0 +1,24 @@
+groups:
+  - name: netcoin-competitive-skeleton
+    rules:
+      - alert: NetCoinStuckTip
+        expr: netcoin_seconds_since_last_block > 1800
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: NetCoin tip may be stuck
+      - alert: NetCoinDivergentTip
+        expr: netcoin_peer_tip_divergence > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Peers disagree on the best chain tip
+      - alert: NetCoinFaucetLowBalance
+        expr: netcoin_faucet_balance < netcoin_faucet_min_balance
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Faucet hot wallet needs refill or pause

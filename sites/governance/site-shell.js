@@ -18,15 +18,23 @@
     labs: 'Labs mode brings experimental markets, polls, escrow, contracts, Phase 7 demos, and advanced testnet features forward.'
   };
   const toolLinks = [
-    ['https://netcoin.online', 'simple community', 'Start', 'wallet, pay, community basics'],
-    ['https://nodes.netcoin.online', 'node developer', 'Network', 'nodes, seeds, status, mining'],
-    ['https://api.netcoin.online', 'developer merchant node labs', 'Developers', 'API, SDKs, webhooks, examples'],
-    ['https://governance.netcoin.online', 'community node developer labs', 'Governance', 'NIPs, votes, treasury, roadmap'],
-    ['https://security.netcoin.online', 'all', 'Security', 'trust center and release safety'],
-    ['https://markets.netcoin.online', 'labs', 'Labs', 'experimental market demos'],
-    ['https://faucet.netcoin.online', 'simple', 'Faucet', 'request testnet coins'],
-    ['https://learn.netcoin.online#download', 'developer node simple', 'Download', 'install from Learn'],
-    ['https://api.netcoin.online', 'developer merchant', 'API host', 'machine API endpoint']
+    ['https://netcoin.online', 'all', 'Start', 'basic user hub'],
+    ['https://wallet.netcoin.online', 'simple merchant community', 'Wallet', 'send, receive, contacts'],
+    ['https://pay.netcoin.online', 'simple merchant', 'Pay', 'payment links and receipts'],
+    ['https://faucet.netcoin.online', 'simple developer', 'Faucet', 'request testnet coins'],
+    ['https://explorer.netcoin.online', 'simple developer node labs', 'Explorer', 'blocks, txs, addresses'],
+    ['https://learn.netcoin.online', 'all', 'Learn', 'beginner setup guide'],
+    ['https://learn.netcoin.online#download', 'developer node simple', 'Download', 'install from GitHub'],
+    ['https://community.netcoin.online', 'simple community', 'Community', 'discussion and ideas'],
+    ['https://merchant.netcoin.online', 'merchant', 'Merchant', 'checkout, invoices, POS'],
+    ['https://api.netcoin.online', 'developer merchant node labs', 'Developers', 'API, SDKs, examples'],
+    ['https://docs.netcoin.online', 'developer node', 'Docs', 'reference and guides'],
+    ['https://nodes.netcoin.online', 'node developer', 'Network', 'seeds, peers, mining'],
+    ['https://status.netcoin.online', 'node developer merchant', 'Status', 'public service health'],
+    ['https://security.netcoin.online', 'all', 'Security', 'trust and release safety'],
+    ['https://governance.netcoin.online', 'community node developer labs', 'Governance', 'NIPs, votes, roadmap'],
+    ['https://treasury.netcoin.online', 'community labs', 'Treasury', 'budgets and grants'],
+    ['https://markets.netcoin.online', 'labs', 'Markets Labs', 'experimental markets']
   ];
   const q = (s, r = document) => r.querySelector(s);
   const qa = (s, r = document) => Array.from(r.querySelectorAll(s));

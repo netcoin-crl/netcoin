@@ -249,6 +249,64 @@ def _analytics_series(market: dict[str, Any]) -> dict[str, Any]:
     return {"price_points": points[-250:], "volume_points": points[-250:]}
 
 
+def _surveillance_report(market: dict[str, Any]) -> dict[str, Any]:
+    """Generate market-integrity alerts for Labs/demo markets.
+
+    This is surveillance, not enforcement by itself. Operators can use the
+    alerts to pause creation, reject resolution, or investigate abuse patterns.
+    """
+    alerts: list[dict[str, Any]] = []
+    trades = list(market.get("trades", []))
+    orders = list(market.get("orders", []))
+    wallets = market.get("wallets", {})
+
+    for trade in trades:
+        if trade.get("buyer") == trade.get("seller") or trade.get("maker") == trade.get("taker"):
+            alerts.append({"code": "wash_trade", "severity": "critical", "detail": "same trader appears on both sides of a trade", "trade_id": trade.get("trade_id")})
+
+    volume_by_trader: dict[str, int] = {}
+    for trade in trades:
+        qty = int(trade.get("quantity", 0) or 0)
+        volume_by_trader[trade.get("buyer", "")] = volume_by_trader.get(trade.get("buyer", ""), 0) + qty
+        volume_by_trader[trade.get("seller", "")] = volume_by_trader.get(trade.get("seller", ""), 0) + qty
+    total_sides = sum(volume_by_trader.values())
+    if total_sides:
+        leader, leader_qty = max(volume_by_trader.items(), key=lambda kv: kv[1])
+        share_bps = int(leader_qty * 10_000 / total_sides)
+        if share_bps >= int(market.get("surveillance_thresholds", {}).get("concentration_bps", 8000)):
+            alerts.append({"code": "volume_concentration", "severity": "medium", "detail": "one trader dominates traded volume", "trader": leader, "share_bps": share_bps})
+
+    by_outcome: dict[str, list[int]] = {}
+    for trade in trades:
+        by_outcome.setdefault(str(trade.get("outcome_id")), []).append(int(trade.get("price_bps", 0) or 0))
+    for outcome_id, prices in by_outcome.items():
+        if len(prices) >= 2 and abs(prices[-1] - prices[0]) >= int(market.get("surveillance_thresholds", {}).get("rapid_move_bps", 4000)):
+            alerts.append({"code": "rapid_price_move", "severity": "medium", "detail": "large price move across observed trades", "outcome_id": outcome_id, "first_bps": prices[0], "last_bps": prices[-1]})
+
+    open_orders = [o for o in orders if o.get("status") == "open"]
+    if market.get("status") in {"closed", "resolved"} and open_orders:
+        alerts.append({"code": "open_orders_after_close", "severity": "high", "detail": "market has open orders after close/resolution", "count": len(open_orders)})
+    if not wallets and (orders or trades):
+        alerts.append({"code": "missing_wallet_ledger", "severity": "high", "detail": "orders/trades exist but market wallet ledger is empty"})
+    if any(int(w.get("balance_sats", 0) or 0) < 0 for w in wallets.values()):
+        alerts.append({"code": "negative_demo_wallet", "severity": "high", "detail": "demo wallet balance went negative"})
+
+    workflow = market.get("resolution_workflow", {})
+    disputes = workflow.get("disputes", []) or []
+    if workflow.get("status") == "pending_operator_approval" and now() - int((workflow.get("pending_resolution") or {}).get("requested_at", now()) or now()) > int(market.get("dispute_window_seconds", 86400)):
+        alerts.append({"code": "resolution_pending_over_dispute_window", "severity": "medium", "detail": "pending resolution is older than the configured dispute window"})
+    if disputes:
+        alerts.append({"code": "active_resolution_disputes", "severity": "medium", "detail": "market has resolution dispute records", "count": len(disputes)})
+
+    return {
+        "ok": not any(a["severity"] in {"high", "critical"} for a in alerts),
+        "alert_count": len(alerts),
+        "alerts": alerts,
+        "thresholds": market.get("surveillance_thresholds", {"concentration_bps": 8000, "rapid_move_bps": 4000}),
+        "last_checked_at": now(),
+    }
+
+
 def _hydrate_market(market: dict[str, Any]) -> dict[str, Any]:
     _format_wallets(market)
     orderbook = _build_orderbook(market)
@@ -258,6 +316,7 @@ def _hydrate_market(market: dict[str, Any]) -> dict[str, Any]:
     result["orderbook"] = orderbook
     result["stats"] = _market_stats(market, orderbook)
     result["analytics"] = _analytics_series(market)
+    result["surveillance"] = _surveillance_report(market)
     result["unit_payout"] = sats_to_amount(int(market.get("unit_payout_sats", DEFAULT_UNIT_PAYOUT_SATS) or DEFAULT_UNIT_PAYOUT_SATS))
     result["collateral_pool"] = sats_to_amount(int(market.get("collateral_pool_sats", 0) or 0))
     result["warning"] = market.get("warning") or PREDICTION_MARKET_WARNING
@@ -323,6 +382,12 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
             "evidence_url": "",
             "operator_approved": False,
             "pending_resolution": None,
+            "disputes": [],
+        },
+        "dispute_window_seconds": int(payload.get("dispute_window_seconds", 86400) or 86400),
+        "surveillance_thresholds": {
+            "concentration_bps": int(payload.get("concentration_bps", 8000) or 8000),
+            "rapid_move_bps": int(payload.get("rapid_move_bps", 4000) or 4000),
         },
         "audit_trail": [],
         "external_source": payload.get("external_source") or None,
@@ -567,6 +632,47 @@ def request_market_resolution_impl(store: Any, market_id: str, payload: dict[str
     _market_event(m, "market.resolution_requested", {"market_id": market_id, "winning_outcome_id": winning})
     store.save(data)
     return prediction_market_impl(store, market_id)
+
+
+def dispute_market_resolution_impl(store: Any, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    data = store.load()
+    m = data.get("prediction_markets", {}).get(market_id)
+    if not m:
+        raise AppError("prediction market not found")
+    actor = str(payload.get("actor") or payload.get("trader_address") or payload.get("trader") or "operator")[:120]
+    dispute = {
+        "dispute_id": clean_id("dsp"),
+        "actor": actor,
+        "reason": str(payload.get("reason") or "")[:1000],
+        "evidence_url": str(payload.get("evidence_url") or "")[:500],
+        "status": "open",
+        "created_at": now(),
+    }
+    workflow = m.setdefault("resolution_workflow", {})
+    workflow.setdefault("disputes", []).append(dispute)
+    workflow["status"] = "disputed"
+    m["status"] = "closed"
+    m["updated_at"] = now()
+    _market_event(m, "market.resolution_disputed", {"market_id": market_id, "dispute_id": dispute["dispute_id"]})
+    store._record_contract_event(data, "market.resolution_disputed", {"market_id": market_id, "dispute_id": dispute["dispute_id"]})
+    store.save(data)
+    return prediction_market_impl(store, market_id)
+
+
+def market_surveillance_impl(store: Any, market_id: str | None = None) -> dict[str, Any]:
+    data = store.load()
+    markets = data.get("prediction_markets", {})
+    if market_id:
+        m = markets.get(market_id)
+        if not m:
+            raise AppError("prediction market not found")
+        return {"market_id": market_id, "surveillance": _surveillance_report(m)}
+    reports = []
+    for mid, market in markets.items():
+        reports.append({"market_id": mid, "question": market.get("question"), "status": market.get("status"), "surveillance": _surveillance_report(market)})
+    alerts = sum(int(r["surveillance"].get("alert_count", 0) or 0) for r in reports)
+    high = [r for r in reports if not r["surveillance"].get("ok")]
+    return {"markets": reports, "alert_count": alerts, "markets_with_high_alerts": len(high), "ok": len(high) == 0}
 
 
 def resolve_prediction_market_impl(store: Any, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:

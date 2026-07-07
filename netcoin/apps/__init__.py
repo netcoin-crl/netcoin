@@ -101,7 +101,11 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     "tokens": {},
     "token_events": [],
     "api_key_registrations": {},
+    "api_usage": {},
+    "app_idempotency_keys": {},
+    "app_nonces": {},
     "treasury_addresses": [],
+    "treasury_proposals": {},
     "node_reports": [],
     "contract_templates": {},
     "contracts": {},
@@ -487,6 +491,8 @@ class AppStore:
             "payout_signing_policy": data.get("payout_signing_policy", DEFAULT_APP_STATE["payout_signing_policy"]),
             "admin_event_count": len(data.get("admin_events", [])),
             "webhook_dead_letters": sum(1 for e in data.get("webhook_events", []) if e.get("dead_letter")),
+            "idempotency_keys": len(data.get("app_idempotency_keys", {})),
+            "app_nonce_scopes": len(data.get("app_nonces", {})),
         }
 
     def set_payout_signing_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -784,6 +790,138 @@ class AppStore:
             hmac.compare_digest(rec.get("key_hash", ""), digest)
             for rec in self.load()["api_keys"].values()
         )
+
+    def _hash_idempotent_payload(self, action: str, payload: dict[str, Any]) -> str:
+        clean = {
+            str(k): v for k, v in payload.items()
+            if str(k) not in {"api_key", "_idempotency_key", "idempotency_key"}
+        }
+        body = json.dumps({"action": action, "payload": clean}, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(body.encode()).hexdigest()
+
+    def idempotency_lookup(self, action: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """Return a stored response for a repeated write with the same idempotency key.
+
+        Clients may send `idempotency_key` in JSON or `Idempotency-Key` at the
+        HTTP layer (the explorer server maps the header into `_idempotency_key`).
+        A reused key with a different body is rejected to prevent accidental
+        replay of a different action.
+        """
+        key = str(payload.get("_idempotency_key") or payload.get("idempotency_key") or "").strip()
+        if not key:
+            return None
+        if len(key) > 120:
+            raise AppError("idempotency key is too long")
+        data = self.load()
+        records = data.setdefault("app_idempotency_keys", {})
+        rec = records.get(key)
+        if not rec:
+            return None
+        request_hash = self._hash_idempotent_payload(action, payload)
+        if not hmac.compare_digest(str(rec.get("request_hash", "")), request_hash):
+            raise AppError("idempotency key was already used with a different request body")
+        return {
+            "status": int(rec.get("status", 200)),
+            "response": rec.get("response", {}),
+            "idempotent_replay": True,
+            "idempotency_key": key,
+        }
+
+    def idempotency_store(self, action: str, payload: dict[str, Any], status: int, response: dict[str, Any]) -> None:
+        key = str(payload.get("_idempotency_key") or payload.get("idempotency_key") or "").strip()
+        if not key:
+            return
+        data = self.load()
+        records = data.setdefault("app_idempotency_keys", {})
+        records[key] = {
+            "idempotency_key": key,
+            "action": action,
+            "request_hash": self._hash_idempotent_payload(action, payload),
+            "status": int(status),
+            "response": response,
+            "created_at": now(),
+        }
+        # Retain recent keys only. Idempotency is an operational protection, not
+        # an immutable audit log.
+        if len(records) > 5000:
+            data["app_idempotency_keys"] = dict(sorted(records.items(), key=lambda kv: kv[1].get("created_at", 0))[-2500:])
+        self.save(data)
+
+    def enforce_app_nonce(self, action: str, payload: dict[str, Any]) -> None:
+        """Optional replay protection for signed app-layer writes.
+
+        Set NETCOIN_APP_REQUIRE_NONCE=1 to require a per-signer monotonic nonce.
+        The signer is detected from common account fields. Clients may also send
+        require_nonce=true during testing to enforce it for one request.
+        """
+        require = os.environ.get("NETCOIN_APP_REQUIRE_NONCE", "0").lower() in {"1", "true", "yes", "on"} or bool(payload.get("require_nonce"))
+        nonce_value = payload.get("app_nonce", payload.get("nonce"))
+        signer = str(
+            payload.get("signer")
+            or payload.get("address")
+            or payload.get("creator")
+            or payload.get("from")
+            or payload.get("sender")
+            or payload.get("trader_address")
+            or payload.get("trader")
+            or payload.get("merchant_id")
+            or ""
+        ).strip()
+        if not require and nonce_value in (None, ""):
+            return
+        if not signer:
+            raise AppError("app nonce requires a signer/account field")
+        try:
+            nonce = int(nonce_value)
+        except (TypeError, ValueError) as exc:
+            raise AppError("app nonce must be an integer") from exc
+        if nonce <= 0:
+            raise AppError("app nonce must be positive")
+        data = self.load()
+        nonces = data.setdefault("app_nonces", {})
+        scoped = f"{signer}:{action}"
+        last = int(nonces.get(scoped, 0) or 0)
+        if nonce <= last:
+            raise AppError("app nonce was already used or is not greater than the last nonce")
+        nonces[scoped] = nonce
+        self.save(data)
+
+    def record_api_usage(self, payload: dict[str, Any], action: str, status: int) -> None:
+        raw = str(payload.get("api_key") or "")
+        if not raw:
+            return
+        digest = hashlib.sha256(raw.encode()).hexdigest()
+        data = self.load()
+        matched_id = None
+        for key_id, rec in data.get("api_keys", {}).items():
+            if hmac.compare_digest(str(rec.get("key_hash", "")), digest):
+                matched_id = key_id
+                break
+        if not matched_id:
+            return
+        usage = data.setdefault("api_usage", {}).setdefault(matched_id, {"key_id": matched_id, "total": 0, "by_action": {}, "last_used_at": None})
+        usage["total"] = int(usage.get("total", 0) or 0) + 1
+        usage["last_used_at"] = now()
+        action_row = usage.setdefault("by_action", {}).setdefault(action, {"count": 0, "last_status": None, "last_used_at": None})
+        action_row["count"] = int(action_row.get("count", 0) or 0) + 1
+        action_row["last_status"] = int(status)
+        action_row["last_used_at"] = now()
+        self.save(data)
+
+    def api_usage_report(self) -> dict[str, Any]:
+        data = self.load()
+        rows = []
+        for key_id, usage in data.get("api_usage", {}).items():
+            rec = data.get("api_keys", {}).get(key_id, {})
+            rows.append({
+                "key_id": key_id,
+                "merchant_id": rec.get("merchant_id"),
+                "total": int(usage.get("total", 0) or 0),
+                "last_used_at": usage.get("last_used_at"),
+                "by_action": usage.get("by_action", {}),
+            })
+        rows.sort(key=lambda r: (-(r.get("total") or 0), str(r.get("key_id"))))
+        return {"api_usage": rows, "count": len(rows)}
 
     def register_webhook(self, payload: dict[str, Any]) -> dict[str, Any]:
         merchant_id = str(payload.get("merchant_id") or "default")[:80]
@@ -2438,6 +2576,14 @@ class AppStore:
         from .markets import resolve_prediction_market_impl
         return resolve_prediction_market_impl(self, market_id, payload)
 
+    def dispute_market_resolution(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from .markets import dispute_market_resolution_impl
+        return dispute_market_resolution_impl(self, market_id, payload)
+
+    def market_surveillance(self, market_id: str | None = None) -> dict[str, Any]:
+        from .markets import market_surveillance_impl
+        return market_surveillance_impl(self, market_id)
+
     def polymarket_markets(self, query: dict[str, list[str]] | None = None) -> dict[str, Any]:
         from .markets import polymarket_markets_impl
         return polymarket_markets_impl(self, query)
@@ -2573,6 +2719,66 @@ def validate_address_payload(address: str) -> dict[str, Any]:
 
 # -------- small routing helpers used by node.py and explorer_server.py --------
 
+    # ----- professional treasury governance -----
+    def create_treasury_proposal(self, payload: dict[str, Any]) -> dict[str, Any]:
+        proposal_id = str(payload.get("proposal_id") or clean_id("tpr"))[:80]
+        title = str(payload.get("title") or "Treasury spend")[:120]
+        amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "treasury proposal amount")
+        to_address = normalize_address(payload.get("to_address") or payload.get("address"))
+        required = max(1, int(payload.get("required_approvals", 2) or 2))
+        record = {
+            "proposal_id": proposal_id,
+            "title": title,
+            "to_address": to_address,
+            "amount_sats": amount_sats,
+            "amount": sats_to_amount(amount_sats),
+            "memo": str(payload.get("memo") or "")[:500],
+            "status": "pending_approval",
+            "required_approvals": required,
+            "approvals": [],
+            "created_at": now(),
+            "updated_at": now(),
+        }
+        data = self.load()
+        data.setdefault("treasury_proposals", {})[proposal_id] = record
+        self.save(data)
+        self.audit("treasury.proposal_created", {"proposal_id": proposal_id, "amount_sats": amount_sats})
+        return record
+
+    def approve_treasury_proposal(self, proposal_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        signer = str(payload.get("signer") or payload.get("operator") or payload.get("address") or "").strip()
+        if not signer:
+            raise AppError("approval signer is required")
+        data = self.load()
+        proposal = data.setdefault("treasury_proposals", {}).get(proposal_id)
+        if not proposal:
+            raise AppError("treasury proposal not found")
+        approvals = proposal.setdefault("approvals", [])
+        if not any(a.get("signer") == signer for a in approvals):
+            approvals.append({"signer": signer, "note": str(payload.get("note") or "")[:250], "created_at": now()})
+        if len(approvals) >= int(proposal.get("required_approvals", 2) or 2) and proposal.get("status") == "pending_approval":
+            plan = self.plan_payout("treasury", [{"address": proposal["to_address"], "amount_sats": proposal["amount_sats"]}], memo=proposal.get("memo", ""))
+            proposal["payout_plan"] = plan
+            proposal["status"] = "ready_for_wallet_signing"
+        proposal["updated_at"] = now()
+        self.save(data)
+        self.audit("treasury.proposal_approved", {"proposal_id": proposal_id, "signer": signer, "approval_count": len(approvals)})
+        return proposal
+
+    def treasury_governance(self) -> dict[str, Any]:
+        data = self.load()
+        proposals = list(data.get("treasury_proposals", {}).values())
+        proposals.sort(key=lambda x: -int(x.get("created_at", 0) or 0))
+        return {
+            "treasury_addresses": data.get("treasury_addresses", []),
+            "proposal_count": len(proposals),
+            "pending": sum(1 for p in proposals if p.get("status") == "pending_approval"),
+            "ready_for_signing": sum(1 for p in proposals if p.get("status") == "ready_for_wallet_signing"),
+            "proposals": proposals,
+            "policy": data.get("payout_signing_policy", DEFAULT_APP_STATE["payout_signing_policy"]),
+        }
+
+
 def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[str]], node: Any | None = None) -> tuple[int, dict[str, Any] | str | bytes, str]:
     def q(name: str, default: str = "") -> str:
         return query.get(name, [default])[0]
@@ -2643,6 +2849,8 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
     if path == "/merchant/api-keys":
         keys = [{k: v for k, v in item.items() if k != "key_hash"} for item in store.load()["api_keys"].values()]
         return 200, {"api_keys": keys}, "application/json"
+    if path == "/merchant/api-usage":
+        return 200, store.api_usage_report(), "application/json"
     if path == "/community/gifts":
         return 200, {"gifts": list(store.load()["gifts"].values())}, "application/json"
     if path == "/community/airdrops":
@@ -2705,6 +2913,12 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, {"backup_health": store.load()["backup_health"]}, "application/json"
     if path == "/security/status":
         return 200, store.security_status(), "application/json"
+    if path in ("/professional-readiness", "/readiness/professional"):
+        from ..professional import professional_readiness
+        return 200, professional_readiness(Path(__file__).resolve().parents[2]), "application/json"
+    if path == "/professional-issues":
+        from ..professional import issue_report
+        return 200, issue_report(Path(__file__).resolve().parents[2]), "application/json"
     if path == "/security/audit":
         return 200, {"admin_events": store.load().get("admin_events", [])[-200:]}, "application/json"
     if path == "/admin/summary":
@@ -2754,6 +2968,10 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, store.list_prediction_markets(), "application/json"
     if path == "/markets/external/polymarket":
         return 200, store.polymarket_markets(query), "application/json"
+    if path == "/markets/surveillance":
+        return 200, store.market_surveillance(), "application/json"
+    if path.startswith("/markets/") and path.endswith("/surveillance"):
+        return 200, store.market_surveillance(path.split("/")[2]), "application/json"
     if path.startswith("/markets/"):
         return 200, store.prediction_market(path.split("/", 2)[2]), "application/json"
     if path == "/network":
@@ -2766,12 +2984,14 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, store.node_map(node), "application/json"
     if path == "/reward-countdown":
         return 200, store.reward_countdown(chain), "application/json"
+    if path == "/treasury/governance":
+        return 200, store.treasury_governance(), "application/json"
     if path == "/treasury":
         return 200, store.treasury(chain), "application/json"
     raise AppError("not an app-layer route")
 
 
-def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any], node: Any | None = None) -> tuple[int, dict[str, Any]]:
+def _route_app_post_uncached(store: AppStore, chain: Any, path: str, body: dict[str, Any], node: Any | None = None) -> tuple[int, dict[str, Any]]:
     if path.startswith("/api"):
         path = path[4:] or "/"
     if path.startswith("/app"):
@@ -2878,6 +3098,8 @@ def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any],
         return 200, store.cancel_market_order(parts[2], str(body.get("order_id") or ""), body)
     if path.startswith("/markets/") and path.endswith("/resolution-request"):
         return 200, store.request_market_resolution(path.split("/")[2], body)
+    if path.startswith("/markets/") and path.endswith("/dispute"):
+        return 200, store.dispute_market_resolution(path.split("/")[2], body)
     if path.startswith("/markets/") and path.endswith("/resolve"):
         return 200, store.resolve_prediction_market(path.split("/")[2], body)
     if path == "/wallet/categories":
@@ -2906,6 +3128,10 @@ def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any],
         return 200, store.address_rotation_record(body)
     if path == "/labels":
         return 200, store.upsert_known_label(body)
+    if path == "/treasury/proposals":
+        return 200, store.create_treasury_proposal(body)
+    if path.startswith("/treasury/proposals/") and path.endswith("/approve"):
+        return 200, store.approve_treasury_proposal(path.split("/")[3], body)
     if path == "/treasury":
         data = store.load()
         entries = body.get("addresses", [])
@@ -2917,3 +3143,21 @@ def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any],
         store.save(data)
         return 200, store.treasury(chain)
     raise AppError("not an app-layer route")
+
+def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any], node: Any | None = None) -> tuple[int, dict[str, Any]]:
+    """Route an app-layer write with optional idempotency and nonce protection."""
+    action = path[4:] if path.startswith("/api") else path
+    action = action[4:] if action.startswith("/app") else action
+    replay = store.idempotency_lookup(action, body)
+    if replay is not None:
+        response = dict(replay["response"]) if isinstance(replay.get("response"), dict) else {"response": replay.get("response")}
+        response["idempotent_replay"] = True
+        response["idempotency_key"] = replay.get("idempotency_key")
+        return int(replay.get("status", 200)), response
+    store.enforce_app_nonce(action, body)
+    status, payload = _route_app_post_uncached(store, chain, path, body, node=node)
+    if isinstance(payload, dict):
+        store.idempotency_store(action, body, status, payload)
+        store.record_api_usage(body, action, status)
+    return status, payload
+
