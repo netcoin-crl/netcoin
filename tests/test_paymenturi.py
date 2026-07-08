@@ -1,5 +1,6 @@
 """BIP21-style netcoin: payment URIs — build/parse roundtrip, validation, and
 the web-wallet payment-uri / parse-uri endpoints."""
+
 import json
 import threading
 from http.server import ThreadingHTTPServer

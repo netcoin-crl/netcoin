@@ -6,12 +6,12 @@ import hmac
 import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict, Optional
+from typing import Any
 
+from .block import Block
 from .chain import Blockchain
 from .crypto import decode_address, validate_address
 from .params import COINBASE_MATURITY, DEFAULT_RPC_PORT, MAX_REQUEST_BODY_BYTES, TICKER
-from .block import Block
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .tx import Transaction, sats_to_amount
 
@@ -87,12 +87,14 @@ class RPCServer:
             payload: dict[str, Any] = {"isvalid": valid, "address": address}
             if valid:
                 decoded = decode_address(address)
-                payload.update({
-                    "network": "netcoin",
-                    "type": decoded.get("type"),
-                    "isscript": decoded.get("type") == "p2sh",
-                    "iswitness": str(decoded.get("type", "")).startswith("p2w") or decoded.get("type") == "p2tr",
-                })
+                payload.update(
+                    {
+                        "network": "netcoin",
+                        "type": decoded.get("type"),
+                        "isscript": decoded.get("type") == "p2sh",
+                        "iswitness": str(decoded.get("type", "")).startswith("p2w") or decoded.get("type") == "p2tr",
+                    }
+                )
             return payload
         if method == "getaddressbalance":
             address = str(params[0])
@@ -108,7 +110,7 @@ class RPCServer:
             summary["transaction_ids_total"] = len(txids)
             summary["transaction_ids_offset"] = offset
             summary["transaction_ids_limit"] = limit
-            summary["transaction_ids"] = txids[offset:offset + limit]
+            summary["transaction_ids"] = txids[offset : offset + limit]
             summary["has_next"] = offset + limit < len(txids)
             return summary
         if method == "listaddressutxos":
@@ -124,7 +126,8 @@ class RPCServer:
                 "height": self.chain.height(),
                 "tip_hash": self.chain.tip_hash(),
                 "utxos": [
-                    utxo.to_dict() | {
+                    utxo.to_dict()
+                    | {
                         "amount_sats": utxo.output.amount,
                         "amount": sats_to_amount(utxo.output.amount),
                         "confirmations": max(0, self.chain.height() - utxo.height + 1),
@@ -190,7 +193,7 @@ class RPCServer:
             return True
         raise RPCError(f"unknown RPC method: {method}")
 
-    def find_tx(self, txid: str) -> Optional[Transaction]:
+    def find_tx(self, txid: str) -> Transaction | None:
         for tx in self.chain.mempool:
             if tx.txid() == txid:
                 return tx
@@ -201,11 +204,11 @@ class RPCServer:
         return None
 
 
-def make_handler(rpc: RPCServer, token: Optional[str] = None):
+def make_handler(rpc: RPCServer, token: str | None = None):
     class Handler(BaseHTTPRequestHandler):
         server_version = "NetCoinRPC/0.2"
 
-        def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
+        def log_message(self, format: str, *args: Any) -> None:
             return
 
         def authorized(self) -> bool:
@@ -218,7 +221,7 @@ def make_handler(rpc: RPCServer, token: Optional[str] = None):
             presented = header[7:] if header.startswith("Bearer ") else self.headers.get("X-Auth-Token", "")
             return bool(presented) and hmac.compare_digest(presented, token)
 
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
             if not self.authorized():
                 self.send_json(
                     {"jsonrpc": "2.0", "id": None, "result": None, "error": "unauthorized"},
@@ -236,11 +239,13 @@ def make_handler(rpc: RPCServer, token: Optional[str] = None):
             except Exception as exc:
                 self.send_json({"jsonrpc": "2.0", "id": None, "result": None, "error": str(exc)}, status=400)
 
-        def do_GET(self) -> None:  # noqa: N802
+        def do_GET(self) -> None:
             # The discovery page never requires auth and never leaks the token.
-            self.send_json({"ok": True, "service": "NetCoin JSON-RPC", "methods": RPC_METHODS, "auth_required": bool(token)})
+            self.send_json(
+                {"ok": True, "service": "NetCoin JSON-RPC", "methods": RPC_METHODS, "auth_required": bool(token)}
+            )
 
-        def send_json(self, payload: Dict[str, Any], status: int = 200) -> None:
+        def send_json(self, payload: dict[str, Any], status: int = 200) -> None:
             body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
@@ -277,7 +282,7 @@ def run_rpc(
     data_dir: str,
     host: str = "127.0.0.1",
     port: int = DEFAULT_RPC_PORT,
-    token: Optional[str] = None,
+    token: str | None = None,
 ) -> None:
     chain = Blockchain(data_dir=data_dir)
     rpc = RPCServer(chain)

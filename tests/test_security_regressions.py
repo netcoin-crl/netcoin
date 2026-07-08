@@ -1,22 +1,23 @@
-import importlib.util
 import http.client
+import importlib.util
 import json
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from threading import Thread
 
 import pytest
 
 import netcoin.chain as chain_module
+import netcoin.consensus as consensus_module
 import netcoin.node as node_module
 from netcoin.block import Block, BlockHeader, make_block, merkle_root, mine_header
 from netcoin.chain import Blockchain, ChainError
 from netcoin.miner import solve_template
 from netcoin.node import NetCoinNode, make_handler
-from netcoin.params import COIN, HALVING_INTERVAL, INITIAL_SUBSIDY, ZERO_HASH
+from netcoin.params import COIN, INITIAL_SUBSIDY, ZERO_HASH
 from netcoin.pool import MiningPool
 from netcoin.pool import make_handler as make_pool_handler
 from netcoin.rpc import RPCServer
@@ -202,7 +203,9 @@ def test_node_returns_json_error_for_malformed_post_without_crashing(tmp_path: P
     thread.start()
     base_url = f"http://127.0.0.1:{server.server_address[1]}"
     try:
-        request = Request(f"{base_url}/tx", data=b"{not-json", headers={"Content-Type": "application/json"}, method="POST")
+        request = Request(
+            f"{base_url}/tx", data=b"{not-json", headers={"Content-Type": "application/json"}, method="POST"
+        )
         with pytest.raises(HTTPError) as excinfo:
             urlopen(request, timeout=5)
         assert excinfo.value.code == 400
@@ -246,6 +249,7 @@ def test_faucet_rejects_invalid_addresses_and_rate_limits_by_ip(monkeypatch):
 # Invalid-signature tests
 # ----------------------------------------------------------------------
 
+
 def test_rejects_transaction_with_forged_signature(tmp_path: Path):
     chain, miner, receiver = funded_chain(tmp_path)
     tx = miner.create_transaction(chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"))
@@ -280,6 +284,7 @@ def test_rejects_input_signed_by_wrong_key(tmp_path: Path):
 # ----------------------------------------------------------------------
 # Double-spend tests
 # ----------------------------------------------------------------------
+
 
 def test_mempool_rejects_conflicting_double_spend(tmp_path: Path):
     chain, miner, receiver = funded_chain(tmp_path)
@@ -322,6 +327,7 @@ def test_rejects_block_with_internal_double_spend(tmp_path: Path):
 # Consensus / DoS-shaped block tests
 # ----------------------------------------------------------------------
 
+
 def test_rejects_block_with_far_future_timestamp(tmp_path: Path):
     chain, miner, _ = funded_chain(tmp_path)
     future = int(time.time()) + 3 * 60 * 60  # node tolerance is 2h
@@ -337,6 +343,7 @@ def test_block_weight_limit_is_enforced(tmp_path: Path, monkeypatch):
     block = coinbase_block_at_tip(chain, miner.address)
     # Shrink the consensus weight budget so any real block trips the guard.
     monkeypatch.setattr(chain_module, "MAX_BLOCK_WEIGHT", 1)
+    monkeypatch.setattr(consensus_module, "MAX_BLOCK_WEIGHT", 1)
 
     with pytest.raises(ChainError, match="maximum weight"):
         chain.add_block(block)
@@ -346,6 +353,7 @@ def test_block_weight_limit_is_enforced(tmp_path: Path, monkeypatch):
 # ----------------------------------------------------------------------
 # Peer-sync tests
 # ----------------------------------------------------------------------
+
 
 def test_replace_chain_ignores_equal_or_lesser_work(tmp_path: Path):
     main = Blockchain(tmp_path / "main")
@@ -442,6 +450,7 @@ def test_sync_rejects_invalid_chain_from_peer(tmp_path: Path):
 # Node-endpoint DoS-resistance tests
 # ----------------------------------------------------------------------
 
+
 def test_node_headers_endpoint_caps_response(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     miner = Wallet.create()
@@ -498,6 +507,7 @@ def test_node_rejects_oversized_request_body(tmp_path: Path, monkeypatch):
 # Consensus: reward-reduction schedule
 # ----------------------------------------------------------------------
 
+
 def test_subsidy_reward_reduction_schedule(tmp_path: Path):
     from netcoin.emission import is_active
     from netcoin.params import (
@@ -510,7 +520,7 @@ def test_subsidy_reward_reduction_schedule(tmp_path: Path):
     assert chain.subsidy(0) == INITIAL_SUBSIDY
     assert chain.subsidy(LEGACY_NRE_ACTIVATION_HEIGHT) == 15 * COIN
     assert chain.subsidy(REWARD_SCHEDULE_ACTIVATION_HEIGHT) == 50 * COIN
-    assert chain.subsidy(REWARD_REDUCTION_INTERVAL) == 50 * COIN * 9 // 10           # 45 NET
+    assert chain.subsidy(REWARD_REDUCTION_INTERVAL) == 50 * COIN * 9 // 10  # 45 NET
     assert chain.subsidy(REWARD_REDUCTION_INTERVAL * 2) == 50 * COIN * 9 // 10 * 9 // 10  # 40.5 NET
     with pytest.raises(ChainError):
         chain.subsidy(-1)
@@ -521,6 +531,7 @@ def test_subsidy_reward_reduction_schedule(tmp_path: Path):
 # ----------------------------------------------------------------------
 # RPC authentication (#17)
 # ----------------------------------------------------------------------
+
 
 def _rpc_call(base_url, method, params=None, token=None):
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}).encode()

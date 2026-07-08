@@ -164,6 +164,14 @@
     }).join("")}</tbody></table>`;
   }
 
+  function renderDisputePanel(m) {
+    const evidence = (m.resolution_evidence || []).slice(-8).reverse();
+    const disputes = (m.dispute_comments || []).slice(-8).reverse();
+    const evidenceRows = evidence.length ? evidence.map((e) => `<li><b>${esc(e.title || e.source_type || "evidence")}</b> <span class="mono muted">${esc(e.sha256 || e.evidence_id || "")}</span><br><span class="muted">${esc(e.url || e.statement || "manual note")} · ${fmtTime(e.created_at || e.timestamp)}</span></li>`).join("") : `<li class="muted">No evidence submitted yet.</li>`;
+    const disputeRows = disputes.length ? disputes.map((d) => `<li><b>${esc(d.commenter || "operator")}</b>: ${esc(d.comment || d.note || "")} <span class="muted">${fmtTime(d.created_at)}</span></li>`).join("") : `<li class="muted">No disputes/comments yet.</li>`;
+    return `<div class="resolution-grid"><div><h4>Evidence registry</h4><ul>${evidenceRows}</ul></div><div><h4>Dispute comments</h4><ul>${disputeRows}</ul></div></div>`;
+  }
+
   function renderDetail() {
     const m = selectedMarket();
     renderOutcomeSelectors(m);
@@ -189,7 +197,7 @@
       <h3>Recent trades</h3>${renderTrades(m)}
       <h3>Marked portfolios</h3>${renderPortfolio(m)}
       <h3>Demo wallets & positions</h3>${renderWallets(m)}
-      <h3>Resolution</h3><p class="muted">Workflow: ${esc(workflow.status || "unresolved")} · Oracle status: ${esc(workflow.optimistic_oracle_status || "unproposed")} · Source: ${esc(m.resolution_source || workflow.evidence_url || "manual")}</p>`;
+      <h3>Resolution</h3><p class="muted">Workflow: ${esc(workflow.status || "unresolved")} · Oracle status: ${esc(workflow.optimistic_oracle_status || "unproposed")} · Source: ${esc(m.resolution_source || workflow.evidence_url || "manual")}</p>${renderDisputePanel(m)}`;
     detail.querySelectorAll("[data-cancel]").forEach((btn) => btn.addEventListener("click", async () => {
       await cancelOrder(btn.getAttribute("data-cancel") || "");
     }));
@@ -254,6 +262,34 @@
     const path = requestOnly ? `/markets/${encodeURIComponent(m.market_id)}/resolution-request` : `/markets/${encodeURIComponent(m.market_id)}/resolve`;
     const payload = await post(path, body);
     log(requestOnly ? "Requested resolution" : "Resolved market", { market_id: payload.market_id, winning_outcome_id: payload.winning_outcome_id });
+    await loadMarkets();
+  }
+
+  async function submitEvidence() {
+    const m = selectedMarket();
+    if (!m) throw new Error("Select a market first");
+    const payload = await post(`/markets/${encodeURIComponent(m.market_id)}/evidence`, {
+      oracle_id: $("#oracleId").value || "manual",
+      title: $("#evidenceTitle").value,
+      evidence_url: $("#evidenceUrl").value,
+      statement: $("#disputeComment").value,
+      source_type: "operator_note",
+      submitter: "labs-ui",
+      sandbox_short_mode: true
+    });
+    log("Submitted resolution evidence", payload);
+    await loadMarkets();
+  }
+
+  async function submitDisputeComment() {
+    const m = selectedMarket();
+    if (!m) throw new Error("Select a market first");
+    const payload = await post(`/markets/${encodeURIComponent(m.market_id)}/evidence-dispute`, {
+      commenter: $("#oracleId").value || "operator",
+      comment: $("#disputeComment").value,
+      sandbox_short_mode: true
+    });
+    log("Submitted dispute comment", payload);
     await loadMarkets();
   }
 
@@ -325,6 +361,8 @@
       });
     });
     $("#requestResolution").addEventListener("click", async () => resolveMarket(true));
+    $("#submitEvidence").addEventListener("click", submitEvidence);
+    $("#submitDispute").addEventListener("click", submitDisputeComment);
     $("#resolveForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       await resolveMarket(false);

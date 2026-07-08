@@ -1,11 +1,12 @@
 """Chain reorganization tests: fork selection by cumulative work, rollback,
 out-of-order block connection, and mempool revalidation."""
+
 import time
 from pathlib import Path
 
 import pytest
 
-from netcoin.block import BlockHeader, Block, check_proof_of_work, merkle_root
+from netcoin.block import Block, BlockHeader, check_proof_of_work, merkle_root
 from netcoin.chain import Blockchain, ChainError
 from netcoin.tx import amount_to_sats, create_coinbase_transaction
 from netcoin.wallet import Wallet

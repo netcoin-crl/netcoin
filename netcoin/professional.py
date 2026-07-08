@@ -5,9 +5,9 @@ They give operators and maintainers concrete, testable controls for release
 trust, protocol compatibility, security documentation, observability, wallet
 safety, exchange readiness, and market integrity.
 """
+
 from __future__ import annotations
 
-import ast
 import hashlib
 import json
 import os
@@ -16,16 +16,20 @@ import subprocess
 import sys
 import time
 import zipfile
-from dataclasses import dataclass
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .block import Block, BlockHeader, bits_to_target
-from .crypto import private_key_to_public_key, public_key_to_address, private_key_to_xonly_public_key, public_key_to_taproot_address
+from .crypto import (
+    private_key_to_public_key,
+    private_key_to_xonly_public_key,
+    public_key_to_taproot_address,
+)
 from .params import INITIAL_BITS, P2P_MAGIC, TARGET_SPACING_SECONDS
 from .serialization import serialize_header
 from .tx import Transaction, TxInput, TxOutput
-from .wallet import Wallet, encrypt_private_key, decrypt_private_key, PBKDF2_ITERATIONS, WALLET_FORMAT_VERSION
+from .wallet import PBKDF2_ITERATIONS, WALLET_FORMAT_VERSION, Wallet, decrypt_private_key, encrypt_private_key
 
 PROFESSIONAL_CHECK_VERSION = 1
 
@@ -96,7 +100,9 @@ def read_pyproject_version(root: Path) -> str:
 
 def _git_commit(root: Path) -> str | None:
     try:
-        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=root, text=True, stderr=subprocess.DEVNULL
+        ).strip()
     except Exception:
         return None
 
@@ -128,7 +134,7 @@ def dependency_sbom(root: Path) -> list[dict[str, str]]:
     out = []
     for dep in deps:
         name = re.split(r"[<>=!~\[]", dep, maxsplit=1)[0].strip()
-        spec = dep[len(name):].strip()
+        spec = dep[len(name) :].strip()
         out.append({"name": name, "specifier": spec or "", "source": "pyproject.toml"})
     return out
 
@@ -138,7 +144,11 @@ def build_release_manifest(root: str | Path, *, include_files: Iterable[str] | N
     version = read_pyproject_version(root)
     files: list[dict[str, Any]] = []
     if include_files is None:
-        candidates = [p for p in root.rglob("*") if p.is_file() and not any(part in {".git", "__pycache__", ".pytest_cache", "dist"} for part in p.parts)]
+        candidates = [
+            p
+            for p in root.rglob("*")
+            if p.is_file() and not any(part in {".git", "__pycache__", ".pytest_cache", "dist"} for part in p.parts)
+        ]
     else:
         candidates = [root / p for p in include_files]
     for path in sorted(candidates, key=lambda p: str(p.relative_to(root))):
@@ -155,7 +165,9 @@ def build_release_manifest(root: str | Path, *, include_files: Iterable[str] | N
         "files": files,
         "sbom": dependency_sbom(root),
     }
-    manifest_body = json.dumps({k: v for k, v in manifest.items() if k != "manifest_sha256"}, sort_keys=True, separators=(",", ":"))
+    manifest_body = json.dumps(
+        {k: v for k, v in manifest.items() if k != "manifest_sha256"}, sort_keys=True, separators=(",", ":")
+    )
     manifest["manifest_sha256"] = hashlib.sha256(manifest_body.encode()).hexdigest()
     return manifest
 
@@ -178,7 +190,11 @@ def build_source_zip(root: str | Path, out_zip: str | Path) -> dict[str, Any]:
     out = Path(out_zip)
     out.parent.mkdir(parents=True, exist_ok=True)
     prefix = f"netcoin-{read_pyproject_version(root)}/"
-    paths = [p for p in root.rglob("*") if p.is_file() and not any(part in {".git", "__pycache__", ".pytest_cache", "dist"} for part in p.parts)]
+    paths = [
+        p
+        for p in root.rglob("*")
+        if p.is_file() and not any(part in {".git", "__pycache__", ".pytest_cache", "dist"} for part in p.parts)
+    ]
     with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(paths, key=lambda p: str(p.relative_to(root))):
             rel = prefix + str(path.relative_to(root)).replace(os.sep, "/")
@@ -261,7 +277,9 @@ def professional_readiness(root: str | Path) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
 
     def add(name: str, ok: bool, detail: str, severity: str = "high", evidence: str | None = None) -> None:
-        checks.append({"name": name, "ok": bool(ok), "severity": severity, "detail": detail, "evidence": evidence or ""})
+        checks.append(
+            {"name": name, "ok": bool(ok), "severity": severity, "detail": detail, "evidence": evidence or ""}
+        )
 
     for rel, desc in REQUIRED_DOCS.items():
         add(f"doc:{rel}", (root / rel).exists(), f"{desc} present", evidence=rel)
@@ -270,15 +288,63 @@ def professional_readiness(root: str | Path) -> dict[str, Any]:
     for rel, desc in REQUIRED_TESTS.items():
         add(f"test:{rel}", (root / rel).exists(), f"{desc} tests present", evidence=rel)
 
-    add("wallet:encrypted_format", _file_contains(root / "netcoin/wallet.py", ["chacha20-poly1305", "pbkdf2", "auto-lock"]), "encrypted wallet format, KDF, and auto-lock session implemented", evidence="netcoin/wallet.py")
-    add("wallet:watch_only", _file_contains(root / "netcoin/wallet.py", ["watch_only"]), "watch-only wallet support implemented", severity="medium", evidence="netcoin/wallet.py")
-    add("mempool:policy", _file_contains(root / "netcoin/mempool.py", ["dust", "ancestor", "replace-by-fee"]), "fee/spam policy module implemented", evidence="netcoin/mempool.py")
-    add("node:metrics", _file_contains(root / "netcoin/node.py", ["prometheus", "netcoin_block_height"]), "Prometheus node metrics implemented", evidence="netcoin/node.py")
-    add("markets:surveillance", _file_contains(root / "netcoin/apps/markets.py", ["surveillance", "wash", "dispute"]), "market surveillance and dispute controls implemented", evidence="netcoin/apps/markets.py")
-    add("api:idempotency", _file_contains(root / "netcoin/apps/__init__.py", ["idempotency", "app_nonces"]), "idempotency keys and nonce replay controls implemented", evidence="netcoin/apps/__init__.py")
-    add("release:manifest", _file_contains(root / "tools/make_release.sh", ["sha256sums"]), "release checksum workflow implemented", evidence="tools/make_release.sh")
-    add("status:site", (root / "sites/status/index.html").exists(), "public status/readiness site present", severity="medium", evidence="sites/status/index.html")
-    add("openapi:docs", (root / "docs/openapi.yaml").exists(), "OpenAPI document present", severity="medium", evidence="docs/openapi.yaml")
+    add(
+        "wallet:encrypted_format",
+        _file_contains(root / "netcoin/wallet.py", ["chacha20-poly1305", "pbkdf2", "auto-lock"]),
+        "encrypted wallet format, KDF, and auto-lock session implemented",
+        evidence="netcoin/wallet.py",
+    )
+    add(
+        "wallet:watch_only",
+        _file_contains(root / "netcoin/wallet.py", ["watch_only"]),
+        "watch-only wallet support implemented",
+        severity="medium",
+        evidence="netcoin/wallet.py",
+    )
+    add(
+        "mempool:policy",
+        _file_contains(root / "netcoin/mempool.py", ["dust", "ancestor", "replace-by-fee"]),
+        "fee/spam policy module implemented",
+        evidence="netcoin/mempool.py",
+    )
+    add(
+        "node:metrics",
+        _file_contains(root / "netcoin/node.py", ["prometheus", "netcoin_block_height"]),
+        "Prometheus node metrics implemented",
+        evidence="netcoin/node.py",
+    )
+    add(
+        "markets:surveillance",
+        _file_contains(root / "netcoin/apps/markets/__init__.py", ["surveillance", "wash", "dispute"]),
+        "market surveillance and dispute controls implemented",
+        evidence="netcoin/apps/markets/__init__.py",
+    )
+    add(
+        "api:idempotency",
+        _file_contains(root / "netcoin/apps/__init__.py", ["idempotency", "app_nonces"]),
+        "idempotency keys and nonce replay controls implemented",
+        evidence="netcoin/apps/__init__.py",
+    )
+    add(
+        "release:manifest",
+        _file_contains(root / "tools/make_release.sh", ["sha256sums"]),
+        "release checksum workflow implemented",
+        evidence="tools/make_release.sh",
+    )
+    add(
+        "status:site",
+        (root / "sites/status/index.html").exists(),
+        "public status/readiness site present",
+        severity="medium",
+        evidence="sites/status/index.html",
+    )
+    add(
+        "openapi:docs",
+        (root / "docs/openapi.yaml").exists(),
+        "OpenAPI document present",
+        severity="medium",
+        evidence="docs/openapi.yaml",
+    )
 
     total = len(checks)
     passed = sum(1 for c in checks if c["ok"])
@@ -303,7 +369,9 @@ def professional_readiness(root: str | Path) -> dict[str, Any]:
 def issue_report(root: str | Path) -> dict[str, Any]:
     readiness = professional_readiness(root)
     vectors = validate_protocol_vectors()
-    manifest = build_release_manifest(root, include_files=["pyproject.toml", "README.md", "netcoin/wallet.py", "netcoin/apps/markets.py"])
+    manifest = build_release_manifest(
+        root, include_files=["pyproject.toml", "README.md", "netcoin/wallet.py", "netcoin/apps/markets/__init__.py"]
+    )
     issues = [c for c in readiness["checks"] if not c["ok"]]
     return {
         "ok": readiness["ok"] and vectors["ok"],

@@ -1,4 +1,5 @@
 """Local multi-node soak/stress harness."""
+
 import argparse
 import json
 from pathlib import Path

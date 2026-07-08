@@ -17,7 +17,7 @@ safe upgrade rollout.
 from __future__ import annotations
 
 import hashlib
-from typing import Callable, List
+from collections.abc import Callable
 
 from .params import (
     COIN,
@@ -108,7 +108,7 @@ def _legacy_sampled_even_count(year: int, hash_at: HashAt) -> int:
     return even
 
 
-def _legacy_cut_for_year(year: int, hash_at: HashAt, history: List[bool]) -> bool:
+def _legacy_cut_for_year(year: int, hash_at: HashAt, history: list[bool]) -> bool:
     market_cut = _legacy_sampled_even_count(year, hash_at) >= LEGACY_NRE_EVEN_THRESHOLD
     if market_cut:
         return True
@@ -117,8 +117,8 @@ def _legacy_cut_for_year(year: int, hash_at: HashAt, history: List[bool]) -> boo
     return False
 
 
-def _legacy_cut_history(up_to_year: int, hash_at: HashAt) -> List[bool]:
-    history: List[bool] = []
+def _legacy_cut_history(up_to_year: int, hash_at: HashAt) -> list[bool]:
+    history: list[bool] = []
     for year in range(1, up_to_year + 1):
         history.append(_legacy_cut_for_year(year, hash_at, history))
     return history

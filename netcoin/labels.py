@@ -3,17 +3,17 @@
 Maps addresses (or any key, e.g. peer URLs, txids) to human labels in a JSON file.
 This is wallet-adjacent convenience, never consensus or key material.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict
 
 
 class LabelStore:
     def __init__(self, path: str | Path):
         self.path = Path(path)
-        self.labels: Dict[str, str] = {}
+        self.labels: dict[str, str] = {}
         self._load()
 
     def _load(self) -> None:
@@ -44,5 +44,5 @@ class LabelStore:
             self._save()
         return existed
 
-    def all(self) -> Dict[str, str]:
+    def all(self) -> dict[str, str]:
         return dict(sorted(self.labels.items()))

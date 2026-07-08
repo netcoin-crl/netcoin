@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 
 from .block import (
     Block,
@@ -17,9 +18,18 @@ from .block import (
     cumulative_work,
     make_block,
     merkle_root,
+    target_to_bits,
     validate_witness_commitment,
     witness_commitment,
-    target_to_bits,
+)
+from .consensus import (
+    chainstate_commitment as build_chainstate_commitment,
+)
+from .consensus import (
+    check_header_checkpoint,
+    consensus_rules_at_height,
+    validate_block_weight_limit,
+    validate_median_time_past,
 )
 from .crypto import validate_address
 from .emission import emission_subsidy, is_active, is_legacy_random_window, legacy_random_emission_subsidy
@@ -30,10 +40,9 @@ from .params import (
     DUST_THRESHOLD,
     GENESIS_MESSAGE,
     GENESIS_TIMESTAMP,
-    HALVING_INTERVAL,
+    INCREMENTAL_RELAY_FEE,
     INITIAL_BITS,
     INITIAL_SUBSIDY,
-    INCREMENTAL_RELAY_FEE,
     LOCKTIME_THRESHOLD,
     MAX_BLOCK_WEIGHT,
     MAX_MEMPOOL_ANCESTORS,
@@ -44,13 +53,12 @@ from .params import (
     MAX_STANDARD_TX_WEIGHT,
     MEMPOOL_EXPIRY_SECONDS,
     MIN_RELAY_FEE_PER_KB,
+    POW_LIMIT_BITS,
+    ZERO_HASH,
     min_difficulty_gap_at,
     target_timespan_at,
-    POW_LIMIT_BITS,
-    TARGET_TIMESPAN_SECONDS,
-    ZERO_HASH,
 )
-from .serialization import block_weight, transaction_vsize, transaction_weight
+from .serialization import transaction_vsize, transaction_weight
 from .tx import (
     SpendableOutput,
     Transaction,
@@ -76,16 +84,22 @@ class Blockchain:
     and a small set of mempool policy rules.
     """
 
-    def __init__(self, data_dir: str | os.PathLike[str] = DEFAULT_DATA_DIR, autosave: bool = True, backend: Optional[str] = None,
-                 genesis_allocation: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        data_dir: str | os.PathLike[str] = DEFAULT_DATA_DIR,
+        autosave: bool = True,
+        backend: str | None = None,
+        genesis_allocation: dict[str, int] | None = None,
+    ):
         self.data_dir = Path(data_dir)
         self.autosave = autosave
         # Optional premine baked into the genesis (used by a relaunch to carry
         # balances forward from a snapshot). None => the standard empty genesis.
         self._genesis_allocation = genesis_allocation
-        # Persistence backend: "json" (default) or "sqlite". Falls back to the
+        # Persistence backend: "sqlite" (default) or "json". Falls back to the
         # NETCOIN_BACKEND env var so it threads through the whole CLI uniformly.
-        self.backend = (backend or os.environ.get("NETCOIN_BACKEND") or "json").lower()
+        # JSON remains available for demos/export with backend="json" or NETCOIN_BACKEND=json.
+        self.backend = (backend or os.environ.get("NETCOIN_BACKEND") or "sqlite").lower()
         self.store = None
         if self.backend == "sqlite":
             from .storage import SqliteChainStore
@@ -93,22 +107,22 @@ class Blockchain:
             self.store = SqliteChainStore(self.data_dir / "netcoin.sqlite")
         elif self.backend != "json":
             raise ChainError(f"unknown storage backend: {self.backend}")
-        self.chain: List[Block] = []
-        self.mempool: List[Transaction] = []
-        self.mempool_times: Dict[str, float] = {}
-        self.orphan_blocks: Dict[str, Block] = {}
+        self.chain: list[Block] = []
+        self.mempool: list[Transaction] = []
+        self.mempool_times: dict[str, float] = {}
+        self.orphan_blocks: dict[str, Block] = {}
         # Fast-lookup indexes (rebuilt from self.chain; O(1) block/tx lookup).
-        self.block_index: Dict[str, Block] = {}
-        self.tx_index: Dict[str, Dict[str, Any]] = {}
-        self.address_index: Dict[str, set] = {}
-        self._utxo_addr: Dict[str, str] = {}  # outpoint -> address, for the address index
-        self._utxos: Dict[str, SpendableOutput] = {}  # persistent authoritative UTXO set
+        self.block_index: dict[str, Block] = {}
+        self.tx_index: dict[str, dict[str, Any]] = {}
+        self.address_index: dict[str, set] = {}
+        self._utxo_addr: dict[str, str] = {}  # outpoint -> address, for the address index
+        self._utxos: dict[str, SpendableOutput] = {}  # persistent authoritative UTXO set
         # Per-address UTXO index (address -> {outpoint -> SpendableOutput}) so
         # balance/utxos lookups are O(coins-at-address) instead of scanning the
         # whole UTXO set on every call. Mirrors self._utxos exactly; maintained
         # at the three mutation points (reindex, snapshot load, block connect)
         # and asserted consistent in self_check().
-        self._utxos_by_addr: Dict[str, Dict[str, SpendableOutput]] = {}
+        self._utxos_by_addr: dict[str, dict[str, SpendableOutput]] = {}
         self.pruned = False  # True when running from a pruned store (no old block bodies)
         self.pruned_below = 0
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -154,14 +168,14 @@ class Blockchain:
             self._utxos = self._recompute_utxos_from_chain()
             self._rebuild_utxo_addr_index()
 
-    def _load_utxos_from_snapshot(self, snapshot: Dict[str, Any]) -> None:
+    def _load_utxos_from_snapshot(self, snapshot: dict[str, Any]) -> None:
         self._utxos = {}
         for item in snapshot.get("utxos", []):
             spendable = SpendableOutput.from_dict(item)
             self._utxos[spendable.outpoint()] = spendable
         self._rebuild_utxo_addr_index()
 
-    def address_summary(self, address: str) -> Dict[str, Any]:
+    def address_summary(self, address: str) -> dict[str, Any]:
         if not validate_address(address):
             raise ChainError("address is not a valid NetCoin address")
         balances = self.balances_for_address(address)
@@ -180,7 +194,7 @@ class Blockchain:
             "transaction_ids": txids,
         }
 
-    def address_balance_summary(self, address: str) -> Dict[str, Any]:
+    def address_balance_summary(self, address: str) -> dict[str, Any]:
         if not validate_address(address):
             raise ChainError("address is not a valid NetCoin address")
         balances = self.balances_for_address(address)
@@ -208,7 +222,7 @@ class Blockchain:
             "transaction_count": len(txids),
         }
 
-    def supply_summary(self) -> Dict[str, Any]:
+    def supply_summary(self) -> dict[str, Any]:
         total_minted_sats = 0
         for block in self.chain:
             if block.transactions:
@@ -275,7 +289,7 @@ class Blockchain:
             self.save_chain()
         self.reindex()
 
-        loaded_mempool: Optional[list] = None
+        loaded_mempool: list | None = None
         if self.store is not None:
             loaded_mempool = [Transaction.from_dict(item) for item in self.store.load_mempool()]
         elif self.mempool_path.exists():
@@ -301,7 +315,7 @@ class Blockchain:
             self.mempool = []
             self.save_mempool()
 
-    def _atomic_write_json(self, path: Path, payload: Dict[str, Any]) -> None:
+    def _atomic_write_json(self, path: Path, payload: dict[str, Any]) -> None:
         """Crash-safe JSON write.
 
         Write to a temp file and fsync it, keep the previous good file as a
@@ -352,11 +366,10 @@ class Blockchain:
     def _chain_files_exist(self) -> bool:
         """True if a live chain file or any recoverable copy is present."""
         return any(
-            (self.chain_path.parent / (self.chain_path.name + suffix)).exists()
-            for suffix in ("", ".bak", ".tmp")
+            (self.chain_path.parent / (self.chain_path.name + suffix)).exists() for suffix in ("", ".bak", ".tmp")
         )
 
-    def _load_chain_with_recovery(self) -> List[Block]:
+    def _load_chain_with_recovery(self) -> list[Block]:
         """Load the chain, tolerating a corrupt live file.
 
         Tries the live ``chain.json`` first, then the ``.bak`` backup, then a
@@ -369,7 +382,7 @@ class Blockchain:
             self.chain_path.parent / (self.chain_path.name + ".bak"),
             self.chain_path.parent / (self.chain_path.name + ".tmp"),
         ]
-        errors: List[str] = []
+        errors: list[str] = []
         for source in candidates:
             if not source.exists():
                 continue
@@ -395,7 +408,7 @@ class Blockchain:
     # Consensus rules
     # ------------------------------------------------------------------
 
-    def subsidy(self, height: int, chain_prefix: Optional[Sequence[Block]] = None) -> int:
+    def subsidy(self, height: int, chain_prefix: Sequence[Block] | None = None) -> int:
         if height < 0:
             raise ChainError("height cannot be negative")
         # Deterministic 10% reward-reduction schedule. A legacy random-emission
@@ -410,7 +423,7 @@ class Blockchain:
             return legacy_random_emission_subsidy(height, lambda h: source[h].hash())
         return INITIAL_SUBSIDY
 
-    def expected_bits_for_height(self, height: int, chain_prefix: Optional[Sequence[Block]] = None) -> int:
+    def expected_bits_for_height(self, height: int, chain_prefix: Sequence[Block] | None = None) -> int:
         if height == 0:
             return INITIAL_BITS
         prefix = list(chain_prefix) if chain_prefix is not None else self.chain
@@ -433,7 +446,7 @@ class Blockchain:
         new_target = old_target * actual_timespan // target_timespan
         return target_to_bits(new_target)
 
-    def _bits_acceptable(self, height: int, prefix: Optional[Sequence[Block]], bits: int, timestamp: int) -> bool:
+    def _bits_acceptable(self, height: int, prefix: Sequence[Block] | None, bits: int, timestamp: int) -> bool:
         """A block must use the normal retarget difficulty, UNLESS it is mined more
         than min_difficulty_gap_at(height) seconds after its parent (the testnet lone-miner
         rule), in which case it may instead use the PoW floor so the chain can't
@@ -446,10 +459,10 @@ class Blockchain:
                 return True
         return False
 
-    def _recompute_utxos_from_chain(self) -> Dict[str, SpendableOutput]:
+    def _recompute_utxos_from_chain(self) -> dict[str, SpendableOutput]:
         """Authoritative full-scan UTXO computation (source of truth for rebuilds
         and integrity checks). The persistent `self._utxos` cache mirrors this."""
-        utxos: Dict[str, SpendableOutput] = {}
+        utxos: dict[str, SpendableOutput] = {}
         for block in self.chain:
             self._apply_block_to_utxos(block, utxos)
         return utxos
@@ -457,7 +470,7 @@ class Blockchain:
     def _rebuild_utxo_addr_index(self) -> None:
         """Recompute the per-address UTXO index from the authoritative set.
         Called after any wholesale rebuild of self._utxos."""
-        index: Dict[str, Dict[str, SpendableOutput]] = {}
+        index: dict[str, dict[str, SpendableOutput]] = {}
         for outpoint, spendable in self._utxos.items():
             index.setdefault(spendable.output.address, {})[outpoint] = spendable
         self._utxos_by_addr = index
@@ -482,13 +495,16 @@ class Blockchain:
                 if output.amount > 0:
                     op = f"{txid}:{index}"
                     spendable = SpendableOutput(
-                        txid=txid, vout=index, output=output,
-                        height=block.header.height, coinbase=tx.is_coinbase,
+                        txid=txid,
+                        vout=index,
+                        output=output,
+                        height=block.header.height,
+                        coinbase=tx.is_coinbase,
                     )
                     self._utxos[op] = spendable
                     self._utxos_by_addr.setdefault(output.address, {})[op] = spendable
 
-    def _apply_block_to_utxos(self, block: Block, utxos: Dict[str, SpendableOutput]) -> None:
+    def _apply_block_to_utxos(self, block: Block, utxos: dict[str, SpendableOutput]) -> None:
         for tx in block.transactions:
             if not tx.is_coinbase:
                 for txin in tx.inputs:
@@ -504,7 +520,7 @@ class Blockchain:
                         coinbase=tx.is_coinbase,
                     )
 
-    def utxo_set(self, include_mempool: bool = False) -> Dict[str, SpendableOutput]:
+    def utxo_set(self, include_mempool: bool = False) -> dict[str, SpendableOutput]:
         # Serve a copy of the persistent UTXO cache so callers can mutate freely.
         utxos = dict(self._utxos)
         if include_mempool:
@@ -514,7 +530,7 @@ class Blockchain:
                 self.apply_regular_transaction(tx, utxos, height)
         return utxos
 
-    def utxos_for_address(self, address: str, *, include_immature: bool = False) -> List[SpendableOutput]:
+    def utxos_for_address(self, address: str, *, include_immature: bool = False) -> list[SpendableOutput]:
         if not validate_address(address):
             raise ChainError("address is not a valid NetCoin address")
         spend_height = self.height() + 1
@@ -529,7 +545,7 @@ class Blockchain:
         result.sort(key=lambda item: (item.height, item.txid, item.vout))
         return result
 
-    def balances_for_address(self, address: str) -> Dict[str, int]:
+    def balances_for_address(self, address: str) -> dict[str, int]:
         if not validate_address(address):
             raise ChainError("address is not a valid NetCoin address")
         total = 0
@@ -557,7 +573,7 @@ class Blockchain:
                 raise ChainError("transaction locktime is in the future")
 
     def validate_regular_transaction(
-        self, tx: Transaction, utxos: Dict[str, SpendableOutput], spend_height: int
+        self, tx: Transaction, utxos: dict[str, SpendableOutput], spend_height: int
     ) -> int:
         if tx.is_coinbase:
             raise ChainError("coinbase transactions cannot appear outside block position 0")
@@ -588,9 +604,7 @@ class Blockchain:
             raise ChainError("transaction spends more than its inputs")
         return input_total - output_total
 
-    def apply_regular_transaction(
-        self, tx: Transaction, utxos: Dict[str, SpendableOutput], spend_height: int
-    ) -> None:
+    def apply_regular_transaction(self, tx: Transaction, utxos: dict[str, SpendableOutput], spend_height: int) -> None:
         for txin in tx.inputs:
             del utxos[txin.outpoint()]
         txid = tx.txid()
@@ -615,9 +629,7 @@ class Blockchain:
         if height > 0 and output_total == 0:
             raise ChainError("non-genesis coinbase must pay a positive amount")
 
-    def apply_coinbase_transaction(
-        self, tx: Transaction, utxos: Dict[str, SpendableOutput], height: int
-    ) -> None:
+    def apply_coinbase_transaction(self, tx: Transaction, utxos: dict[str, SpendableOutput], height: int) -> None:
         txid = tx.txid()
         for index, output in enumerate(tx.outputs):
             if output.amount > 0:
@@ -633,14 +645,18 @@ class Blockchain:
         self,
         block: Block,
         previous: Block,
-        utxos: Dict[str, SpendableOutput],
+        utxos: dict[str, SpendableOutput],
         chain_prefix: Sequence[Block],
-    ) -> Dict[str, SpendableOutput]:
+    ) -> dict[str, SpendableOutput]:
         expected_height = previous.header.height + 1
         if block.header.height != expected_height:
             raise ChainError("block height does not extend the previous block")
         if block.header.previous_hash != previous.hash():
             raise ChainError("block previous hash does not match chain tip")
+        if not check_header_checkpoint(block):
+            raise ChainError("block hash does not match the activated header checkpoint")
+        if not validate_median_time_past(block, chain_prefix):
+            raise ChainError("block timestamp is not greater than median-time-past")
         if not self._bits_acceptable(block.header.height, chain_prefix, block.header.bits, block.header.timestamp):
             raise ChainError("block bits do not match expected difficulty target")
         if block.header.merkle_root != merkle_root(block.transactions):
@@ -651,7 +667,7 @@ class Blockchain:
             raise ChainError("block proof of work is invalid")
         if block.header.timestamp > int(time.time()) + 2 * 60 * 60:
             raise ChainError("block timestamp is too far in the future")
-        if block_weight(block) > MAX_BLOCK_WEIGHT:
+        if not validate_block_weight_limit(block):
             raise ChainError("block exceeds maximum weight")
         if not block.transactions[0].is_coinbase:
             raise ChainError("block is missing a coinbase transaction")
@@ -695,7 +711,7 @@ class Blockchain:
         if not check_proof_of_work(blocks[0].header):
             raise ChainError("genesis proof of work is invalid")
 
-        utxos: Dict[str, SpendableOutput] = {}
+        utxos: dict[str, SpendableOutput] = {}
         self.apply_coinbase_transaction(blocks[0].transactions[0], utxos, 0)
         prefix = [blocks[0]]
         for block in blocks[1:]:
@@ -713,11 +729,13 @@ class Blockchain:
     # Mempool policy
     # ------------------------------------------------------------------
 
-    def calculate_fee(self, tx: Transaction, utxos: Optional[Dict[str, SpendableOutput]] = None, spend_height: Optional[int] = None) -> int:
+    def calculate_fee(
+        self, tx: Transaction, utxos: dict[str, SpendableOutput] | None = None, spend_height: int | None = None
+    ) -> int:
         temp_utxos = self.utxo_set() if utxos is None else dict(utxos)
         return self.validate_regular_transaction(tx, temp_utxos, spend_height or self.height() + 1)
 
-    def fee_rate(self, tx: Transaction, fee: Optional[int] = None) -> int:
+    def fee_rate(self, tx: Transaction, fee: int | None = None) -> int:
         fee_value = self.calculate_fee(tx) if fee is None else int(fee)
         vsize = max(1, transaction_vsize(tx))
         return fee_value * 1000 // vsize
@@ -738,7 +756,7 @@ class Blockchain:
             if 0 < output.amount < DUST_THRESHOLD:
                 raise ChainError("transaction creates dust output")
 
-    def mempool_conflicts(self, tx: Transaction) -> List[Transaction]:
+    def mempool_conflicts(self, tx: Transaction) -> list[Transaction]:
         spent = {txin.outpoint() for txin in tx.inputs}
         conflicts = []
         for existing in self.mempool:
@@ -801,7 +819,7 @@ class Blockchain:
             self.save_mempool()
         return txid
 
-    def add_mempool_package(self, txs: Sequence[Transaction], *, save: bool = True) -> List[str]:
+    def add_mempool_package(self, txs: Sequence[Transaction], *, save: bool = True) -> list[str]:
         """Accept a small ancestor/descendant package using aggregate fee policy.
 
         This is a deliberately compact CPFP/package-relay primitive: every
@@ -833,7 +851,7 @@ class Blockchain:
             self.validate_regular_transaction(existing, temp_utxos, spend_height)
             self.apply_regular_transaction(existing, temp_utxos, spend_height)
 
-        fees: List[int] = []
+        fees: list[int] = []
         total_vsize = 0
         for tx in package:
             fee = self.validate_regular_transaction(tx, temp_utxos, spend_height)
@@ -862,10 +880,10 @@ class Blockchain:
         except (ChainError, TransactionError):
             return 0
 
-    def evict_expired_mempool(self, max_age_seconds: int, now: Optional[float] = None, *, save: bool = True) -> int:
+    def evict_expired_mempool(self, max_age_seconds: int, now: float | None = None, *, save: bool = True) -> int:
         """Drop mempool transactions older than max_age_seconds. Returns count."""
         now = time.time() if now is None else now
-        kept: List[Transaction] = []
+        kept: list[Transaction] = []
         evicted = 0
         for tx in self.mempool:
             added = self.mempool_times.get(tx.txid(), now)
@@ -925,7 +943,7 @@ class Blockchain:
     def purge_invalid_mempool(self) -> None:
         temp_utxos = self.utxo_set()
         spend_height = self.height() + 1
-        kept: List[Transaction] = []
+        kept: list[Transaction] = []
         for tx in self.mempool:
             try:
                 fee = self.validate_regular_transaction(tx, temp_utxos, spend_height)
@@ -937,10 +955,10 @@ class Blockchain:
         self.mempool = kept
         self.save_mempool()
 
-    def mempool_info(self) -> Dict[str, Any]:
+    def mempool_info(self) -> dict[str, Any]:
         entries = []
         total_bytes = 0
-        entry_by_txid: Dict[str, Dict[str, Any]] = {}
+        entry_by_txid: dict[str, dict[str, Any]] = {}
         temp_utxos = self.utxo_set()
         spend_height = self.height() + 1
         for tx in self.mempool:
@@ -976,11 +994,11 @@ class Blockchain:
             "packages": packages,
         }
 
-    def mempool_packages(self, entry_by_txid: Optional[Dict[str, Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+    def mempool_packages(self, entry_by_txid: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         """Return connected mempool transaction packages for CPFP/package views."""
         entry_by_txid = entry_by_txid or {}
         mempool_ids = {tx.txid() for tx in self.mempool}
-        edges: Dict[str, set[str]] = {txid: set() for txid in mempool_ids}
+        edges: dict[str, set[str]] = {txid: set() for txid in mempool_ids}
         for tx in self.mempool:
             txid = tx.txid()
             for txin in tx.inputs:
@@ -988,12 +1006,12 @@ class Blockchain:
                     edges[txid].add(txin.txid)
                     edges[txin.txid].add(txid)
         seen: set[str] = set()
-        packages: List[Dict[str, Any]] = []
+        packages: list[dict[str, Any]] = []
         for txid in sorted(mempool_ids):
             if txid in seen:
                 continue
             stack = [txid]
-            component: List[str] = []
+            component: list[str] = []
             seen.add(txid)
             while stack:
                 current = stack.pop()
@@ -1004,16 +1022,18 @@ class Blockchain:
                         stack.append(nxt)
             fee = sum(int(entry_by_txid.get(t, {}).get("fee", 0)) for t in component)
             vsize = sum(int(entry_by_txid.get(t, {}).get("vsize", 0)) for t in component)
-            packages.append({
-                "txids": sorted(component),
-                "count": len(component),
-                "fee": fee,
-                "vsize": vsize,
-                "fee_rate_per_kvb": (fee * 1000 // max(1, vsize)),
-            })
+            packages.append(
+                {
+                    "txids": sorted(component),
+                    "count": len(component),
+                    "fee": fee,
+                    "vsize": vsize,
+                    "fee_rate_per_kvb": (fee * 1000 // max(1, vsize)),
+                }
+            )
         return packages
 
-    def estimate_smart_fee(self, target_blocks: int = 1) -> Dict[str, Any]:
+    def estimate_smart_fee(self, target_blocks: int = 1) -> dict[str, Any]:
         # A tiny local estimator: with no fee market, return min relay. If the
         # mempool has entries, return the median observed fee rate plus a small
         # target-dependent bump.
@@ -1045,8 +1065,8 @@ class Blockchain:
             bits = POW_LIMIT_BITS  # testnet lone-miner rule: mine the floor when late
         previous_hash = self.tip_hash()
         temp_utxos = self.utxo_set()
-        selected: List[Transaction] = []
-        selected_txids: List[str] = []
+        selected: list[Transaction] = []
+        selected_txids: list[str] = []
         fees = 0
         weight_budget = MAX_BLOCK_WEIGHT
         for tx in list(self.mempool):
@@ -1132,9 +1152,9 @@ class Blockchain:
             oldest = next(iter(self.orphan_blocks))
             del self.orphan_blocks[oldest]
 
-    def _build_branch(self, tip_hash: str, known: Dict[str, Block]) -> Optional[List[Block]]:
+    def _build_branch(self, tip_hash: str, known: dict[str, Block]) -> list[Block] | None:
         """Walk parent links from tip_hash back to genesis using known blocks."""
-        branch: List[Block] = []
+        branch: list[Block] = []
         seen: set[str] = set()
         current = tip_hash
         while current in known:
@@ -1156,7 +1176,7 @@ class Blockchain:
 
         Only a strictly greater cumulative work wins, so the first-seen tip is
         kept on ties (matching Bitcoin's tie-breaking)."""
-        known: Dict[str, Block] = {b.hash(): b for b in self.chain}
+        known: dict[str, Block] = {b.hash(): b for b in self.chain}
         known.update(self.orphan_blocks)
         genesis_hash = self.chain[0].hash()
         best_chain = self.chain
@@ -1221,10 +1241,10 @@ class Blockchain:
         self.save_chain()
         return True
 
-    def get_block_by_hash(self, block_hash: str) -> Optional[Block]:
+    def get_block_by_hash(self, block_hash: str) -> Block | None:
         return self.block_index.get(block_hash.lower())
 
-    def get_transaction(self, txid: str) -> Optional[Tuple[Transaction, Optional[Block]]]:
+    def get_transaction(self, txid: str) -> tuple[Transaction, Block | None] | None:
         needle = txid.lower()
         located = self.tx_index.get(needle)
         if located is not None:
@@ -1243,7 +1263,7 @@ class Blockchain:
                         return tx, block
         return None
 
-    def utxo_snapshot_digest(self, utxos: Optional[Dict[str, SpendableOutput]] = None) -> str:
+    def utxo_snapshot_digest(self, utxos: dict[str, SpendableOutput] | None = None) -> str:
         """Deterministic SHA-256 over the UTXO set, for snapshot/integrity checks."""
         import hashlib
 
@@ -1254,7 +1274,7 @@ class Blockchain:
         )
         return hashlib.sha256("\n".join(items).encode("utf-8")).hexdigest()
 
-    def export_utxo_snapshot(self) -> Dict[str, Any]:
+    def export_utxo_snapshot(self) -> dict[str, Any]:
         """Export the current UTXO set for faster bootstrap / external verification."""
         utxos = self.utxo_set()
         return {
@@ -1266,13 +1286,26 @@ class Blockchain:
             "utxos": [u.to_dict() for u in utxos.values()],
         }
 
-    def verify_utxo_snapshot(self, snapshot: Dict[str, Any]) -> bool:
+    def verify_utxo_snapshot(self, snapshot: dict[str, Any]) -> bool:
         """True if a snapshot matches this chain's current UTXO set and tip."""
         if snapshot.get("tip_hash") != self.tip_hash():
             return False
         return snapshot.get("digest") == self.utxo_snapshot_digest()
 
-    def prune(self, keep_depth: int) -> Dict[str, Any]:
+    def chainstate_commitment(self) -> dict[str, Any]:
+        """Deterministic commitment to the active chainstate.
+
+        This is stronger than a plain UTXO digest because it binds height, tip,
+        UTXO count, and consensus version into one operator-friendly hash.
+        """
+        return build_chainstate_commitment(
+            height=self.height(),
+            tip_hash=self.tip_hash(),
+            utxos=self.utxo_set(),
+            consensus_version=consensus_rules_at_height(self.height()).version,
+        )
+
+    def prune(self, keep_depth: int) -> dict[str, Any]:
         """Drop block bodies below tip-keep_depth from disk, keeping headers and a
         UTXO snapshot (SQLite backend only). The running node is unaffected; on the
         next reload the node runs in pruned mode. keep_depth should be at least the
@@ -1294,7 +1327,7 @@ class Blockchain:
             "tip_height": self.height(),
         }
 
-    def verify_integrity(self) -> Dict[str, Any]:
+    def verify_integrity(self) -> dict[str, Any]:
         """Revalidate the chain and check index/UTXO consistency (chainstate check)."""
         if self.pruned:
             # A pruned node cannot revalidate from genesis; report pruned state.
@@ -1315,8 +1348,7 @@ class Blockchain:
         # The per-address index must mirror the authoritative set exactly.
         fresh_addr_index = {op for bucket in self._utxos_by_addr.values() for op in bucket}
         addr_index_consistent = fresh_addr_index == set(self._utxos) and all(
-            self._utxos[op].output.address == addr
-            for addr, bucket in self._utxos_by_addr.items() for op in bucket
+            self._utxos[op].output.address == addr for addr, bucket in self._utxos_by_addr.items() for op in bucket
         )
         return {
             "ok": index_consistent and utxo_consistent and addr_index_consistent,
@@ -1330,19 +1362,22 @@ class Blockchain:
             "utxo_consistent": utxo_consistent,
         }
 
-    def headers(self, start_height: int = 0, limit: int = 2000) -> List[Dict[str, Any]]:
+    def headers(self, start_height: int = 0, limit: int = 2000) -> list[dict[str, Any]]:
         start_height = max(0, int(start_height))
         limit = max(0, min(int(limit), 2000))
-        return [block.header.to_dict() | {"hash": block.hash(), "work": cumulative_work([block])} for block in self.chain[start_height : start_height + limit]]
+        return [
+            block.header.to_dict() | {"hash": block.hash(), "work": cumulative_work([block])}
+            for block in self.chain[start_height : start_height + limit]
+        ]
 
-    def validate_headers_from_tip(self, headers: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def validate_headers_from_tip(self, headers: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
         """Validate a consecutive headers-first sync segment extending our tip.
 
         This performs the cheap checks before block-body download: height, parent
         link, difficulty bits, header hash, and proof-of-work. Full block
         validation still happens after each body is downloaded.
         """
-        accepted: List[Dict[str, Any]] = []
+        accepted: list[dict[str, Any]] = []
         previous_hash = self.tip_hash()
         prefix = list(self.chain)
         expected_height = self.height() + 1
@@ -1367,7 +1402,7 @@ class Blockchain:
             expected_height += 1
         return accepted
 
-    def compact_block(self, block_hash: str) -> Dict[str, Any]:
+    def compact_block(self, block_hash: str) -> dict[str, Any]:
         block = self.get_block_by_hash(block_hash)
         if block is None:
             raise ChainError("block not found")
@@ -1377,7 +1412,7 @@ class Blockchain:
             "prefilled": [{"index": 0, "tx": block.transactions[0].to_dict()}],
         }
 
-    def block_template(self, miner_address: str) -> Dict[str, Any]:
+    def block_template(self, miner_address: str) -> dict[str, Any]:
         if not validate_address(miner_address):
             raise ChainError("miner address is not a valid NetCoin address")
         height = self.height() + 1
@@ -1416,7 +1451,7 @@ class Blockchain:
             "coinbase_value": self.subsidy(height) + fees,
         }
 
-    def chain_info(self) -> Dict[str, Any]:
+    def chain_info(self) -> dict[str, Any]:
         return {
             "height": self.height(),
             "tip_hash": self.tip_hash(),
@@ -1428,7 +1463,7 @@ class Blockchain:
             "orphan_candidates": len(self.orphan_blocks),
         }
 
-    def export_chain(self, start: int = 0, limit: Optional[int] = None) -> Dict[str, Any]:
+    def export_chain(self, start: int = 0, limit: int | None = None) -> dict[str, Any]:
         """Export a bounded chain slice.
 
         Public HTTP callers should not be able to force a full-chain JSON dump as
@@ -1441,7 +1476,7 @@ class Blockchain:
             limit_value = len(selected)
         else:
             limit_value = max(1, min(int(limit), 2000))
-            selected = self.chain[start:start + limit_value]
+            selected = self.chain[start : start + limit_value]
         next_start = start + len(selected)
         return {
             "height": self.height(),
@@ -1453,14 +1488,14 @@ class Blockchain:
             "blocks": [block.to_dict() for block in selected],
         }
 
-    def export_mempool(self) -> Dict[str, Any]:
+    def export_mempool(self) -> dict[str, Any]:
         return {"transactions": [tx.to_dict(include_scripts=True, include_witness=True) for tx in self.mempool]}
 
-    def import_chain_data(self, data: Dict[str, Any]) -> List[Block]:
+    def import_chain_data(self, data: dict[str, Any]) -> list[Block]:
         return [Block.from_dict(item) for item in data["blocks"]]
 
 
-def create_genesis_block(allocation: Optional[Dict[str, int]] = None) -> Block:
+def create_genesis_block(allocation: dict[str, int] | None = None) -> Block:
     # An optional allocation pre-funds addresses in the genesis coinbase. This is
     # how a relaunch carries balances forward from a snapshot of the old chain
     # (see netcoin/migration.py). With no allocation the genesis is unchanged.
@@ -1487,6 +1522,7 @@ def create_genesis_block(allocation: Optional[Dict[str, int]] = None) -> Block:
 
     return Block(header=mine_header(header), transactions=[coinbase])
 
+
 # Compatibility helpers for the v2 CLI/node modules.
 def _chain_header_list(self, start_height: int = 0, limit: int = 2000):
     return self.headers(start_height, limit)
@@ -1498,7 +1534,9 @@ def _chain_block_by_hash(self, block_hash: str):
 
 def _chain_get_block_template(self, miner_address=None):
     if miner_address is None:
-        miner_address = self.chain[0].transactions[0].outputs[0].address if self.chain[0].transactions[0].outputs else ""
+        miner_address = (
+            self.chain[0].transactions[0].outputs[0].address if self.chain[0].transactions[0].outputs else ""
+        )
         if not miner_address:
             # Template without a payout address is still useful for inspection.
             height = self.height() + 1

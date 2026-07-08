@@ -1,4 +1,5 @@
 """Wallet AEAD/KDF upgrade (#32), mempool ancestor limit (#9), gap-limit scan (#36)."""
+
 import argparse
 import json
 from pathlib import Path
@@ -8,7 +9,6 @@ import pytest
 from netcoin import cli
 from netcoin import wallet as wallet_mod
 from netcoin.chain import Blockchain, ChainError
-from netcoin.params import MAX_MEMPOOL_ANCESTORS
 from netcoin.tx import Transaction, TxInput, TxOutput, amount_to_sats
 from netcoin.wallet import (
     Wallet,
@@ -16,8 +16,8 @@ from netcoin.wallet import (
     encrypt_private_key,
 )
 
-
 # --- 32 KDF upgrade ---
+
 
 def test_encrypt_uses_upgraded_iterations():
     enc = encrypt_private_key("ab" * 32, "pw")
@@ -34,7 +34,9 @@ def test_encrypt_uses_upgraded_iterations():
 
 def test_legacy_250k_wallet_still_opens():
     # Build a v1-style payload at the legacy iteration count and confirm it decrypts.
-    import hashlib, hmac, secrets
+    import hashlib
+    import hmac
+    import secrets
 
     salt = secrets.token_bytes(16)
     nonce = secrets.token_bytes(16)
@@ -64,8 +66,13 @@ def test_encrypted_wallet_roundtrip_file(tmp_path: Path):
 
 # --- 9 mempool ancestor limit ---
 
-def test_mempool_ancestor_limit(tmp_path: Path):
-    chain = Blockchain(tmp_path / "chain")
+
+def test_mempool_ancestor_limit(tmp_path: Path, monkeypatch):
+    import netcoin.chain as chain_mod
+
+    limit = 8
+    monkeypatch.setattr(chain_mod, "MAX_MEMPOOL_ANCESTORS", limit)
+    chain = Blockchain(tmp_path / "chain", backend="json")
     miner = Wallet.create()
     for _ in range(101):
         chain.mine_block(miner.address)
@@ -76,7 +83,7 @@ def test_mempool_ancestor_limit(tmp_path: Path):
     prev_txid, prev_vout, prev_amount = utxo.txid, utxo.vout, utxo.output.amount
     fee = amount_to_sats("0.001")
     accepted = 0
-    for _ in range(MAX_MEMPOOL_ANCESTORS + 5):
+    for _ in range(limit + 3):
         out_amount = prev_amount - fee
         if out_amount <= amount_to_sats("0.01"):
             break
@@ -87,7 +94,9 @@ def test_mempool_ancestor_limit(tmp_path: Path):
         # sign against the prevout
         from netcoin.tx import SpendableOutput
 
-        prevout = SpendableOutput(txid=prev_txid, vout=prev_vout, output=TxOutput(amount=prev_amount, address=miner.address), height=1)
+        prevout = SpendableOutput(
+            txid=prev_txid, vout=prev_vout, output=TxOutput(amount=prev_amount, address=miner.address), height=1
+        )
         tx.sign_input(0, miner.private_key, prevout)
         try:
             chain.add_mempool_transaction(tx)
@@ -97,19 +106,20 @@ def test_mempool_ancestor_limit(tmp_path: Path):
         accepted += 1
         prev_txid, prev_vout, prev_amount = tx.txid(), 0, out_amount
     # The chain was capped at the ancestor limit, not allowed to grow unbounded.
-    assert accepted <= MAX_MEMPOOL_ANCESTORS
+    assert accepted <= limit
 
 
 # --- 36 gap-limit scan ---
+
 
 def test_wallet_scan_reports_activity(tmp_path: Path, capsys):
     _, phrase = Wallet.create_with_mnemonic()
     # Mine to index-0 address derived from the phrase so the scan sees activity.
     index0 = Wallet.create(seed_phrase=phrase, index=0)
-    chain = Blockchain(tmp_path / "chain")
+    chain = Blockchain(tmp_path / "chain", backend="json")
     chain.mine_block(index0.address)
 
-    cli.cmd_wallet_scan(argparse.Namespace(data=str(tmp_path / "chain"), from_mnemonic=phrase, gap=3))
+    cli.cmd_wallet_scan(argparse.Namespace(data=str(tmp_path / "chain"), from_mnemonic=phrase, gap=3, backend="json"))
     result = json.loads(capsys.readouterr().out)
     assert result["ok"] is True
     assert len(result["accounts"]) == 4  # indexes 0..3

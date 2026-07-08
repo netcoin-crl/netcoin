@@ -1,5 +1,6 @@
 """Tests for the non-CAPTCHA faucet hardening: body cap, burst throttle,
 abuse log, and the wallet-balance gate."""
+
 import importlib.util
 import time
 from pathlib import Path
@@ -49,11 +50,13 @@ def test_burst_limited_counts_last_minute(monkeypatch):
     faucet = load_faucet_module()
     monkeypatch.setattr(faucet, "MAX_REQUESTS_PER_MINUTE", 3)
     now = int(time.time())
-    state = {"requests": [
-        {"ip": "a", "timestamp": now - 5},
-        {"ip": "b", "timestamp": now - 10},
-        {"ip": "c", "timestamp": now - 70},  # older than 60s, doesn't count
-    ]}
+    state = {
+        "requests": [
+            {"ip": "a", "timestamp": now - 5},
+            {"ip": "b", "timestamp": now - 10},
+            {"ip": "c", "timestamp": now - 70},  # older than 60s, doesn't count
+        ]
+    }
     assert faucet.burst_limited(state, now=now) is False  # only 2 in the last minute
     state["requests"].append({"ip": "d", "timestamp": now - 1})
     assert faucet.burst_limited(state, now=now) is True  # now 3 in the last minute

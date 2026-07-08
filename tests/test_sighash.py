@@ -1,6 +1,7 @@
 """Multiple SIGHASH types (consensus Item 1): ALL/NONE/SINGLE + ANYONECANPAY.
 ALL stays the default and byte-identical; the other modes commit to subsets of the
 transaction so it can be partially modified after signing."""
+
 from pathlib import Path
 
 import pytest
@@ -29,13 +30,15 @@ def _funded(tmp_path: Path, address_attr: str):
 
 
 def _tx(utxo, outs):
-    return Transaction(inputs=[TxInput(txid=utxo.txid, vout=utxo.vout)],
-                       outputs=[TxOutput(amount=a, address=ad) for a, ad in outs], locktime=0)
+    return Transaction(
+        inputs=[TxInput(txid=utxo.txid, vout=utxo.vout)],
+        outputs=[TxOutput(amount=a, address=ad) for a, ad in outs],
+        locktime=0,
+    )
 
 
 def _reout(signed, outs):
-    return Transaction(inputs=signed.inputs,
-                       outputs=[TxOutput(amount=a, address=ad) for a, ad in outs], locktime=0)
+    return Transaction(inputs=signed.inputs, outputs=[TxOutput(amount=a, address=ad) for a, ad in outs], locktime=0)
 
 
 @pytest.mark.parametrize("attr,dest_kind", [("address", "legacy"), ("segwit_address", "segwit")])
@@ -69,7 +72,7 @@ def test_single_commits_only_same_index_output(tmp_path, attr, dest_kind):
     tx = _tx(utxos[0], [(100, dest), (200, me)])
     tx.sign_input(0, w.private_key, utxos[0], SIGHASH_SINGLE)
     assert tx.verify_input(0, utxos[0]) is True
-    assert _reout(tx, [(100, dest), (999, me)]).verify_input(0, utxos[0]) is True   # other output free
+    assert _reout(tx, [(100, dest), (999, me)]).verify_input(0, utxos[0]) is True  # other output free
     assert _reout(tx, [(999, dest), (200, me)]).verify_input(0, utxos[0]) is False  # paired output pinned
 
 
@@ -78,7 +81,8 @@ def test_single_without_matching_output_is_invalid(tmp_path):
     # input index 1 but only one output -> SIGHASH_SINGLE has no pair
     tx = Transaction(
         inputs=[TxInput(txid=utxos[0].txid, vout=utxos[0].vout), TxInput(txid=utxos[1].txid, vout=utxos[1].vout)],
-        outputs=[TxOutput(amount=100, address=w.segwit_address)], locktime=0,
+        outputs=[TxOutput(amount=100, address=w.segwit_address)],
+        locktime=0,
     )
     tx.sign_input(0, w.private_key, utxos[0], SIGHASH_SINGLE)  # index 0 has output 0: fine
     with pytest.raises(TransactionError):

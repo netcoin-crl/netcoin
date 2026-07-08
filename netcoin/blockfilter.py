@@ -13,10 +13,11 @@ scriptPubkeys. False-positive rate is ~1/M; there are no false negatives.
 BIP157 filter headers chain each filter to the previous one so a light client can
 verify it received the right filters from a single trusted checkpoint.
 """
+
 from __future__ import annotations
 
 import hashlib
-from typing import Iterable, List, Set, Tuple
+from collections.abc import Iterable
 
 # Golomb-Rice parameter (P) and per-element modulus (M); FP rate ~= 1/M.
 GOLOMB_P = 19
@@ -37,7 +38,7 @@ def _encode_varint(value: int) -> bytes:
     return b"\xff" + value.to_bytes(8, "little")
 
 
-def _decode_varint(data: bytes) -> Tuple[int, bytes]:
+def _decode_varint(data: bytes) -> tuple[int, bytes]:
     first = data[0]
     if first < 0xFD:
         return first, data[1:]
@@ -50,7 +51,7 @@ def _decode_varint(data: bytes) -> Tuple[int, bytes]:
 
 class _BitWriter:
     def __init__(self) -> None:
-        self._bits: List[int] = []
+        self._bits: list[int] = []
 
     def write_unary(self, quotient: int) -> None:
         self._bits.extend([1] * quotient)
@@ -145,14 +146,15 @@ def filter_match(filter_bytes: bytes, key: bytes, target: bytes) -> bool:
 
 # --- block-level helpers ---------------------------------------------------- #
 
-def block_filter_elements(block) -> Set[bytes]:
+
+def block_filter_elements(block) -> set[bytes]:
     """The set summarized by a block's filter: every output scriptPubkey.
 
     This catches payments *to* a script (the light-client "did I get paid?"
     query). Spends are not summarized (that needs prevout lookups), so a light
     client detects receives via the filter and tracks its own spends locally.
     """
-    elements: Set[bytes] = set()
+    elements: set[bytes] = set()
     for tx in block.transactions:
         for output in tx.outputs:
             script = output.effective_script_pubkey()

@@ -1,4 +1,5 @@
 """Peer banning, scoring, and protocol-version negotiation (#1, #2, #18)."""
+
 import time
 from pathlib import Path
 
@@ -73,6 +74,7 @@ def test_trusted_peer_is_never_auto_banned(tmp_path: Path):
 def test_trusted_peer_auto_unbanned_on_restart(tmp_path: Path):
     """A stale ban on a configured seed is cleared when the node restarts."""
     import json
+
     seed = "http://seed3.example:28444"
     # Simulate a previous run that banned the seed (e.g. during a deploy blip).
     node = make_node(tmp_path, name="seednode")

@@ -1,7 +1,7 @@
 """Taproot script-path (BIP341/342): tweak validated against the BIP341 vector,
 script-tree commitment proofs, and a full hashlock script-path spend."""
+
 import hashlib
-from pathlib import Path
 
 from netcoin.chain import Blockchain
 from netcoin.crypto import private_key_to_xonly_public_key
@@ -41,8 +41,9 @@ def _funded_hashlock(tmp_path, preimage: bytes, extra_leaf="OP_DROP OP_1"):
 
 def _spend(utxo, witness):
     dest = Wallet.create().address_for("legacy")
-    tx = Transaction(inputs=[TxInput(txid=utxo.txid, vout=utxo.vout)],
-                     outputs=[TxOutput(amount=100, address=dest)], locktime=0)
+    tx = Transaction(
+        inputs=[TxInput(txid=utxo.txid, vout=utxo.vout)], outputs=[TxOutput(amount=100, address=dest)], locktime=0
+    )
     tx.inputs[0].witness = witness
     return tx.verify_input(0, utxo)
 
@@ -69,7 +70,7 @@ def test_uncommitted_leaf_rejected(tmp_path):
     preimage = b"open sesame"
     utxo, leaf, control = _funded_hashlock(tmp_path, preimage)
     # a valid script that isn't the committed leaf must not pass with that control block
-    assert _spend(utxo, [b"x".hex(), "OP_DROP OP_1 OP_1".encode().hex(), control]) is False
+    assert _spend(utxo, [b"x".hex(), b"OP_DROP OP_1 OP_1".hex(), control]) is False
 
 
 def test_keypath_taproot_still_works(tmp_path):
@@ -80,6 +81,8 @@ def test_keypath_taproot_still_works(tmp_path):
         chain.mine_block(miner.taproot_address)
     from netcoin.tx import amount_to_sats
 
-    tx = miner.create_transaction(chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="taproot")
+    tx = miner.create_transaction(
+        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="taproot"
+    )
     assert len(tx.inputs[0].witness) == 1  # single Schnorr sig = key-path
     chain.add_mempool_transaction(tx)

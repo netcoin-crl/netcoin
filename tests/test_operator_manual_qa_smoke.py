@@ -9,6 +9,7 @@ route protection.
 from __future__ import annotations
 
 import json
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -16,6 +17,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from netcoin.apps import AppStore
+from netcoin.apps.auth import SignedEnvelope, canonical_body_hash
 from netcoin.chain import Blockchain
 from netcoin.crypto import sign_message
 from netcoin.explorer_server import make_handler
@@ -56,6 +58,29 @@ def post_json(url: str, payload: dict, headers: dict[str, str] | None = None):
         return json.loads(response.read().decode())
 
 
+def signed_payload(payload: dict, wallet: Wallet, path: str) -> dict:
+    body = dict(payload)
+    env = SignedEnvelope(
+        address=wallet.segwit_address,
+        method="POST",
+        path=path,
+        body_hash=canonical_body_hash(body),
+        timestamp=int(time.time()),
+        nonce=f"qa-{time.time_ns()}",
+        signature="",
+    )
+    body["signed_envelope"] = {
+        "address": env.address,
+        "method": env.method,
+        "path": env.path,
+        "body_hash": env.body_hash,
+        "timestamp": env.timestamp,
+        "nonce": env.nonce,
+        "signature": sign_message(wallet.private_key, env.message()),
+    }
+    return body
+
+
 def fund_wallet(chain: Blockchain, miner: Wallet, blocks: int = 101) -> None:
     for _ in range(blocks):
         chain.mine_block(miner.address)
@@ -87,7 +112,9 @@ def test_operator_launch_manual_qa_flow(tmp_path: Path, monkeypatch):
     assert chain.balances_for_address(customer.address)["total"] == amount_to_sats("2")
 
     # 5-7. Create an invoice, ensure old history does not auto-pay it, pay it, and view receipt.
-    invoice = store.create_invoice(chain, {"address": merchant.address, "amount": "1.25", "memo": "QA checkout", "merchant_id": "shop"})
+    invoice = store.create_invoice(
+        chain, {"address": merchant.address, "amount": "1.25", "memo": "QA checkout", "merchant_id": "shop"}
+    )
     assert invoice["status"] == "unpaid"
     assert invoice["paid_total_sats"] == 0
 
@@ -112,15 +139,19 @@ def test_operator_launch_manual_qa_flow(tmp_path: Path, monkeypatch):
         def log_message(self, *args):
             return
 
-        def do_POST(self):  # noqa: N802
+        def do_POST(self):
             body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
             received.append({"body": body, "sig": self.headers.get("X-Netcoin-Signature")})
             self.send_response(204)
             self.end_headers()
 
     with Served(Hook) as hook:
-        registered = store.register_webhook({"merchant_id": "shop", "url": hook.url, "events": ["payment.confirmed"], "secret": "whsec"})
-        store.queue_webhook_event({"merchant_id": "shop", "event": "payment.confirmed", "payload": {"invoice_id": invoice["invoice_id"]}})
+        registered = store.register_webhook(
+            {"merchant_id": "shop", "url": hook.url, "events": ["payment.confirmed"], "secret": "whsec"}
+        )
+        store.queue_webhook_event(
+            {"merchant_id": "shop", "event": "payment.confirmed", "payload": {"invoice_id": invoice["invoice_id"]}}
+        )
         delivered = store.deliver_webhook_events({"timeout": 2})
     assert registered["webhook_id"]
     assert delivered["delivered"] >= 1
@@ -138,37 +169,57 @@ def test_operator_launch_manual_qa_flow(tmp_path: Path, monkeypatch):
         headers = {"X-Netcoin-Admin-Token": "qa-secret"}
         summary = get_json(f"{srv.url}/api/admin/summary", headers=headers)
         assert summary["counts"]["payout_plans"] >= 1
-        review = post_json(f"{srv.url}/api/admin/payouts/{payout_id}/review", {"reviewer": "qa"}, headers=headers)
+        review = post_json(
+            f"{srv.url}/api/admin/payouts/{payout_id}/review",
+            signed_payload({"reviewer": "qa"}, miner, f"/admin/payouts/{payout_id}/review"),
+            headers=headers,
+        )
         bundle = get_json(f"{srv.url}/api/admin/payouts/{payout_id}/bundle", headers=headers)
-        signed = post_json(f"{srv.url}/api/admin/payouts/{payout_id}/signed", {"txid": "signedqa", "signer": "offline"}, headers=headers)
-        broadcasted = post_json(f"{srv.url}/api/admin/payouts/{payout_id}/broadcasted", {"txid": "broadcastqa", "operator": "qa"}, headers=headers)
+        signed = post_json(
+            f"{srv.url}/api/admin/payouts/{payout_id}/signed",
+            signed_payload({"txid": "signedqa", "signer": "offline"}, miner, f"/admin/payouts/{payout_id}/signed"),
+            headers=headers,
+        )
+        broadcasted = post_json(
+            f"{srv.url}/api/admin/payouts/{payout_id}/broadcasted",
+            signed_payload({"txid": "broadcastqa", "operator": "qa"}, miner, f"/admin/payouts/{payout_id}/broadcasted"),
+            headers=headers,
+        )
     assert review["status"] == "ready_for_wallet_signing"
     assert bundle["payout_plan"]["payout_id"] == payout_id
     assert signed["status"] == "signed_ready_to_broadcast"
     assert broadcasted["status"] == "broadcast_recorded"
 
     # 14. Recurring agreement creates an invoice and records a payment.
-    recurring = store.create_recurring_agreement({"payer": customer.address, "recipient": merchant.address, "amount": "0.25", "interval": "monthly"})
+    recurring = store.create_recurring_agreement(
+        {"payer": customer.address, "recipient": merchant.address, "amount": "0.25", "interval": "monthly"}
+    )
     recurring_invoice = store.create_recurring_invoice(chain, recurring["agreement_id"], {"memo": "QA recurring"})
     assert recurring_invoice["order_id"] == recurring["agreement_id"]
     recurring_paid = store.record_recurring_payment(recurring["agreement_id"], {"txid": invoice_payment_txid})
     assert recurring_paid["last_payment_txid"] == invoice_payment_txid
 
     # 15. Escrow creates a 2-of-3 address and requires two approvals for a payout plan.
-    escrow = store.create_escrow({
-        "buyer_pubkey": customer.public_key_hex,
-        "seller_pubkey": merchant.public_key_hex,
-        "mediator_pubkey": mediator.public_key_hex,
-        "buyer_address": customer.address,
-        "seller_address": merchant.address,
-        "mediator_address": mediator.address,
-        "amount": "0.75",
-        "terms": "QA escrow terms",
-        "funding_txid": first_txid,
-    })
-    first_release = store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": merchant.address})
+    escrow = store.create_escrow(
+        {
+            "buyer_pubkey": customer.public_key_hex,
+            "seller_pubkey": merchant.public_key_hex,
+            "mediator_pubkey": mediator.public_key_hex,
+            "buyer_address": customer.address,
+            "seller_address": merchant.address,
+            "mediator_address": mediator.address,
+            "amount": "0.75",
+            "terms": "QA escrow terms",
+            "funding_txid": first_txid,
+        }
+    )
+    first_release = store.escrow_action(
+        escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": merchant.address}
+    )
     assert first_release["status"] == "pending_release"
-    second_release = store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": "mediator", "to_address": merchant.address})
+    second_release = store.escrow_action(
+        escrow["escrow_id"], {"action": "release", "signer": "mediator", "to_address": merchant.address}
+    )
     assert second_release["status"] == "released"
     assert second_release["payout_plan"]["kind"] == "escrow_release"
 
@@ -177,30 +228,59 @@ def test_operator_launch_manual_qa_flow(tmp_path: Path, monkeypatch):
     option_id = poll["options"][0]["option_id"]
     vote_message = store.poll_vote_message(poll["poll_id"], option_id)
     vote_sig = sign_message(miner.private_key, vote_message)
-    voted = store.cast_poll_vote(poll["poll_id"], {"voter_address": miner.address, "option_id": option_id, "signature": vote_sig})
+    voted = store.cast_poll_vote(
+        poll["poll_id"], {"voter_address": miner.address, "option_id": option_id, "signature": vote_sig}
+    )
     assert voted["vote_count"] == 1
     assert voted["winner_option_id"] == option_id
 
     # 17. Testnet/demo prediction market, order matching, and resolution payout plan.
-    market = store.create_prediction_market({"question": "Will QA pass?", "outcomes": ["YES", "NO"], "legal_acknowledged": True})
+    market = store.create_prediction_market(
+        {"question": "Will QA pass?", "outcomes": ["YES", "NO"], "legal_acknowledged": True}
+    )
     outcome_id = market["outcomes"][0]["outcome_id"]
-    store.place_market_order(market["market_id"], {"address": merchant.address, "outcome_id": outcome_id, "side": "sell", "quantity": 3, "price_bps": 4000})
-    traded = store.place_market_order(market["market_id"], {"address": customer.address, "outcome_id": outcome_id, "side": "buy", "quantity": 3, "price_bps": 5000})
+    store.place_market_order(
+        market["market_id"],
+        {"address": merchant.address, "outcome_id": outcome_id, "side": "sell", "quantity": 3, "price_bps": 4000},
+    )
+    traded = store.place_market_order(
+        market["market_id"],
+        {"address": customer.address, "outcome_id": outcome_id, "side": "buy", "quantity": 3, "price_bps": 5000},
+    )
     assert len(traded["trades"]) == 1
-    resolved = store.resolve_prediction_market(market["market_id"], {"winning_outcome_id": outcome_id, "payout_per_share": "0.1"})
+    resolved = store.resolve_prediction_market(
+        market["market_id"], {"winning_outcome_id": outcome_id, "payout_per_share": "0.1"}
+    )
     assert resolved["status"] == "resolved"
     assert resolved["payout_plan"]["kind"] == "prediction_market"
 
     # Wallet safety controls and statements from the checklist.
-    store.set_spending_limits({"wallet_id": "qa-wallet", "single_tx_limit": "1", "daily_limit": "2", "require_backup": True})
-    assert store.check_spending_limits({"wallet_id": "qa-wallet", "address": customer.address, "amount": "1.5", "fee": "0.01"})["ok"] is False
+    store.set_spending_limits(
+        {"wallet_id": "qa-wallet", "single_tx_limit": "1", "daily_limit": "2", "require_backup": True}
+    )
+    assert (
+        store.check_spending_limits(
+            {"wallet_id": "qa-wallet", "address": customer.address, "amount": "1.5", "fee": "0.01"}
+        )["ok"]
+        is False
+    )
     store.set_backup_health({"wallet_id": "qa-wallet", "seed_verified": True, "encrypted_export_saved": True})
-    assert store.check_spending_limits({"wallet_id": "qa-wallet", "address": customer.address, "amount": "0.5", "fee": "0.01"})["ok"] is True
+    assert (
+        store.check_spending_limits(
+            {"wallet_id": "qa-wallet", "address": customer.address, "amount": "0.5", "fee": "0.01"}
+        )["ok"]
+        is True
+    )
     assert store.wallet_statement_pdf(chain, merchant.address).startswith(b"%PDF")
 
     # 19. Restart/persistence with SQLite retains app-layer records.
     reloaded_store = AppStore(chain.data_dir)
-    assert reloaded_store.resolve_username(store.upsert_username({"username": "qamerchant", "address": merchant.address})["username"])["address"] == merchant.address
+    assert (
+        reloaded_store.resolve_username(
+            store.upsert_username({"username": "qamerchant", "address": merchant.address})["username"]
+        )["address"]
+        == merchant.address
+    )
     assert reloaded_store.invoice_status(chain, invoice["invoice_id"])["status"] == "confirmed"
     assert reloaded_store.get_payout_plan(payout_id)["broadcast_txid"] == "broadcastqa"
 

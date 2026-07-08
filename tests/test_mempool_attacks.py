@@ -1,5 +1,6 @@
 """Mempool policy / attack-surface tests: dust, low fee, duplicate inputs,
 over-weight, and RBF conflict handling."""
+
 from pathlib import Path
 
 import pytest
@@ -76,19 +77,22 @@ def test_rbf_replacement_requires_higher_fee(tmp_path: Path):
 
     # Same inputs and same fee, but a distinct tx (different amount) -> rejected
     # because the replacement fee is not higher.
-    same_fee = miner.create_transaction(chain, receiver.address, amount_to_sats("1.5"), amount_to_sats("0.01"), rbf=True)
+    same_fee = miner.create_transaction(
+        chain, receiver.address, amount_to_sats("1.5"), amount_to_sats("0.01"), rbf=True
+    )
     assert same_fee.txid() != original.txid()
     assert same_fee.inputs[0].outpoint() == original.inputs[0].outpoint()
     with pytest.raises(ChainError, match="replacement fee is not higher"):
         chain.add_mempool_transaction(same_fee)
 
     # Same inputs, higher fee -> replaces the original.
-    higher_fee = miner.create_transaction(chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.05"), rbf=True)
+    higher_fee = miner.create_transaction(
+        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.05"), rbf=True
+    )
     chain.add_mempool_transaction(higher_fee)
     txids = {e["txid"] for e in chain.mempool_info()["entries"]}
     assert higher_fee.txid() in txids
     assert original.txid() not in txids
-
 
 
 def test_rbf_replacement_requires_incremental_relay_fee(tmp_path: Path):
@@ -104,6 +108,7 @@ def test_rbf_replacement_requires_incremental_relay_fee(tmp_path: Path):
     assert tiny_bump.inputs[0].outpoint() == original.inputs[0].outpoint()
     with pytest.raises(ChainError, match="incremental relay fee"):
         chain.add_mempool_transaction(tiny_bump)
+
 
 def test_mempool_accepts_many_independent_transactions(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path)
@@ -136,7 +141,9 @@ def test_package_relay_allows_child_pays_for_parent(tmp_path: Path):
         inputs=[TxInput(txid=parent.txid(), vout=0)],
         outputs=[TxOutput(amount=parent_output.amount - child_fee, address=final.address)],
     )
-    child.sign_input(0, receiver.private_key, SpendableOutput(parent.txid(), 0, parent_output, height=None, coinbase=False))
+    child.sign_input(
+        0, receiver.private_key, SpendableOutput(parent.txid(), 0, parent_output, height=None, coinbase=False)
+    )
 
     txids = chain.add_mempool_package([parent, child])
     assert txids == [parent.txid(), child.txid()]

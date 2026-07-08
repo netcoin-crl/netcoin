@@ -1,13 +1,13 @@
 """Remaining v0.4.x code upgrades: headers-first sync, compact relay, witness
 commitments, change rotation, wallet auto-lock, CAPTCHA hooks, and explorer
 pagination."""
+
 import argparse
 import json
 import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
-from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -18,7 +18,8 @@ from netcoin.block import coinbase_witness_commitment, merkle_root, validate_wit
 from netcoin.chain import Blockchain, ChainError
 from netcoin.compact import CompactBlockError, make_compact_block, missing_transactions, reconstruct_compact_block
 from netcoin.explorer_server import make_handler as make_explorer_handler
-from netcoin.node import NetCoinNode, make_handler as make_node_handler
+from netcoin.node import NetCoinNode
+from netcoin.node import make_handler as make_node_handler
 from netcoin.p2p import NetCoinP2PServer, sync_headers_first
 from netcoin.tx import amount_to_sats
 from netcoin.wallet import AutoLockWalletSession, Wallet, WalletError
@@ -181,9 +182,20 @@ def test_change_address_rotation_persists_counter(tmp_path: Path, capsys):
     for _ in range(101):
         chain.mine_block(miner.address)
     args = argparse.Namespace(
-        data=str(data), wallet=str(wallet_file), passphrase=None, from_type="p2pkh", from_address=None,
-        change_address=None, to=receiver.address, amount="1", fee="0.01", rbf=False, utxo=None,
-        coin_strategy="greedy", rotate_change=True, broadcast_to=None,
+        data=str(data),
+        wallet=str(wallet_file),
+        passphrase=None,
+        from_type="p2pkh",
+        from_address=None,
+        change_address=None,
+        to=receiver.address,
+        amount="1",
+        fee="0.01",
+        rbf=False,
+        utxo=None,
+        coin_strategy="greedy",
+        rotate_change=True,
+        broadcast_to=None,
     )
     cli.cmd_send(args)
     first = json.loads(capsys.readouterr().out)
@@ -215,7 +227,7 @@ def test_faucet_simple_captcha_hook(monkeypatch):
     monkeypatch.setattr(faucet, "CAPTCHA_SIMPLE_ANSWER", "netcoin")
     assert faucet.verify_captcha({"captcha": ["netcoin"]}, "127.0.0.1")[0] is True
     assert faucet.verify_captcha({"captcha": ["wrong"]}, "127.0.0.1")[0] is False
-    assert "name=\"captcha\"" in faucet.captcha_html()
+    assert 'name="captcha"' in faucet.captcha_html()
 
 
 def test_explorer_latest_and_address_pagination(tmp_path: Path):

@@ -1,4 +1,5 @@
 """Tests for generated artifacts: the static explorer and the status dashboard."""
+
 import importlib.util
 import json
 from pathlib import Path
@@ -104,7 +105,9 @@ def test_dashboard_handles_minimal_status():
 
 
 def test_verify_release_checksums(tmp_path: Path):
-    spec = importlib.util.spec_from_file_location("verify_release", Path(__file__).resolve().parents[1] / "tools" / "verify_release.py")
+    spec = importlib.util.spec_from_file_location(
+        "verify_release", Path(__file__).resolve().parents[1] / "tools" / "verify_release.py"
+    )
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     spec.loader.exec_module(module)

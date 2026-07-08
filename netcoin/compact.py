@@ -8,8 +8,9 @@ they are missing before reconstructing the block.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 
 from .block import Block, BlockHeader
 from .tx import Transaction
@@ -22,19 +23,22 @@ class CompactBlockError(ValueError):
 @dataclass
 class CompactBlock:
     header: BlockHeader
-    shortids: List[str]
-    prefilled: Dict[int, Transaction]
+    shortids: list[str]
+    prefilled: dict[int, Transaction]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "header": self.header.to_dict() | {"hash": self.header.hash()},
             "shortids": self.shortids,
-            "prefilled": {str(index): tx.to_dict(include_scripts=True, include_witness=True) for index, tx in self.prefilled.items()},
+            "prefilled": {
+                str(index): tx.to_dict(include_scripts=True, include_witness=True)
+                for index, tx in self.prefilled.items()
+            },
             "total_transactions": len(self.shortids) + len(self.prefilled),
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CompactBlock":
+    def from_dict(cls, data: dict[str, Any]) -> CompactBlock:
         header_data = dict(data["header"])
         header_data.pop("hash", None)
         return cls(
@@ -50,10 +54,10 @@ def short_txid(txid: str) -> str:
     return txid[:12]
 
 
-def make_compact_block(block: Block, prefill_indexes: Optional[Iterable[int]] = None) -> CompactBlock:
+def make_compact_block(block: Block, prefill_indexes: Iterable[int] | None = None) -> CompactBlock:
     prefill = set(prefill_indexes if prefill_indexes is not None else [0])
     shortids = []
-    prefilled: Dict[int, Transaction] = {}
+    prefilled: dict[int, Transaction] = {}
     for index, tx in enumerate(block.transactions):
         if index in prefill:
             prefilled[index] = tx
@@ -62,8 +66,8 @@ def make_compact_block(block: Block, prefill_indexes: Optional[Iterable[int]] = 
     return CompactBlock(header=block.header, shortids=shortids, prefilled=prefilled)
 
 
-def _tx_by_shortid(transactions: Iterable[Transaction]) -> Dict[str, Transaction]:
-    by_shortid: Dict[str, Transaction] = {}
+def _tx_by_shortid(transactions: Iterable[Transaction]) -> dict[str, Transaction]:
+    by_shortid: dict[str, Transaction] = {}
     for tx in transactions:
         sid = short_txid(tx.txid())
         # A short-id collision makes reconstruction ambiguous. Real compact blocks
@@ -75,9 +79,9 @@ def _tx_by_shortid(transactions: Iterable[Transaction]) -> Dict[str, Transaction
     return by_shortid
 
 
-def compact_block_positions(compact: CompactBlock) -> List[Tuple[int, str]]:
+def compact_block_positions(compact: CompactBlock) -> list[tuple[int, str]]:
     """Return (transaction_index, shortid) entries for non-prefilled txs."""
-    result: List[Tuple[int, str]] = []
+    result: list[tuple[int, str]] = []
     short_iter = iter(compact.shortids)
     total = len(compact.shortids) + len(compact.prefilled)
     for index in range(total):
@@ -87,10 +91,10 @@ def compact_block_positions(compact: CompactBlock) -> List[Tuple[int, str]]:
     return result
 
 
-def missing_transactions(compact: CompactBlock, mempool: Iterable[Transaction]) -> List[Dict[str, Any]]:
+def missing_transactions(compact: CompactBlock, mempool: Iterable[Transaction]) -> list[dict[str, Any]]:
     """List compact-block shortids that cannot be filled from this mempool."""
     by_shortid = _tx_by_shortid(mempool)
-    missing: List[Dict[str, Any]] = []
+    missing: list[dict[str, Any]] = []
     for index, sid in compact_block_positions(compact):
         if sid not in by_shortid:
             missing.append({"index": index, "shortid": sid})
@@ -100,13 +104,13 @@ def missing_transactions(compact: CompactBlock, mempool: Iterable[Transaction]) 
 def reconstruct_compact_block(
     compact: CompactBlock,
     mempool: Iterable[Transaction],
-    extra_transactions: Optional[Iterable[Transaction]] = None,
+    extra_transactions: Iterable[Transaction] | None = None,
 ) -> Block:
     by_shortid = _tx_by_shortid(mempool)
     if extra_transactions:
         by_shortid.update(_tx_by_shortid(extra_transactions))
-    txs: List[Transaction] = []
-    missing: List[Dict[str, Any]] = []
+    txs: list[Transaction] = []
+    missing: list[dict[str, Any]] = []
     short_iter = iter(compact.shortids)
     total = len(compact.shortids) + len(compact.prefilled)
     for index in range(total):
@@ -125,7 +129,7 @@ def reconstruct_compact_block(
     return Block(header=compact.header, transactions=txs)
 
 
-def compact_missing_payload(block: Block, have_shortids: Sequence[str]) -> Dict[str, Any]:
+def compact_missing_payload(block: Block, have_shortids: Sequence[str]) -> dict[str, Any]:
     """Return full transactions from block that a peer says it is missing.
 
     The peer passes shortids it already has; the response includes the remaining
@@ -137,10 +141,12 @@ def compact_missing_payload(block: Block, have_shortids: Sequence[str]) -> Dict[
         sid = short_txid(tx.txid())
         if index == 0 or sid in have:
             continue
-        missing.append({
-            "index": index,
-            "shortid": sid,
-            "txid": tx.txid(),
-            "tx": tx.to_dict(include_scripts=True, include_witness=True),
-        })
+        missing.append(
+            {
+                "index": index,
+                "shortid": sid,
+                "txid": tx.txid(),
+                "tx": tx.to_dict(include_scripts=True, include_witness=True),
+            }
+        )
     return {"block_hash": block.hash(), "missing": missing}

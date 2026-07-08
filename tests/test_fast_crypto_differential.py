@@ -2,15 +2,22 @@
 the pure-Python verifier. If they ever disagree, mixed fast/pure nodes could
 split on transaction validity — so this differential fuzz test is a hard gate.
 """
+
 import secrets
 
 import pytest
 
-from netcoin.crypto import N, ecdsa_sign, private_key_to_public_key
-from netcoin.crypto import _ecdsa_verify_pure
+from netcoin.crypto import N, _ecdsa_verify_pure, ecdsa_sign, private_key_to_public_key
 
-coincurve = pytest.importorskip("coincurve")
-from netcoin.crypto import _ecdsa_verify_fast  # noqa: E402
+try:
+    import coincurve
+
+    from netcoin.crypto import _ecdsa_verify_fast
+except ImportError:  # pragma: no cover - optional dependency absent in minimal CI
+    coincurve = None
+    _ecdsa_verify_fast = None
+
+pytestmark = pytest.mark.skipif(coincurve is None, reason="coincurve optional backend is not installed")
 
 
 def _cases():
@@ -22,14 +29,14 @@ def _cases():
     s = int.from_bytes(sig[32:], "big")
     high_s = sig[:32] + (N - s).to_bytes(32, "big")  # valid but non-normalized
     return [
-        (pub, digest, sig),                                  # valid low-s
-        (pub, digest, high_s),                               # valid high-s
-        (pub, secrets.token_bytes(32), sig),                 # wrong message
-        (other, digest, sig),                                # wrong key
-        (pub, digest, secrets.token_bytes(64)),              # garbage
-        (pub, digest, (0).to_bytes(32, "big") + sig[32:]),   # r = 0
-        (pub, digest, sig[:32] + (0).to_bytes(32, "big")),   # s = 0
-        (pub, digest, (N).to_bytes(32, "big") + sig[32:]),   # r = N (out of range)
+        (pub, digest, sig),  # valid low-s
+        (pub, digest, high_s),  # valid high-s
+        (pub, secrets.token_bytes(32), sig),  # wrong message
+        (other, digest, sig),  # wrong key
+        (pub, digest, secrets.token_bytes(64)),  # garbage
+        (pub, digest, (0).to_bytes(32, "big") + sig[32:]),  # r = 0
+        (pub, digest, sig[:32] + (0).to_bytes(32, "big")),  # s = 0
+        (pub, digest, (N).to_bytes(32, "big") + sig[32:]),  # r = N (out of range)
     ]
 
 

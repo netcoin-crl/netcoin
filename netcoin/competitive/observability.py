@@ -6,13 +6,13 @@ This module now targets NetCoin's 5/10 maturity baseline: deterministic
 testnet/dev implementation hooks, validation helpers, operator controls, and
 smoke checks. It still does not claim production/mainnet readiness.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Any
 
+from .level5 import area_smoke, level5_area_controls, level5_features, level5_readiness_gates
 from .registry import get_area
-from .level5 import LEVEL5_WARNING, area_smoke, level5_area_controls, level5_features, level5_readiness_gates
 
 AREA_SLUG = "observability_ops"
 

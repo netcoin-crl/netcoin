@@ -1,4 +1,5 @@
 """Full PSBT flow (#27): create, multi-party sign, combine, finalize, extract."""
+
 from pathlib import Path
 
 import pytest
@@ -58,10 +59,14 @@ def test_combine_via_base64_helper(tmp_path: Path):
     chain, a, b, receiver = two_funded_wallets(tmp_path)
     utxo_a = chain.utxos_for_address(a.address)[0]
     utxo_b = chain.utxos_for_address(b.address)[0]
-    out = TxOutput(amount=utxo_a.output.amount + utxo_b.output.amount - amount_to_sats("0.02"), address=receiver.address)
+    out = TxOutput(
+        amount=utxo_a.output.amount + utxo_b.output.amount - amount_to_sats("0.02"), address=receiver.address
+    )
 
-    pa = PartiallySignedTransaction.create([utxo_a, utxo_b], [out]); pa.sign(a)
-    pb = PartiallySignedTransaction.create([utxo_a, utxo_b], [out]); pb.sign(b)
+    pa = PartiallySignedTransaction.create([utxo_a, utxo_b], [out])
+    pa.sign(a)
+    pb = PartiallySignedTransaction.create([utxo_a, utxo_b], [out])
+    pb.sign(b)
     combined_text = combine_psbts(["netpsbt:" + pa.to_base64(), "netpsbt:" + pb.to_base64()])
     combined = PartiallySignedTransaction.from_base64(combined_text)
     assert combined.is_fully_signed()
@@ -82,7 +87,9 @@ def test_extract_requires_full_signing(tmp_path: Path):
     chain, a, b, receiver = two_funded_wallets(tmp_path)
     utxo_a = chain.utxos_for_address(a.address)[0]
     utxo_b = chain.utxos_for_address(b.address)[0]
-    out = TxOutput(amount=utxo_a.output.amount + utxo_b.output.amount - amount_to_sats("0.02"), address=receiver.address)
+    out = TxOutput(
+        amount=utxo_a.output.amount + utxo_b.output.amount - amount_to_sats("0.02"), address=receiver.address
+    )
     psbt = PartiallySignedTransaction.create([utxo_a, utxo_b], [out])
     psbt.sign(a)  # only input 0
     with pytest.raises(PSBTError, match="not fully signed"):

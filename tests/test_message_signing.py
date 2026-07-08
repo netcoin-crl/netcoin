@@ -1,5 +1,6 @@
 """Bitcoin-style signed messages (signmessage / verifymessage): recoverable
 signatures verify against an address without needing the public key."""
+
 from netcoin.crypto import message_digest, sign_message, verify_message
 from netcoin.wallet import Wallet
 

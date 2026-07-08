@@ -6,12 +6,12 @@ standard BIP32 — verified against the official BIP32 test vectors — so exten
 keys serialize as the usual `xprv`/`xpub`. The leaf keys then produce NetCoin
 addresses via NetCoin's own address encodings.
 """
+
 from __future__ import annotations
 
 import hashlib
 import hmac
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 from .crypto import (
     G,
@@ -41,7 +41,7 @@ def _ser256(value: int) -> bytes:
     return value.to_bytes(32, "big")
 
 
-def _compress_point(point: Tuple[int, int]) -> bytes:
+def _compress_point(point: tuple[int, int]) -> bytes:
     x, y = point
     return (b"\x03" if (y & 1) else b"\x02") + x.to_bytes(32, "big")
 
@@ -57,11 +57,11 @@ def mnemonic_to_seed(mnemonic: str, passphrase: str = "") -> bytes:
     )
 
 
-def parse_path(path: str) -> List[int]:
+def parse_path(path: str) -> list[int]:
     parts = path.strip().split("/")
     if parts and parts[0] in ("m", "M"):
         parts = parts[1:]
-    indexes: List[int] = []
+    indexes: list[int] = []
     for part in parts:
         if not part:
             continue
@@ -79,7 +79,7 @@ class HDKey:
 
     chain_code: bytes
     key: int = 0  # private scalar; 0 when public-only
-    point: Optional[Tuple[int, int]] = None  # public point; set when public-only
+    point: tuple[int, int] | None = None  # public point; set when public-only
     depth: int = 0
     parent_fingerprint: bytes = b"\x00\x00\x00\x00"
     child_number: int = 0
@@ -91,7 +91,7 @@ class HDKey:
     # --- construction ---
 
     @classmethod
-    def from_seed(cls, seed: bytes) -> "HDKey":
+    def from_seed(cls, seed: bytes) -> HDKey:
         digest = hmac.new(b"Bitcoin seed", seed, hashlib.sha512).digest()
         left, right = digest[:32], digest[32:]
         secret = int.from_bytes(left, "big")
@@ -100,7 +100,7 @@ class HDKey:
         return cls(chain_code=right, key=secret)
 
     @classmethod
-    def from_mnemonic(cls, mnemonic: str, passphrase: str = "") -> "HDKey":
+    def from_mnemonic(cls, mnemonic: str, passphrase: str = "") -> HDKey:
         return cls.from_seed(mnemonic_to_seed(mnemonic, passphrase))
 
     # --- key material ---
@@ -114,7 +114,7 @@ class HDKey:
     def fingerprint(self) -> bytes:
         return hash160(self.public_key)[:4]
 
-    def neuter(self) -> "HDKey":
+    def neuter(self) -> HDKey:
         """Return the watch-only (public-only) version of this node."""
         if not self.private:
             return self
@@ -128,7 +128,7 @@ class HDKey:
 
     # --- derivation ---
 
-    def derive(self, index: int) -> "HDKey":
+    def derive(self, index: int) -> HDKey:
         hardened = index >= HARDENED
         if self.private:
             data = (b"\x00" + _ser256(self.key) if hardened else self.public_key) + _ser32(index)
@@ -164,7 +164,7 @@ class HDKey:
             child_number=index,
         )
 
-    def derive_path(self, path: str) -> "HDKey":
+    def derive_path(self, path: str) -> HDKey:
         node = self
         for index in parse_path(path):
             node = node.derive(index)
@@ -198,7 +198,7 @@ class HDKey:
         return base58check_encode(payload)
 
     @classmethod
-    def from_extended_key(cls, text: str) -> "HDKey":
+    def from_extended_key(cls, text: str) -> HDKey:
         payload = base58check_decode(text)
         if len(payload) != 78:
             raise HDError("bad extended key length")

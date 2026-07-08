@@ -1,4 +1,5 @@
 """Lossless binary serialization codec (#15): round-trips tx/block preserving identity."""
+
 from pathlib import Path
 
 from netcoin.chain import Blockchain

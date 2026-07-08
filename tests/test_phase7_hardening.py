@@ -17,13 +17,15 @@ class capture_server:
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
-            def do_POST(self):  # noqa: N802
+            def do_POST(self):
                 length = int(self.headers.get("Content-Length", "0"))
-                outer.received.append({
-                    "body": self.rfile.read(length).decode("utf-8"),
-                    "signature": self.headers.get("X-Netcoin-Signature"),
-                    "event": self.headers.get("X-Netcoin-Event"),
-                })
+                outer.received.append(
+                    {
+                        "body": self.rfile.read(length).decode("utf-8"),
+                        "signature": self.headers.get("X-Netcoin-Signature"),
+                        "event": self.headers.get("X-Netcoin-Event"),
+                    }
+                )
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(b"ok")
@@ -62,7 +64,12 @@ class explorer_server:
 
 
 def post_json(url: str, body: dict, headers: dict | None = None):
-    req = Request(url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json", **(headers or {})}, method="POST")
+    req = Request(
+        url,
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", **(headers or {})},
+        method="POST",
+    )
     with urlopen(req, timeout=5) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -98,7 +105,11 @@ def test_admin_token_gate_for_app_writes(tmp_path: Path, monkeypatch):
             assert False, "expected admin auth failure"
         except HTTPError as exc:
             assert exc.code == 401
-        ok = post_json(f"{srv.url}/api/profiles", {"username": "bob", "address": wallet.address}, headers={"X-Netcoin-Admin-Token": "secret-token"})
+        ok = post_json(
+            f"{srv.url}/api/profiles",
+            {"username": "bob", "address": wallet.address},
+            headers={"X-Netcoin-Admin-Token": "secret-token"},
+        )
     assert ok["username"] == "bob"
 
 
@@ -107,7 +118,9 @@ def test_webhook_delivery_signature_and_retry_log(tmp_path: Path):
     store = AppStore(chain.data_dir)
     with capture_server() as hook:
         registered = store.register_webhook({"merchant_id": "m1", "url": hook.url, "events": ["payment.confirmed"]})
-        event = store.queue_webhook_event({"merchant_id": "m1", "event": "payment.confirmed", "payload": {"invoice_id": "inv1"}})
+        event = store.queue_webhook_event(
+            {"merchant_id": "m1", "event": "payment.confirmed", "payload": {"invoice_id": "inv1"}}
+        )
         delivered = store.deliver_webhook_events({"max_events": 1})
     assert delivered["delivered"] == 1
     assert hook.received[0]["event"] == "payment.confirmed"
@@ -128,11 +141,15 @@ def test_prediction_market_legal_ack_gate_and_restricted_topics(tmp_path: Path, 
     except Exception as exc:
         assert "legal_acknowledged" in str(exc)
 
-    market = store.create_prediction_market({"question": "Will NetCoin mine 10 blocks?", "outcomes": ["YES", "NO"], "legal_acknowledged": True})
+    market = store.create_prediction_market(
+        {"question": "Will NetCoin mine 10 blocks?", "outcomes": ["YES", "NO"], "legal_acknowledged": True}
+    )
     assert market["legal_acknowledged"] is True
 
     try:
-        store.create_prediction_market({"question": "Who wins the election?", "outcomes": ["A", "B"], "legal_acknowledged": True})
+        store.create_prediction_market(
+            {"question": "Who wins the election?", "outcomes": ["A", "B"], "legal_acknowledged": True}
+        )
         assert False, "expected restricted topic failure"
     except Exception as exc:
         assert "restricted" in str(exc)
@@ -142,7 +159,9 @@ def test_payout_signing_policy_attaches_to_plans(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     wallet = Wallet.create()
     store = AppStore(chain.data_dir)
-    policy = store.set_payout_signing_policy({"mode": "offline_multisig_review", "max_auto_broadcast": "0.1", "notes": "production policy"})
+    policy = store.set_payout_signing_policy(
+        {"mode": "offline_multisig_review", "max_auto_broadcast": "0.1", "notes": "production policy"}
+    )
     plan = store.plan_payout("test", [{"address": wallet.address, "amount": "0.2"}], memo="policy test")
     assert policy["mode"] == "offline_multisig_review"
     assert plan["signing_policy"]["mode"] == "offline_multisig_review"

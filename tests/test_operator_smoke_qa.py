@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import json
-import os
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -11,7 +11,9 @@ from urllib.request import Request, urlopen
 import pytest
 
 from netcoin.apps import AppError, AppStore, route_app_get
+from netcoin.apps.auth import SignedEnvelope, canonical_body_hash
 from netcoin.chain import Blockchain
+from netcoin.crypto import sign_message
 from netcoin.node import NetCoinNode, make_handler
 from netcoin.tx import amount_to_sats
 from netcoin.wallet import Wallet
@@ -24,17 +26,19 @@ class webhook_receiver:
         parent = self
 
         class Handler(BaseHTTPRequestHandler):
-            def do_POST(self):  # noqa: N802
+            def do_POST(self):
                 body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-                parent.requests.append({
-                    "body": body,
-                    "headers": dict(self.headers),
-                    "path": self.path,
-                })
+                parent.requests.append(
+                    {
+                        "body": body,
+                        "headers": dict(self.headers),
+                        "path": self.path,
+                    }
+                )
                 self.send_response(204)
                 self.end_headers()
 
-            def log_message(self, fmt, *args):  # noqa: A003
+            def log_message(self, fmt, *args):
                 return
 
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -65,6 +69,29 @@ class served_node:
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=5)
+
+
+def signed_payload(payload: dict, wallet: Wallet, path: str) -> dict:
+    body = dict(payload)
+    env = SignedEnvelope(
+        address=wallet.segwit_address,
+        method="POST",
+        path=path,
+        body_hash=canonical_body_hash(body),
+        timestamp=int(time.time()),
+        nonce=f"operator-{time.time_ns()}",
+        signature="",
+    )
+    body["signed_envelope"] = {
+        "address": env.address,
+        "method": env.method,
+        "path": env.path,
+        "body_hash": env.body_hash,
+        "timestamp": env.timestamp,
+        "nonce": env.nonce,
+        "signature": sign_message(wallet.private_key, env.message()),
+    }
+    return body
 
 
 def post_json(url, payload, headers=None):
@@ -101,13 +128,16 @@ def test_full_operator_manual_qa_smoke(tmp_path: Path, monkeypatch):
     assert chain.address_summary(customer.address)["balance"]["total"] >= amount_to_sats("1")
 
     # 5-7. Invoice, payment, checkout status, JSON receipt, public HTML receipt, PDF receipt.
-    invoice = store.create_invoice(chain, {
-        "address": merchant.address,
-        "amount": "2",
-        "merchant_id": "merchant-qa",
-        "memo": "QA invoice",
-        "confirmations_required": 1,
-    })
+    invoice = store.create_invoice(
+        chain,
+        {
+            "address": merchant.address,
+            "amount": "2",
+            "merchant_id": "merchant-qa",
+            "memo": "QA invoice",
+            "confirmations_required": 1,
+        },
+    )
     pay_tx = miner.create_transaction(chain, merchant.address, amount_to_sats("2"), 1000)
     chain.add_mempool_transaction(pay_tx)
     chain.mine_block(miner.address)
@@ -138,13 +168,15 @@ def test_full_operator_manual_qa_smoke(tmp_path: Path, monkeypatch):
     store.maybe_require_api_key({"api_key": key}, "merchant-qa", "merchant:write")
     secret = "qa-webhook-secret"
     with webhook_receiver() as receiver:
-        hook = store.register_webhook({
-            "merchant_id": "merchant-qa",
-            "url": receiver.url,
-            "secret": secret,
-            "events": ["payment.confirmed"],
-            "backoff_seconds": 1,
-        })
+        hook = store.register_webhook(
+            {
+                "merchant_id": "merchant-qa",
+                "url": receiver.url,
+                "secret": secret,
+                "events": ["payment.confirmed"],
+                "backoff_seconds": 1,
+            }
+        )
         assert hook["webhook_id"]
         delivered = store.deliver_webhook_events({"force": True, "timeout": 2})
         assert delivered["delivered"] >= 1
@@ -154,13 +186,15 @@ def test_full_operator_manual_qa_smoke(tmp_path: Path, monkeypatch):
         assert receiver.requests[-1]["headers"]["X-Netcoin-Signature"] == expected
 
     # 9-13. Manual payout plan review, signer bundle, signed-tx record, broadcast record.
-    refund = store.create_refund_plan({
-        "to_address": customer.address,
-        "amount": "0.5",
-        "reason": "QA refund",
-        "invoice_id": invoice["invoice_id"],
-        "txid": pay_tx.txid(),
-    })
+    refund = store.create_refund_plan(
+        {
+            "to_address": customer.address,
+            "amount": "0.5",
+            "reason": "QA refund",
+            "invoice_id": invoice["invoice_id"],
+            "txid": pay_tx.txid(),
+        }
+    )
     payout_id = refund["payout_plan"]["payout_id"]
     reviewed = store.review_payout_plan(payout_id, {"operator": "qa", "approved": True})
     assert reviewed["status"] == "ready_for_wallet_signing"
@@ -172,69 +206,88 @@ def test_full_operator_manual_qa_smoke(tmp_path: Path, monkeypatch):
     assert broadcasted["status"] == "broadcast_recorded"
 
     # 14. Recurring agreement lifecycle.
-    recurring = store.create_recurring_agreement({
-        "payer_address": customer.address,
-        "recipient_address": creator.address,
-        "amount": "0.25",
-        "interval": "weekly",
-        "memo": "QA subscription",
-    })
+    recurring = store.create_recurring_agreement(
+        {
+            "payer_address": customer.address,
+            "recipient_address": creator.address,
+            "amount": "0.25",
+            "interval": "weekly",
+            "memo": "QA subscription",
+        }
+    )
     recurring_invoice = store.create_recurring_invoice(chain, recurring["agreement_id"], {})
     assert recurring_invoice["agreement_id"] == recurring["agreement_id"]
     recorded = store.record_recurring_payment(recurring["agreement_id"], {"txid": pay_tx.txid()})
     assert recorded["last_payment_txid"] == pay_tx.txid()
 
     # 15. Escrow setup and two-party approval plan.
-    escrow = store.create_escrow({
-        "buyer_pubkey": customer.public_key_hex,
-        "seller_pubkey": merchant.public_key_hex,
-        "mediator_pubkey": mediator.public_key_hex,
-        "buyer_address": customer.address,
-        "seller_address": merchant.address,
-        "mediator_address": mediator.address,
-        "amount": "1",
-        "terms": "QA escrow",
-        "funding_txid": "funded-demo",
-    })
+    escrow = store.create_escrow(
+        {
+            "buyer_pubkey": customer.public_key_hex,
+            "seller_pubkey": merchant.public_key_hex,
+            "mediator_pubkey": mediator.public_key_hex,
+            "buyer_address": customer.address,
+            "seller_address": merchant.address,
+            "mediator_address": mediator.address,
+            "amount": "1",
+            "terms": "QA escrow",
+            "funding_txid": "funded-demo",
+        }
+    )
     store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": merchant.address})
-    released = store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": "mediator", "to_address": merchant.address})
+    released = store.escrow_action(
+        escrow["escrow_id"], {"action": "release", "signer": "mediator", "to_address": merchant.address}
+    )
     assert released["status"] == "released"
     assert released["payout_plan"]["outputs"][0]["address"] == merchant.address
 
     # 16. Poll creation/voting/close.
     poll = store.create_poll({"title": "Ship QA?", "options": ["Yes", "No"], "creator_address": customer.address})
-    voted = store.cast_poll_vote(poll["poll_id"], {
-        "voter_address": customer.address,
-        "option_id": "opt1",
-        "allow_unverified_demo": True,
-        "weight": 2,
-    })
+    voted = store.cast_poll_vote(
+        poll["poll_id"],
+        {
+            "voter_address": customer.address,
+            "option_id": "opt1",
+            "allow_unverified_demo": True,
+            "weight": 2,
+        },
+    )
     assert voted["results"]["opt1"]["weight"] == 2
     assert store.close_poll(poll["poll_id"], {})["status"] == "closed"
 
     # 17. Testnet/demo prediction market creation, matching, and resolution.
-    market = store.create_prediction_market({
-        "question": "Will QA pass?",
-        "outcomes": ["YES", "NO"],
-        "mode": "testnet_demo",
-        "legal_acknowledged": True,
-    })
-    store.place_market_order(market["market_id"], {
-        "trader_address": customer.address,
-        "outcome_id": "out1",
-        "side": "sell",
-        "quantity": 3,
-        "price_bps": 5000,
-    })
-    matched = store.place_market_order(market["market_id"], {
-        "trader_address": merchant.address,
-        "outcome_id": "out1",
-        "side": "buy",
-        "quantity": 3,
-        "price_bps": 5000,
-    })
+    market = store.create_prediction_market(
+        {
+            "question": "Will QA pass?",
+            "outcomes": ["YES", "NO"],
+            "mode": "testnet_demo",
+            "legal_acknowledged": True,
+        }
+    )
+    store.place_market_order(
+        market["market_id"],
+        {
+            "trader_address": customer.address,
+            "outcome_id": "out1",
+            "side": "sell",
+            "quantity": 3,
+            "price_bps": 5000,
+        },
+    )
+    matched = store.place_market_order(
+        market["market_id"],
+        {
+            "trader_address": merchant.address,
+            "outcome_id": "out1",
+            "side": "buy",
+            "quantity": 3,
+            "price_bps": 5000,
+        },
+    )
     assert matched["trades"]
-    resolved = store.resolve_prediction_market(market["market_id"], {"winning_outcome_id": "out1", "payout_per_share": "1"})
+    resolved = store.resolve_prediction_market(
+        market["market_id"], {"winning_outcome_id": "out1", "payout_per_share": "1"}
+    )
     assert resolved["status"] == "resolved"
     assert resolved["payout_plan"]["outputs"]
 
@@ -252,18 +305,37 @@ def test_node_app_routes_accept_merchant_api_key_header(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     merchant = Wallet.create()
     with served_node(NetCoinNode(chain, persist=False)) as srv:
-        key = post_json(f"{srv.url}/api/merchant/api-keys", {"merchant_id": "header-merchant"})["api_key"]
-        post_json(f"{srv.url}/api/merchant/api-keys/enforce", {"merchant_id": "header-merchant", "required": True})
+        key = post_json(
+            f"{srv.url}/api/merchant/api-keys",
+            signed_payload({"merchant_id": "header-merchant"}, merchant, "/merchant/api-keys"),
+        )["api_key"]
+        post_json(
+            f"{srv.url}/api/merchant/api-keys/enforce",
+            signed_payload(
+                {"merchant_id": "header-merchant", "required": True}, merchant, "/merchant/api-keys/enforce"
+            ),
+        )
         with pytest.raises(HTTPError) as excinfo:
-            post_json(f"{srv.url}/api/merchant/refunds", {
-                "merchant_id": "header-merchant",
-                "to_address": merchant.address,
-                "amount": "0.1",
-            })
+            post_json(
+                f"{srv.url}/api/merchant/refunds",
+                signed_payload(
+                    {
+                        "merchant_id": "header-merchant",
+                        "to_address": merchant.address,
+                        "amount": "0.1",
+                    },
+                    merchant,
+                    "/merchant/refunds",
+                ),
+            )
         assert excinfo.value.code == 400
         ok = post_json(
             f"{srv.url}/api/merchant/refunds",
-            {"merchant_id": "header-merchant", "to_address": merchant.address, "amount": "0.1"},
+            signed_payload(
+                {"merchant_id": "header-merchant", "to_address": merchant.address, "amount": "0.1"},
+                merchant,
+                "/merchant/refunds",
+            ),
             headers={"X-Netcoin-Api-Key": key},
         )
         assert ok["to_address"] == merchant.address

@@ -1,4 +1,5 @@
 """Tests for NetCoin's deterministic 10% reward-reduction schedule."""
+
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,6 @@ from netcoin.params import (
     REWARD_SCHEDULE_ACTIVATION_HEIGHT,
 )
 from netcoin.wallet import Wallet
-
 
 EVEN_HASH = "00" * 32
 
@@ -32,9 +32,9 @@ def test_10_percent_reward_schedule_math():
     cut1 = base * 9 // 10
     cut2 = cut1 * 9 // 10
     cut3 = cut2 * 9 // 10
-    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL) == cut1          # 45 NET
-    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL * 2) == cut2      # 40.5 NET
-    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL * 3) == cut3      # 36.45 NET
+    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL) == cut1  # 45 NET
+    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL * 2) == cut2  # 40.5 NET
+    assert emission.emission_subsidy(REWARD_REDUCTION_INTERVAL * 3) == cut3  # 36.45 NET
 
 
 def test_next_reduction_height():
@@ -55,7 +55,10 @@ def test_legacy_random_window_preserved_for_existing_live_blocks():
     # deterministic schedule was chosen. Year zero of that legacy window is flat
     # 15 NET and does not need historical hash sampling.
     assert emission.is_legacy_random_window(LEGACY_NRE_ACTIVATION_HEIGHT)
-    assert emission.legacy_random_emission_subsidy(LEGACY_NRE_ACTIVATION_HEIGHT, lambda h: EVEN_HASH) == LEGACY_NRE_BASE_SUBSIDY
+    assert (
+        emission.legacy_random_emission_subsidy(LEGACY_NRE_ACTIVATION_HEIGHT, lambda h: EVEN_HASH)
+        == LEGACY_NRE_BASE_SUBSIDY
+    )
     assert not emission.is_legacy_random_window(REWARD_SCHEDULE_ACTIVATION_HEIGHT)
 
 

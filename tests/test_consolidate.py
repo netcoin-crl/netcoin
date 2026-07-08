@@ -1,4 +1,5 @@
 """Coin consolidation: sweep many small UTXOs so large sends stop failing."""
+
 import json
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -9,7 +10,7 @@ from netcoin.chain import Blockchain
 from netcoin.cli import _maybe_harvest_miner_rewards
 from netcoin.node import NetCoinNode, make_handler
 from netcoin.wallet import Wallet
-from netcoin.webwallet import consolidation_status, consolidate_coins
+from netcoin.webwallet import consolidate_coins, consolidation_status
 
 
 class served:

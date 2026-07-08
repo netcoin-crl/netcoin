@@ -1,4 +1,5 @@
 """Peer gossip / auto-discovery: pull peer lists, announce self, bounded growth."""
+
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread

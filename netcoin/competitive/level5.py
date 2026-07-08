@@ -5,11 +5,11 @@ code paths, deterministic behavior, safe testnet defaults, issue checks, and
 operator-readable outputs. They are not a substitute for production deployment,
 external audits, legal review, or custody review.
 """
+
 from __future__ import annotations
 
 import base64
 import copy
-import csv
 import hashlib
 import hmac
 import json
@@ -17,15 +17,14 @@ import math
 import os
 import re
 import secrets
-import shutil
-import time
 import zipfile
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping, MutableMapping, Sequence
+from typing import Any
 
-from .registry import COMPETITIVE_AREAS, COMPETITIVE_FEATURES, FeatureArea, get_area
+from .registry import COMPETITIVE_AREAS, get_area
 
 LEVEL5_SCORE = 5
 LEVEL5_STATUS = "midlevel_testnet"
@@ -220,7 +219,9 @@ def scan_text_for_secrets(text: str) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     for name, pattern in SUSPICIOUS_SECRET_PATTERNS.items():
         for match in pattern.finditer(text):
-            findings.append({"type": name, "start": match.start(), "end": match.end(), "sha256": sha256_hex(match.group(0))})
+            findings.append(
+                {"type": name, "start": match.start(), "end": match.end(), "sha256": sha256_hex(match.group(0))}
+            )
     return findings
 
 
@@ -232,8 +233,19 @@ def security_issue_register(findings: Sequence[Mapping[str, Any]]) -> dict[str, 
         if severity not in severities:
             severity = "medium"
         severities[severity] += 1
-        normalized.append({"id": finding.get("id", f"SEC-{i:04d}"), "severity": severity, "status": finding.get("status", "open"), "title": finding.get("title", "Untitled security issue")})
-    return {"ok": severities["critical"] == 0 and severities["high"] == 0, "severity_counts": severities, "findings": normalized}
+        normalized.append(
+            {
+                "id": finding.get("id", f"SEC-{i:04d}"),
+                "severity": severity,
+                "status": finding.get("status", "open"),
+                "title": finding.get("title", "Untitled security issue"),
+            }
+        )
+    return {
+        "ok": severities["critical"] == 0 and severities["high"] == 0,
+        "severity_counts": severities,
+        "findings": normalized,
+    }
 
 
 def fuzz_case(seed: int, max_bytes: int = 64) -> bytes:
@@ -251,7 +263,10 @@ def fuzz_case(seed: int, max_bytes: int = 64) -> bytes:
 def merkle_root(txids: Sequence[str]) -> str:
     if not txids:
         return "0" * 64
-    level = [bytes.fromhex(t) if re.fullmatch(r"[0-9a-fA-F]{64}", t) else hashlib.sha256(str(t).encode()).digest() for t in txids]
+    level = [
+        bytes.fromhex(t) if re.fullmatch(r"[0-9a-fA-F]{64}", t) else hashlib.sha256(str(t).encode()).digest()
+        for t in txids
+    ]
     while len(level) > 1:
         if len(level) % 2:
             level.append(level[-1])
@@ -260,7 +275,10 @@ def merkle_root(txids: Sequence[str]) -> str:
 
 
 def block_header_hash(header: Mapping[str, Any]) -> str:
-    fields = [str(header.get(k, "")) for k in ("version", "previous_hash", "merkle_root", "timestamp", "bits", "nonce", "height")]
+    fields = [
+        str(header.get(k, ""))
+        for k in ("version", "previous_hash", "merkle_root", "timestamp", "bits", "nonce", "height")
+    ]
     return sha256_hex("|".join(fields))
 
 
@@ -270,7 +288,9 @@ def choose_fork_tip(candidates: Sequence[Mapping[str, Any]]) -> dict[str, Any] |
     return dict(max(candidates, key=lambda c: (int(c.get("work", 0)), int(c.get("height", 0)), str(c.get("hash", "")))))
 
 
-def detect_chain_split(local_tip: Mapping[str, Any], peer_tips: Sequence[Mapping[str, Any]], *, min_height_gap: int = 2) -> dict[str, Any]:
+def detect_chain_split(
+    local_tip: Mapping[str, Any], peer_tips: Sequence[Mapping[str, Any]], *, min_height_gap: int = 2
+) -> dict[str, Any]:
     local_hash = local_tip.get("hash")
     local_height = int(local_tip.get("height", 0))
     divergent = []
@@ -303,7 +323,12 @@ def peer_diversity_report(peers: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         group = ".".join(host.split(".")[:2]) if "." in host else host[:4]
         groups[group] = groups.get(group, 0) + 1
     max_share = max((v / max(1, len(peers)) for v in groups.values()), default=0.0)
-    return {"ok": max_share <= 0.5 if peers else True, "peer_count": len(peers), "groups": groups, "max_group_share": round(max_share, 3)}
+    return {
+        "ok": max_share <= 0.5 if peers else True,
+        "peer_count": len(peers),
+        "groups": groups,
+        "max_group_share": round(max_share, 3),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -423,7 +448,9 @@ def verify_seed_backup(expected_words: Sequence[str], supplied_words: Sequence[s
 # ---------------------------------------------------------------------------
 # Mempool and fee helpers
 # ---------------------------------------------------------------------------
-def estimate_fee_rate(recent_blocks: Sequence[Mapping[str, Any]], mempool_txs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def estimate_fee_rate(
+    recent_blocks: Sequence[Mapping[str, Any]], mempool_txs: Sequence[Mapping[str, Any]]
+) -> dict[str, Any]:
     rates = []
     for tx in list(mempool_txs) + [tx for b in recent_blocks for tx in b.get("transactions", [])]:
         size = max(1, int(tx.get("vbytes", tx.get("size", 250)) or 250))
@@ -431,22 +458,35 @@ def estimate_fee_rate(recent_blocks: Sequence[Mapping[str, Any]], mempool_txs: S
     if not rates:
         return {"ok": True, "fast": 1, "normal": 1, "slow": 1}
     rates.sort()
+
     def pct(p: float) -> int:
-        return max(1, math.ceil(rates[min(len(rates) - 1, int((len(rates)-1)*p))]))
+        return max(1, math.ceil(rates[min(len(rates) - 1, int((len(rates) - 1) * p))]))
+
     return {"ok": True, "slow": pct(0.25), "normal": pct(0.5), "fast": pct(0.8), "sample_size": len(rates)}
 
 
-def mempool_policy_check(tx: Mapping[str, Any], *, min_relay_fee_rate: float = 1.0, dust_sats: int = 546) -> dict[str, Any]:
+def mempool_policy_check(
+    tx: Mapping[str, Any], *, min_relay_fee_rate: float = 1.0, dust_sats: int = 546
+) -> dict[str, Any]:
     size = max(1, int(tx.get("vbytes", tx.get("size", 250)) or 250))
     fee_rate = float(tx.get("fee_sats", tx.get("fee", 0)) or 0) / size
     outputs = tx.get("outputs", []) or []
     dust_outputs = [o for o in outputs if int(o.get("sats", o.get("amount_sats", 0)) or 0) < dust_sats]
     ok = fee_rate >= min_relay_fee_rate and not dust_outputs
-    return {"ok": ok, "fee_rate": fee_rate, "dust_output_count": len(dust_outputs), "min_relay_fee_rate": min_relay_fee_rate}
+    return {
+        "ok": ok,
+        "fee_rate": fee_rate,
+        "dust_output_count": len(dust_outputs),
+        "min_relay_fee_rate": min_relay_fee_rate,
+    }
 
 
 def evict_mempool(txs: Sequence[Mapping[str, Any]], *, max_count: int) -> list[dict[str, Any]]:
-    ordered = sorted((dict(tx) for tx in txs), key=lambda tx: (float(tx.get("fee_sats", 0)) / max(1, int(tx.get("vbytes", 250))), tx.get("received_at", "")), reverse=True)
+    ordered = sorted(
+        (dict(tx) for tx in txs),
+        key=lambda tx: (float(tx.get("fee_sats", 0)) / max(1, int(tx.get("vbytes", 250))), tx.get("received_at", "")),
+        reverse=True,
+    )
     return ordered[:max_count]
 
 
@@ -468,11 +508,24 @@ def pool_payouts(shares: Sequence[Mapping[str, Any]], reward: float) -> dict[str
     return {"ok": True, "reward": reward, "payouts": payouts, "share_weight_total": total}
 
 
-def mining_profitability(hashrate_hs: float, difficulty: float, reward: float, price_usd: float, power_watts: float, electricity_usd_kwh: float) -> dict[str, Any]:
+def mining_profitability(
+    hashrate_hs: float,
+    difficulty: float,
+    reward: float,
+    price_usd: float,
+    power_watts: float,
+    electricity_usd_kwh: float,
+) -> dict[str, Any]:
     expected_blocks_day = max(0.0, hashrate_hs / max(1.0, difficulty * 2**32) * 86400)
     revenue = expected_blocks_day * reward * price_usd
     power_cost = power_watts / 1000 * 24 * electricity_usd_kwh
-    return {"ok": True, "expected_blocks_day": expected_blocks_day, "revenue_usd_day": revenue, "power_cost_usd_day": power_cost, "profit_usd_day": revenue - power_cost}
+    return {
+        "ok": True,
+        "expected_blocks_day": expected_blocks_day,
+        "revenue_usd_day": revenue,
+        "power_cost_usd_day": power_cost,
+        "profit_usd_day": revenue - power_cost,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -488,7 +541,14 @@ def index_blocks(blocks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
                 address = str(out.get("address", ""))
                 if address:
                     address_balances[address] = address_balances.get(address, 0.0) + float(out.get("amount", 0) or 0)
-    return {"ok": True, "block_count": len(blocks), "transaction_count": len(txs), "address_count": len(address_balances), "balances": address_balances, "transactions": txs}
+    return {
+        "ok": True,
+        "block_count": len(blocks),
+        "transaction_count": len(txs),
+        "address_count": len(address_balances),
+        "balances": address_balances,
+        "transactions": txs,
+    }
 
 
 def chart_series(rows: Sequence[Mapping[str, Any]], field: str) -> list[dict[str, Any]]:
@@ -498,7 +558,13 @@ def chart_series(rows: Sequence[Mapping[str, Any]], field: str) -> list[dict[str
 # ---------------------------------------------------------------------------
 # Faucet helpers
 # ---------------------------------------------------------------------------
-def faucet_decision(request: Mapping[str, Any], history: Sequence[Mapping[str, Any]], *, per_ip_limit: int = 3, per_address_limit: int = 2) -> dict[str, Any]:
+def faucet_decision(
+    request: Mapping[str, Any],
+    history: Sequence[Mapping[str, Any]],
+    *,
+    per_ip_limit: int = 3,
+    per_address_limit: int = 2,
+) -> dict[str, Any]:
     ip = request.get("ip")
     address = request.get("address")
     ip_count = sum(1 for h in history if h.get("ip") == ip)
@@ -581,11 +647,17 @@ def market_integrity_scan(orders: Sequence[Mapping[str, Any]], trades: Sequence[
     return {"ok": not alerts, "alerts": alerts, "order_count": len(orders), "trade_count": len(trades)}
 
 
-def payout_reconciliation(positions: Mapping[str, Mapping[str, float]], winning_outcome: str, payouts: Mapping[str, float]) -> dict[str, Any]:
+def payout_reconciliation(
+    positions: Mapping[str, Mapping[str, float]], winning_outcome: str, payouts: Mapping[str, float]
+) -> dict[str, Any]:
     expected: dict[str, float] = {}
     for trader, outcomes in positions.items():
         expected[trader] = round(float(outcomes.get(winning_outcome, 0.0)), 8)
-    mismatches = {t: {"expected": v, "actual": payouts.get(t, 0)} for t, v in expected.items() if round(float(payouts.get(t, 0)), 8) != v}
+    mismatches = {
+        t: {"expected": v, "actual": payouts.get(t, 0)}
+        for t, v in expected.items()
+        if round(float(payouts.get(t, 0)), 8) != v
+    }
     return {"ok": not mismatches, "expected": expected, "mismatches": mismatches}
 
 
@@ -676,7 +748,9 @@ class MetricsRegistry:
         self.values[name] = float(value)
 
     def prometheus_text(self) -> str:
-        return "\n".join(f"{name} {value}" for name, value in sorted(self.values.items())) + ("\n" if self.values else "")
+        return "\n".join(f"{name} {value}" for name, value in sorted(self.values.items())) + (
+            "\n" if self.values else ""
+        )
 
 
 def alert_evaluation(metrics: Mapping[str, float], rules: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
@@ -697,10 +771,17 @@ def alert_evaluation(metrics: Mapping[str, float], rules: Sequence[Mapping[str, 
 # ---------------------------------------------------------------------------
 def deposit_status(confirmations: int, risk_level: str = "normal") -> dict[str, Any]:
     required = {"low": 3, "normal": 6, "high": 12}.get(risk_level, 6)
-    return {"confirmed": confirmations >= required, "confirmations": confirmations, "required": required, "risk_level": risk_level}
+    return {
+        "confirmed": confirmations >= required,
+        "confirmations": confirmations,
+        "required": required,
+        "risk_level": risk_level,
+    }
 
 
-def withdrawal_queue_decision(request: Mapping[str, Any], *, hot_limit: float, daily_remaining: float) -> dict[str, Any]:
+def withdrawal_queue_decision(
+    request: Mapping[str, Any], *, hot_limit: float, daily_remaining: float
+) -> dict[str, Any]:
     amount = float(request.get("amount", 0) or 0)
     reasons = []
     if amount <= 0:
@@ -709,14 +790,22 @@ def withdrawal_queue_decision(request: Mapping[str, Any], *, hot_limit: float, d
         reasons.append("exceeds_hot_wallet_limit")
     if amount > daily_remaining:
         reasons.append("exceeds_daily_remaining")
-    return {"approved_for_queue": not reasons, "requires_manual_approval": amount > hot_limit * 0.25, "reasons": reasons}
+    return {
+        "approved_for_queue": not reasons,
+        "requires_manual_approval": amount > hot_limit * 0.25,
+        "reasons": reasons,
+    }
 
 
 # ---------------------------------------------------------------------------
 # Developer/product/testing helpers
 # ---------------------------------------------------------------------------
 def openapi_stub(title: str = "NetCoin API", version: str = "0.12.0") -> dict[str, Any]:
-    return {"openapi": "3.1.0", "info": {"title": title, "version": version}, "paths": {"/info": {"get": {"responses": {"200": {"description": "OK"}}}}}}
+    return {
+        "openapi": "3.1.0",
+        "info": {"title": title, "version": version},
+        "paths": {"/info": {"get": {"responses": {"200": {"description": "OK"}}}}},
+    }
 
 
 def disclosure_check(pages: Mapping[str, str]) -> dict[str, Any]:
@@ -730,7 +819,13 @@ def quality_matrix_status(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     total = len(rows)
     passing = sum(1 for r in rows if r.get("status") == "pass")
     failing = [r for r in rows if r.get("status") == "fail"]
-    return {"ok": not failing, "total": total, "passing": passing, "failing": failing, "coverage_percent": round(100 * passing / max(1, total), 2)}
+    return {
+        "ok": not failing,
+        "total": total,
+        "passing": passing,
+        "failing": failing,
+        "coverage_percent": round(100 * passing / max(1, total), 2),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -741,14 +836,23 @@ def area_smoke(area_slug: str) -> dict[str, Any]:
     if area_slug == "security_audit":
         return {"ok": scan_text_for_secrets("safe = true") == [], "sample": security_issue_register([])}
     if area_slug == "consensus_chain":
-        return {"ok": choose_fork_tip([{"height": 1, "work": 1, "hash": "a"}, {"height": 2, "work": 2, "hash": "b"}])["hash"] == "b", "merkle": merkle_root(["a", "b"]) }
+        return {
+            "ok": choose_fork_tip([{"height": 1, "work": 1, "hash": "a"}, {"height": 2, "work": 2, "hash": "b"}])[
+                "hash"
+            ]
+            == "b",
+            "merkle": merkle_root(["a", "b"]),
+        }
     if area_slug == "p2p_network":
         return {"ok": should_ban_peer({"invalid_messages": 4}), "score": peer_score({"latency_ms": 50})}
     if area_slug == "storage_sync_recovery":
         return {"ok": snapshot_manifest({"height": 1})["schema"] == "netcoin-snapshot-v1"}
     if area_slug == "wallet_security_ux":
         vault = encrypt_wallet_payload({"address": "Ntest"}, "correct horse battery")
-        return {"ok": decrypt_wallet_payload(vault, "correct horse battery")["address"] == "Ntest", "risk": wallet_risk_score({"outputs": [{"address": "N1", "amount": 1}], "fee": 0.01})}
+        return {
+            "ok": decrypt_wallet_payload(vault, "correct horse battery")["address"] == "Ntest",
+            "risk": wallet_risk_score({"outputs": [{"address": "N1", "amount": 1}], "fee": 0.01}),
+        }
     if area_slug == "mempool_fees_spam":
         return {"ok": mempool_policy_check({"fee_sats": 500, "vbytes": 250, "outputs": [{"sats": 1000}]})["ok"]}
     if area_slug == "mining_pool":
@@ -758,7 +862,8 @@ def area_smoke(area_slug: str) -> dict[str, Any]:
     if area_slug == "faucet_abuse":
         return {"ok": faucet_decision({"ip": "1", "address": "N"}, [])["allow"]}
     if area_slug == "api_app_layer":
-        payload = {"x": 1}; sig = sign_payload("s", payload)
+        payload = {"x": 1}
+        sig = sign_payload("s", payload)
         return {"ok": verify_payload_signature("s", payload, sig)}
     if area_slug == "prediction_markets":
         return {"ok": market_integrity_scan([], [])["ok"]}
@@ -769,7 +874,8 @@ def area_smoke(area_slug: str) -> dict[str, Any]:
     if area_slug == "release_supply_chain":
         return {"ok": release_manifest([])["schema"] == "netcoin-release-manifest-v2"}
     if area_slug == "observability_ops":
-        m = MetricsRegistry(); m.set("netcoin_height", 1)
+        m = MetricsRegistry()
+        m.set("netcoin_height", 1)
         return {"ok": "netcoin_height" in m.prometheus_text()}
     if area_slug == "exchange_custody":
         return {"ok": deposit_status(6)["confirmed"]}

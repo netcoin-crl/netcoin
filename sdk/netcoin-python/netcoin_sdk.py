@@ -1,9 +1,31 @@
 """Minimal NetCoin app-layer SDK using only the Python standard library."""
 from __future__ import annotations
 
+import hashlib
 import json
+import time
+import secrets
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
+
+
+def canonical_body_hash(payload: dict | None) -> str:
+    filtered = {str(k): v for k, v in (payload or {}).items() if k not in {"signed_envelope", "signed_request", "api_key", "admin_token"} and not str(k).startswith("__netcoin_")}
+    raw = json.dumps(filtered, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def signed_envelope_message(address: str, method: str, path: str, body_hash: str, timestamp: int, nonce: str) -> str:
+    return "\n".join(["NetCoin signed request", "netcoin-signed-envelope-v1", address, method.upper(), path, body_hash, str(int(timestamp)), nonce])
+
+
+def build_signed_envelope(address: str, method: str, path: str, payload: dict | None, signer) -> dict:
+    timestamp = int(time.time())
+    nonce = secrets.token_hex(16)
+    body_hash = canonical_body_hash(payload)
+    message = signed_envelope_message(address, method, path, body_hash, timestamp, nonce)
+    signature = signer(message)
+    return {"version": "netcoin-signed-envelope-v1", "address": address, "method": method.upper(), "path": path, "body_hash": body_hash, "timestamp": timestamp, "nonce": nonce, "signature": signature}
 
 
 class NetcoinClient:
@@ -25,6 +47,11 @@ class NetcoinClient:
 
     def post(self, path: str, payload: dict) -> dict:
         return self._request(path, "POST", payload)
+
+    def signed_post(self, path: str, payload: dict, *, address: str, signer) -> dict:
+        body = dict(payload or {})
+        body["signed_envelope"] = build_signed_envelope(address, "POST", path, body, signer)
+        return self._request(path, "POST", body)
 
     def validate_address(self, address: str) -> dict:
         return self.get(f"/api/validate-address?{urlencode({'address': address})}")

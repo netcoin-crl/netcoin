@@ -1,6 +1,7 @@
 """Binary P2P as a node-to-node transport (#5): a node syncs another peer's
 chain over the TCP P2P protocol (getheaders -> headers -> getdata -> block),
 independently of the HTTP API."""
+
 import threading
 from pathlib import Path
 

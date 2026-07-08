@@ -5,13 +5,14 @@ This is intentionally dependency-light so it can run in CI before packaging. It
 records Python project metadata plus SHA-256 hashes for source, docs, ops, and
 site files that ship in the source release.
 """
+
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 INCLUDE_DIRS = ("netcoin", "tools", "docs", "sites", "sdk", "bots", "exchange", "ops", "config")
 INCLUDE_FILES = ("README.md", "pyproject.toml", "Dockerfile", "docker-compose.yml", "LICENSE", "SECURITY.md")

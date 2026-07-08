@@ -54,7 +54,9 @@ def test_public_pages_pdfs_and_profiles(tmp_path: Path):
     chain.mine_block(miner.address)
     paid = store.invoice_status(chain, inv["invoice_id"])
     txid = paid["receipt_txid"]
-    store.upsert_username({"username": "contributor", "address": merchant.address, "display_name": "contributor", "bio": "NetCoin"})
+    store.upsert_username(
+        {"username": "contributor", "address": merchant.address, "display_name": "contributor", "bio": "NetCoin"}
+    )
 
     assert "NetCoin checkout" in store.checkout_html(chain, inv["invoice_id"])
     assert merchant.address in store.profile_html("contributor")
@@ -71,7 +73,7 @@ def test_merchant_auth_webhook_delivery_and_refund_plan(tmp_path: Path):
         def log_message(self, *args):
             return
 
-        def do_POST(self):  # noqa: N802
+        def do_POST(self):
             body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
             received.append({"body": body, "sig": self.headers.get("X-Netcoin-Signature")})
             self.send_response(204)
@@ -88,7 +90,9 @@ def test_merchant_auth_webhook_delivery_and_refund_plan(tmp_path: Path):
     store.verify_api_key(key["api_key"], merchant_id="shop", permission="merchant:write")
 
     with Served(Hook) as hook:
-        store.register_webhook({"merchant_id": "shop", "url": hook.url, "events": ["payment.confirmed"], "secret": "secret"})
+        store.register_webhook(
+            {"merchant_id": "shop", "url": hook.url, "events": ["payment.confirmed"], "secret": "secret"}
+        )
         store.queue_webhook_event({"merchant_id": "shop", "event": "payment.confirmed", "payload": {"ok": True}})
         delivered = store.deliver_webhook_events({"timeout": 2})
 
@@ -125,7 +129,9 @@ def test_wallet_limits_alerts_team_wallet_and_rotation(tmp_path: Path):
     store = AppStore(chain.data_dir)
 
     store.set_spending_limits({"wallet_id": "w1", "single_tx_limit": "1", "daily_limit": "2", "require_backup": True})
-    rejected = store.check_spending_limits({"wallet_id": "w1", "address": miner.address, "amount": "1.5", "fee": "0.01"})
+    rejected = store.check_spending_limits(
+        {"wallet_id": "w1", "address": miner.address, "amount": "1.5", "fee": "0.01"}
+    )
     assert rejected["ok"] is False
     store.set_backup_health({"wallet_id": "w1", "seed_verified": True, "encrypted_export_saved": True})
     allowed = store.check_spending_limits({"wallet_id": "w1", "address": miner.address, "amount": "0.5", "fee": "0.01"})

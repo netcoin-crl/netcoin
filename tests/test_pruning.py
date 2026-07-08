@@ -1,4 +1,5 @@
 """Pruned mode (#22): prune old block bodies, reload from snapshot, keep running."""
+
 from pathlib import Path
 
 import pytest
@@ -8,7 +9,7 @@ from netcoin.wallet import Wallet
 
 
 def test_prune_requires_sqlite(tmp_path: Path):
-    chain = Blockchain(tmp_path / "json")  # default JSON backend
+    chain = Blockchain(tmp_path / "json", backend="json")  # explicit legacy JSON backend
     with pytest.raises(ChainError, match="SQLite"):
         chain.prune(keep_depth=2)
 

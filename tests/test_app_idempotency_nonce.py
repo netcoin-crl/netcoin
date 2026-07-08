@@ -17,7 +17,9 @@ def test_idempotency_replays_same_response_and_rejects_body_change(tmp_path: Pat
     assert second["idempotent_replay"] is True
     assert second["post_id"] == first["post_id"]
     with pytest.raises(AppError, match="different request body"):
-        route_app_post(store, chain, "/api/community/posts", {"author": "alice", "message": "changed", "idempotency_key": "idem-1"})
+        route_app_post(
+            store, chain, "/api/community/posts", {"author": "alice", "message": "changed", "idempotency_key": "idem-1"}
+        )
 
 
 def test_app_nonce_replay_protection_and_security_status(tmp_path: Path):

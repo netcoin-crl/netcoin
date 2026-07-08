@@ -11,9 +11,10 @@ Examples:
   sh(wpkh(<pubkey_hex>))       -> P2SH-SegWit address
   sh(multi(m,<pub1>,<pub2>...))-> P2SH multisig address
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from .crypto import (
     hash160,
@@ -28,7 +29,7 @@ class DescriptorError(ValueError):
     """Raised when a descriptor cannot be parsed or resolved."""
 
 
-def describe_wallet(wallet: Any) -> Dict[str, str]:
+def describe_wallet(wallet: Any) -> dict[str, str]:
     """Return the standard single-key descriptors for a wallet."""
     pub = wallet.public_key_hex
     return {
@@ -39,7 +40,7 @@ def describe_wallet(wallet: Any) -> Dict[str, str]:
     }
 
 
-def multisig_descriptor(required: int, pubkeys_hex: List[str]) -> str:
+def multisig_descriptor(required: int, pubkeys_hex: list[str]) -> str:
     return f"sh(multi({required},{','.join(pubkeys_hex)}))"
 
 

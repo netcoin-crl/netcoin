@@ -1,4 +1,5 @@
 import json
+import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -6,9 +7,34 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from netcoin.apps import AppStore
+from netcoin.apps.auth import SignedEnvelope, canonical_body_hash
 from netcoin.chain import Blockchain
+from netcoin.crypto import sign_message
 from netcoin.explorer_server import make_handler
 from netcoin.wallet import Wallet
+
+
+def signed_payload(payload: dict, wallet: Wallet, path: str) -> dict:
+    body = dict(payload)
+    env = SignedEnvelope(
+        address=wallet.segwit_address,
+        method="POST",
+        path=path,
+        body_hash=canonical_body_hash(body),
+        timestamp=int(time.time()),
+        nonce="admin-test-nonce",
+        signature="",
+    )
+    body["signed_envelope"] = {
+        "address": env.address,
+        "method": env.method,
+        "path": env.path,
+        "body_hash": env.body_hash,
+        "timestamp": env.timestamp,
+        "nonce": env.nonce,
+        "signature": sign_message(wallet.private_key, env.message()),
+    }
+    return body
 
 
 class Served:
@@ -34,7 +60,12 @@ def get_json(url: str, headers: dict | None = None):
 
 
 def post_json(url: str, payload: dict, headers: dict | None = None):
-    req = Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", **(headers or {})}, method="POST")
+    req = Request(
+        url,
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json", **(headers or {})},
+        method="POST",
+    )
     with urlopen(req, timeout=5) as response:
         return json.loads(response.read().decode())
 
@@ -93,7 +124,11 @@ def test_admin_api_gate_and_dashboard_page(tmp_path: Path, monkeypatch):
         summary = get_json(f"{srv.url}/api/admin/summary", headers=headers)
         payouts = get_json(f"{srv.url}/api/admin/payouts", headers=headers)
         payout_id = payouts["payout_plans"][0]["payout_id"]
-        approved = post_json(f"{srv.url}/api/admin/payouts/{payout_id}/review", {"reviewer": "admin"}, headers=headers)
+        approved = post_json(
+            f"{srv.url}/api/admin/payouts/{payout_id}/review",
+            signed_payload({"reviewer": "admin"}, wallet, f"/admin/payouts/{payout_id}/review"),
+            headers=headers,
+        )
         bundle = get_json(f"{srv.url}/api/admin/payouts/{payout_id}/bundle", headers=headers)
 
     assert summary["counts"]["payout_plans"] == 1

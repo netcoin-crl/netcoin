@@ -1,4 +1,5 @@
 """Coin control, seed confirmation, wallet unlock, and the label store."""
+
 import argparse
 import json
 from pathlib import Path
@@ -23,12 +24,16 @@ def funded(tmp_path: Path):
 
 # --- 25 coin control ---
 
+
 def test_coin_control_spends_only_chosen_utxo(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path)
     utxos = chain.utxos_for_address(miner.address)
     chosen = utxos[1].outpoint()  # not the first one greedy-selection would pick
     tx = miner.create_transaction(
-        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"),
+        chain,
+        receiver.address,
+        amount_to_sats("1"),
+        amount_to_sats("0.01"),
         select_outpoints=[chosen],
     )
     assert len(tx.inputs) == 1
@@ -40,7 +45,10 @@ def test_coin_control_rejects_foreign_outpoint(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path)
     with pytest.raises(WalletError, match="not spendable"):
         miner.create_transaction(
-            chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"),
+            chain,
+            receiver.address,
+            amount_to_sats("1"),
+            amount_to_sats("0.01"),
             select_outpoints=[f"{'0' * 64}:0"],
         )
 
@@ -51,12 +59,16 @@ def test_coin_control_insufficient_selection(tmp_path: Path):
     # One coinbase = 50 NET; ask for more than it covers.
     with pytest.raises(WalletError, match="do not cover"):
         miner.create_transaction(
-            chain, receiver.address, amount_to_sats("100"), amount_to_sats("0.01"),
+            chain,
+            receiver.address,
+            amount_to_sats("100"),
+            amount_to_sats("0.01"),
             select_outpoints=[one],
         )
 
 
 # --- 21 seed confirmation ---
+
 
 def test_confirm_seed_phrase_normalizes_whitespace():
     phrase = "net001 net002 net003"
@@ -66,6 +78,7 @@ def test_confirm_seed_phrase_normalizes_whitespace():
 
 
 # --- 22 wallet unlock ---
+
 
 def test_wallet_unlock_verifies_and_decrypts(tmp_path: Path, capsys):
     wallet = Wallet.create()
@@ -89,6 +102,7 @@ def test_wallet_unlock_wrong_passphrase(tmp_path: Path):
 
 
 # --- 26 labels / address book ---
+
 
 def test_label_store_set_get_remove_persist(tmp_path: Path):
     path = tmp_path / "labels.json"

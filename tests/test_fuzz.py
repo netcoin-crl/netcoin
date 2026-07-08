@@ -1,11 +1,12 @@
 """Deterministic fuzz runner for parsers and public node endpoints."""
+
 import argparse
 import json
 
 import pytest
 
 from netcoin import cli
-from netcoin.fuzz import FuzzConfig, FuzzError, TARGETS, run_fuzz
+from netcoin.fuzz import TARGETS, FuzzConfig, FuzzError, run_fuzz
 
 
 def test_fuzz_runner_all_targets_survive():

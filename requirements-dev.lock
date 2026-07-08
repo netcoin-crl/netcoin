@@ -1,0 +1,12 @@
+# Exact dev/test lock seed for reproducible NetCoin installs.
+# Regenerate only after dependency review and CI/browser release verification.
+cryptography==42.0.8
+coincurve==20.0.0
+pytest==8.3.5
+pytest-cov==6.0.0
+pytest-timeout==2.3.1
+ruff==0.6.9
+black==24.10.0
+mypy==1.13.0
+bandit==1.7.10
+pre-commit==4.0.1

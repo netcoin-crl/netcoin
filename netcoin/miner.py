@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
-from .block import Block, BlockError, BlockHeader, check_proof_of_work, mine_header, merkle_root, witness_commitment
+from .block import Block, BlockError, BlockHeader, check_proof_of_work, merkle_root, mine_header, witness_commitment
 from .params import MAX_BLOCK_WEIGHT
 from .tx import Transaction, create_coinbase_transaction
 
@@ -14,7 +14,7 @@ class MinerError(ValueError):
     """Raised when a remote mining job cannot be solved."""
 
 
-def transactions_from_template(template: Dict[str, Any]) -> List[Transaction]:
+def transactions_from_template(template: dict[str, Any]) -> list[Transaction]:
     transactions = []
     for item in template.get("transactions", []):
         tx_data = item.get("tx") if isinstance(item, dict) else None
@@ -24,11 +24,11 @@ def transactions_from_template(template: Dict[str, Any]) -> List[Transaction]:
 
 
 def solve_template(
-    template: Dict[str, Any],
+    template: dict[str, Any],
     payout_address: str,
     *,
     max_extra_nonce: int = 1_000_000,
-    timestamp: Optional[int] = None,
+    timestamp: int | None = None,
 ) -> Block:
     height = int(template["height"])
     previous_hash = str(template["previous_hash"])
@@ -70,7 +70,7 @@ def solve_template(
     raise MinerError("failed to solve template after many coinbase extra nonces")
 
 
-def block_summary(block: Block) -> Dict[str, Any]:
+def block_summary(block: Block) -> dict[str, Any]:
     return {
         "hash": block.hash(),
         "height": block.header.height,

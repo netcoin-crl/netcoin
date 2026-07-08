@@ -226,7 +226,7 @@
       ],
       "anchors": {
         "paths": [
-          "netcoin/apps/markets.py",
+          "netcoin/apps/markets/__init__.py",
           "sites/markets/markets.js",
           "tests/test_polymarket_style_markets.py"
         ]

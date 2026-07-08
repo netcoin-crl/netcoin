@@ -8,6 +8,14 @@ storage, local HTTP servers, and manual-signing payout records.
 
 from __future__ import annotations
 
+# Allow `python tools/<script>.py` from the repository root or elsewhere.
+import sys as _sys
+from pathlib import Path as _Path
+
+_repo_root = _Path(__file__).resolve().parents[1]
+if str(_repo_root) not in _sys.path:
+    _sys.path.insert(0, str(_repo_root))
+
 import argparse
 import contextlib
 import json
@@ -29,7 +37,6 @@ from netcoin.apps import AppStore  # noqa: E402
 from netcoin.chain import Blockchain  # noqa: E402
 from netcoin.crypto import sign_message  # noqa: E402
 from netcoin.explorer_server import make_handler as make_explorer_handler  # noqa: E402
-from netcoin.node import NetCoinNode  # noqa: E402
 from netcoin.tx import amount_to_sats  # noqa: E402
 from netcoin.wallet import Wallet  # noqa: E402
 
@@ -64,7 +71,7 @@ class Served:
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
         self.thread = Thread(target=self.server.serve_forever, daemon=True)
 
-    def __enter__(self) -> "Served":
+    def __enter__(self) -> Served:
         self.thread.start()
         self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
         return self
@@ -83,13 +90,15 @@ def webhook_capture():
         def log_message(self, *_: Any) -> None:
             return
 
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
             length = int(self.headers.get("Content-Length", "0"))
             body = self.rfile.read(length)
-            received.append({
-                "headers": dict(self.headers),
-                "body": json.loads(body.decode("utf-8")),
-            })
+            received.append(
+                {
+                    "headers": dict(self.headers),
+                    "body": json.loads(body.decode("utf-8")),
+                }
+            )
             self.send_response(204)
             self.end_headers()
 
@@ -104,7 +113,9 @@ def webhook_capture():
         thread.join(timeout=5)
 
 
-def http_json(url: str, payload: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> tuple[int, dict[str, Any]]:
+def http_json(
+    url: str, payload: dict[str, Any] | None = None, headers: dict[str, str] | None = None
+) -> tuple[int, dict[str, Any]]:
     data = None
     method = "GET"
     req_headers = dict(headers or {})
@@ -154,99 +165,214 @@ def run_qa(base_dir: Path) -> QAReport:
         trader_no = Wallet.create()
 
         mine_mature_funds(chain, operator)
-        report.check("1. Create wallet", all(w.address for w in [operator, customer, merchant]), "operator/customer/merchant wallets created")
+        report.check(
+            "1. Create wallet",
+            all(w.address for w in [operator, customer, merchant]),
+            "operator/customer/merchant wallets created",
+        )
 
         faucet_tx = send_and_mine(chain, operator, customer.address, "20")
-        report.check("2. Get faucet coins", chain.address_balance_summary(customer.address)["total_sats"] >= amount_to_sats("20"), faucet_tx.txid())
+        report.check(
+            "2. Get faucet coins",
+            chain.address_balance_summary(customer.address)["total_sats"] >= amount_to_sats("20"),
+            faucet_tx.txid(),
+        )
 
-        label = store.upsert_known_label({"address": merchant.address, "label": "QA Merchant", "group": "Merchants", "verified": True})
+        label = store.upsert_known_label(
+            {"address": merchant.address, "label": "QA Merchant", "group": "Merchants", "verified": True}
+        )
         wallet_js = (ROOT / "webwallet-browser" / "public" / "wallet-app.js").read_text(encoding="utf-8")
-        report.check("3. Save contact", label["label"] == "QA Merchant" and "ncw.contacts.v1" in wallet_js, "known label stored and wallet contact storage key present")
+        report.check(
+            "3. Save contact",
+            label["label"] == "QA Merchant" and "ncw.contacts.v1" in wallet_js,
+            "known label stored and wallet contact storage key present",
+        )
 
         direct_tx = send_and_mine(chain, customer, merchant.address, "1")
         report.check("4. Send payment", chain.get_transaction(direct_tx.txid()) is not None, direct_tx.txid())
 
-        invoice = store.create_invoice(chain, {"address": merchant.address, "amount": "2", "memo": "QA invoice", "merchant_id": "qa-shop"})
+        invoice = store.create_invoice(
+            chain, {"address": merchant.address, "amount": "2", "memo": "QA invoice", "merchant_id": "qa-shop"}
+        )
         report.check("5. Create invoice", invoice["status"] == "unpaid", invoice["invoice_id"])
 
         pay_tx = send_and_mine(chain, customer, merchant.address, "2")
         paid_invoice = store.invoice_status(chain, invoice["invoice_id"])
-        report.check("6. Pay invoice", paid_invoice["status"] == "confirmed" and paid_invoice["receipt_txid"] == pay_tx.txid(), pay_tx.txid())
+        report.check(
+            "6. Pay invoice",
+            paid_invoice["status"] == "confirmed" and paid_invoice["receipt_txid"] == pay_tx.txid(),
+            pay_tx.txid(),
+        )
 
         receipt = store.receipt(chain, pay_tx.txid())
-        report.check("7. View receipt", receipt["confirmed"] is True and receipt["txid"] == pay_tx.txid(), f"confirmations={receipt['confirmations']}")
+        report.check(
+            "7. View receipt",
+            receipt["confirmed"] is True and receipt["txid"] == pay_tx.txid(),
+            f"confirmations={receipt['confirmations']}",
+        )
 
         api_key = store.create_api_key({"merchant_id": "qa-shop", "permissions": ["merchant:write"]})
         store.set_api_key_enforcement({"merchant_id": "qa-shop", "required": True})
         store.verify_api_key(api_key["api_key"], merchant_id="qa-shop", permission="merchant:write")
         report.check("8. Create merchant API key", api_key["api_key"].startswith("nck_"), api_key["key_id"])
 
-        refund = store.create_refund_plan({"merchant_id": "qa-shop", "to_address": customer.address, "amount": "0.5", "reason": "QA refund", "api_key": api_key["api_key"]})
+        refund = store.create_refund_plan(
+            {
+                "merchant_id": "qa-shop",
+                "to_address": customer.address,
+                "amount": "0.5",
+                "reason": "QA refund",
+                "api_key": api_key["api_key"],
+            }
+        )
         payout_id = refund["payout_plan"]["payout_id"]
         report.check("9. Create payout plan", refund["payout_plan"]["status"] == "pending_operator_review", payout_id)
 
         reviewed = store.review_payout_plan(payout_id, {"reviewer": "qa-operator", "approved": True})
-        report.check("10. Approve payout in admin dashboard", reviewed["status"] == "ready_for_wallet_signing", payout_id)
+        report.check(
+            "10. Approve payout in admin dashboard", reviewed["status"] == "ready_for_wallet_signing", payout_id
+        )
 
         bundle = store.payout_signer_bundle(payout_id)
-        report.check("11. Export signer bundle", bundle["wallet_import"]["outputs"], f"outputs={len(bundle['wallet_import']['outputs'])}")
+        report.check(
+            "11. Export signer bundle",
+            bundle["wallet_import"]["outputs"],
+            f"outputs={len(bundle['wallet_import']['outputs'])}",
+        )
 
         signed = store.record_signed_payout(payout_id, {"operator": "qa-operator", "signed_txid": "qa-signed-txid"})
-        report.check("12. Record signed tx", signed["status"] == "signed_ready_to_broadcast", signed.get("signed_txid", ""))
+        report.check(
+            "12. Record signed tx", signed["status"] == "signed_ready_to_broadcast", signed.get("signed_txid", "")
+        )
 
-        broadcasted = store.record_broadcasted_payout(payout_id, {"operator": "qa-operator", "txid": "qa-broadcast-txid"})
-        report.check("13. Record broadcast txid", broadcasted["status"] == "broadcast_recorded", broadcasted["broadcast_txid"])
+        broadcasted = store.record_broadcasted_payout(
+            payout_id, {"operator": "qa-operator", "txid": "qa-broadcast-txid"}
+        )
+        report.check(
+            "13. Record broadcast txid", broadcasted["status"] == "broadcast_recorded", broadcasted["broadcast_txid"]
+        )
 
-        recurring = store.create_recurring_agreement({"payer": customer.address, "recipient": merchant.address, "amount": "1", "interval": "monthly", "memo": "QA recurring"})
+        recurring = store.create_recurring_agreement(
+            {
+                "payer": customer.address,
+                "recipient": merchant.address,
+                "amount": "1",
+                "interval": "monthly",
+                "memo": "QA recurring",
+            }
+        )
         recurring_invoice = store.create_recurring_invoice(chain, recurring["agreement_id"])
-        store.record_recurring_payment(recurring["agreement_id"], {"txid": pay_tx.txid(), "amount_sats": amount_to_sats("1")})
-        report.check("14. Create recurring agreement", recurring_invoice["agreement_id"] == recurring["agreement_id"], recurring["agreement_id"])
+        store.record_recurring_payment(
+            recurring["agreement_id"], {"txid": pay_tx.txid(), "amount_sats": amount_to_sats("1")}
+        )
+        report.check(
+            "14. Create recurring agreement",
+            recurring_invoice["agreement_id"] == recurring["agreement_id"],
+            recurring["agreement_id"],
+        )
 
-        escrow = store.create_escrow({
-            "buyer_pubkey": customer.public_key_hex,
-            "seller_pubkey": seller.public_key_hex,
-            "mediator_pubkey": mediator.public_key_hex,
-            "buyer_address": customer.address,
-            "seller_address": seller.address,
-            "mediator_address": mediator.address,
-            "amount": "1",
-            "terms": "QA escrow",
-        })
+        escrow = store.create_escrow(
+            {
+                "buyer_pubkey": customer.public_key_hex,
+                "seller_pubkey": seller.public_key_hex,
+                "mediator_pubkey": mediator.public_key_hex,
+                "buyer_address": customer.address,
+                "seller_address": seller.address,
+                "mediator_address": mediator.address,
+                "amount": "1",
+                "terms": "QA escrow",
+            }
+        )
         store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": seller.address})
-        escrow_released = store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": "seller", "to_address": seller.address})
-        report.check("15. Create escrow", escrow_released["status"] == "released" and escrow_released.get("payout_plan"), escrow["escrow_id"])
+        escrow_released = store.escrow_action(
+            escrow["escrow_id"], {"action": "release", "signer": "seller", "to_address": seller.address}
+        )
+        report.check(
+            "15. Create escrow",
+            escrow_released["status"] == "released" and escrow_released.get("payout_plan"),
+            escrow["escrow_id"],
+        )
 
         poll = store.create_poll({"title": "QA poll", "options": ["Yes", "No"], "creator_address": operator.address})
         option = poll["options"][0]["option_id"]
         message = store.poll_vote_message(poll["poll_id"], option)
-        vote = store.cast_poll_vote(poll["poll_id"], {"voter_address": voter.address, "option_id": option, "signature": sign_message(voter.private_key, message)})
+        vote = store.cast_poll_vote(
+            poll["poll_id"],
+            {
+                "voter_address": voter.address,
+                "option_id": option,
+                "signature": sign_message(voter.private_key, message),
+            },
+        )
         report.check("16. Create poll", vote["vote_count"] == 1 and vote["winner_option_id"] == option, poll["poll_id"])
 
-        market = store.create_prediction_market({"question": "Will QA pass?", "outcomes": ["YES", "NO"], "legal_acknowledged": True, "mode": "testnet_demo"})
+        market = store.create_prediction_market(
+            {"question": "Will QA pass?", "outcomes": ["YES", "NO"], "legal_acknowledged": True, "mode": "testnet_demo"}
+        )
         yes_id = market["outcomes"][0]["outcome_id"]
-        store.place_market_order(market["market_id"], {"address": trader_no.address, "outcome_id": yes_id, "side": "sell", "quantity": 3, "price_bps": 5000})
-        traded = store.place_market_order(market["market_id"], {"address": trader_yes.address, "outcome_id": yes_id, "side": "buy", "quantity": 3, "price_bps": 5000})
-        resolved = store.resolve_prediction_market(market["market_id"], {"winning_outcome_id": yes_id, "payout_per_share": "0.1"})
-        report.check("17. Create prediction market in demo mode", traded["trades"] and resolved["status"] == "resolved", market["market_id"])
+        store.place_market_order(
+            market["market_id"],
+            {"address": trader_no.address, "outcome_id": yes_id, "side": "sell", "quantity": 3, "price_bps": 5000},
+        )
+        traded = store.place_market_order(
+            market["market_id"],
+            {"address": trader_yes.address, "outcome_id": yes_id, "side": "buy", "quantity": 3, "price_bps": 5000},
+        )
+        resolved = store.resolve_prediction_market(
+            market["market_id"], {"winning_outcome_id": yes_id, "payout_per_share": "0.1"}
+        )
+        report.check(
+            "17. Create prediction market in demo mode",
+            traded["trades"] and resolved["status"] == "resolved",
+            market["market_id"],
+        )
 
         with webhook_capture() as (hook_url, received):
-            store.register_webhook({"merchant_id": "qa-shop", "url": hook_url, "events": ["payment.confirmed"], "secret": "qa-secret", "backoff_seconds": 1})
-            invoice2 = store.create_invoice(chain, {"address": merchant.address, "amount": "1", "merchant_id": "qa-shop"})
+            store.register_webhook(
+                {
+                    "merchant_id": "qa-shop",
+                    "url": hook_url,
+                    "events": ["payment.confirmed"],
+                    "secret": "qa-secret",
+                    "backoff_seconds": 1,
+                }
+            )
+            invoice2 = store.create_invoice(
+                chain, {"address": merchant.address, "amount": "1", "merchant_id": "qa-shop"}
+            )
             send_and_mine(chain, customer, merchant.address, "1")
             store.invoice_status(chain, invoice2["invoice_id"])
             delivered = store.deliver_webhook_events({"force": True, "timeout": 2})
-            report.check("18. Test webhook delivery", delivered["delivered"] >= 1 and received and received[-1]["headers"].get("X-Netcoin-Signature", "").startswith("sha256="), f"delivered={delivered['delivered']}")
+            report.check(
+                "18. Test webhook delivery",
+                delivered["delivered"] >= 1
+                and received
+                and received[-1]["headers"].get("X-Netcoin-Signature", "").startswith("sha256="),
+                f"delivered={delivered['delivered']}",
+            )
 
         persisted = store.upsert_username({"username": "persistqa", "address": merchant.address})
         restarted = AppStore(chain.data_dir)
-        report.check("19. Restart server and confirm SQLite data persists", restarted.resolve_username("persistqa")["address"] == persisted["address"], str(restarted.sqlite_path))
+        report.check(
+            "19. Restart server and confirm SQLite data persists",
+            restarted.resolve_username("persistqa")["address"] == persisted["address"],
+            str(restarted.sqlite_path),
+        )
 
         os.environ["NETCOIN_APP_REQUIRE_ADMIN"] = "1"
         os.environ["NETCOIN_APP_ADMIN_TOKEN"] = "qa-admin-token"
         with Served(make_explorer_handler(chain)) as served:
             status_no_token, payload_no_token = http_json(f"{served.url}/api/admin/summary")
-            status_with_token, payload_with_token = http_json(f"{served.url}/api/admin/summary", headers={"X-Netcoin-Admin-Token": "qa-admin-token"})
-        report.check("20. Confirm admin routes reject requests without token", status_no_token == 401 and status_with_token == 200 and payload_with_token.get("node", {}).get("height", -1) >= 0, payload_no_token.get("error", ""))
+            status_with_token, payload_with_token = http_json(
+                f"{served.url}/api/admin/summary", headers={"X-Netcoin-Admin-Token": "qa-admin-token"}
+            )
+        report.check(
+            "20. Confirm admin routes reject requests without token",
+            status_no_token == 401
+            and status_with_token == 200
+            and payload_with_token.get("node", {}).get("height", -1) >= 0,
+            payload_no_token.get("error", ""),
+        )
 
         status = store.security_status()
         report.check("Security status uses SQLite", status["storage_backend"] == "sqlite", status["storage_path"])

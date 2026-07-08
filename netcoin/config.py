@@ -5,12 +5,12 @@ to node options: data_dir, host, port, peer (repeatable), seeds (bool), advertis
 rate_limit_per_min, rpc_token, network. Lines starting with # are comments. Unknown
 keys are ignored. This is convenience config, never consensus.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict
-
+from typing import Any
 
 _LIST_KEYS = {"peer", "peers"}
 _BOOL_KEYS = {"seeds", "trust_proxy_headers"}
@@ -27,12 +27,12 @@ def _coerce(key: str, value: Any) -> Any:
     return value
 
 
-def load_config(path: str | Path) -> Dict[str, Any]:
+def load_config(path: str | Path) -> dict[str, Any]:
     text = Path(path).read_text()
     stripped = text.strip()
     if stripped.startswith("{"):
         raw = json.loads(stripped)
-        config: Dict[str, Any] = {}
+        config: dict[str, Any] = {}
         for key, value in raw.items():
             if key in _LIST_KEYS:
                 config.setdefault("peer", [])

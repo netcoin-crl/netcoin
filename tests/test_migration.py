@@ -1,4 +1,5 @@
 """Snapshot -> genesis-allocation migration: balances carry across a relaunch."""
+
 from pathlib import Path
 
 from netcoin.chain import Blockchain, create_genesis_block

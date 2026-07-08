@@ -1,4 +1,5 @@
 """Spacing v2: activation-gated 5-minute target blocks (no chain reset)."""
+
 from netcoin.params import (
     DIFFICULTY_ADJUSTMENT_INTERVAL,
     SPACING_V2_ACTIVATION_HEIGHT,

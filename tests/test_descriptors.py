@@ -1,4 +1,5 @@
 """Output descriptors (#28): describe a wallet and resolve descriptors to addresses."""
+
 import pytest
 
 from netcoin.descriptors import (

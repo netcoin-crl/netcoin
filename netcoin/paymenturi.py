@@ -4,10 +4,11 @@ Mirrors Bitcoin's ``bitcoin:`` URI scheme so a wallet can encode a payment
 request (address + optional amount/label/message) into a single shareable string,
 and a sender can paste it to pre-fill a transaction.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import parse_qsl, quote, urlencode
 
 from .crypto import validate_address
@@ -17,9 +18,9 @@ URI_SCHEME = "netcoin"
 
 def build_uri(
     address: str,
-    amount: Optional[str] = None,
-    label: Optional[str] = None,
-    message: Optional[str] = None,
+    amount: str | None = None,
+    label: str | None = None,
+    message: str | None = None,
 ) -> str:
     if not validate_address(address):
         raise ValueError("invalid NetCoin address")
@@ -40,17 +41,17 @@ def build_uri(
     return f"{URI_SCHEME}:{address}" + (f"?{query}" if query else "")
 
 
-def parse_uri(uri: str) -> Dict[str, Any]:
+def parse_uri(uri: str) -> dict[str, Any]:
     text = uri.strip()
     prefix = URI_SCHEME + ":"
     if not text.lower().startswith(prefix):
         raise ValueError(f"not a {URI_SCHEME}: URI")
-    body = text[len(prefix):]
+    body = text[len(prefix) :]
     address, _, query = body.partition("?")
     address = address.strip()
     if not validate_address(address):
         raise ValueError("invalid NetCoin address in URI")
-    result: Dict[str, Any] = {"address": address}
+    result: dict[str, Any] = {"address": address}
     for key, value in parse_qsl(query, keep_blank_values=False):
         if key in ("amount", "label", "message"):
             result[key] = value

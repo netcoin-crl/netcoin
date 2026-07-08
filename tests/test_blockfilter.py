@@ -1,5 +1,6 @@
 """BIP158-style compact block filters (#12): GCS correctness, block filters,
 header chaining, and serving filters over the node /cfilter endpoint."""
+
 import json
 import threading
 from http.server import ThreadingHTTPServer

@@ -1,0 +1,24 @@
+groups:
+  - name: netcoin-core
+    rules:
+      - alert: NetCoinNoPeers
+        expr: netcoin_peer_count == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: NetCoin node has no peers
+      - alert: NetCoinMempoolSpike
+        expr: netcoin_mempool_transactions > 5000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: NetCoin mempool is unusually large
+      - alert: NetCoinWebhookDeadLetters
+        expr: netcoin_webhook_dead_letters > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: NetCoin app-layer webhook delivery has dead letters

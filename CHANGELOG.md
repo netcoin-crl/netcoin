@@ -11,6 +11,38 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-08 — Upgrade layer plus: wallet vault, operator/exchange/indexer modules, stricter CI
+
+### Added
+- Browser wallet vault (`wallet-vault.js`) providing encrypted profile storage,
+  session handling, and auto-lock behind the existing non-custodial wallet.
+- Operator/exchange/indexer upgrade layer: `netcoin/exchange*`, `indexer*`,
+  `wallet_policy`/`wallet_approvals`/`wallet_risk`, `coin_control`, `signer`,
+  `offline`, `tx_simulator`, `recovery`, `sync`, `peerdb`, `metrics`,
+  `ops_runbooks`/`ops_incidents`, `explorer_watch`, and `consensus` helpers.
+- Markets logic refactored from a single `apps/markets.py` module into an
+  `apps/markets/` package (orderbook, matching, oracles, integrity,
+  surveillance, reconciliation, market-maker, governance, resolution).
+- New release/provenance tooling (`tools/generate_provenance.py`,
+  `verify_provenance.py`, `sign_release.py`, `verify_signature.py`,
+  `generate_reserve_attestation.py`, `generate_ops_bundle.py`,
+  `coverage_gate.py`, `check_openapi_contract.py`, `mutation_consensus_smoke.py`).
+- Stricter CI: fast (compile/lint/type/fast-tests), full (coverage gate),
+  fuzz+mutation, and browser wallet jobs; Makefile, pre-commit, dependabot,
+  and pinned dev/prod requirement locks.
+
+### Fixed
+- Wallet SRI/cache trap: `sites/wallet/index.html` pinned the old
+  `wallet-app.js` hash after the vault integration changed the file; recomputed
+  SRI and bumped the cache-buster (and pinned `wallet-vault.js`) so browsers do
+  not serve/block a stale script.
+- `netcoin/cli.py` scan path referenced an undefined `List` (would raise
+  `NameError`); use built-in `list`.
+- Removed a shadowed duplicate `Block.weight` definition in `netcoin/block.py`
+  whose inline formula disagreed with the authoritative `serialization.block_weight`
+  used across consensus (no behavior change; the class method was already
+  overridden by the module-level monkey-patch).
+
 ## [0.13.0] - 2026-07-07 — Markets Labs CLOB + professional-upgrade tracking, SBOM, CI gates
 
 ### Added

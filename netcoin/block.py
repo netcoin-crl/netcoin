@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 from .crypto import double_sha256
 from .params import MAX_BLOCK_WEIGHT, POW_LIMIT_BITS, ZERO_HASH
@@ -37,7 +38,7 @@ class BlockHeader:
             if len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
                 raise BlockError(f"{name} must be a 32-byte lowercase hex string")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "version": self.version,
             "previous_hash": self.previous_hash,
@@ -49,7 +50,7 @@ class BlockHeader:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BlockHeader":
+    def from_dict(cls, data: dict[str, Any]) -> BlockHeader:
         return cls(
             version=int(data["version"]),
             previous_hash=str(data["previous_hash"]),
@@ -78,20 +79,20 @@ class BlockHeader:
 @dataclass
 class Block:
     header: BlockHeader
-    transactions: List[Transaction]
+    transactions: list[Transaction]
 
     def __post_init__(self) -> None:
         if not self.transactions:
             raise BlockError("block must contain at least one transaction")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "header": self.header.to_dict(),
             "transactions": [tx.to_dict(include_scripts=True, include_witness=True) for tx in self.transactions],
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Block":
+    def from_dict(cls, data: dict[str, Any]) -> Block:
         return cls(
             header=BlockHeader.from_dict(data["header"]),
             transactions=[Transaction.from_dict(item) for item in data["transactions"]],
@@ -116,13 +117,6 @@ class Block:
     def total_fees_placeholder(self) -> int:
         return 0
 
-    def weight(self) -> int:
-        # Bitcoin weighs the 80-byte header at 4x and discounts witness data.
-        # NetCoin uses JSON for storage, so this is an approximate policy/consensus
-        # weight that still enforces the same block-weight concept.
-        header_weight = len(self.header.serialize()) * 4
-        return header_weight + sum(tx.weight() for tx in self.transactions)
-
     def is_over_weight_limit(self) -> bool:
         return self.weight() > MAX_BLOCK_WEIGHT
 
@@ -140,7 +134,6 @@ def merkle_root(transactions: Iterable[Transaction]) -> str:
             next_layer.append(double_sha256(layer[i] + layer[i + 1]))
         layer = next_layer
     return layer[0].hex()
-
 
 
 def witness_merkle_root(transactions: Iterable[Transaction]) -> str:
@@ -198,7 +191,7 @@ def witness_commitment(transactions: Iterable[Transaction], reserved_value_hex: 
     return double_sha256(bytes.fromhex(witness_commitment_root(transactions)) + reserved).hex()
 
 
-def coinbase_witness_commitment(block: "Block") -> str | None:
+def coinbase_witness_commitment(block: Block) -> str | None:
     """Extract the last NetCoin witness commitment from the coinbase, if present."""
     if not block.transactions:
         return None
@@ -211,18 +204,19 @@ def coinbase_witness_commitment(block: "Block") -> str | None:
     return None
 
 
-def block_requires_witness_commitment(block: "Block") -> bool:
+def block_requires_witness_commitment(block: Block) -> bool:
     """True when a block includes non-coinbase witness data."""
     return any(tx.has_witness for tx in block.transactions[1:])
 
 
-def validate_witness_commitment(block: "Block") -> bool:
+def validate_witness_commitment(block: Block) -> bool:
     if not block_requires_witness_commitment(block):
         return True
     found = coinbase_witness_commitment(block)
     if found is None:
         return False
     return found == witness_commitment(block.transactions)
+
 
 def bits_to_target(bits: int) -> int:
     exponent = bits >> 24
@@ -290,8 +284,9 @@ def mine_header(header: BlockHeader, max_nonce: int = 2**32 - 1) -> BlockHeader:
     raise BlockError("nonce space exhausted; change timestamp or coinbase extra nonce")
 
 
-def make_block(previous_hash: str, height: int, bits: int, transactions: List[Transaction],
-               timestamp: int | None = None) -> Block:
+def make_block(
+    previous_hash: str, height: int, bits: int, transactions: list[Transaction], timestamp: int | None = None
+) -> Block:
     root = merkle_root(transactions)
     header = BlockHeader(
         version=1,
@@ -312,6 +307,7 @@ def cumulative_work(blocks: Iterable[Block]) -> int:
         target = bits_to_target(block.header.bits)
         work += two_256 // (target + 1)
     return work
+
 
 # Override any earlier educational approximation with the serialization-based
 # block weight used by the v2 CLI/RPC.

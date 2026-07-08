@@ -1,9 +1,10 @@
 """Peer-sync resilience: unreachable peers, restart persistence, catch-up after
 downtime, peer loss mid-sync, and delayed (out-of-order) block delivery."""
+
+import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
-import time
 
 from netcoin.block import Block
 from netcoin.chain import Blockchain

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Dict
 
 NAME = "NetCoin"
 TICKER = "NET"
@@ -72,6 +71,7 @@ def target_timespan_at(height: int) -> int:
 def min_difficulty_gap_at(height: int) -> int:
     return 2 * target_spacing_at(height)
 
+
 # Launch easy (at the PoW floor) and let the fast retarget ramp difficulty up as
 # miners join. MIN_DIFFICULTY_GAP enables the testnet lone-miner rule: a block
 # more than this many seconds after its parent may be mined at the PoW floor, so
@@ -98,7 +98,7 @@ DEFAULT_POOL_PORT = 18446
 DEFAULT_P2P_PORT = 18447
 PROTOCOL_VERSION = 2
 # Keep in sync with pyproject.toml [project].version on every release.
-NODE_VERSION = "0.13.0"
+NODE_VERSION = "0.14.0"
 NETWORK_NAME = "testnet"
 USER_AGENT = f"NetCoin:{NODE_VERSION}"
 P2P_MAGIC = bytes.fromhex("fabfb5da")
@@ -168,7 +168,7 @@ class NetworkProfile:
     coinbase_maturity: int = COINBASE_MATURITY
 
 
-NETWORKS: Dict[str, NetworkProfile] = {
+NETWORKS: dict[str, NetworkProfile] = {
     "main": NetworkProfile(
         name="main",
         description="Local main NetCoin parameters",

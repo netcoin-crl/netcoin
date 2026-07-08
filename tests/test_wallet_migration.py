@@ -1,9 +1,8 @@
 """Wallet-DB format versioning + migration (#31)."""
+
 import argparse
 import json
 from pathlib import Path
-
-import pytest
 
 from netcoin import cli
 from netcoin import wallet as wallet_mod
@@ -31,11 +30,14 @@ def test_legacy_file_without_version_needs_migration():
 
 
 def test_legacy_encrypted_low_kdf_needs_migration():
-    data = {"wallet_version": 2, "encrypted": True,
-            "encrypted_private_key": {
-                "cipher": "netcoin-hmac-stream-v2",
-                "iterations": str(wallet_mod.LEGACY_PBKDF2_ITERATIONS),
-            }}
+    data = {
+        "wallet_version": 2,
+        "encrypted": True,
+        "encrypted_private_key": {
+            "cipher": "netcoin-hmac-stream-v2",
+            "iterations": str(wallet_mod.LEGACY_PBKDF2_ITERATIONS),
+        },
+    }
     assert wallet_needs_migration(data) is True
 
 
@@ -60,7 +62,9 @@ def test_migrate_plaintext_wallet_stamps_version(tmp_path: Path, capsys):
 
 
 def test_migrate_reencrypts_legacy_kdf(tmp_path: Path, capsys):
-    import hashlib, hmac, secrets
+    import hashlib
+    import hmac
+    import secrets
 
     wallet = Wallet.create()
     path = tmp_path / "enc.json"
@@ -70,13 +74,19 @@ def test_migrate_reencrypts_legacy_kdf(tmp_path: Path, capsys):
     ct = wallet_mod._xor_stream(wallet.private_key_hex.encode("ascii"), key, nonce)
     mac = hmac.new(key, nonce + ct, hashlib.sha256).digest()
     legacy = wallet.public_dict()
-    legacy.update({
-        "encrypted": True,
-        "encrypted_private_key": {
-            "cipher": "netcoin-hmac-stream-v1", "iterations": "250000",
-            "salt": salt.hex(), "nonce": nonce.hex(), "ciphertext": ct.hex(), "mac": mac.hex(),
-        },
-    })
+    legacy.update(
+        {
+            "encrypted": True,
+            "encrypted_private_key": {
+                "cipher": "netcoin-hmac-stream-v1",
+                "iterations": "250000",
+                "salt": salt.hex(),
+                "nonce": nonce.hex(),
+                "ciphertext": ct.hex(),
+                "mac": mac.hex(),
+            },
+        }
+    )
     path.write_text(json.dumps(legacy))
     assert wallet_needs_migration(json.loads(path.read_text())) is True
 

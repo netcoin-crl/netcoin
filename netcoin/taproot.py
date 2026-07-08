@@ -9,9 +9,8 @@ The tweak math is standard BIP341 (validated against the BIP341 test vectors).
 Leaf scripts are NetCoin text scripts (executed by the existing Script VM), so the
 leaf bytes are the UTF-8 script — NetCoin-flavored, not Bitcoin bytecode.
 """
-from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 from .crypto import G, N, P, encode_witness_address, point_add, scalar_mult, tagged_hash
 
@@ -28,7 +27,7 @@ def _compact_size(n: int) -> bytes:
     return b"\xff" + n.to_bytes(8, "little")
 
 
-def _lift_x(x: int) -> Optional[Tuple[int, int]]:
+def _lift_x(x: int) -> tuple[int, int] | None:
     """BIP340 lift_x: the point on secp256k1 with x-coordinate x and even y."""
     if x <= 0 or x >= P:
         return None
@@ -50,13 +49,13 @@ def tap_branch_hash(a: bytes, b: bytes) -> bytes:
     return tagged_hash("TapBranch", a + b if a <= b else b + a)
 
 
-def merkle_root(leaf_hashes: List[bytes]) -> bytes:
+def merkle_root(leaf_hashes: list[bytes]) -> bytes:
     """Merkle root of a list of leaf hashes (balanced left-to-right pairing)."""
     if not leaf_hashes:
         return b""
     level = list(leaf_hashes)
     while len(level) > 1:
-        nxt: List[bytes] = []
+        nxt: list[bytes] = []
         for i in range(0, len(level), 2):
             if i + 1 < len(level):
                 nxt.append(tap_branch_hash(level[i], level[i + 1]))
@@ -66,7 +65,7 @@ def merkle_root(leaf_hashes: List[bytes]) -> bytes:
     return level[0]
 
 
-def taproot_tweak(internal_xonly: bytes, root: bytes) -> Tuple[bytes, int]:
+def taproot_tweak(internal_xonly: bytes, root: bytes) -> tuple[bytes, int]:
     """Tweak the internal key by the script-tree root. Returns (output x-only, parity)."""
     if len(internal_xonly) != 32:
         raise ValueError("internal key must be 32-byte x-only")
@@ -82,7 +81,7 @@ def taproot_tweak(internal_xonly: bytes, root: bytes) -> Tuple[bytes, int]:
     return q[0].to_bytes(32, "big"), q[1] & 1
 
 
-def taproot_output(internal_xonly: bytes, scripts: List[str]) -> dict:
+def taproot_output(internal_xonly: bytes, scripts: list[str]) -> dict:
     """Build a Taproot output committing to `scripts` (NetCoin text scripts).
 
     Returns the address, output key, parity, and per-leaf control blocks so each
@@ -104,13 +103,13 @@ def taproot_output(internal_xonly: bytes, scripts: List[str]) -> dict:
     }
 
 
-def _merkle_path(leaf_hashes: List[bytes], index: int) -> List[bytes]:
+def _merkle_path(leaf_hashes: list[bytes], index: int) -> list[bytes]:
     """The sibling hashes proving leaf `index` is in the tree, bottom-up."""
-    path: List[bytes] = []
+    path: list[bytes] = []
     level = list(leaf_hashes)
     idx = index
     while len(level) > 1:
-        nxt: List[bytes] = []
+        nxt: list[bytes] = []
         for i in range(0, len(level), 2):
             if i + 1 < len(level):
                 if i == idx or i + 1 == idx:
@@ -124,8 +123,9 @@ def _merkle_path(leaf_hashes: List[bytes], index: int) -> List[bytes]:
     return path
 
 
-def control_block(internal_xonly: bytes, parity: int, merkle_path: List[bytes],
-                  leaf_version: int = TAPROOT_LEAF_VERSION) -> bytes:
+def control_block(
+    internal_xonly: bytes, parity: int, merkle_path: list[bytes], leaf_version: int = TAPROOT_LEAF_VERSION
+) -> bytes:
     return bytes([leaf_version | (parity & 1)]) + internal_xonly + b"".join(merkle_path)
 
 
@@ -136,7 +136,7 @@ def verify_script_path(output_xonly: bytes, script: bytes, control: bytes) -> bo
     leaf_version = control[0] & 0xFE
     parity = control[0] & 0x01
     internal_xonly = control[1:33]
-    path = [control[i:i + 32] for i in range(33, len(control), 32)]
+    path = [control[i : i + 32] for i in range(33, len(control), 32)]
     node = tap_leaf_hash(script, leaf_version)
     for sibling in path:
         node = tap_branch_hash(node, sibling)

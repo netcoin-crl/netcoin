@@ -1,4 +1,5 @@
 """SQLite storage backend (#21): persistence, restart, reorg, mempool, migration."""
+
 import argparse
 import json
 from pathlib import Path

@@ -8,20 +8,20 @@ from pathlib import Path
 
 import pytest
 
-from netcoin.competitive import COMPETITIVE_AREAS, build_level5_report, validate_level5, all_area_smokes
+from netcoin.competitive import COMPETITIVE_AREAS, all_area_smokes, build_level5_report, validate_level5
 from netcoin.competitive.level5 import (
     LEVEL5_SCORE,
+    IdempotencyStore,
     MetricsRegistry,
     NonceStore,
-    IdempotencyStore,
     advance_proposal_state,
     analyze_contract_source,
     atomic_write_json,
     backup_paths,
+    decrypt_wallet_payload,
     deposit_status,
     disclosure_check,
     encrypt_wallet_payload,
-    decrypt_wallet_payload,
     estimate_fee_rate,
     faucet_decision,
     index_blocks,
@@ -30,12 +30,12 @@ from netcoin.competitive.level5 import (
     peer_diversity_report,
     peer_score,
     pool_payouts,
+    quality_matrix_status,
     release_manifest,
     scoped_api_key_allows,
     security_issue_register,
     sign_payload,
     tally_votes,
-    quality_matrix_status,
     verify_payload_signature,
     wallet_risk_score,
 )
@@ -133,8 +133,13 @@ def test_market_contract_governance_release_observability_exchange_product_testi
 
 def test_competitive_cli_and_tool_level5(tmp_path):
     out = tmp_path / "level5.json"
-    subprocess.check_call([sys.executable, "tools/competitive_gap_report.py", "--level5", "--json", "--out", str(out)], cwd=ROOT)
+    subprocess.check_call(
+        [sys.executable, "tools/competitive_gap_report.py", "--level5", "--json", "--out", str(out)], cwd=ROOT
+    )
     data = json.loads(out.read_text())
     assert data["schema"] == "netcoin-competitive-level5-v1"
     assert data["minimum_feature_score"] == 5
-    subprocess.check_call([sys.executable, "-m", "netcoin.cli", "competitive-check", "--level5", "--validate", "--fail-on-issues"], cwd=ROOT)
+    subprocess.check_call(
+        [sys.executable, "-m", "netcoin.cli", "competitive-check", "--level5", "--validate", "--fail-on-issues"],
+        cwd=ROOT,
+    )

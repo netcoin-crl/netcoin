@@ -9,18 +9,14 @@ and Taproot-like key path spends handled by the transaction verifier.
 from __future__ import annotations
 
 import hashlib
-import json
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Sequence
 
 from .crypto import (
-    address_to_hash160,
-    address_type,
     decode_address,
     double_sha256,
     ecdsa_verify,
     hash160,
-    public_key_to_address,
     script_hash_to_p2sh_address,
 )
 from .params import LOCKTIME_THRESHOLD
@@ -38,7 +34,7 @@ def canonical_script(tokens: Sequence[str]) -> str:
     return " ".join(str(token) for token in tokens)
 
 
-def tokenize(script: str) -> List[str]:
+def tokenize(script: str) -> list[str]:
     return [part for part in script.strip().split() if part]
 
 
@@ -106,7 +102,13 @@ def address_to_script_pubkey(address: str) -> str:
 
 def classify_script(script_pubkey: str) -> str:
     tokens = tokenize(script_pubkey)
-    if len(tokens) == 5 and tokens[0] == "OP_DUP" and tokens[1] == "OP_HASH160" and tokens[3] == "OP_EQUALVERIFY" and tokens[4] == "OP_CHECKSIG":
+    if (
+        len(tokens) == 5
+        and tokens[0] == "OP_DUP"
+        and tokens[1] == "OP_HASH160"
+        and tokens[3] == "OP_EQUALVERIFY"
+        and tokens[4] == "OP_CHECKSIG"
+    ):
         return "p2pkh"
     if len(tokens) == 3 and tokens[0] == "OP_HASH160" and tokens[2] == "OP_EQUAL":
         return "p2sh"
@@ -116,7 +118,12 @@ def classify_script(script_pubkey: str) -> str:
         return "p2wsh"
     if len(tokens) == 2 and tokens[0] == "OP_1" and len(tokens[1]) == 64:
         return "p2tr"
-    if len(tokens) >= 4 and tokens[-1] == "OP_CHECKMULTISIG" and tokens[0].startswith("OP_") and tokens[-2].startswith("OP_"):
+    if (
+        len(tokens) >= 4
+        and tokens[-1] == "OP_CHECKMULTISIG"
+        and tokens[0].startswith("OP_")
+        and tokens[-2].startswith("OP_")
+    ):
         return "multisig"
     if "OP_CHECKLOCKTIMEVERIFY" in tokens:
         return "cltv"
@@ -156,7 +163,7 @@ class ScriptContext:
     sequence: int = 0xFFFFFFFF
 
 
-def _push_bool(stack: List[str], value: bool) -> None:
+def _push_bool(stack: list[str], value: bool) -> None:
     stack.append("01" if value else "00")
 
 
@@ -170,14 +177,14 @@ def _is_hex(value: str) -> bool:
         return False
 
 
-def execute_script(script: str, stack: List[str], context: ScriptContext) -> List[str]:
+def execute_script(script: str, stack: list[str], context: ScriptContext) -> list[str]:
     """Execute a Script subset and return the resulting stack.
 
     Supports data pushes, hashing, equality/verify, alt-stack, timelocks,
     signature checks, conditionals (OP_IF/NOTIF/ELSE/ENDIF), stack manipulation,
     and numeric opcodes. Integers are decimal strings; booleans are 01/00."""
-    alt_stack: List[str] = []
-    exec_stack: List[bool] = []  # conditional-execution flags (OP_IF/ELSE/ENDIF)
+    alt_stack: list[str] = []
+    exec_stack: list[bool] = []  # conditional-execution flags (OP_IF/ELSE/ENDIF)
     tokens = tokenize(script)
 
     def executing() -> bool:
@@ -263,9 +270,21 @@ def execute_script(script: str, stack: List[str], context: ScriptContext) -> Lis
                 raise ScriptError("OP_IFDUP on empty stack")
             if cast_to_bool(stack[-1]):
                 stack.append(stack[-1])
-        elif token in ("OP_ADD", "OP_SUB", "OP_MIN", "OP_MAX", "OP_BOOLAND", "OP_BOOLOR",
-                       "OP_NUMEQUAL", "OP_NUMEQUALVERIFY", "OP_NUMNOTEQUAL", "OP_LESSTHAN",
-                       "OP_GREATERTHAN", "OP_LESSTHANOREQUAL", "OP_GREATERTHANOREQUAL"):
+        elif token in (
+            "OP_ADD",
+            "OP_SUB",
+            "OP_MIN",
+            "OP_MAX",
+            "OP_BOOLAND",
+            "OP_BOOLOR",
+            "OP_NUMEQUAL",
+            "OP_NUMEQUALVERIFY",
+            "OP_NUMNOTEQUAL",
+            "OP_LESSTHAN",
+            "OP_GREATERTHAN",
+            "OP_LESSTHANOREQUAL",
+            "OP_GREATERTHANOREQUAL",
+        ):
             if len(stack) < 2:
                 raise ScriptError(f"{token} needs two items")
             b = _as_int(stack.pop())
@@ -402,7 +421,9 @@ def execute_script(script: str, stack: List[str], context: ScriptContext) -> Lis
             sig_index = 0
             key_index = 0
             while sig_index < m and key_index < n:
-                if ecdsa_verify(bytes.fromhex(public_keys[key_index]), context.sighash, bytes.fromhex(signatures[sig_index])):
+                if ecdsa_verify(
+                    bytes.fromhex(public_keys[key_index]), context.sighash, bytes.fromhex(signatures[sig_index])
+                ):
                     sig_index += 1
                 key_index += 1
             stack.append("01" if sig_index == m else "00")
@@ -447,6 +468,7 @@ def verify_script(script_sig: str, script_pubkey: str, context: ScriptContext) -
         return bool(stack and cast_to_bool(stack[-1]))
     except (ScriptError, ValueError):
         return False
+
 
 # Compatibility object for newer CLI code.
 @dataclass(frozen=True)

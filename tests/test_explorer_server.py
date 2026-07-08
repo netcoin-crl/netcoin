@@ -1,4 +1,5 @@
 """API-backed explorer service."""
+
 import json
 from http.server import ThreadingHTTPServer
 from pathlib import Path

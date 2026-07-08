@@ -11,7 +11,7 @@ from __future__ import annotations
 import base64
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any
 
 from .tx import SpendableOutput, Transaction, TxInput, TxOutput
 
@@ -23,10 +23,12 @@ class PSBTError(ValueError):
 @dataclass
 class PartiallySignedTransaction:
     tx: Transaction
-    prevouts: List[SpendableOutput]
+    prevouts: list[SpendableOutput]
 
     @classmethod
-    def create(cls, prevouts: List[SpendableOutput], outputs: List[TxOutput], *, version: int = 1, locktime: int = 0) -> "PartiallySignedTransaction":
+    def create(
+        cls, prevouts: list[SpendableOutput], outputs: list[TxOutput], *, version: int = 1, locktime: int = 0
+    ) -> PartiallySignedTransaction:
         """Build an unsigned PSBT from inputs (prevouts) and outputs."""
         if not prevouts:
             raise PSBTError("a PSBT needs at least one input")
@@ -34,7 +36,7 @@ class PartiallySignedTransaction:
         tx = Transaction(inputs=inputs, outputs=list(outputs), version=version, locktime=locktime)
         return cls(tx=tx, prevouts=list(prevouts))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "magic": "netcoin-psbt-v1",
             "tx": self.tx.to_dict(include_scripts=True, include_witness=True),
@@ -42,7 +44,7 @@ class PartiallySignedTransaction:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PartiallySignedTransaction":
+    def from_dict(cls, data: dict[str, Any]) -> PartiallySignedTransaction:
         if data.get("magic") not in {"netcoin-psbt-v1", None} and data.get("format") != "NetCoin PSBT v1":
             raise PSBTError("not a NetCoin PSBT")
         tx_data = data.get("tx", data.get("transaction"))
@@ -54,7 +56,7 @@ class PartiallySignedTransaction:
         return base64.b64encode(raw).decode("ascii")
 
     @classmethod
-    def from_base64(cls, text: str) -> "PartiallySignedTransaction":
+    def from_base64(cls, text: str) -> PartiallySignedTransaction:
         if text.startswith("netpsbt:"):
             text = text[len("netpsbt:") :]
         try:
@@ -62,7 +64,7 @@ class PartiallySignedTransaction:
         except Exception as exc:
             raise PSBTError("invalid NetCoin PSBT") from exc
 
-    def sign(self, wallet: Any) -> "PartiallySignedTransaction":
+    def sign(self, wallet: Any) -> PartiallySignedTransaction:
         for index, prevout in enumerate(self.prevouts):
             if index >= len(self.tx.inputs):
                 break
@@ -79,7 +81,7 @@ class PartiallySignedTransaction:
         outputs = tuple((o.amount, o.address, o.script_pubkey) for o in self.tx.outputs)
         return (self.tx.version, self.tx.locktime, inputs, outputs)
 
-    def combine(self, other: "PartiallySignedTransaction") -> "PartiallySignedTransaction":
+    def combine(self, other: PartiallySignedTransaction) -> PartiallySignedTransaction:
         """Merge signatures/witnesses from another PSBT of the same unsigned tx.
         Used for multi-party signing where each party signs the inputs it owns."""
         if self._skeleton() != other._skeleton():
@@ -107,12 +109,12 @@ class PartiallySignedTransaction:
         return self.tx
 
 
-def encode_psbt(data: Dict[str, Any]) -> str:
+def encode_psbt(data: dict[str, Any]) -> str:
     raw = json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return "netpsbt:" + base64.b64encode(raw).decode("ascii")
 
 
-def decode_psbt(text: str) -> Dict[str, Any]:
+def decode_psbt(text: str) -> dict[str, Any]:
     if text.startswith("netpsbt:"):
         text = text[len("netpsbt:") :]
     try:
@@ -132,7 +134,7 @@ def finalize_psbt(psbt_text: str) -> Transaction:
     return psbt.extract()
 
 
-def combine_psbts(psbt_texts: List[str]) -> str:
+def combine_psbts(psbt_texts: list[str]) -> str:
     """Combine two or more PSBTs of the same unsigned tx into one, merging
     signatures, and return the netpsbt: base64 string."""
     if not psbt_texts:

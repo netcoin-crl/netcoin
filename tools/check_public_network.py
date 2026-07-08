@@ -9,12 +9,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import URLError
 from urllib.request import urlopen
-
 
 DEFAULT_SEEDS = [
     "http://18.220.89.128:28444",
@@ -84,16 +82,18 @@ def print_table(report: dict[str, Any]) -> None:
     for seed in report["seeds"]:
         tip = str(seed.get("tip_hash") or seed.get("error") or "-")
         print(
-            f"{seed['url']:<30} {str(seed['ok']):<3} "
-            f"{str(seed.get('version') or '-'):<8} {str(seed.get('height') or '-'):<8} "
-            f"{str(seed.get('peers') or '-'):<5} {str(seed.get('crypto_backend') or '-'):<22} "
+            f"{seed['url']:<30} {seed['ok']!s:<3} "
+            f"{seed.get('version') or '-'!s:<8} {seed.get('height') or '-'!s:<8} "
+            f"{seed.get('peers') or '-'!s:<5} {seed.get('crypto_backend') or '-'!s:<22} "
             f"{tip[:24]}"
         )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Read-only public NetCoin seed health check")
-    parser.add_argument("seeds", nargs="*", default=DEFAULT_SEEDS, help="seed base URLs; default checks the three public seeds")
+    parser.add_argument(
+        "seeds", nargs="*", default=DEFAULT_SEEDS, help="seed base URLs; default checks the three public seeds"
+    )
     parser.add_argument("--timeout", type=float, default=5.0, help="per-request timeout in seconds")
     parser.add_argument("--json", action="store_true", help="print JSON instead of a table")
     args = parser.parse_args(argv)

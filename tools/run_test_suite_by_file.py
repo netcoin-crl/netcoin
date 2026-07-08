@@ -6,6 +6,7 @@ flows. Running every file in one long pytest process can be memory-heavy in
 small CI/sandbox environments, so this runner isolates each test module in its
 own subprocess while still returning a single pass/fail result.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,14 +27,22 @@ class Result:
     returncode: int
 
 
-def discover(pattern: str) -> list[pathlib.Path]:
+def discover(pattern: str, files: list[str] | None = None) -> list[pathlib.Path]:
+    if files:
+        paths = [pathlib.Path(item) for item in files]
+        missing = [str(path) for path in paths if not path.exists()]
+        if missing:
+            raise SystemExit("missing test files: " + ", ".join(missing))
+        return paths
     paths = sorted(pathlib.Path("tests").glob(pattern))
     if not paths:
         raise SystemExit(f"no tests matched tests/{pattern}")
     return paths
 
 
-def run_one(path: pathlib.Path, timeout: int, pytest_args: list[str], disable_plugin_autoload: bool, capture: bool) -> Result:
+def run_one(
+    path: pathlib.Path, timeout: int, pytest_args: list[str], disable_plugin_autoload: bool, capture: bool
+) -> Result:
     env = dict(os.environ)
     env["PYTHONPATH"] = "." + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     if disable_plugin_autoload:
@@ -42,14 +51,24 @@ def run_one(path: pathlib.Path, timeout: int, pytest_args: list[str], disable_pl
     start = time.monotonic()
     try:
         if capture:
-            proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, timeout=timeout)
+            proc = subprocess.run(
+                cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, timeout=timeout
+            )
             output = proc.stdout or ""
         else:
             proc = subprocess.run(cmd, env=env, timeout=timeout)
             output = ""
         seconds = time.monotonic() - start
-        status = "PASS" if proc.returncode == 0 else f"FAIL({proc.returncode})"
-        return Result(str(path), status, seconds, output, proc.returncode)
+        returncode = proc.returncode
+        status = "PASS" if returncode == 0 else f"FAIL({returncode})"
+        # Pytest returns 5 when a file collects no runnable tests. For optional
+        # backend differential suites that use importorskip at module import
+        # time, the output is an intentional all-skipped result rather than a
+        # failed test file.
+        if returncode == 5 and "skipped" in output.lower():
+            returncode = 0
+            status = "SKIP"
+        return Result(str(path), status, seconds, output, returncode)
     except subprocess.TimeoutExpired as exc:
         seconds = time.monotonic() - start
         out = exc.stdout or ""
@@ -61,15 +80,20 @@ def run_one(path: pathlib.Path, timeout: int, pytest_args: list[str], disable_pl
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pattern", default="test_*.py", help="glob under tests/, default: test_*.py")
+    parser.add_argument("--files", nargs="+", help="explicit test files to run one at a time")
     parser.add_argument("--timeout", type=int, default=180, help="seconds allowed per test file")
     parser.add_argument("--stop-on-fail", action="store_true", help="stop at the first failing file")
-    parser.add_argument("--keep-pytest-plugins", action="store_true", help="do not set PYTEST_DISABLE_PLUGIN_AUTOLOAD=1")
-    parser.add_argument("--capture", action="store_true", help="capture each pytest file's output instead of streaming it live")
+    parser.add_argument(
+        "--keep-pytest-plugins", action="store_true", help="do not set PYTEST_DISABLE_PLUGIN_AUTOLOAD=1"
+    )
+    parser.add_argument(
+        "--capture", action="store_true", help="capture each pytest file's output instead of streaming it live"
+    )
     parser.add_argument("pytest_args", nargs="*", help="extra pytest args, prefix with -- after runner options")
     args = parser.parse_args(argv)
 
     results: list[Result] = []
-    for path in discover(args.pattern):
+    for path in discover(args.pattern, args.files):
         print(f"[run] {path}", flush=True)
         result = run_one(path, args.timeout, args.pytest_args, not args.keep_pytest_plugins, args.capture)
         results.append(result)

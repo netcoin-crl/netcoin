@@ -11,12 +11,12 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
-from .chain import Blockchain, ChainError
+from .chain import Blockchain
 from .crypto import (
     N,
     bytes_to_hex,
@@ -32,7 +32,7 @@ from .crypto import (
     validate_address,
 )
 from .script import multisig_redeem_script, script_to_p2sh_address
-from .tx import SpendableOutput, Transaction, TransactionError, TxInput, TxOutput
+from .tx import SpendableOutput, Transaction, TxInput, TxOutput
 
 
 class WalletError(ValueError):
@@ -68,7 +68,7 @@ def seed_phrase_to_entropy(phrase: str) -> bytes:
 COIN_SELECTION_STRATEGIES = ("greedy", "largest-first", "smallest-first", "random")
 
 
-def order_utxos_for_strategy(utxos: List["SpendableOutput"], strategy: str) -> List["SpendableOutput"]:
+def order_utxos_for_strategy(utxos: list[SpendableOutput], strategy: str) -> list[SpendableOutput]:
     """Order spendable outputs for a coin-selection strategy."""
     s = (strategy or "greedy").lower()
     if s in ("greedy", "default"):
@@ -132,11 +132,11 @@ LEGACY_CIPHERS = {"netcoin-hmac-stream-v1", "netcoin-hmac-stream-v2"}
 AEAD_ASSOCIATED_DATA = b"NetCoin encrypted wallet private key v3"
 
 
-def wallet_file_version(data: Dict[str, Any]) -> int:
+def wallet_file_version(data: dict[str, Any]) -> int:
     return int(data.get("wallet_version", 1))
 
 
-def wallet_needs_migration(data: Dict[str, Any]) -> bool:
+def wallet_needs_migration(data: dict[str, Any]) -> bool:
     """True if a wallet dict is below the current format or uses an old KDF cost."""
     if wallet_file_version(data) < WALLET_FORMAT_VERSION:
         return True
@@ -166,7 +166,7 @@ def _xor_stream(data: bytes, key: bytes, nonce: bytes) -> bytes:
     return bytes(a ^ b for a, b in zip(data, out[: len(data)]))
 
 
-def encrypt_private_key(private_key_hex: str, passphrase: str) -> Dict[str, str]:
+def encrypt_private_key(private_key_hex: str, passphrase: str) -> dict[str, str]:
     salt = secrets.token_bytes(16)
     nonce = secrets.token_bytes(12)
     key = _derive_encryption_key(passphrase, salt, PBKDF2_ITERATIONS)
@@ -184,7 +184,7 @@ def encrypt_private_key(private_key_hex: str, passphrase: str) -> Dict[str, str]
     }
 
 
-def decrypt_private_key(encrypted: Dict[str, str], passphrase: str) -> str:
+def decrypt_private_key(encrypted: dict[str, str], passphrase: str) -> str:
     cipher = encrypted.get("cipher", "netcoin-hmac-stream-v1")
     salt = bytes.fromhex(encrypted["salt"])
     nonce = bytes.fromhex(encrypted["nonce"])
@@ -213,7 +213,7 @@ class Wallet:
     private_key: int
 
     @classmethod
-    def create(cls, seed_phrase: Optional[str] = None, index: int = 0) -> "Wallet":
+    def create(cls, seed_phrase: str | None = None, index: int = 0) -> Wallet:
         if seed_phrase:
             return cls(private_key=private_key_from_seed_phrase(seed_phrase, index=index))
         return cls(private_key=generate_private_key())
@@ -270,7 +270,7 @@ class Wallet:
             return self.taproot_address
         raise WalletError("address type must be legacy, segwit, or taproot")
 
-    def public_dict(self, wallet_file: Optional[str] = None) -> Dict[str, Any]:
+    def public_dict(self, wallet_file: str | None = None) -> dict[str, Any]:
         data = {
             "network": "NetCoin",
             "public_key_hex": self.public_key_hex,
@@ -286,7 +286,7 @@ class Wallet:
             data["wallet_file"] = wallet_file
         return data
 
-    def to_dict(self, passphrase: Optional[str] = None) -> Dict[str, Any]:
+    def to_dict(self, passphrase: str | None = None) -> dict[str, Any]:
         data = self.public_dict()
         data["wallet_version"] = WALLET_FORMAT_VERSION
         if passphrase:
@@ -300,7 +300,7 @@ class Wallet:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], passphrase: Optional[str] = None) -> "Wallet":
+    def from_dict(cls, data: dict[str, Any], passphrase: str | None = None) -> Wallet:
         if data.get("encrypted"):
             if passphrase is None:
                 raise WalletError("wallet is encrypted; provide --passphrase")
@@ -314,7 +314,7 @@ class Wallet:
             raise WalletError("wallet address does not match private key")
         return wallet
 
-    def save(self, path: str | Path, passphrase: Optional[str] = None) -> None:
+    def save(self, path: str | Path, passphrase: str | None = None) -> None:
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         payload = json.dumps(self.to_dict(passphrase=passphrase), indent=2, sort_keys=True)
@@ -340,13 +340,17 @@ class Wallet:
             tmp_path.unlink(missing_ok=True)
 
     @classmethod
-    def load(cls, path: str | Path, passphrase: Optional[str] = None) -> "Wallet":
+    def load(cls, path: str | Path, passphrase: str | None = None) -> Wallet:
         return cls.from_dict(json.loads(Path(path).read_text()), passphrase=passphrase)
 
     @staticmethod
-    def public_info_from_file(path: str | Path) -> Dict[str, Any]:
+    def public_info_from_file(path: str | Path) -> dict[str, Any]:
         data = json.loads(Path(path).read_text())
-        public = {key: data[key] for key in ("network", "public_key_hex", "xonly_public_key_hex", "address", "addresses", "encrypted") if key in data}
+        public = {
+            key: data[key]
+            for key in ("network", "public_key_hex", "xonly_public_key_hex", "address", "addresses", "encrypted")
+            if key in data
+        }
         public["wallet_file"] = str(path)
         return public
 
@@ -361,7 +365,7 @@ class Wallet:
         change_type: str = "legacy",
         rbf: bool = False,
         locktime: int = 0,
-        select_outpoints: Optional[List[str]] = None,
+        select_outpoints: list[str] | None = None,
         strategy: str = "greedy",
     ) -> Transaction:
         if not validate_address(to_address):
@@ -417,7 +421,7 @@ class Wallet:
         chain.validate_regular_transaction(tx, temp_utxos, chain.height() + 1)
         return tx
 
-    def create_multisig_address(self, required: int, public_keys_hex: List[str]) -> Dict[str, str]:
+    def create_multisig_address(self, required: int, public_keys_hex: list[str]) -> dict[str, str]:
         redeem_script = multisig_redeem_script(required, public_keys_hex)
         return {"address": script_to_p2sh_address(redeem_script), "redeem_script": redeem_script}
 
@@ -431,13 +435,13 @@ class AutoLockWalletSession:
     primitive for auto-locking decrypted wallet material.
     """
 
-    def __init__(self, path: str | Path, passphrase: Optional[str] = None, ttl_seconds: int = 300):
+    def __init__(self, path: str | Path, passphrase: str | None = None, ttl_seconds: int = 300):
         if ttl_seconds <= 0:
             raise WalletError("auto-lock ttl must be positive")
         self.path = str(path)
         self.unlocked_at = time.time()
         self.expires_at = self.unlocked_at + int(ttl_seconds)
-        self._wallet: Optional[Wallet] = Wallet.load(path, passphrase=passphrase)
+        self._wallet: Wallet | None = Wallet.load(path, passphrase=passphrase)
 
     @property
     def locked(self) -> bool:
@@ -451,12 +455,12 @@ class AutoLockWalletSession:
     def lock(self) -> None:
         self._wallet = None
 
-    def get_wallet(self) -> "Wallet":
+    def get_wallet(self) -> Wallet:
         if self.locked or self._wallet is None:
             raise WalletError("wallet session is locked")
         return self._wallet
 
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         return {
             "wallet_file": self.path,
             "locked": self.locked,
@@ -464,6 +468,7 @@ class AutoLockWalletSession:
             "expires_at": int(self.expires_at),
             "seconds_remaining": max(0, int(self.expires_at - time.time())) if not self.locked else 0,
         }
+
 
 # ---------------------------------------------------------------------------
 # Compatibility helpers for the expanded v2 CLI.
@@ -522,14 +527,14 @@ def _from_wif(cls, wif: str) -> Wallet:
     return cls(private_key=private_key_from_wif(wif))
 
 
-def _to_plain_dict(self: Wallet) -> Dict[str, Any]:
+def _to_plain_dict(self: Wallet) -> dict[str, Any]:
     data = self.to_dict(passphrase=None)
     data["wif"] = self.wif
     data["addresses"]["p2sh_segwit"] = self.p2sh_segwit_address
     return data
 
 
-def _watch_only(address: str) -> Dict[str, Any]:
+def _watch_only(address: str) -> dict[str, Any]:
     if not validate_address(address):
         raise WalletError("address is not a valid NetCoin address")
     return {"network": "NetCoin", "address": address, "watch_only": True, "encrypted": False}
@@ -545,7 +550,7 @@ Wallet.watch_only = staticmethod(_watch_only)  # type: ignore[attr-defined]
 _original_public_dict = Wallet.public_dict
 
 
-def _public_dict_extended(self: Wallet, wallet_file: Optional[str] = None) -> Dict[str, Any]:
+def _public_dict_extended(self: Wallet, wallet_file: str | None = None) -> dict[str, Any]:
     data = _original_public_dict(self, wallet_file=wallet_file)
     data["addresses"]["p2sh_segwit"] = self.p2sh_segwit_address
     return data
@@ -568,9 +573,9 @@ def _create_transaction_extended(
     change_type: str = "legacy",
     rbf: bool = False,
     locktime: int = 0,
-    from_address: Optional[str] = None,
-    change_address: Optional[str] = None,
-    select_outpoints: Optional[List[str]] = None,
+    from_address: str | None = None,
+    change_address: str | None = None,
+    select_outpoints: list[str] | None = None,
     strategy: str = "greedy",
 ) -> Transaction:
     if from_address is None and change_address is None:

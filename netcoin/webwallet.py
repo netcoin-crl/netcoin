@@ -10,18 +10,27 @@ the wallet file on your machine; signing happens locally and only the signed
 transaction is sent to the node. Bind it to 127.0.0.1 (the default) and never
 expose it publicly — it is not a custodial/hosted wallet.
 """
+
 from __future__ import annotations
 
 import json
 import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
-from .params import COIN, COINBASE_MATURITY, MAX_WALLET_SEND_INPUTS, MAX_WALLET_SEND_WEIGHT, NETWORK_NAME, NODE_VERSION, TICKER
+from .params import (
+    COIN,
+    COINBASE_MATURITY,
+    MAX_WALLET_SEND_INPUTS,
+    MAX_WALLET_SEND_WEIGHT,
+    NETWORK_NAME,
+    NODE_VERSION,
+    TICKER,
+)
 from .serialization import transaction_weight
 from .tx import SpendableOutput, Transaction, TxInput, TxOutput, amount_to_sats
 from .wallet import Wallet
@@ -33,6 +42,7 @@ ADDRESS_TYPES = ["segwit", "taproot", "legacy", "p2sh-segwit"]
 # --------------------------------------------------------------------------- #
 # Remote node helpers
 # --------------------------------------------------------------------------- #
+
 
 def _normalize_node_url(node_url: str) -> str:
     """Return a node/API base URL that works with the local web wallet.
@@ -47,13 +57,13 @@ def _normalize_node_url(node_url: str) -> str:
     return base
 
 
-def _node_get(node_url: str, path: str, timeout: int = 15) -> Dict[str, Any]:
+def _node_get(node_url: str, path: str, timeout: int = 15) -> dict[str, Any]:
     base = _normalize_node_url(node_url)
     with urlopen(base + path, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
-def _node_post(node_url: str, path: str, payload: Dict[str, Any], timeout: int = 30) -> Dict[str, Any]:
+def _node_post(node_url: str, path: str, payload: dict[str, Any], timeout: int = 30) -> dict[str, Any]:
     base = _normalize_node_url(node_url)
     body = json.dumps(payload).encode("utf-8")
     request = Request(base + path, data=body, headers={"Content-Type": "application/json"}, method="POST")
@@ -61,14 +71,21 @@ def _node_post(node_url: str, path: str, payload: Dict[str, Any], timeout: int =
         return json.loads(response.read().decode("utf-8"))
 
 
-def _wallet_addresses(wallet: Wallet) -> Dict[str, str]:
+def _wallet_addresses(wallet: Wallet) -> dict[str, str]:
     return {kind: wallet.address_for(kind) for kind in ADDRESS_TYPES}
 
 
 # Rough per-input weight estimates (weight units) for coin selection without
 # signing every trial. Conservative; the real weight is re-checked after signing.
-_INPUT_WEIGHT_ESTIMATE = {"segwit": 275, "taproot": 240, "legacy": 600, "p2sh-segwit": 370,
-                          "p2wpkh": 275, "p2tr": 240, "p2pkh": 600}
+_INPUT_WEIGHT_ESTIMATE = {
+    "segwit": 275,
+    "taproot": 240,
+    "legacy": 600,
+    "p2sh-segwit": 370,
+    "p2wpkh": 275,
+    "p2tr": 240,
+    "p2pkh": 600,
+}
 _OUTPUT_WEIGHT_ESTIMATE = 140
 
 
@@ -85,7 +102,7 @@ def consolidation_status(
     node_url: str,
     fee_sats: int = 10_000,
     max_inputs: int = MAX_WALLET_SEND_INPUTS,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Return the wallet's current one-transaction send capacity.
 
     This is intentionally read-only: it lets CLIs and UIs warn users before a
@@ -96,10 +113,7 @@ def consolidation_status(
     tip_height = int(info.get("height", 0))
     data = _node_get(node_url, f"/utxos?address={from_address}")
     spendables = [SpendableOutput.from_dict(item) for item in data.get("utxos", [])]
-    spendables = [
-        s for s in spendables
-        if not s.coinbase or (tip_height - s.height) >= COINBASE_MATURITY
-    ]
+    spendables = [s for s in spendables if not s.coinbase or (tip_height - s.height) >= COINBASE_MATURITY]
     spendables_by_value = sorted(spendables, key=lambda s: s.output.amount, reverse=True)
     max_inputs = max(1, min(max_inputs, MAX_WALLET_SEND_INPUTS))
     total_sats = sum(s.output.amount for s in spendables)
@@ -127,7 +141,7 @@ def build_and_broadcast(
     fee_sats: int,
     from_type: str,
     node_url: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build, sign locally, and broadcast a transaction using a remote node's UTXOs."""
     if amount_sats <= 0:
         raise ValueError("amount must be positive")
@@ -140,10 +154,7 @@ def build_and_broadcast(
     data = _node_get(node_url, f"/utxos?address={from_address}")
     spendables = [SpendableOutput.from_dict(item) for item in data.get("utxos", [])]
     # Drop immature coinbase outputs the node would reject anyway.
-    spendables = [
-        s for s in spendables
-        if not s.coinbase or (tip_height - s.height) >= COINBASE_MATURITY
-    ]
+    spendables = [s for s in spendables if not s.coinbase or (tip_height - s.height) >= COINBASE_MATURITY]
     if not spendables:
         raise ValueError("no spendable (mature) coins at this address yet")
 
@@ -159,7 +170,7 @@ def build_and_broadcast(
     # then top up with the smallest coins so every send also shrinks the UTXO
     # set — defragmenting passively instead of letting the coin count grow.
     by_value_desc = sorted(spendables, key=lambda s: s.output.amount, reverse=True)
-    core: List[SpendableOutput] = []
+    core: list[SpendableOutput] = []
     total = 0
     for utxo in by_value_desc:
         core.append(utxo)
@@ -175,8 +186,9 @@ def build_and_broadcast(
             f"You can send up to {affordable / COIN:.8f} {TICKER} right now; "
             f"run `netcoin consolidate` (or send Max to yourself) to combine coins and send more."
         )
-    extras = [u for u in sorted(spendables, key=lambda s: s.output.amount)
-              if u.outpoint() not in {c.outpoint() for c in core}]
+    extras = [
+        u for u in sorted(spendables, key=lambda s: s.output.amount) if u.outpoint() not in {c.outpoint() for c in core}
+    ]
 
     # Choose how many dust coins to add using a WEIGHT ESTIMATE (per-input
     # weight is ~constant for a single-key wallet), signing only once at the end.
@@ -238,7 +250,7 @@ def consolidate_coins(
     node_url: str,
     fee_sats: int = 10_000,
     max_inputs: int = MAX_WALLET_SEND_INPUTS,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Sweep many small UTXOs into one output back to the same address.
 
     Mining pays 50 NET per block, so a large balance is often hundreds of small
@@ -256,18 +268,26 @@ def consolidate_coins(
     spendables = [s for s in spendables if not s.coinbase or (tip_height - s.height) >= COINBASE_MATURITY]
     spendables.sort(key=lambda s: s.output.amount)  # sweep the dust first
     if len(spendables) < 2:
-        return {"batches": [], "note": "nothing to consolidate: fewer than two spendable coins", "utxos": len(spendables)}
+        return {
+            "batches": [],
+            "note": "nothing to consolidate: fewer than two spendable coins",
+            "utxos": len(spendables),
+        }
 
     max_inputs = max(2, min(max_inputs, MAX_WALLET_SEND_INPUTS))
-    batches: List[Dict[str, Any]] = []
+    batches: list[dict[str, Any]] = []
     position = 0
     while position + 1 < len(spendables):
         size = min(max_inputs, len(spendables) - position)
         while size >= 2:
-            batch = spendables[position:position + size]
+            batch = spendables[position : position + size]
             total = sum(s.output.amount for s in batch)
             if total <= fee_sats:
-                return {"batches": batches, "note": "remaining coins are smaller than the fee; stopping", "utxos_left": len(spendables) - position}
+                return {
+                    "batches": batches,
+                    "note": "remaining coins are smaller than the fee; stopping",
+                    "utxos_left": len(spendables) - position,
+                }
             tx = Transaction(
                 inputs=[TxInput(txid=s.txid, vout=s.vout) for s in batch],
                 outputs=[TxOutput(amount=total - fee_sats, address=from_address)],
@@ -277,18 +297,25 @@ def consolidate_coins(
                 tx.sign_input(index, wallet.private_key, utxo)
             if transaction_weight(tx) <= MAX_WALLET_SEND_WEIGHT:
                 response = _node_post(node_url, "/tx", tx.to_dict(), timeout=30)
-                batches.append({
-                    "txid": response.get("txid") or tx.txid(),
-                    "inputs": len(batch),
-                    "consolidated": (total - fee_sats) / COIN,
-                    "fee": fee_sats / COIN,
-                })
+                batches.append(
+                    {
+                        "txid": response.get("txid") or tx.txid(),
+                        "inputs": len(batch),
+                        "consolidated": (total - fee_sats) / COIN,
+                        "fee": fee_sats / COIN,
+                    }
+                )
                 position += size
                 break
             size //= 2  # too heavy: halve the batch and retry
         else:
             break
-    return {"address": from_address, "batches": batches, "transactions": len(batches), "utxos_left_unbatched": max(0, len(spendables) - position)}
+    return {
+        "address": from_address,
+        "batches": batches,
+        "transactions": len(batches),
+        "utxos_left_unbatched": max(0, len(spendables) - position),
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -526,15 +553,16 @@ boot();
 # HTTP handler
 # --------------------------------------------------------------------------- #
 
+
 def make_handler(node_url: str, faucet_url: str = ""):
     node_url = _normalize_node_url(node_url)
-    state: Dict[str, Optional[Wallet]] = {"wallet": None}
+    state: dict[str, Wallet | None] = {"wallet": None}
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args: Any) -> None:  # quiet
             return
 
-        def _send(self, payload: Dict[str, Any], status: int = 200) -> None:
+        def _send(self, payload: dict[str, Any], status: int = 200) -> None:
             body = json.dumps(payload).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
@@ -542,13 +570,13 @@ def make_handler(node_url: str, faucet_url: str = ""):
             self.end_headers()
             self.wfile.write(body)
 
-        def _read(self) -> Dict[str, Any]:
+        def _read(self) -> dict[str, Any]:
             length = int(self.headers.get("Content-Length", 0) or 0)
             if length <= 0:
                 return {}
             return json.loads(self.rfile.read(length).decode("utf-8") or "{}")
 
-        def do_GET(self) -> None:  # noqa: N802
+        def do_GET(self) -> None:
             parsed = urlparse(self.path)
             try:
                 if parsed.path == "/":
@@ -559,10 +587,22 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     self.end_headers()
                     self.wfile.write(data)
                 elif parsed.path == "/api/config":
-                    self._send({"node": node_url, "faucet": faucet_url, "network": NETWORK_NAME, "ticker": TICKER, "version": NODE_VERSION})
+                    self._send(
+                        {
+                            "node": node_url,
+                            "faucet": faucet_url,
+                            "network": NETWORK_NAME,
+                            "ticker": TICKER,
+                            "version": NODE_VERSION,
+                        }
+                    )
                 elif parsed.path == "/api/wallet/current":
                     w = state["wallet"]
-                    self._send({"address": w.address_for("segwit"), "addresses": _wallet_addresses(w)} if w else {"address": None})
+                    self._send(
+                        {"address": w.address_for("segwit"), "addresses": _wallet_addresses(w)}
+                        if w
+                        else {"address": None}
+                    )
                 elif parsed.path == "/api/balance":
                     address = parse_qs(parsed.query).get("address", [""])[0]
                     self._send(_node_get(node_url, f"/balance/{address}"))
@@ -576,37 +616,53 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     self._send(self._search(parse_qs(parsed.query).get("q", [""])[0]))
                 elif parsed.path == "/api/payment-uri":
                     from .paymenturi import build_uri
+
                     q = parse_qs(parsed.query)
-                    self._send({"uri": build_uri(
-                        q.get("address", [""])[0],
-                        amount=q.get("amount", [None])[0] or None,
-                        label=q.get("label", [None])[0] or None,
-                        message=q.get("message", [None])[0] or None,
-                    )})
+                    self._send(
+                        {
+                            "uri": build_uri(
+                                q.get("address", [""])[0],
+                                amount=q.get("amount", [None])[0] or None,
+                                label=q.get("label", [None])[0] or None,
+                                message=q.get("message", [None])[0] or None,
+                            )
+                        }
+                    )
                 elif parsed.path == "/api/parse-uri":
                     from .paymenturi import parse_uri
+
                     self._send(parse_uri(parse_qs(parsed.query).get("uri", [""])[0]))
                 else:
                     self._send({"error": "not found"}, status=404)
             except HTTPError as exc:
                 self._send({"error": f"node returned HTTP {exc.code} for {parsed.path}"}, status=502)
             except (URLError, OSError) as exc:
-                self._send({"error": "cannot reach the node", "node": node_url, "hint": "Use --node https://api.netcoin.online/api, or start a local node and use --node http://127.0.0.1:28444", "detail": str(exc)}, status=502)
-            except Exception as exc:  # noqa: BLE001
+                self._send(
+                    {
+                        "error": "cannot reach the node",
+                        "node": node_url,
+                        "hint": "Use --node https://api.netcoin.online/api, or start a local node and use --node http://127.0.0.1:28444",
+                        "detail": str(exc),
+                    },
+                    status=502,
+                )
+            except Exception as exc:
                 self._send({"error": str(exc)}, status=400)
 
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
             parsed = urlparse(self.path)
             try:
                 if parsed.path == "/api/wallet/new":
                     wallet, mnemonic = Wallet.create_with_mnemonic()
                     state["wallet"] = wallet
-                    self._send({
-                        "address": wallet.address_for("segwit"),
-                        "addresses": _wallet_addresses(wallet),
-                        "mnemonic": mnemonic,
-                        "wallet_file": wallet.to_dict(passphrase=None),
-                    })
+                    self._send(
+                        {
+                            "address": wallet.address_for("segwit"),
+                            "addresses": _wallet_addresses(wallet),
+                            "mnemonic": mnemonic,
+                            "wallet_file": wallet.to_dict(passphrase=None),
+                        }
+                    )
                 elif parsed.path == "/api/wallet/load":
                     body = self._read()
                     wallet = self._load_wallet(body.get("json", ""), body.get("passphrase") or None)
@@ -623,10 +679,10 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     self._send({"error": "not found"}, status=404)
             except HTTPError as exc:
                 self._send({"error": f"node rejected the request (HTTP {exc.code})"}, status=400)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 self._send({"error": str(exc)}, status=400)
 
-        def _load_wallet(self, raw_json: str, passphrase: Optional[str]) -> Wallet:
+        def _load_wallet(self, raw_json: str, passphrase: str | None) -> Wallet:
             if not raw_json.strip():
                 raise ValueError("paste your wallet JSON")
             # Validate it parses, then load via the standard (encryption-aware) path.
@@ -651,7 +707,7 @@ def make_handler(node_url: str, faucet_url: str = ""):
                 raise ValueError("private key must be 64 hex characters")
             return Wallet.from_dict({"private_key_hex": clean})
 
-        def _send_tx(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        def _send_tx(self, body: dict[str, Any]) -> dict[str, Any]:
             wallet = state["wallet"]
             if wallet is None:
                 raise ValueError("no wallet loaded")
@@ -663,7 +719,7 @@ def make_handler(node_url: str, faucet_url: str = ""):
             from_type = str(body.get("from_type") or "segwit")
             return build_and_broadcast(wallet, to, amount_sats, fee_sats, from_type, node_url)
 
-        def _search(self, query: str) -> Dict[str, Any]:
+        def _search(self, query: str) -> dict[str, Any]:
             query = query.strip()
             if not query:
                 return {"error": "empty query"}
@@ -672,7 +728,11 @@ def make_handler(node_url: str, faucet_url: str = ""):
                 headers = _node_get(node_url, f"/headers?start={int(query)}&limit=1").get("headers", [])
                 if headers and int(headers[0].get("height", -1)) == int(query):
                     return {"type": "block", "result": _node_get(node_url, f"/block/{headers[0]['hash']}")}
-            for path, kind in ((f"/tx/{query}", "transaction"), (f"/address/{query}", "address"), (f"/block/{query}", "block")):
+            for path, kind in (
+                (f"/tx/{query}", "transaction"),
+                (f"/address/{query}", "address"),
+                (f"/block/{query}", "block"),
+            ):
                 try:
                     return {"type": kind, "result": _node_get(node_url, path)}
                 except HTTPError:

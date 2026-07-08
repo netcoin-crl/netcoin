@@ -1,4 +1,5 @@
 """Explorer-style node JSON API: /tx/<txid>, /latest, /utxos, and 404s."""
+
 import json
 from http.server import ThreadingHTTPServer
 from pathlib import Path

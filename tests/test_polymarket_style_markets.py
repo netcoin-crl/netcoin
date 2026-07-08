@@ -8,30 +8,55 @@ from netcoin.professional_upgrade import validate_upgrade_manifest
 
 def test_polymarket_style_market_order_ticker_and_orderbook(tmp_path: Path):
     store = AppStore(tmp_path)
-    market = store.create_prediction_market({
-        "question": "Will the Polymarket-style Labs CLOB work?",
-        "outcomes": ["YES", "NO"],
-        "category": "Technology",
-        "tags": ["netcoin", "markets"],
-        "legal_acknowledged": True,
-        "sandbox_short_mode": True,
-    })
+    market = store.create_prediction_market(
+        {
+            "question": "Will the Polymarket-style Labs CLOB work?",
+            "outcomes": ["YES", "NO"],
+            "category": "Technology",
+            "tags": ["netcoin", "markets"],
+            "legal_acknowledged": True,
+            "sandbox_short_mode": True,
+        }
+    )
     mid = market["market_id"]
     yes = market["outcomes"][0]["outcome_id"]
 
-    store.place_market_order(mid, {"trader": "demo:maker1", "demo_wallet": True, "side": "sell", "outcome_id": yes, "price_bps": 4500, "quantity": 2})
-    seeded = store.place_market_order(mid, {"trader": "demo:maker2", "demo_wallet": True, "side": "sell", "outcome_id": yes, "price_bps": 4700, "quantity": 3})
+    store.place_market_order(
+        mid,
+        {
+            "trader": "demo:maker1",
+            "demo_wallet": True,
+            "side": "sell",
+            "outcome_id": yes,
+            "price_bps": 4500,
+            "quantity": 2,
+        },
+    )
+    seeded = store.place_market_order(
+        mid,
+        {
+            "trader": "demo:maker2",
+            "demo_wallet": True,
+            "side": "sell",
+            "outcome_id": yes,
+            "price_bps": 4700,
+            "quantity": 3,
+        },
+    )
     assert seeded["clob"]["books"][yes]["asks"][0]["price_bps"] == 4500
     assert seeded["clob"]["books"][yes]["ask_depth_shares"] == 5
 
-    traded = store.place_market_order(mid, {
-        "trader": "demo:taker",
-        "demo_wallet": True,
-        "side": "buy",
-        "outcome_id": yes,
-        "order_type": "market",
-        "quantity": 3,
-    })
+    traded = store.place_market_order(
+        mid,
+        {
+            "trader": "demo:taker",
+            "demo_wallet": True,
+            "side": "buy",
+            "outcome_id": yes,
+            "order_type": "market",
+            "quantity": 3,
+        },
+    )
     taker_order = traded["orders"][-1]
     assert taker_order["order_type"] == "market"
     assert taker_order["time_in_force"] == "IOC"
@@ -51,14 +76,48 @@ def test_polymarket_style_market_order_ticker_and_orderbook(tmp_path: Path):
 
 def test_fok_and_post_only_market_guards(tmp_path: Path):
     store = AppStore(tmp_path)
-    market = store.create_prediction_market({"question": "Will FOK guards work?", "outcomes": ["YES", "NO"], "legal_acknowledged": True})
+    market = store.create_prediction_market(
+        {"question": "Will FOK guards work?", "outcomes": ["YES", "NO"], "legal_acknowledged": True}
+    )
     mid = market["market_id"]
     yes = market["outcomes"][0]["outcome_id"]
-    store.place_market_order(mid, {"trader": "demo:maker", "demo_wallet": True, "side": "sell", "outcome_id": yes, "price_bps": 5000, "quantity": 1})
+    store.place_market_order(
+        mid,
+        {
+            "trader": "demo:maker",
+            "demo_wallet": True,
+            "side": "sell",
+            "outcome_id": yes,
+            "price_bps": 5000,
+            "quantity": 1,
+        },
+    )
     with pytest.raises(AppError, match="FOK"):
-        store.place_market_order(mid, {"trader": "demo:taker", "demo_wallet": True, "side": "buy", "outcome_id": yes, "order_type": "fok", "price_bps": 5000, "quantity": 2})
+        store.place_market_order(
+            mid,
+            {
+                "trader": "demo:taker",
+                "demo_wallet": True,
+                "side": "buy",
+                "outcome_id": yes,
+                "order_type": "fok",
+                "price_bps": 5000,
+                "quantity": 2,
+            },
+        )
     with pytest.raises(AppError, match="post_only"):
-        store.place_market_order(mid, {"trader": "demo:poster", "demo_wallet": True, "side": "buy", "outcome_id": yes, "price_bps": 5000, "quantity": 1, "post_only": True})
+        store.place_market_order(
+            mid,
+            {
+                "trader": "demo:poster",
+                "demo_wallet": True,
+                "side": "buy",
+                "outcome_id": yes,
+                "price_bps": 5000,
+                "quantity": 1,
+                "post_only": True,
+            },
+        )
 
 
 def test_professional_upgrade_manifest_is_valid():

@@ -1,3 +1,31 @@
+// Signed-envelope helpers for sensitive app-layer writes.
+export async function canonicalBodyHash(payload = {}) {
+  const filtered = {};
+  for (const [k, v] of Object.entries(payload || {})) {
+    if (["signed_envelope", "signed_request", "api_key", "admin_token"].includes(k) || k.startsWith("__netcoin_")) continue;
+    filtered[k] = v;
+  }
+  const ordered = JSON.stringify(Object.keys(filtered).sort().reduce((acc, k) => { acc[k] = filtered[k]; return acc; }, {}));
+  const bytes = new TextEncoder().encode(ordered);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export function signedEnvelopeMessage(address, method, path, bodyHash, timestamp, nonce) {
+  return ["NetCoin signed request", "netcoin-signed-envelope-v1", address, method.toUpperCase(), path, bodyHash, String(timestamp), nonce].join("\n");
+}
+
+export async function buildSignedEnvelope({ address, method = "POST", path, payload = {}, signer }) {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const nonceBytes = new Uint8Array(16);
+  crypto.getRandomValues(nonceBytes);
+  const nonce = Array.from(nonceBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const body_hash = await canonicalBodyHash(payload);
+  const message = signedEnvelopeMessage(address, method, path, body_hash, timestamp, nonce);
+  const signature = await signer(message);
+  return { version: "netcoin-signed-envelope-v1", address, method: method.toUpperCase(), path, body_hash, timestamp, nonce, signature };
+}
+
 // Minimal NetCoin app-layer SDK. Works in browsers and Node 18+.
 export class NetcoinClient {
   constructor(baseUrl = "") { this.baseUrl = baseUrl.replace(/\/$/, ""); }
@@ -10,6 +38,11 @@ export class NetcoinClient {
   }
   get(path) { return this.request(path); }
   post(path, body) { return this.request(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) }); }
+  async signedPost(path, body, { address, signer }) {
+    const payload = { ...(body || {}) };
+    payload.signed_envelope = await buildSignedEnvelope({ address, method: "POST", path, payload, signer });
+    return this.post(path, payload);
+  }
   validateAddress(address) { return this.get(`/api/validate-address?address=${encodeURIComponent(address)}`); }
   createInvoice({ address, amount, memo = "", label = "", orderId = "" }) { return this.post("/api/invoices", { address, amount, memo, label, order_id: orderId }); }
   getInvoice(id) { return this.get(`/api/invoices/${encodeURIComponent(id)}`); }

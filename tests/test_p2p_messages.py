@@ -1,4 +1,5 @@
 """Bitcoin-style P2P message layer (#16): message types, framing, and handler flow."""
+
 import argparse
 import json
 from pathlib import Path
@@ -15,14 +16,12 @@ from netcoin.p2p import (
     handle_message,
     inv_message,
     ping_message,
-    read_message,
     read_block_message,
     read_tx_message,
     request_message,
     tx_message,
     verack_message,
     version_message,
-    write_message,
 )
 from netcoin.tx import amount_to_sats
 from netcoin.wallet import Wallet

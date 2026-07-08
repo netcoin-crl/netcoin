@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
-from typing import Any, Dict, List
+from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -52,7 +52,7 @@ class FuzzConfig:
 def random_json_value(rng: random.Random, depth: int = 0) -> Any:
     choice = rng.randint(0, 6)
     if depth > 3 or choice == 0:
-        return rng.choice([None, True, False, 0, -1, rng.randint(-10**12, 10**12), "", "x" * rng.randint(0, 16)])
+        return rng.choice([None, True, False, 0, -1, rng.randint(-(10**12), 10**12), "", "x" * rng.randint(0, 16)])
     if choice == 1:
         return "".join(rng.choice(string.printable) for _ in range(rng.randint(0, 24)))
     if choice == 2:
@@ -64,7 +64,7 @@ def random_json_value(rng: random.Random, depth: int = 0) -> Any:
     return rng.randint(-(10**24), 10**24)
 
 
-def _record(result: Dict[str, Any], accepted: bool = False, rejected: bool = False) -> None:
+def _record(result: dict[str, Any], accepted: bool = False, rejected: bool = False) -> None:
     result["cases"] += 1
     if accepted:
         result["accepted"] += 1
@@ -72,7 +72,7 @@ def _record(result: Dict[str, Any], accepted: bool = False, rejected: bool = Fal
         result["rejected"] += 1
 
 
-def fuzz_tx_dict(rng: random.Random, iterations: int) -> Dict[str, Any]:
+def fuzz_tx_dict(rng: random.Random, iterations: int) -> dict[str, Any]:
     result = {"target": "tx-dict", "cases": 0, "accepted": 0, "rejected": 0}
     for _ in range(iterations):
         data = random_json_value(rng)
@@ -89,7 +89,7 @@ def fuzz_tx_dict(rng: random.Random, iterations: int) -> Dict[str, Any]:
     return result
 
 
-def fuzz_block_dict(rng: random.Random, iterations: int) -> Dict[str, Any]:
+def fuzz_block_dict(rng: random.Random, iterations: int) -> dict[str, Any]:
     result = {"target": "block-dict", "cases": 0, "accepted": 0, "rejected": 0}
     for _ in range(iterations):
         data = random_json_value(rng)
@@ -106,7 +106,7 @@ def fuzz_block_dict(rng: random.Random, iterations: int) -> Dict[str, Any]:
     return result
 
 
-def fuzz_rawtx(rng: random.Random, iterations: int, max_bytes: int) -> Dict[str, Any]:
+def fuzz_rawtx(rng: random.Random, iterations: int, max_bytes: int) -> dict[str, Any]:
     result = {"target": "rawtx", "cases": 0, "accepted": 0, "rejected": 0}
     alphabet = "0123456789abcdefABCDEFxyzZ "
     for _ in range(iterations):
@@ -122,7 +122,7 @@ def fuzz_rawtx(rng: random.Random, iterations: int, max_bytes: int) -> Dict[str,
     return result
 
 
-def fuzz_script(rng: random.Random, iterations: int) -> Dict[str, Any]:
+def fuzz_script(rng: random.Random, iterations: int) -> dict[str, Any]:
     result = {"target": "script", "cases": 0, "accepted": 0, "rejected": 0}
     tokens = [
         "OP_DUP",
@@ -160,7 +160,7 @@ def fuzz_script(rng: random.Random, iterations: int) -> Dict[str, Any]:
     return result
 
 
-def fuzz_node_http(rng: random.Random, iterations: int, max_bytes: int) -> Dict[str, Any]:
+def fuzz_node_http(rng: random.Random, iterations: int, max_bytes: int) -> dict[str, Any]:
     result = {"target": "node-http", "cases": 0, "accepted": 0, "rejected": 0}
     with tempfile.TemporaryDirectory(prefix="netcoin-fuzz-node-") as tmp:
         chain = Blockchain(Path(tmp) / "chain")
@@ -176,7 +176,9 @@ def fuzz_node_http(rng: random.Random, iterations: int, max_bytes: int) -> Dict[
                     body = bytes(rng.randint(0, 255) for _ in range(rng.randint(0, max_bytes)))
                 else:
                     body = json.dumps(random_json_value(rng)).encode("utf-8")
-                request = Request(f"{base_url}{path}", data=body, headers={"Content-Type": "application/json"}, method="POST")
+                request = Request(
+                    f"{base_url}{path}", data=body, headers={"Content-Type": "application/json"}, method="POST"
+                )
                 try:
                     urlopen(request, timeout=5)
                 except HTTPError as exc:
@@ -197,7 +199,7 @@ def fuzz_node_http(rng: random.Random, iterations: int, max_bytes: int) -> Dict[
     return result
 
 
-def run_fuzz(config: FuzzConfig) -> Dict[str, Any]:
+def run_fuzz(config: FuzzConfig) -> dict[str, Any]:
     if config.iterations < 0:
         raise FuzzError("iterations must be non-negative")
     if config.max_bytes < 0:
@@ -208,7 +210,7 @@ def run_fuzz(config: FuzzConfig) -> Dict[str, Any]:
         raise FuzzError(f"unknown fuzz target: {', '.join(unknown)}")
 
     started = time.time()
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     for index, target in enumerate(targets):
         rng = random.Random(config.seed + index)
         if target == "tx-dict":

@@ -1,11 +1,12 @@
 """Lightning-style payment channels: 2-of-2 funding, off-chain balance updates,
 and a cooperative close that settles the final balances on-chain."""
+
 from pathlib import Path
 
 import pytest
 
-from netcoin.channel import PaymentChannel
 from netcoin.chain import Blockchain
+from netcoin.channel import PaymentChannel
 from netcoin.tx import amount_to_sats
 from netcoin.wallet import Wallet
 

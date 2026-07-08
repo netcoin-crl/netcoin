@@ -1,4 +1,5 @@
 """Fuller Script VM (#25): conditionals, arithmetic, stack ops, crypto opcodes."""
+
 import hashlib
 
 import pytest
@@ -13,6 +14,7 @@ def run(script, stack=None):
 
 
 # --- arithmetic ---
+
 
 def test_arithmetic_ops():
     assert run("2 3 OP_ADD") == ["5"]
@@ -30,8 +32,8 @@ def test_comparisons_push_bool():
     assert run("3 4 OP_NUMEQUAL") == ["00"]
     assert run("2 5 OP_LESSTHAN") == ["01"]
     assert run("5 2 OP_GREATERTHAN") == ["01"]
-    assert run("3 1 5 OP_WITHIN") == ["01"]   # 1 <= 3 < 5
-    assert run("5 1 5 OP_WITHIN") == ["00"]   # 5 not < 5
+    assert run("3 1 5 OP_WITHIN") == ["01"]  # 1 <= 3 < 5
+    assert run("5 1 5 OP_WITHIN") == ["00"]  # 5 not < 5
 
 
 def test_numequalverify():
@@ -41,6 +43,7 @@ def test_numequalverify():
 
 
 # --- conditionals ---
+
 
 def test_if_else_endif():
     assert run("1 OP_IF 10 OP_ELSE 20 OP_ENDIF") == ["10"]
@@ -58,6 +61,7 @@ def test_unbalanced_conditional_raises():
 
 # --- stack manipulation ---
 
+
 def test_stack_ops():
     assert run("1 2 OP_SWAP") == ["2", "1"]
     assert run("1 2 OP_OVER") == ["1", "2", "1"]
@@ -69,6 +73,7 @@ def test_stack_ops():
 
 
 # --- crypto ---
+
 
 def test_crypto_ops():
     assert run("aa OP_SHA256") == [hashlib.sha256(b"\xaa").hexdigest()]
@@ -83,6 +88,7 @@ def test_op_return_aborts():
 
 
 # --- end-to-end hashlock via verify_script ---
+
 
 def test_hashlock_script_verifies():
     preimage = "deadbeef"

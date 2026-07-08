@@ -9,13 +9,14 @@ admin-only output: serve it behind auth, never publicly.
 Usage:
     python tools/faucet_admin.py state.json admin.html [spendable_sats]
 """
+
 from __future__ import annotations
 
 import html
 import json
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def _esc(value: object) -> str:
@@ -32,12 +33,15 @@ def _when(ts: object) -> str:
 def _rows(items, columns) -> str:
     rows = []
     for item in items:
-        cells = "".join(f"<td>{_esc(item.get(c, ''))}</td>" if c != "timestamp" else f"<td>{_esc(_when(item.get(c)))}</td>" for c in columns)
+        cells = "".join(
+            f"<td>{_esc(item.get(c, ''))}</td>" if c != "timestamp" else f"<td>{_esc(_when(item.get(c)))}</td>"
+            for c in columns
+        )
         rows.append(f"<tr>{cells}</tr>")
     return "".join(rows)
 
 
-def render_faucet_admin(state: Dict[str, Any], spendable_sats: Optional[int] = None) -> str:
+def render_faucet_admin(state: dict[str, Any], spendable_sats: int | None = None) -> str:
     requests = list(reversed(state.get("requests", []) or []))
     abuse = list(reversed(state.get("abuse", []) or []))
     now = int(time.time())
@@ -70,8 +74,14 @@ def render_faucet_admin(state: Dict[str, Any], spendable_sats: Optional[int] = N
         + "</table>"
     )
 
-    body = "<h1>NetCoin Faucet Admin</h1>" + summary + requests_table + abuse_table + (
-        "<p style='color:#8a1f1f;font-size:.85rem'>Admin only. Contains client IPs. Serve behind authentication.</p>"
+    body = (
+        "<h1>NetCoin Faucet Admin</h1>"
+        + summary
+        + requests_table
+        + abuse_table
+        + (
+            "<p style='color:#8a1f1f;font-size:.85rem'>Admin only. Contains client IPs. Serve behind authentication.</p>"
+        )
     )
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
@@ -88,7 +98,7 @@ def main(argv: list[str]) -> int:
     if len(argv) not in (3, 4):
         print("usage: python tools/faucet_admin.py <state.json> <out.html> [spendable_sats]", file=sys.stderr)
         return 2
-    state = json.loads(open(argv[1], "r", encoding="utf-8").read())
+    state = json.loads(open(argv[1], encoding="utf-8").read())
     spendable = int(argv[3]) if len(argv) == 4 else None
     open(argv[2], "w", encoding="utf-8").write(render_faucet_admin(state, spendable))
     print(f"wrote {argv[2]}")

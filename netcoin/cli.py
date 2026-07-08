@@ -10,21 +10,31 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .block import Block
 from .chain import Blockchain, ChainError
 from .crypto import validate_address
-from .miner import block_summary, solve_template
 from .explorer import generate_explorer
 from .explorer_server import run_explorer_server
-from .webwallet import run_web_wallet
 from .fuzz import FuzzConfig, run_fuzz
+from .miner import block_summary, solve_template
 from .node import run_node
 from .p2p import Message, getheaders_message, ping_message, request_message, run_p2p_server, version_message
-from .params import DEFAULT_DATA_DIR, DEFAULT_NODE_PORT, DEFAULT_P2P_PORT, DEFAULT_POOL_PORT, DEFAULT_RPC_PORT, DEFAULT_TESTNET_SEEDS, NETWORKS, NODE_VERSION, PROTOCOL_VERSION, TICKER
+from .params import (
+    DEFAULT_DATA_DIR,
+    DEFAULT_NODE_PORT,
+    DEFAULT_P2P_PORT,
+    DEFAULT_POOL_PORT,
+    DEFAULT_RPC_PORT,
+    DEFAULT_TESTNET_SEEDS,
+    NETWORKS,
+    NODE_VERSION,
+    PROTOCOL_VERSION,
+    TICKER,
+)
 from .pool import run_pool
 from .psbt import PartiallySignedTransaction
 from .rpc import run_rpc
@@ -33,13 +43,16 @@ from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_h
 from .soak import SoakConfig, run_soak
 from .tx import Transaction, amount_to_sats, sats_to_amount
 from .wallet import AutoLockWalletSession, Wallet, WalletError, confirm_seed_phrase, verify_seed_phrase
+from .webwallet import run_web_wallet
 
 
 def print_json(data: Any) -> None:
     print(json.dumps(data, indent=2, sort_keys=True))
 
 
-def load_address(wallet_path: Optional[str], address: Optional[str], *, address_type: str = "p2pkh", passphrase: Optional[str] = None) -> str:
+def load_address(
+    wallet_path: str | None, address: str | None, *, address_type: str = "p2pkh", passphrase: str | None = None
+) -> str:
     if wallet_path:
         return Wallet.load(wallet_path, passphrase=passphrase).address_for(address_type)
     if address:
@@ -47,7 +60,9 @@ def load_address(wallet_path: Optional[str], address: Optional[str], *, address_
     raise WalletError("provide --wallet or --address")
 
 
-def post_json(url: str, payload: Dict[str, Any], *, timeout: int = 10, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+def post_json(
+    url: str, payload: dict[str, Any], *, timeout: int = 10, headers: dict[str, str] | None = None
+) -> dict[str, Any]:
     body = json.dumps(payload).encode("utf-8")
     request_headers = {"Content-Type": "application/json"}
     if headers:
@@ -57,12 +72,12 @@ def post_json(url: str, payload: Dict[str, Any], *, timeout: int = 10, headers: 
         return json.loads(response.read().decode("utf-8"))
 
 
-def get_json(url: str, *, timeout: int = 10) -> Dict[str, Any]:
+def get_json(url: str, *, timeout: int = 10) -> dict[str, Any]:
     with urlopen(url, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
-def warn_if_node_incompatible(node_url: str, *, need_service: Optional[str] = None) -> None:
+def warn_if_node_incompatible(node_url: str, *, need_service: str | None = None) -> None:
     """Best-effort compatibility check for a remote ``--node``.
 
     Fetches ``/info`` and prints a warning (without raising) when the node looks
@@ -93,7 +108,7 @@ def warn_if_node_incompatible(node_url: str, *, need_service: Optional[str] = No
         )
 
 
-def find_transaction(chain: Blockchain, txid: str) -> Optional[Transaction]:
+def find_transaction(chain: Blockchain, txid: str) -> Transaction | None:
     for tx in chain.mempool:
         if tx.txid() == txid:
             return tx
@@ -160,7 +175,7 @@ def cmd_wallet_watch(args: argparse.Namespace) -> None:
 def cmd_verify_mnemonic(args: argparse.Namespace) -> None:
     phrase = args.from_mnemonic
     valid = verify_seed_phrase(phrase)
-    result: Dict[str, Any] = {"ok": valid, "seed_phrase_valid": valid}
+    result: dict[str, Any] = {"ok": valid, "seed_phrase_valid": valid}
     if not valid:
         result["error"] = "seed phrase is not a valid NetCoin phrase (unknown word or bad checksum)"
         print_json(result)
@@ -284,7 +299,7 @@ def cmd_wallet_scan(args: argparse.Namespace) -> None:
     if not verify_seed_phrase(args.from_mnemonic):
         print_json({"ok": False, "error": "seed phrase is not valid"})
         sys.exit(1)
-    chain = Blockchain(args.data)
+    chain = Blockchain(args.data, backend=getattr(args, "backend", None))
     accounts = []
     active = 0
     for index in range(args.gap + 1):
@@ -338,10 +353,16 @@ def cmd_wallet_unlock(args: argparse.Namespace) -> None:
     if getattr(args, "ttl_seconds", None):
         session = AutoLockWalletSession(args.wallet, passphrase=passphrase, ttl_seconds=args.ttl_seconds)
         wallet = session.get_wallet()
-        result: Dict[str, Any] = {"ok": True, "wallet_file": args.wallet, "address": wallet.address, "unlocked": True, "auto_lock": session.status()}
+        result: dict[str, Any] = {
+            "ok": True,
+            "wallet_file": args.wallet,
+            "address": wallet.address,
+            "unlocked": True,
+            "auto_lock": session.status(),
+        }
     else:
         wallet = Wallet.load(args.wallet, passphrase=passphrase)
-        result: Dict[str, Any] = {"ok": True, "wallet_file": args.wallet, "address": wallet.address, "unlocked": True}
+        result: dict[str, Any] = {"ok": True, "wallet_file": args.wallet, "address": wallet.address, "unlocked": True}
     if args.out:
         wallet.save(args.out, passphrase=None)
         os.chmod(args.out, 0o600)
@@ -370,7 +391,8 @@ def cmd_multisig_address(args: argparse.Namespace) -> None:
 def cmd_migrate_sqlite(args: argparse.Namespace) -> None:
     from .storage import SqliteChainStore
 
-    source = Blockchain(args.data, backend="json")
+    source_backend = "json" if (Path(args.data) / "chain.json").exists() else "sqlite"
+    source = Blockchain(args.data, backend=source_backend)
     store = SqliteChainStore(Path(args.data) / "netcoin.sqlite")
     store.save_chain(source.chain)
     store.save_mempool(source.mempool)
@@ -380,9 +402,10 @@ def cmd_migrate_sqlite(args: argparse.Namespace) -> None:
             "ok": True,
             "data_dir": args.data,
             "sqlite_file": str(Path(args.data) / "netcoin.sqlite"),
+            "source_backend": source_backend,
             "blocks": len(source.chain),
             "mempool": len(source.mempool),
-            "note": "Set NETCOIN_BACKEND=sqlite to run against the SQLite database.",
+            "note": "SQLite is now the default chain backend; use NETCOIN_BACKEND=json only for legacy JSON demos/export.",
         }
     )
 
@@ -495,7 +518,7 @@ def cmd_send(args: argparse.Namespace) -> None:
         wallet_data["change_index"] = int(wallet_data.get("change_index", 0)) + 1
         wallet_data["last_change_address"] = change_address
         wallet_path.write_text(json.dumps(wallet_data, indent=2, sort_keys=True))
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "ok": True,
         "txid": txid,
         "wtxid": tx.wtxid(),
@@ -511,7 +534,9 @@ def cmd_send(args: argparse.Namespace) -> None:
         "added_to_local_mempool": True,
     }
     if args.broadcast_to:
-        response = post_json(args.broadcast_to.rstrip("/") + "/tx", tx.to_dict(include_scripts=True, include_witness=True))
+        response = post_json(
+            args.broadcast_to.rstrip("/") + "/tx", tx.to_dict(include_scripts=True, include_witness=True)
+        )
         result["broadcast_response"] = response
     print_json(result)
 
@@ -542,7 +567,9 @@ def cmd_mempool(args: argparse.Namespace) -> None:
 def cmd_mempool_info(args: argparse.Namespace) -> None:
     if args.node:
         node = args.node.rstrip("/")
-        print_json(get_json(f"{node}/mempool?transactions={0 if args.summary else 1}&limit={args.limit}", timeout=args.timeout))
+        print_json(
+            get_json(f"{node}/mempool?transactions={0 if args.summary else 1}&limit={args.limit}", timeout=args.timeout)
+        )
         return
     chain = Blockchain(args.data)
     info = chain.mempool_info()
@@ -556,7 +583,11 @@ def cmd_mempool_clear(args: argparse.Namespace) -> None:
         if not args.admin_token:
             raise ChainError("--admin-token is required for remote mempool-clear")
         node = args.node.rstrip("/")
-        print_json(post_json(f"{node}/mempool/clear", {}, timeout=args.timeout, headers={"X-Netcoin-Admin-Token": args.admin_token}))
+        print_json(
+            post_json(
+                f"{node}/mempool/clear", {}, timeout=args.timeout, headers={"X-Netcoin-Admin-Token": args.admin_token}
+            )
+        )
         return
     chain = Blockchain(args.data)
     cleared = chain.clear_mempool()
@@ -600,6 +631,46 @@ def cmd_reindex(args: argparse.Namespace) -> None:
     print_json({"ok": True, "reindexed": True, "integrity": chain.verify_integrity()})
 
 
+def cmd_chainstate_hash(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data, backend=args.backend) if getattr(args, "backend", None) else Blockchain(args.data)
+    print_json({"ok": True, "chainstate": chain.chainstate_commitment()})
+
+
+def cmd_verify_db(args: argparse.Namespace) -> None:
+    chain = Blockchain(args.data, backend=args.backend) if getattr(args, "backend", None) else Blockchain(args.data)
+    integrity = chain.verify_integrity()
+    payload = {"ok": bool(integrity.get("ok")), "integrity": integrity, "chainstate": chain.chainstate_commitment()}
+    print_json(payload)
+    if args.fail_on_issues and not payload["ok"]:
+        raise ChainError("database verification failed")
+
+
+def cmd_backup(args: argparse.Namespace) -> None:
+    src = Path(args.data)
+    src.mkdir(parents=True, exist_ok=True)
+    dest = Path(args.out)
+    if dest.exists() and not args.force:
+        raise ChainError(f"backup destination already exists: {dest}")
+    if dest.exists():
+        shutil.rmtree(dest) if dest.is_dir() else dest.unlink()
+    shutil.copytree(src, dest)
+    print_json({"ok": True, "backup": str(dest), "source": str(src)})
+
+
+def cmd_restore(args: argparse.Namespace) -> None:
+    src = Path(args.backup)
+    dest = Path(args.data)
+    if not src.exists() or not src.is_dir():
+        raise ChainError("backup directory does not exist")
+    if dest.exists() and any(dest.iterdir()) and not args.force:
+        raise ChainError("target data directory is not empty; use --force to replace it")
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(src, dest)
+    chain = Blockchain(dest)
+    print_json({"ok": True, "restored": str(dest), "height": chain.height(), "tip_hash": chain.tip_hash()})
+
+
 def cmd_blockfilter(args: argparse.Namespace) -> None:
     from .blockfilter import build_block_filter, filter_hash
 
@@ -618,8 +689,15 @@ def cmd_blockfilter(args: argparse.Namespace) -> None:
         print_json({"ok": False, "error": "block not found"})
         return
     data = build_block_filter(block)
-    print_json({"block_hash": block.hash(), "height": block.header.height, "filter": data.hex(),
-                "filter_hash": filter_hash(data), "bytes": len(data)})
+    print_json(
+        {
+            "block_hash": block.hash(),
+            "height": block.header.height,
+            "filter": data.hex(),
+            "filter_hash": filter_hash(data),
+            "bytes": len(data),
+        }
+    )
 
 
 def cmd_scan_filters(args: argparse.Namespace) -> None:
@@ -641,7 +719,7 @@ def cmd_scan_filters(args: argparse.Namespace) -> None:
     tip = get_json(f"{node}/info")["node"]["height"]
     start = max(0, args.start)
     end = tip if args.end is None else min(args.end, tip)
-    matches: List[Dict[str, Any]] = []
+    matches: list[dict[str, Any]] = []
     filter_bytes = 0
     scanned = 0
     height = start
@@ -658,13 +736,15 @@ def cmd_scan_filters(args: argparse.Namespace) -> None:
             if hit:
                 matches.append({"height": hdr["height"], "hash": hdr["hash"], "addresses": hit})
         height = headers[-1]["height"] + 1
-    print_json({
-        "addresses": addresses,
-        "scanned_blocks": scanned,
-        "filter_bytes_downloaded": filter_bytes,
-        "matched_blocks": matches,
-        "note": "fetch only the matched blocks in full to read the payments",
-    })
+    print_json(
+        {
+            "addresses": addresses,
+            "scanned_blocks": scanned,
+            "filter_bytes_downloaded": filter_bytes,
+            "matched_blocks": matches,
+            "note": "fetch only the matched blocks in full to read the payments",
+        }
+    )
 
 
 def cmd_hd_derive(args: argparse.Namespace) -> None:
@@ -672,33 +752,37 @@ def cmd_hd_derive(args: argparse.Namespace) -> None:
 
     leaf = HDKey.from_mnemonic(args.mnemonic, passphrase=args.passphrase or "").derive_path(args.path)
     wallet = Wallet(private_key=leaf.key)
-    print_json({
-        "path": args.path,
-        "addresses": {t: wallet.address_for(t) for t in ("legacy", "segwit", "taproot", "p2sh-segwit")},
-        "wif": wallet.wif,
-        "xprv": leaf.extended_private_key(),
-        "xpub": leaf.neuter().extended_public_key(),
-        "warning": "Educational HD wallet. Keep the mnemonic/xprv secret.",
-    })
+    print_json(
+        {
+            "path": args.path,
+            "addresses": {t: wallet.address_for(t) for t in ("legacy", "segwit", "taproot", "p2sh-segwit")},
+            "wif": wallet.wif,
+            "xprv": leaf.extended_private_key(),
+            "xpub": leaf.neuter().extended_public_key(),
+            "warning": "Educational HD wallet. Keep the mnemonic/xprv secret.",
+        }
+    )
 
 
 def cmd_hd_address(args: argparse.Namespace) -> None:
     """Watch-only: derive a receive address from an account xpub (no private key)."""
-    from .hd import HDKey
     from .crypto import public_key_to_address, public_key_to_p2wpkh_address, public_key_to_taproot_address
+    from .hd import HDKey
 
     account = HDKey.from_extended_key(args.xpub)
     child = account.derive(args.change).derive(args.index)
     pub = child.public_key
-    print_json({
-        "path": f".../{args.change}/{args.index}",
-        "watch_only": True,
-        "addresses": {
-            "legacy": public_key_to_address(pub),
-            "segwit": public_key_to_p2wpkh_address(pub),
-            "taproot": public_key_to_taproot_address(pub[1:]),
-        },
-    })
+    print_json(
+        {
+            "path": f".../{args.change}/{args.index}",
+            "watch_only": True,
+            "addresses": {
+                "legacy": public_key_to_address(pub),
+                "segwit": public_key_to_p2wpkh_address(pub),
+                "taproot": public_key_to_taproot_address(pub[1:]),
+            },
+        }
+    )
 
 
 def cmd_signmessage(args: argparse.Namespace) -> None:
@@ -737,31 +821,39 @@ def cmd_channel_demo(args: argparse.Namespace) -> None:
     channel.set_funding(utxo.txid, utxo.vout, utxo.output.amount)
 
     history = []
-    for entry in (args.pay or ["a:3", "a:1.5", "b:0.5"]):
+    for entry in args.pay or ["a:3", "a:1.5", "b:0.5"]:
         sender, amount = entry.split(":")
         channel.pay(sender.strip().lower(), amount_to_sats(amount.strip()))
-        history.append({"sender": sender.strip(), "amount": amount.strip(),
-                        "A": channel.balance_a / 1e8, "B": channel.balance_b / 1e8})
+        history.append(
+            {
+                "sender": sender.strip(),
+                "amount": amount.strip(),
+                "A": channel.balance_a / 1e8,
+                "B": channel.balance_b / 1e8,
+            }
+        )
 
     close = channel.settlement_tx(a.address, b.address, fee=amount_to_sats("0.01"))
     channel.cosign(close, a.private_key, b.private_key)
     chain.add_mempool_transaction(close)
     chain.mine_block(a.address)
 
-    print_json({
-        "funding_address_2of2": channel.address,
-        "capacity_net": capacity / 1e8,
-        "offchain_payments": history,
-        "offchain_state_versions": channel.version,
-        "settlement_txid": close.txid(),
-        "onchain_B_balance_net": chain.balances_for_address(b.address)["total"] / 1e8,
-        "note": "Only open + close hit the chain; all payments in between were off-chain.",
-    })
+    print_json(
+        {
+            "funding_address_2of2": channel.address,
+            "capacity_net": capacity / 1e8,
+            "offchain_payments": history,
+            "offchain_state_versions": channel.version,
+            "settlement_txid": close.txid(),
+            "onchain_B_balance_net": chain.balances_for_address(b.address)["total"] / 1e8,
+            "note": "Only open + close hit the chain; all payments in between were off-chain.",
+        }
+    )
 
 
 def cmd_taproot_tree(args: argparse.Namespace) -> None:
-    from .taproot import taproot_output
     from .crypto import private_key_to_xonly_public_key
+    from .taproot import taproot_output
 
     if args.wallet:
         wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
@@ -794,13 +886,15 @@ def cmd_export_allocation(args: argparse.Namespace) -> None:
     allocation = export_allocation(chain)
     if args.out:
         save_allocation(allocation, args.out)
-    print_json({
-        "addresses": len(allocation),
-        "total_sats": sum(allocation.values()),
-        "total_net": sats_to_amount(sum(allocation.values())),
-        "saved_to": args.out,
-        "note": "load with Blockchain(genesis_allocation=...) on the relaunch to preserve balances",
-    })
+    print_json(
+        {
+            "addresses": len(allocation),
+            "total_sats": sum(allocation.values()),
+            "total_net": sats_to_amount(sum(allocation.values())),
+            "saved_to": args.out,
+            "note": "load with Blockchain(genesis_allocation=...) on the relaunch to preserve balances",
+        }
+    )
 
 
 def cmd_export(args: argparse.Namespace) -> None:
@@ -810,7 +904,7 @@ def cmd_export(args: argparse.Namespace) -> None:
 
 def cmd_import(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
-    with open(args.file, "r", encoding="utf-8") as fh:
+    with open(args.file, encoding="utf-8") as fh:
         data = json.load(fh)
     blocks = chain.import_chain_data(data)
     changed = chain.replace_chain(blocks)
@@ -825,12 +919,18 @@ def cmd_headers(args: argparse.Namespace) -> None:
 def cmd_fee(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
     sat_vb = chain.estimate_fee_rate(args.target)
-    print_json({"target_blocks": args.target, "feerate_sat_vb": sat_vb, "feerate_net_kvb": sats_to_amount(sat_vb * 1000)})
+    print_json(
+        {"target_blocks": args.target, "feerate_sat_vb": sat_vb, "feerate_net_kvb": sats_to_amount(sat_vb * 1000)}
+    )
 
 
 def cmd_template(args: argparse.Namespace) -> None:
     chain = Blockchain(args.data)
-    address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase) if (args.wallet or args.address) else None
+    address = (
+        load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
+        if (args.wallet or args.address)
+        else None
+    )
     print_json(chain.get_block_template(miner_address=address))
 
 
@@ -857,8 +957,8 @@ def _maybe_harvest_miner_rewards(
     fee_sats: int,
     min_utxos: int,
     max_inputs: int,
-) -> Dict[str, Any]:
-    from .webwallet import consolidation_status, consolidate_coins
+) -> dict[str, Any]:
+    from .webwallet import consolidate_coins, consolidation_status
 
     status = consolidation_status(wallet, from_type, node, fee_sats=fee_sats, max_inputs=max_inputs)
     if status["spendable_utxos"] < min_utxos:
@@ -929,7 +1029,16 @@ def cmd_miner(args: argparse.Namespace) -> None:
                 harvests.append(harvest)
                 last_harvest_count = count
             if unlimited:
-                print_json({"ok": True, "node": node, "payout_address": payout, "mined": [record], "count": count, "running": True})
+                print_json(
+                    {
+                        "ok": True,
+                        "node": node,
+                        "payout_address": payout,
+                        "mined": [record],
+                        "count": count,
+                        "running": True,
+                    }
+                )
                 sys.stdout.flush()
             if args.sync_after:
                 try:
@@ -937,7 +1046,14 @@ def cmd_miner(args: argparse.Namespace) -> None:
                 except Exception:
                     pass
     except KeyboardInterrupt:
-        payload = {"ok": True, "node": node, "payout_address": payout, "mined": mined, "count": count, "stopped": "keyboard_interrupt"}
+        payload = {
+            "ok": True,
+            "node": node,
+            "payout_address": payout,
+            "mined": mined,
+            "count": count,
+            "stopped": "keyboard_interrupt",
+        }
         if harvests:
             payload["harvests"] = harvests
         print_json(payload)
@@ -968,7 +1084,14 @@ def cmd_rawtx(args: argparse.Namespace) -> None:
     if tx is None:
         raise ChainError("transaction not found")
     raw = tx_to_raw_hex(tx, include_witness=not args.no_witness)
-    print_json({"txid": tx.txid(), "wtxid": tx.wtxid(), "raw": raw, "decoded": decode_raw_transaction(raw) if args.decode else None})
+    print_json(
+        {
+            "txid": tx.txid(),
+            "wtxid": tx.wtxid(),
+            "raw": raw,
+            "decoded": decode_raw_transaction(raw) if args.decode else None,
+        }
+    )
 
 
 def cmd_rawblock(args: argparse.Namespace) -> None:
@@ -976,7 +1099,13 @@ def cmd_rawblock(args: argparse.Namespace) -> None:
     block = chain.tip() if args.block_hash == "tip" else chain.block_by_hash(args.block_hash)
     if block is None:
         raise ChainError("block not found")
-    print_json({"hash": block.hash(), "height": block.header.height, "raw": block_to_raw_hex(block, include_witness=not args.no_witness)})
+    print_json(
+        {
+            "hash": block.hash(),
+            "height": block.header.height,
+            "raw": block_to_raw_hex(block, include_witness=not args.no_witness),
+        }
+    )
 
 
 def cmd_decode_rawtx(args: argparse.Namespace) -> None:
@@ -987,7 +1116,16 @@ def cmd_script(args: argparse.Namespace) -> None:
     if not validate_address(args.address):
         raise ChainError("invalid NetCoin address")
     template = describe_address(args.address)
-    print_json({"address": args.address, "type": template.kind, "script_pubkey": template.script_pubkey.hex() if hasattr(template.script_pubkey, "hex") else template.script_pubkey, "description": template.description})
+    print_json(
+        {
+            "address": args.address,
+            "type": template.kind,
+            "script_pubkey": (
+                template.script_pubkey.hex() if hasattr(template.script_pubkey, "hex") else template.script_pubkey
+            ),
+            "description": template.description,
+        }
+    )
 
 
 def cmd_consolidate(args: argparse.Namespace) -> None:
@@ -997,7 +1135,9 @@ def cmd_consolidate(args: argparse.Namespace) -> None:
     from .webwallet import consolidate_coins
 
     wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
-    from_type = {"p2pkh": "legacy", "p2wpkh": "segwit", "p2tr": "taproot", "p2sh-segwit": "p2sh-segwit"}[args.address_type]
+    from_type = {"p2pkh": "legacy", "p2wpkh": "segwit", "p2tr": "taproot", "p2sh-segwit": "p2sh-segwit"}[
+        args.address_type
+    ]
     result = consolidate_coins(
         wallet,
         from_type,
@@ -1089,7 +1229,13 @@ def cmd_networks(args: argparse.Namespace) -> None:
 def cmd_p2p_message(args: argparse.Namespace) -> None:
     if args.parse:
         msg = Message.parse(bytes.fromhex(args.parse))
-        print_json({"command": msg.command, "payload_hex": msg.payload.hex(), "payload_text": msg.payload.decode("utf-8", errors="replace")})
+        print_json(
+            {
+                "command": msg.command,
+                "payload_hex": msg.payload.hex(),
+                "payload_text": msg.payload.decode("utf-8", errors="replace"),
+            }
+        )
     else:
         msg = version_message(args.height)
         print_json({"command": msg.command, "message_hex": msg.serialize().hex()})
@@ -1136,7 +1282,9 @@ def cmd_soak(args: argparse.Namespace) -> None:
 
 
 def cmd_fuzz(args: argparse.Namespace) -> None:
-    report = run_fuzz(FuzzConfig(target=args.target, iterations=args.iterations, seed=args.seed, max_bytes=args.max_bytes))
+    report = run_fuzz(
+        FuzzConfig(target=args.target, iterations=args.iterations, seed=args.seed, max_bytes=args.max_bytes)
+    )
     print_json(report)
 
 
@@ -1175,7 +1323,11 @@ def cmd_competitive_check(args: argparse.Namespace) -> None:
         elif getattr(args, "smoke", False):
             payload = all_area_smokes()
             if args.area:
-                payload = {"ok": payload["areas"][args.area]["ok"], "area": args.area, "result": payload["areas"][args.area]}
+                payload = {
+                    "ok": payload["areas"][args.area]["ok"],
+                    "area": args.area,
+                    "result": payload["areas"][args.area],
+                }
         else:
             payload = build_level5_report(args.area)
         print_json(payload)
@@ -1228,7 +1380,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--from-mnemonic", help="restore from a NetCoin seed phrase")
     p.add_argument("--mnemonic-passphrase", default="", help="optional seed phrase passphrase")
     p.add_argument("--wif", help="import a NetCoin WIF private key")
-    p.add_argument("--confirm-backup", action="store_true", help="require re-entering the seed phrase to confirm backup")
+    p.add_argument(
+        "--confirm-backup", action="store_true", help="require re-entering the seed phrase to confirm backup"
+    )
     p.set_defaults(func=cmd_wallet_new)
 
     p = sub.add_parser("wallet-watch", help="create a watch-only wallet file")
@@ -1278,6 +1432,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("wallet-scan", help="derive addresses 0..gap from a seed and report on-chain activity")
     p.add_argument("--from-mnemonic", required=True)
     p.add_argument("--gap", type=int, default=20, help="highest key index to scan (default 20)")
+    p.add_argument("--backend", choices=["sqlite", "json"], help="chain storage backend to scan")
     p.set_defaults(func=cmd_wallet_scan)
 
     p = sub.add_parser("wallet-unlock", help="verify an encrypted wallet opens; optionally write a decrypted copy")
@@ -1351,9 +1506,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--amount", required=True, help="amount in NET, e.g. 1.25")
     p.add_argument("--fee", default="0.001", help="fee in NET")
     p.add_argument("--rbf", action="store_true", help="signal opt-in replace-by-fee")
-    p.add_argument("--utxo", action="append", metavar="TXID:VOUT", help="coin control: spend specific UTXOs (repeatable)")
-    p.add_argument("--coin-strategy", default="greedy", choices=["greedy", "largest-first", "smallest-first", "random"], help="coin-selection strategy")
-    p.add_argument("--rotate-change", action="store_true", help="rotate change across wallet-controlled address types and persist change_index")
+    p.add_argument(
+        "--utxo", action="append", metavar="TXID:VOUT", help="coin control: spend specific UTXOs (repeatable)"
+    )
+    p.add_argument(
+        "--coin-strategy",
+        default="greedy",
+        choices=["greedy", "largest-first", "smallest-first", "random"],
+        help="coin-selection strategy",
+    )
+    p.add_argument(
+        "--rotate-change",
+        action="store_true",
+        help="rotate change across wallet-controlled address types and persist change_index",
+    )
     p.add_argument("--broadcast-to", help="node URL, e.g. http://127.0.0.1:18444")
     p.set_defaults(func=cmd_send)
 
@@ -1408,11 +1574,31 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--save-blocks", help="optional directory for solved block JSON files")
     p.add_argument("--sync-after", action="store_true", help="ask the node to sync after each submission")
     p.add_argument("--timeout", type=int, default=45, help="node request timeout seconds (default 45)")
-    p.add_argument("--auto-harvest", action="store_true", help="periodically consolidate matured mining rewards back to this wallet")
-    p.add_argument("--harvest-every", type=int, default=25, help="with --auto-harvest, check consolidation every N mined blocks (default 25)")
-    p.add_argument("--harvest-min-utxos", type=int, default=50, help="with --auto-harvest, skip unless at least N mature coins exist (default 50)")
-    p.add_argument("--harvest-fee", default="0.00010000", help="fee per auto-harvest consolidation transaction (default 0.00010000)")
-    p.add_argument("--harvest-max-inputs", type=int, default=200, help="max inputs per auto-harvest transaction (default 200)")
+    p.add_argument(
+        "--auto-harvest",
+        action="store_true",
+        help="periodically consolidate matured mining rewards back to this wallet",
+    )
+    p.add_argument(
+        "--harvest-every",
+        type=int,
+        default=25,
+        help="with --auto-harvest, check consolidation every N mined blocks (default 25)",
+    )
+    p.add_argument(
+        "--harvest-min-utxos",
+        type=int,
+        default=50,
+        help="with --auto-harvest, skip unless at least N mature coins exist (default 50)",
+    )
+    p.add_argument(
+        "--harvest-fee",
+        default="0.00010000",
+        help="fee per auto-harvest consolidation transaction (default 0.00010000)",
+    )
+    p.add_argument(
+        "--harvest-max-inputs", type=int, default=200, help="max inputs per auto-harvest transaction (default 200)"
+    )
     p.set_defaults(func=cmd_miner)
 
     p = sub.add_parser("rawtx", help="export a transaction in Bitcoin-style raw hex")
@@ -1437,8 +1623,29 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("validate", help="validate the whole local chain")
     p.set_defaults(func=cmd_validate)
 
-    p = sub.add_parser("reindex", help="rebuild indexes and the UTXO set from block data (recovers a corrupt chain file)")
+    p = sub.add_parser(
+        "reindex", help="rebuild indexes and the UTXO set from block data (recovers a corrupt chain file)"
+    )
     p.set_defaults(func=cmd_reindex)
+
+    p = sub.add_parser("chainstate-hash", help="print a deterministic commitment to height, tip, and UTXO set")
+    p.add_argument("--backend", choices=["json", "sqlite"], help="storage backend override")
+    p.set_defaults(func=cmd_chainstate_hash)
+
+    p = sub.add_parser("verify-db", help="verify block indexes, UTXO set, address index, and chainstate commitment")
+    p.add_argument("--backend", choices=["json", "sqlite"], help="storage backend override")
+    p.add_argument("--fail-on-issues", action="store_true")
+    p.set_defaults(func=cmd_verify_db)
+
+    p = sub.add_parser("backup", help="copy node data and app-layer state to a backup directory")
+    p.add_argument("--out", required=True)
+    p.add_argument("--force", action="store_true")
+    p.set_defaults(func=cmd_backup)
+
+    p = sub.add_parser("restore", help="restore node data from a backup directory")
+    p.add_argument("backup")
+    p.add_argument("--force", action="store_true")
+    p.set_defaults(func=cmd_restore)
 
     p = sub.add_parser("hd-derive", help="derive an HD (BIP32) key + NetCoin addresses from a mnemonic at a path")
     p.add_argument("--mnemonic", required=True, help="seed phrase")
@@ -1502,7 +1709,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("export", help="export chain JSON")
     p.set_defaults(func=cmd_export)
 
-    p = sub.add_parser("export-allocation", help="snapshot per-address balances for a relaunch (preserve coins across a new genesis)")
+    p = sub.add_parser(
+        "export-allocation", help="snapshot per-address balances for a relaunch (preserve coins across a new genesis)"
+    )
     p.add_argument("--out", help="write the allocation JSON to this file")
     p.set_defaults(func=cmd_export_allocation)
 
@@ -1510,7 +1719,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.set_defaults(func=cmd_import)
 
-    p = sub.add_parser("consolidate", help="sweep many small coins into one so large sends work (fixes 'too many inputs')")
+    p = sub.add_parser(
+        "consolidate", help="sweep many small coins into one so large sends work (fixes 'too many inputs')"
+    )
     p.add_argument("--node", required=True, help="node URL, e.g. http://18.220.89.128/api")
     p.add_argument("--wallet", required=True, help="wallet JSON path")
     p.add_argument("--address-type", default="p2wpkh", choices=["p2pkh", "p2wpkh", "p2tr", "p2sh-segwit"])
@@ -1526,10 +1737,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seeds", action="store_true", help="also connect to the built-in public testnet seeds")
     p.add_argument("--advertise", help="public URL to announce to peers for gossip discovery")
     p.add_argument("--config", help="path to a netcoin.conf (JSON or key=value)")
-    p.add_argument("--sync-interval", type=int, default=0, help="background peer discovery/sync interval in seconds; 0 disables")
-    p.add_argument("--p2p-port", type=int, default=DEFAULT_P2P_PORT, help="binary TCP P2P port served alongside HTTP; 0 disables")
+    p.add_argument(
+        "--sync-interval", type=int, default=0, help="background peer discovery/sync interval in seconds; 0 disables"
+    )
+    p.add_argument(
+        "--p2p-port", type=int, default=DEFAULT_P2P_PORT, help="binary TCP P2P port served alongside HTTP; 0 disables"
+    )
     p.add_argument("--rate-limit-per-min", type=int, default=240, help="per-IP/per-path HTTP request limit; 0 disables")
-    p.add_argument("--trust-proxy-headers", action="store_true", help="honor X-Forwarded-For only when behind a trusted reverse proxy")
+    p.add_argument(
+        "--trust-proxy-headers",
+        action="store_true",
+        help="honor X-Forwarded-For only when behind a trusted reverse proxy",
+    )
     p.set_defaults(func=cmd_node)
 
     p = sub.add_parser("rpc", help="run JSON-RPC server")
@@ -1561,12 +1780,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8080)
     p.add_argument("--rate-limit-per-min", type=int, default=240, help="per-IP/per-path request limit; 0 disables")
-    p.add_argument("--trust-proxy-headers", action="store_true", help="honor X-Forwarded-For only when behind a trusted reverse proxy")
+    p.add_argument(
+        "--trust-proxy-headers",
+        action="store_true",
+        help="honor X-Forwarded-For only when behind a trusted reverse proxy",
+    )
     p.set_defaults(func=cmd_explorer_server)
 
     p = sub.add_parser("web", help="local web wallet + faucet + explorer page (open in a browser)")
-    p.add_argument("--node", default="https://api.netcoin.online/api", help="NetCoin node/API to query and broadcast through. The default HTTPS API avoids home-network blocks on port 28444.")
-    p.add_argument("--faucet", default="https://faucet.netcoin.online", help="faucet URL to link to (set empty to hide)")
+    p.add_argument(
+        "--node",
+        default="https://api.netcoin.online/api",
+        help="NetCoin node/API to query and broadcast through. The default HTTPS API avoids home-network blocks on port 28444.",
+    )
+    p.add_argument(
+        "--faucet", default="https://faucet.netcoin.online", help="faucet URL to link to (set empty to hide)"
+    )
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8088)
     p.set_defaults(func=cmd_web)
@@ -1618,10 +1847,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--level5", action="store_true", help="show the 5/10 midlevel implementation report")
     p.add_argument("--validate", action="store_true", help="validate that all competitive features are at least 5/10")
     p.add_argument("--smoke", action="store_true", help="run deterministic midlevel area smoke checks")
-    p.add_argument("--fail-on-issues", action="store_true", help="exit non-zero if level-5 validation/smoke checks fail")
+    p.add_argument(
+        "--fail-on-issues", action="store_true", help="exit non-zero if level-5 validation/smoke checks fail"
+    )
     p.set_defaults(func=cmd_competitive_check)
 
-    p = sub.add_parser("professional-check", help="run professional-readiness, issue, protocol-vector, and release-manifest checks")
+    p = sub.add_parser(
+        "professional-check", help="run professional-readiness, issue, protocol-vector, and release-manifest checks"
+    )
     p.add_argument("--root", help="repository root (default: package checkout root)")
     p.add_argument("--issues", action="store_true", help="print compact issue report")
     p.add_argument("--vectors", action="store_true", help="print protocol test vectors")
@@ -1639,7 +1872,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:

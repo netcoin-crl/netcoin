@@ -1,4 +1,5 @@
 """CLI wallet commands: backup, recovery test, watch-only export, key-export guard."""
+
 import argparse
 import json
 from http.server import ThreadingHTTPServer

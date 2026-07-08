@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      python-dev-tooling:
+        patterns: ["ruff", "black", "mypy", "pytest*", "bandit", "pre-commit"]
+  - package-ecosystem: "npm"
+    directory: "/webwallet-browser"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

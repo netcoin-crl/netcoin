@@ -1,5 +1,6 @@
 """BIP32 HD key derivation (#hd): validated against the official BIP32 test
 vectors, plus watch-only (xpub) derivation, round-trips, and NetCoin addresses."""
+
 import pytest
 
 from netcoin.crypto import validate_address

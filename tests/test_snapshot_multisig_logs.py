@@ -1,5 +1,6 @@
 """UTXO snapshot (#23), multisig address (#26), structured logging (#19),
 explorer mempool section (#43)."""
+
 import argparse
 import json
 from pathlib import Path
@@ -8,7 +9,7 @@ from netcoin import cli
 from netcoin.chain import Blockchain
 from netcoin.explorer import generate_explorer
 from netcoin.logsetup import json_logging_enabled, structured_log
-from netcoin.tx import Transaction, TxInput, TxOutput, amount_to_sats
+from netcoin.tx import amount_to_sats
 from netcoin.wallet import Wallet
 
 
@@ -22,6 +23,7 @@ def funded(tmp_path: Path):
 
 
 # --- 23 UTXO snapshot ---
+
 
 def test_utxo_snapshot_export_and_verify(tmp_path: Path):
     chain, miner, _ = funded(tmp_path)
@@ -52,6 +54,7 @@ def test_utxo_snapshot_cli_writes_file(tmp_path: Path, capsys):
 
 # --- 26 multisig ---
 
+
 def test_multisig_address_cli(tmp_path: Path, capsys):
     keys = [Wallet.create().public_key_hex for _ in range(3)]
     cli.cmd_multisig_address(argparse.Namespace(required=2, pubkey=keys))
@@ -63,6 +66,7 @@ def test_multisig_address_cli(tmp_path: Path, capsys):
 
 
 # --- 19 structured logging ---
+
 
 def test_structured_log_is_valid_json():
     line = structured_log("block_accepted", component="node", hash="abc", height=5)
@@ -81,6 +85,7 @@ def test_json_logging_toggle(monkeypatch):
 
 
 # --- 43 explorer mempool section ---
+
 
 def test_explorer_shows_mempool(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path)

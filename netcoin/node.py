@@ -11,20 +11,29 @@ import hmac
 import json
 import os
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Event, Thread
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
 from .apps import AppError, AppStore, route_app_get, route_app_post
-from .crypto import _fast_crypto_enabled, crypto_backend_status
 from .block import Block
 from .chain import Blockchain
-from .compact import CompactBlock, CompactBlockError, compact_missing_payload, make_compact_block, missing_transactions, reconstruct_compact_block
+from .compact import (
+    CompactBlock,
+    CompactBlockError,
+    compact_missing_payload,
+    make_compact_block,
+    missing_transactions,
+    reconstruct_compact_block,
+)
+from .crypto import _fast_crypto_enabled, crypto_backend_status, crypto_self_test
 from .logsetup import emit
+from .p2p import PeerManager
 from .params import (
     DEFAULT_NODE_PORT,
     DEFAULT_P2P_PORT,
@@ -49,7 +58,7 @@ class RateLimiter:
     def __init__(self, max_requests: int = 240, window_seconds: int = 60):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self._hits: Dict[Any, List[float]] = {}
+        self._hits: dict[Any, list[float]] = {}
 
     def allow(self, key: Any) -> bool:
         if self.max_requests <= 0:
@@ -88,8 +97,8 @@ class RelayItem:
     kind: str
     path: str
     inventory_id: str
-    payload: Dict[str, Any]
-    peers: List[str]
+    payload: dict[str, Any]
+    peers: list[str]
     attempts: int = 0
     next_try_at: float = 0.0
     created_at: float = field(default_factory=time.time)
@@ -99,10 +108,10 @@ class NetCoinNode:
     def __init__(
         self,
         chain: Blockchain,
-        peers: Optional[Iterable[str]] = None,
-        peers_path: Optional[str] = None,
+        peers: Iterable[str] | None = None,
+        peers_path: str | None = None,
         persist: bool = True,
-        self_url: Optional[str] = None,
+        self_url: str | None = None,
         max_peers: int = 128,
         rate_limit_per_min: int = 240,
         request_timeout: int = 5,
@@ -112,20 +121,21 @@ class NetCoinNode:
     ):
         self.chain = chain
         self.peers = set()
-        self.orphans: Dict[str, Block] = {}
+        self.orphans: dict[str, Block] = {}
         self.persist = persist
         self.max_peers = max_peers
         self.self_url = self._normalize_peer(self_url) if self_url else None
         # Peer reputation: scores adjust on good/bad behavior; reaching the ban
         # threshold bans the peer. Bans persist to banned_peers.json.
-        self.peer_scores: Dict[str, int] = {}
+        self.peer_scores: dict[str, int] = {}
         self.banned: set = set()
         self.ban_threshold = ban_threshold
+        self.peer_manager = PeerManager(max_per_prefix=4, ban_score=abs(ban_threshold), ban_seconds=ban_ttl_seconds)
         # Bans expire after this many seconds (0 = permanent) so a transient
         # outage doesn't partition a peer forever; ban_times records when each
         # ban started.
         self.ban_ttl_seconds = max(0, ban_ttl_seconds)
-        self.ban_times: Dict[str, float] = {}
+        self.ban_times: dict[str, float] = {}
         # Trusted peers (configured via --peer) are never auto-banned and are
         # auto-unbanned at startup, so a routine restart/blip can't permanently
         # self-partition our own seeds.
@@ -141,18 +151,18 @@ class NetCoinNode:
         self.request_timeout = request_timeout
         self.request_retries = max(0, request_retries)
         # Bounded event log for block-propagation visibility.
-        self.event_log: List[Dict[str, Any]] = []
+        self.event_log: list[dict[str, Any]] = []
         self.max_events = 500
         # Bounded memory of recently relayed block hashes so a block is not
         # re-broadcast in a relay loop when peers echo it back.
-        self._broadcast_seen: List[str] = []
+        self._broadcast_seen: list[str] = []
         self._broadcast_seen_set: set[str] = set()
         # Bounded inventory cache + relay queue. Inventory keeps echoed tx/block
         # announcements from being re-enqueued repeatedly; failed deliveries stay
         # queued with exponential backoff for a later drain.
-        self._relay_inventory: List[str] = []
+        self._relay_inventory: list[str] = []
         self._relay_inventory_set: set[str] = set()
-        self._relay_queue: List[RelayItem] = []
+        self._relay_queue: list[RelayItem] = []
         self.max_relay_inventory = 2000
         self.max_relay_queue = 1000
         self.max_node_orphans = 200
@@ -162,7 +172,7 @@ class NetCoinNode:
         # Tiny in-process response cache for read-heavy public endpoints. This
         # protects the Python node from repeated explorer/status refreshes without
         # changing consensus state or write endpoints.
-        self._response_cache: Dict[str, tuple[float, Dict[str, Any]]] = {}
+        self._response_cache: dict[str, tuple[float, dict[str, Any]]] = {}
         self.peers_path = Path(peers_path) if peers_path else (Path(chain.data_dir) / "peers.json")
         self._load_banned()
         # Recover trusted peers that a previous run auto-banned during a transient
@@ -171,6 +181,12 @@ class NetCoinNode:
         self._load_peers()
         for peer in peers or []:
             self.add_peer(peer)
+
+    def _peer_manager_address(self, peer: str) -> str:
+        parsed = urlparse(peer)
+        host = parsed.hostname or peer
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        return f"{host}:{port}"
 
     def _normalize_peer(self, peer: str) -> str:
         peer = peer.rstrip("/")
@@ -193,6 +209,12 @@ class NetCoinNode:
         if normalized not in self.peers and len(self.peers) >= self.max_peers:
             return
         self.peers.add(normalized)
+        try:
+            self.peer_manager.add_peer(
+                self._peer_manager_address(normalized), direction="outbound", user_agent=USER_AGENT
+            )
+        except Exception:
+            pass
         self._save_peers()
 
     def _load_banned(self) -> None:
@@ -221,10 +243,16 @@ class NetCoinNode:
             return
         try:
             self.banned_path.parent.mkdir(parents=True, exist_ok=True)
-            self.banned_path.write_text(json.dumps(
-                {"banned": sorted(self.banned),
-                 "ban_times": {p: self.ban_times[p] for p in sorted(self.banned) if p in self.ban_times}},
-                indent=2, sort_keys=True))
+            self.banned_path.write_text(
+                json.dumps(
+                    {
+                        "banned": sorted(self.banned),
+                        "ban_times": {p: self.ban_times[p] for p in sorted(self.banned) if p in self.ban_times},
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         except OSError:
             pass
 
@@ -273,6 +301,12 @@ class NetCoinNode:
         self.peer_scores.pop(normalized, None)
         self._save_peers()
         self._save_banned()
+        try:
+            self.peer_manager.report_misbehavior(
+                self._peer_manager_address(normalized), abs(self.ban_threshold), reason or "manual ban"
+            )
+        except Exception:
+            pass
         self.log_event("peer_banned", peer=normalized, reason=reason)
 
     def unban_peer(self, peer: str) -> bool:
@@ -294,6 +328,17 @@ class NetCoinNode:
         self.peer_scores[normalized] = score
         # Scores still track reputation for visibility, but a trusted (configured)
         # peer is never auto-banned — transient failures must not partition us.
+        try:
+            if delta < 0:
+                self.peer_manager.report_misbehavior(
+                    self._peer_manager_address(normalized), abs(delta), reason or "node score penalty"
+                )
+            else:
+                self.peer_manager.add_peer(
+                    self._peer_manager_address(normalized), direction="outbound", user_agent=USER_AGENT
+                )
+        except Exception:
+            pass
         if score <= self.ban_threshold and normalized not in self.trusted_peers:
             self.ban_peer(normalized, reason=reason or "score below threshold")
         return score
@@ -332,7 +377,7 @@ class NetCoinNode:
                 continue
         return delivered
 
-    def bootstrap(self) -> Dict[str, int]:
+    def bootstrap(self) -> dict[str, int]:
         """Announce ourselves, learn new peers, then sync chains."""
         announced = self.announce_self()
         learned = self.discover_peers()
@@ -394,7 +439,7 @@ class NetCoinNode:
     def genesis_hash(self) -> str:
         return self.chain.chain[0].hash()
 
-    def info(self) -> Dict[str, Any]:
+    def info(self) -> dict[str, Any]:
         data = self.chain.chain_info()
         # Version-handshake fields let peers check compatibility (genesis, network,
         # protocol) before trusting each other.
@@ -410,7 +455,9 @@ class NetCoinNode:
                 "spacing_v2_activation_height": SPACING_V2_ACTIVATION_HEIGHT,
                 "fast_crypto": _fast_crypto_enabled(),
                 "crypto_backend": crypto_backend_status(),
+                "crypto_self_test": crypto_self_test(),
                 "peers": sorted(self.peers),
+                "peer_manager": {"active": self.peer_manager.active_peers(), "banned": self.peer_manager.banlist()},
                 "banned": len(self.banned),
                 "orphans": len(self.orphans),
                 "services": self.SERVICES,
@@ -418,7 +465,7 @@ class NetCoinNode:
         )
         return data
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         chain_info = self.chain.chain_info()
         return {
             "ok": True,
@@ -436,7 +483,7 @@ class NetCoinNode:
             "services": self.SERVICES,
         }
 
-    def cached_response(self, key: str, ttl_seconds: float, builder: Any) -> Dict[str, Any]:
+    def cached_response(self, key: str, ttl_seconds: float, builder: Any) -> dict[str, Any]:
         now = time.time()
         cached = self._response_cache.get(key)
         if cached and cached[0] >= now:
@@ -488,12 +535,12 @@ class NetCoinNode:
             del self.event_log[: len(self.event_log) - self.max_events]
         emit(kind, component="node", **fields)
 
-    def recent_events(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def recent_events(self, limit: int = 100) -> list[dict[str, Any]]:
         return self.event_log[-limit:][::-1]
 
-    def fetch_json(self, url: str, timeout: Optional[int] = None) -> Dict[str, Any]:
+    def fetch_json(self, url: str, timeout: int | None = None) -> dict[str, Any]:
         timeout = self.request_timeout if timeout is None else timeout
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for attempt in range(self.request_retries + 1):
             try:
                 with urlopen(url, timeout=timeout) as response:
@@ -502,10 +549,10 @@ class NetCoinNode:
                 last_exc = exc
         raise last_exc if last_exc else NodeError("fetch failed")
 
-    def post_json(self, url: str, payload: Dict[str, Any], timeout: Optional[int] = None) -> Dict[str, Any]:
+    def post_json(self, url: str, payload: dict[str, Any], timeout: int | None = None) -> dict[str, Any]:
         timeout = self.request_timeout if timeout is None else timeout
         body = json.dumps(payload).encode("utf-8")
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for attempt in range(self.request_retries + 1):
             try:
                 request = Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
@@ -515,7 +562,7 @@ class NetCoinNode:
                 last_exc = exc
         raise last_exc if last_exc else NodeError("post failed")
 
-    def compatible_peer(self, remote: Dict[str, Any]) -> bool:
+    def compatible_peer(self, remote: dict[str, Any]) -> bool:
         """Reject peers on a different genesis or network before syncing from them.
 
         Older peers may not report genesis/network; only reject on a clear mismatch."""
@@ -566,7 +613,7 @@ class NetCoinNode:
         # Compatibility fallback for older NetCoin nodes. Fetch pages from peers
         # that support bounded /chain responses; old peers may ignore the query and
         # return their full chain once.
-        blocks_payload: List[Dict[str, Any]] = []
+        blocks_payload: list[dict[str, Any]] = []
         start = 0
         limit = 2000
         while True:
@@ -681,9 +728,9 @@ class NetCoinNode:
         kind: str,
         path: str,
         inventory_id: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         *,
-        peers: Optional[Iterable[str]] = None,
+        peers: Iterable[str] | None = None,
         force: bool = False,
     ) -> bool:
         inventory_key = f"{kind}:{inventory_id}"
@@ -694,21 +741,27 @@ class NetCoinNode:
             return False
         if len(self._relay_queue) >= self.max_relay_queue:
             dropped = self._relay_queue.pop(0)
-            self.log_event("relay_dropped", item_kind=dropped.kind, inventory_id=dropped.inventory_id, reason="queue full")
-        self._relay_queue.append(RelayItem(kind=kind, path=path, inventory_id=inventory_id, payload=payload, peers=targets))
-        self.log_event("relay_queued", item_kind=kind, inventory_id=inventory_id, peers=len(targets), queue=len(self._relay_queue))
+            self.log_event(
+                "relay_dropped", item_kind=dropped.kind, inventory_id=dropped.inventory_id, reason="queue full"
+            )
+        self._relay_queue.append(
+            RelayItem(kind=kind, path=path, inventory_id=inventory_id, payload=payload, peers=targets)
+        )
+        self.log_event(
+            "relay_queued", item_kind=kind, inventory_id=inventory_id, peers=len(targets), queue=len(self._relay_queue)
+        )
         return True
 
     def drain_relay_queue(self) -> int:
         now = time.time()
         delivered = 0
-        remaining: List[RelayItem] = []
+        remaining: list[RelayItem] = []
         for item in self._relay_queue:
             if item.next_try_at > now:
                 remaining.append(item)
                 continue
             item.attempts += 1
-            failed: List[str] = []
+            failed: list[str] = []
             for peer in item.peers:
                 try:
                     self.post_json(f"{peer}{item.path}", item.payload)
@@ -730,7 +783,9 @@ class NetCoinNode:
                     attempts=item.attempts,
                 )
             else:
-                self.log_event("relay_delivered", item_kind=item.kind, inventory_id=item.inventory_id, attempts=item.attempts)
+                self.log_event(
+                    "relay_delivered", item_kind=item.kind, inventory_id=item.inventory_id, attempts=item.attempts
+                )
         self._relay_queue = remaining
         return delivered
 
@@ -754,10 +809,9 @@ class NetCoinNode:
         return delivered
 
 
-
-def fee_estimates_payload(chain: Blockchain, assumed_vbytes: int = 200) -> Dict[str, Any]:
+def fee_estimates_payload(chain: Blockchain, assumed_vbytes: int = 200) -> dict[str, Any]:
     presets = {"slow": 6, "normal": 3, "fast": 1}
-    payload: Dict[str, Any] = {"assumed_vbytes": int(assumed_vbytes), "presets": {}}
+    payload: dict[str, Any] = {"assumed_vbytes": int(assumed_vbytes), "presets": {}}
     for name, target in presets.items():
         estimate = chain.estimate_smart_fee(target)
         rate = int(estimate.get("fee_rate_per_kvb", 0))
@@ -769,16 +823,17 @@ def fee_estimates_payload(chain: Blockchain, assumed_vbytes: int = 200) -> Dict[
         }
     return payload
 
+
 def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
     app_store = AppStore(node.chain.data_dir)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "NetCoinNode/0.2"
 
-        def log_message(self, format: str, *args: Any) -> None:  # noqa: A003 - stdlib method name
+        def log_message(self, format: str, *args: Any) -> None:
             return
 
-        def read_json(self) -> Dict[str, Any]:
+        def read_json(self) -> dict[str, Any]:
             length = int(self.headers.get("Content-Length", "0"))
             if length > MAX_REQUEST_BODY_BYTES:
                 raise NodeError("request body too large")
@@ -792,7 +847,7 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
             super().end_headers()
 
-        def send_json(self, payload: Dict[str, Any], status: int = 200) -> None:
+        def send_json(self, payload: dict[str, Any], status: int = 200) -> None:
             body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
@@ -800,7 +855,9 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             self.end_headers()
             self.wfile.write(body)
 
-        def send_text(self, text: str | bytes, status: int = 200, content_type: str = "text/plain; version=0.0.4; charset=utf-8") -> None:
+        def send_text(
+            self, text: str | bytes, status: int = 200, content_type: str = "text/plain; version=0.0.4; charset=utf-8"
+        ) -> None:
             body = text if isinstance(text, bytes) else text.encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", content_type)
@@ -816,9 +873,17 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             self.end_headers()
             last = None
             for _ in range(30):
-                payload = {"height": node.chain.height(), "tip_hash": node.chain.tip_hash(), "mempool": len(node.chain.mempool), "peers": len(node.peers), "t": int(time.time())}
+                payload = {
+                    "height": node.chain.height(),
+                    "tip_hash": node.chain.tip_hash(),
+                    "mempool": len(node.chain.mempool),
+                    "peers": len(node.peers),
+                    "t": int(time.time()),
+                }
                 if payload != last:
-                    self.wfile.write(("event: netcoin\n" + "data: " + json.dumps(payload, sort_keys=True) + "\n\n").encode("utf-8"))
+                    self.wfile.write(
+                        ("event: netcoin\n" + "data: " + json.dumps(payload, sort_keys=True) + "\n\n").encode("utf-8")
+                    )
                     self.wfile.flush()
                     last = payload
                 time.sleep(5)
@@ -826,7 +891,7 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
         def send_error_json(self, message: str, status: int = 400) -> None:
             self.send_json({"ok": False, "error": message}, status=status)
 
-        def do_GET(self) -> None:  # noqa: N802 - stdlib method name
+        def do_GET(self) -> None:
             parsed = urlparse(self.path)
             if not node.rate_limiter.allow((self.client_ip(), "GET", parsed.path)):
                 self.send_error_json("rate limit exceeded", status=429)
@@ -879,13 +944,16 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     else:
                         coinbase_value = block.transactions[0].total_output() if block.transactions else 0
                         subsidy = node.chain.subsidy(block.header.height)
-                        self.send_json(block.to_dict() | {
-                            "hash": block.hash(),
-                            "weight": block.weight(),
-                            "coinbase_value_sats": coinbase_value,
-                            "subsidy_sats": subsidy,
-                            "fees_sats": max(0, coinbase_value - subsidy),
-                        })
+                        self.send_json(
+                            block.to_dict()
+                            | {
+                                "hash": block.hash(),
+                                "weight": block.weight(),
+                                "coinbase_value_sats": coinbase_value,
+                                "subsidy_sats": subsidy,
+                                "fees_sats": max(0, coinbase_value - subsidy),
+                            }
+                        )
                 elif parsed.path.startswith("/cfilter/"):
                     block_hash = parsed.path.split("/", 2)[2]
                     block = node.chain.block_by_hash(block_hash)
@@ -893,13 +961,16 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                         self.send_error_json("block not found", status=404)
                     else:
                         from .blockfilter import build_block_filter, filter_hash
+
                         data = build_block_filter(block)
-                        self.send_json({
-                            "block_hash": block.hash(),
-                            "height": block.header.height,
-                            "filter": data.hex(),
-                            "filter_hash": filter_hash(data),
-                        })
+                        self.send_json(
+                            {
+                                "block_hash": block.hash(),
+                                "height": block.header.height,
+                                "filter": data.hex(),
+                                "filter_hash": filter_hash(data),
+                            }
+                        )
                 elif parsed.path.startswith("/compact-block-missing/"):
                     block_hash = parsed.path.split("/", 2)[2]
                     block = node.chain.block_by_hash(block_hash)
@@ -944,7 +1015,7 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     summary["transaction_ids_total"] = len(txids)
                     summary["transaction_ids_offset"] = offset
                     summary["transaction_ids_limit"] = limit
-                    summary["transaction_ids"] = txids[offset:offset + limit]
+                    summary["transaction_ids"] = txids[offset : offset + limit]
                     summary["has_next"] = offset + limit < len(txids)
                     self.send_json(summary)
                 elif parsed.path.startswith("/balance/"):
@@ -953,7 +1024,8 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                 elif parsed.path == "/latest":
                     query = parse_qs(parsed.query)
                     n = max(1, min(int(query.get("n", [10])[0]), 100))
-                    def build_latest() -> Dict[str, Any]:
+
+                    def build_latest() -> dict[str, Any]:
                         recent = node.chain.chain[-n:][::-1]
                         blocks = [
                             {
@@ -965,7 +1037,13 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                             }
                             for b in recent
                         ]
-                        return {"height": node.chain.height(), "tip_hash": node.chain.tip_hash(), "blocks": blocks, "cached_for_seconds": 2}
+                        return {
+                            "height": node.chain.height(),
+                            "tip_hash": node.chain.tip_hash(),
+                            "blocks": blocks,
+                            "cached_for_seconds": 2,
+                        }
+
                     self.send_json(node.cached_response(f"latest:{n}", 2.0, build_latest))
                 elif parsed.path == "/latest-txs":
                     query = parse_qs(parsed.query)
@@ -973,29 +1051,34 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     confirmed = []
                     for b in reversed(node.chain.chain):
                         for position, tx in reversed(list(enumerate(b.transactions))):
-                            confirmed.append({
-                                "txid": tx.txid(),
-                                "wtxid": tx.wtxid(),
-                                "confirmed": True,
-                                "block_hash": b.hash(),
-                                "block_height": b.header.height,
-                                "position": position,
-                                "outputs": len(tx.outputs),
-                                "total_output_sats": tx.total_output(),
-                                "timestamp": b.header.timestamp,
-                            })
+                            confirmed.append(
+                                {
+                                    "txid": tx.txid(),
+                                    "wtxid": tx.wtxid(),
+                                    "confirmed": True,
+                                    "block_hash": b.hash(),
+                                    "block_height": b.header.height,
+                                    "position": position,
+                                    "outputs": len(tx.outputs),
+                                    "total_output_sats": tx.total_output(),
+                                    "timestamp": b.header.timestamp,
+                                }
+                            )
                             if len(confirmed) >= n:
                                 break
                         if len(confirmed) >= n:
                             break
-                    mempool = [{
-                        "txid": tx.txid(),
-                        "wtxid": tx.wtxid(),
-                        "confirmed": False,
-                        "outputs": len(tx.outputs),
-                        "total_output_sats": tx.total_output(),
-                        "timestamp": int(node.chain.mempool_times.get(tx.txid(), time.time())),
-                    } for tx in reversed(node.chain.mempool[-n:])]
+                    mempool = [
+                        {
+                            "txid": tx.txid(),
+                            "wtxid": tx.wtxid(),
+                            "confirmed": False,
+                            "outputs": len(tx.outputs),
+                            "total_output_sats": tx.total_output(),
+                            "timestamp": int(node.chain.mempool_times.get(tx.txid(), time.time())),
+                        }
+                        for tx in reversed(node.chain.mempool[-n:])
+                    ]
                     self.send_json({"confirmed": confirmed, "mempool": mempool, "limit": n})
                 elif parsed.path == "/supply":
                     self.send_json(node.chain.supply_summary())
@@ -1017,29 +1100,50 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                 elif parsed.path == "/fee-estimates":
                     self.send_json(fee_estimates_payload(node.chain))
                 elif parsed.path == "/peers":
-                    self.send_json({
-                        "peers": sorted(node.peers),
-                        "scores": node.peer_scores,
-                        "banned": sorted(node.banned),
-                    })
+                    self.send_json(
+                        {
+                            "peers": sorted(node.peers),
+                            "scores": node.peer_scores,
+                            "banned": sorted(node.banned),
+                        }
+                    )
                 elif parsed.path == "/utxos":
                     query = parse_qs(parsed.query)
                     address = query.get("address", [""])[0]
                     include_mempool_spent = query.get("include_mempool_spent", ["0"])[0].lower() in ("1", "true", "yes")
                     utxos = node.chain.utxos_for_address(address)
                     mempool_spent = {txin.outpoint() for tx in node.chain.mempool for txin in tx.inputs}
-                    available = [utxo for utxo in utxos if include_mempool_spent or utxo.outpoint() not in mempool_spent]
-                    self.send_json({
-                        "address": address,
-                        "utxos": [utxo.to_dict() for utxo in available],
-                        "excluded_mempool_spent": len(utxos) - len(available),
-                    })
+                    available = [
+                        utxo for utxo in utxos if include_mempool_spent or utxo.outpoint() not in mempool_spent
+                    ]
+                    self.send_json(
+                        {
+                            "address": address,
+                            "utxos": [utxo.to_dict() for utxo in available],
+                            "excluded_mempool_spent": len(utxos) - len(available),
+                        }
+                    )
                 else:
-                    if os.environ.get("NETCOIN_APP_REQUIRE_ADMIN", "0") == "1" and parsed.path.startswith(("/admin", "/api/admin", "/merchant", "/api/merchant", "/wallet", "/api/wallet", "/custody", "/api/custody", "/security", "/api/security")):
+                    if os.environ.get("NETCOIN_APP_REQUIRE_ADMIN", "0") == "1" and parsed.path.startswith(
+                        (
+                            "/admin",
+                            "/api/admin",
+                            "/merchant",
+                            "/api/merchant",
+                            "/wallet",
+                            "/api/wallet",
+                            "/custody",
+                            "/api/custody",
+                            "/security",
+                            "/api/security",
+                        )
+                    ):
                         if not self.require_app_admin():
                             return
                     try:
-                        status, payload, content_type = route_app_get(app_store, node.chain, parsed.path, parse_qs(parsed.query), node=node)
+                        status, payload, content_type = route_app_get(
+                            app_store, node.chain, parsed.path, parse_qs(parsed.query), node=node
+                        )
                     except AppError as app_exc:
                         if str(app_exc) == "not an app-layer route":
                             self.send_error_json("not found", status=404)
@@ -1049,7 +1153,11 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                         if content_type == "application/json":
                             self.send_json(payload, status=status)  # type: ignore[arg-type]
                         else:
-                            self.send_text(payload if isinstance(payload, bytes) else str(payload), status=status, content_type=content_type)
+                            self.send_text(
+                                payload if isinstance(payload, bytes) else str(payload),
+                                status=status,
+                                content_type=content_type,
+                            )
             except Exception as exc:
                 self.send_error_json(str(exc), status=400)
 
@@ -1058,7 +1166,9 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
 
         def require_node_admin(self) -> bool:
             expected = os.environ.get("NETCOIN_APP_ADMIN_TOKEN", "")
-            provided = self.headers.get("X-Netcoin-Admin-Token", "") or self.headers.get("Authorization", "").replace("Bearer ", "", 1)
+            provided = self.headers.get("X-Netcoin-Admin-Token", "") or self.headers.get("Authorization", "").replace(
+                "Bearer ", "", 1
+            )
             if expected and hmac.compare_digest(expected, provided):
                 return True
             self.send_error_json("operator token required", status=401)
@@ -1068,7 +1178,9 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             if os.environ.get("NETCOIN_APP_REQUIRE_ADMIN", "0") != "1":
                 return True
             expected = os.environ.get("NETCOIN_APP_ADMIN_TOKEN", "")
-            provided = self.headers.get("X-Netcoin-Admin-Token", "") or self.headers.get("Authorization", "").replace("Bearer ", "", 1)
+            provided = self.headers.get("X-Netcoin-Admin-Token", "") or self.headers.get("Authorization", "").replace(
+                "Bearer ", "", 1
+            )
             if expected and hmac.compare_digest(expected, provided):
                 return True
             self.send_error_json("admin token required", status=401)
@@ -1077,7 +1189,7 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
         def app_api_key_from_headers(self) -> str:
             return self.headers.get("X-Netcoin-Api-Key", "") or self.headers.get("X-API-Key", "")
 
-        def do_POST(self) -> None:  # noqa: N802 - stdlib method name
+        def do_POST(self) -> None:
             parsed = urlparse(self.path)
             # Per-IP, per-endpoint rate limiting for write/relay endpoints.
             if not node.rate_limiter.allow((self.client_ip(), "POST", parsed.path)):
@@ -1106,7 +1218,9 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     if not private:
                         for tx in txs:
                             delivered += node.broadcast_transaction(tx)
-                    self.send_json({"ok": True, "txids": txids, "count": len(txids), "relayed_to": delivered, "private": private})
+                    self.send_json(
+                        {"ok": True, "txids": txids, "count": len(txids), "relayed_to": delivered, "private": private}
+                    )
                 elif parsed.path in ("/block", "/submitblock"):
                     block = Block.from_dict(data)
                     block_hash = node.accept_block(block)
@@ -1123,7 +1237,9 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     try:
                         block = reconstruct_compact_block(compact, node.chain.mempool, extra_transactions=extra)
                     except CompactBlockError:
-                        self.send_json({"ok": False, "missing": missing_transactions(compact, node.chain.mempool)}, status=202)
+                        self.send_json(
+                            {"ok": False, "missing": missing_transactions(compact, node.chain.mempool)}, status=202
+                        )
                         return
                     block_hash = node.accept_block(block)
                     node.invalidate_read_cache()
@@ -1153,15 +1269,27 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     self.send_json({"ok": True, "delivered": delivered, "queue": len(node._relay_queue)})
                 else:
                     public_app_write = parsed.path in {
-                        "/community/posts", "/api/community/posts", "/app/community/posts",
-                        "/community/improvements", "/api/community/improvements", "/app/community/improvements",
-                        "/community/reports", "/api/community/reports", "/app/community/reports",
-                    } or (parsed.path.startswith(("/community/improvements/", "/api/community/improvements/", "/app/community/improvements/")) and parsed.path.endswith("/vote"))
+                        "/community/posts",
+                        "/api/community/posts",
+                        "/app/community/posts",
+                        "/community/improvements",
+                        "/api/community/improvements",
+                        "/app/community/improvements",
+                        "/community/reports",
+                        "/api/community/reports",
+                        "/app/community/reports",
+                    } or (
+                        parsed.path.startswith(
+                            ("/community/improvements/", "/api/community/improvements/", "/app/community/improvements/")
+                        )
+                        and parsed.path.endswith("/vote")
+                    )
                     if not public_app_write and not self.require_app_admin():
                         return
                     header_api_key = self.app_api_key_from_headers()
                     if header_api_key and "api_key" not in data:
                         data["api_key"] = header_api_key
+                    data["__netcoin_http_request"] = True
                     if parsed.path in ("/keys/register", "/api/keys/register", "/app/keys/register"):
                         # Free self-service developer keys (NIP-0004), per-IP capped.
                         try:
@@ -1198,8 +1326,8 @@ def run_node(
     data_dir: str,
     host: str = "127.0.0.1",
     port: int = DEFAULT_NODE_PORT,
-    peers: Optional[List[str]] = None,
-    advertise: Optional[str] = None,
+    peers: list[str] | None = None,
+    advertise: str | None = None,
     sync_interval: int = 0,
     rate_limit_per_min: int = 240,
     p2p_port: int = DEFAULT_P2P_PORT,
@@ -1246,8 +1374,8 @@ def run_node(
 
     Thread(target=_bootstrap, daemon=True).start()
 
-    sync_stop: Optional[Event] = None
-    sync_thread: Optional[Thread] = None
+    sync_stop: Event | None = None
+    sync_thread: Thread | None = None
     if sync_interval > 0:
         sync_stop, sync_thread = node.start_background_sync(sync_interval)
         print(f"background sync every {sync_interval}s")

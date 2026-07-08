@@ -1,0 +1,4 @@
+# Exact runtime lock seed for reproducible NetCoin installs.
+# Regenerate only after dependency review and CI/browser release verification.
+cryptography==42.0.8
+coincurve==20.0.0

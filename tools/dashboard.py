@@ -21,13 +21,14 @@ be served next to the explorer. `render_dashboard` is pure and unit-tested.
 Usage:
     python tools/dashboard.py status.json status.html
 """
+
 from __future__ import annotations
 
 import html
 import json
 import sys
 import time
-from typing import Any, Dict
+from typing import Any
 
 
 def _esc(value: object) -> str:
@@ -40,7 +41,7 @@ def _badge(ok: bool) -> str:
     return f"<span style='background:{color};color:#fff;padding:2px 8px;border-radius:10px;font-size:0.8rem'>{label}</span>"
 
 
-def render_dashboard(status: Dict[str, Any]) -> str:
+def render_dashboard(status: dict[str, Any]) -> str:
     """Return a complete HTML page string for the given status dict."""
     overall_ok = bool(status.get("ok"))
     targets = status.get("targets", {}) or {}
@@ -99,7 +100,7 @@ def main(argv: list[str]) -> int:
     if len(argv) != 3:
         print("usage: python tools/dashboard.py <status.json> <out.html>", file=sys.stderr)
         return 2
-    status = json.loads(open(argv[1], "r", encoding="utf-8").read())
+    status = json.loads(open(argv[1], encoding="utf-8").read())
     open(argv[2], "w", encoding="utf-8").write(render_dashboard(status))
     print(f"wrote {argv[2]}")
     return 0

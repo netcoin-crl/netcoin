@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
-from typing import Any, Dict, List
+from typing import Any
 
 from .chain import Blockchain
 from .node import NetCoinNode, make_handler
@@ -66,16 +66,16 @@ def _validate_config(config: SoakConfig) -> None:
     amount_to_sats(config.fee)
 
 
-def _all_tips(chains: List[Blockchain]) -> List[Dict[str, Any]]:
+def _all_tips(chains: list[Blockchain]) -> list[dict[str, Any]]:
     return [{"height": chain.height(), "tip_hash": chain.tip_hash()} for chain in chains]
 
 
-def _tips_converged(chains: List[Blockchain]) -> bool:
+def _tips_converged(chains: list[Blockchain]) -> bool:
     tips = {(chain.height(), chain.tip_hash()) for chain in chains}
     return len(tips) == 1
 
 
-def run_soak(config: SoakConfig, base_dir: str | Path | None = None) -> Dict[str, Any]:
+def run_soak(config: SoakConfig, base_dir: str | Path | None = None) -> dict[str, Any]:
     """Run a bounded local multi-node stress/soak scenario.
 
     The scenario:
@@ -98,7 +98,7 @@ def run_soak(config: SoakConfig, base_dir: str | Path | None = None) -> Dict[str
     servers = [ServedNode(node) for node in nodes]
     miner = Wallet.create()
 
-    errors: List[Dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
     txs_created = 0
     blocks_mined = 0
     tx_relays = 0

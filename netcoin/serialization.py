@@ -9,7 +9,7 @@ encoding of NetCoin Script assembly, not byte-for-byte Bitcoin Script.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 
 class SerializationError(ValueError):
@@ -45,7 +45,7 @@ def ser_varint(value: int) -> bytes:
     return b"\xff" + value.to_bytes(8, "little")
 
 
-def read_varint(data: bytes, offset: int) -> Tuple[int, int]:
+def read_varint(data: bytes, offset: int) -> tuple[int, int]:
     if offset >= len(data):
         raise SerializationError("truncated varint")
     prefix = data[offset]
@@ -85,7 +85,9 @@ def serialize_tx_input(txin: Any, include_script: bool = True) -> bytes:
 def serialize_tx_output(txout: Any) -> bytes:
     from .script import address_to_script_pubkey
 
-    script = getattr(txout, "script_pubkey", "") or (address_to_script_pubkey(txout.address) if getattr(txout, "address", "") else "")
+    script = getattr(txout, "script_pubkey", "") or (
+        address_to_script_pubkey(txout.address) if getattr(txout, "address", "") else ""
+    )
     return ser_uint64(txout.amount) + ser_bytes(script_to_wire_bytes(script))
 
 
@@ -159,12 +161,13 @@ def block_to_raw_hex(block: Any, include_witness: bool = True) -> str:
 # height) so deserialize(serialize(x)) == x.
 # ---------------------------------------------------------------------------
 
+
 def _ser_str(value: str) -> bytes:
     raw = (value or "").encode("utf-8")
     return ser_varint(len(raw)) + raw
 
 
-def _read_str(data: bytes, offset: int) -> Tuple[str, int]:
+def _read_str(data: bytes, offset: int) -> tuple[str, int]:
     length, offset = read_varint(data, offset)
     return data[offset : offset + length].decode("utf-8"), offset + length
 
@@ -188,7 +191,7 @@ def tx_to_binary(tx: Any) -> bytes:
     return out
 
 
-def tx_from_binary(data: bytes, offset: int = 0) -> Tuple[Any, int]:
+def tx_from_binary(data: bytes, offset: int = 0) -> tuple[Any, int]:
     from .tx import Transaction, TxInput, TxOutput
 
     version = int.from_bytes(data[offset : offset + 4], "little", signed=True)
@@ -215,8 +218,18 @@ def tx_from_binary(data: bytes, offset: int = 0) -> Tuple[Any, int]:
         for _ in range(wit_count):
             item, offset = _read_str(data, offset)
             witness.append(item)
-        inputs.append(TxInput(txid=txid, vout=vout, signature=signature, public_key=public_key,
-                              coinbase=coinbase, script_sig=script_sig, witness=witness, sequence=sequence))
+        inputs.append(
+            TxInput(
+                txid=txid,
+                vout=vout,
+                signature=signature,
+                public_key=public_key,
+                coinbase=coinbase,
+                script_sig=script_sig,
+                witness=witness,
+                sequence=sequence,
+            )
+        )
     vout_count, offset = read_varint(data, offset)
     outputs = []
     for _ in range(vout_count):
@@ -259,12 +272,19 @@ def block_from_binary(data: bytes, offset: int = 0) -> Any:
     for _ in range(tx_count):
         tx, offset = tx_from_binary(data, offset)
         transactions.append(tx)
-    header = BlockHeader(version=version, previous_hash=previous_hash, merkle_root=merkle_root,
-                         timestamp=timestamp, bits=bits, nonce=nonce, height=height)
+    header = BlockHeader(
+        version=version,
+        previous_hash=previous_hash,
+        merkle_root=merkle_root,
+        timestamp=timestamp,
+        bits=bits,
+        nonce=nonce,
+        height=height,
+    )
     return Block(header=header, transactions=transactions)
 
 
-def decode_raw_transaction(raw_hex: str) -> Dict[str, Any]:
+def decode_raw_transaction(raw_hex: str) -> dict[str, Any]:
     data = bytes.fromhex(raw_hex)
     offset = 0
     if len(data) < 10:
@@ -276,7 +296,7 @@ def decode_raw_transaction(raw_hex: str) -> Dict[str, Any]:
         has_witness = True
         offset += 2
     vin_count, offset = read_varint(data, offset)
-    vin: List[Dict[str, Any]] = []
+    vin: list[dict[str, Any]] = []
     for _ in range(vin_count):
         prev_hash = data[offset : offset + 32][::-1].hex()
         offset += 32
@@ -289,7 +309,7 @@ def decode_raw_transaction(raw_hex: str) -> Dict[str, Any]:
         offset += 4
         vin.append({"txid": prev_hash, "vout": vout, "scriptSig": script, "sequence": sequence})
     vout_count, offset = read_varint(data, offset)
-    vout_items: List[Dict[str, Any]] = []
+    vout_items: list[dict[str, Any]] = []
     for n in range(vout_count):
         amount = int.from_bytes(data[offset : offset + 8], "little")
         offset += 8

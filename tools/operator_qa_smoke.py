@@ -4,6 +4,7 @@
 This wraps the automated checklist in tests/test_operator_manual_qa_smoke.py so
 operators can run the same smoke flow without remembering the pytest path.
 """
+
 from __future__ import annotations
 
 import os

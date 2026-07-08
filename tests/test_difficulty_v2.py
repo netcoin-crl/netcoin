@@ -1,5 +1,6 @@
 """Testnet v2 real-difficulty params: 2-min/30-block retarget that adjusts the
 right direction, plus the lone-miner min-difficulty rule."""
+
 from pathlib import Path
 
 from netcoin.block import Block, BlockHeader, bits_to_target, target_to_bits
@@ -10,7 +11,6 @@ from netcoin.params import (
     MIN_DIFFICULTY_GAP_SECONDS,
     POW_LIMIT_BITS,
     TARGET_SPACING_SECONDS,
-    TARGET_TIMESPAN_SECONDS,
 )
 from netcoin.tx import create_coinbase_transaction
 from netcoin.wallet import Wallet
@@ -20,8 +20,9 @@ ADDR = Wallet.create().address
 
 def _block(height: int, ts: int, bits: int) -> Block:
     coinbase = create_coinbase_transaction(height, ADDR, COIN)
-    header = BlockHeader(version=1, previous_hash="0" * 64, merkle_root="0" * 64,
-                         timestamp=ts, bits=bits, nonce=0, height=height)
+    header = BlockHeader(
+        version=1, previous_hash="0" * 64, merkle_root="0" * 64, timestamp=ts, bits=bits, nonce=0, height=height
+    )
     return Block(header=header, transactions=[coinbase])
 
 

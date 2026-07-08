@@ -1,4 +1,5 @@
 """Per-address UTXO index: correctness through spends/reorgs + O(coins) lookup."""
+
 from pathlib import Path
 
 from netcoin.chain import Blockchain, ChainError
@@ -34,8 +35,9 @@ def test_index_mirrors_utxos_through_spends(tmp_path: Path):
     for _ in range(102):
         chain.mine_block(a.segwit_address)
 
-    tx = a.create_transaction(chain, b.segwit_address, amount=10_000_000, fee=1_000,
-                              from_type="segwit", change_type="segwit")
+    tx = a.create_transaction(
+        chain, b.segwit_address, amount=10_000_000, fee=1_000, from_type="segwit", change_type="segwit"
+    )
     chain.add_mempool_transaction(tx)
     chain.mine_block(a.segwit_address)
 

@@ -78,6 +78,9 @@
         <h2>Resolution workflow</h2>
         <label for="resolveOutcome">Winning outcome</label><select id="resolveOutcome"></select>
         <label for="evidenceUrl">Evidence URL / note</label><input id="evidenceUrl" placeholder="manual operator approval" />
+        <div class="row"><div><label for="oracleId">Oracle / operator</label><input id="oracleId" value="manual" /></div><div><label for="evidenceTitle">Evidence title</label><input id="evidenceTitle" placeholder="Official result" /></div></div>
+        <label for="disputeComment">Evidence statement / dispute comment</label><textarea id="disputeComment" rows="3" placeholder="Add evidence details or explain why the proposed result is disputed."></textarea>
+        <div class="actions"><button id="submitEvidence" class="secondary" type="button">Submit evidence</button><button id="submitDispute" class="secondary" type="button">Dispute/comment</button></div>
         <div class="actions"><button id="requestResolution" class="secondary" type="button">Request resolution</button><button type="submit">Approve & resolve</button></div>
       </form>
     </section>

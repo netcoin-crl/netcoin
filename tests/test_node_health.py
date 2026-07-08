@@ -1,4 +1,5 @@
 """Node /health and /metrics endpoints, version handshake, and peer compatibility."""
+
 import json
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -31,9 +32,8 @@ def test_health_endpoint(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     miner = Wallet.create()
     chain.mine_block(miner.address)
-    with served(NetCoinNode(chain, persist=False)) as s:
-        with urlopen(f"{s.url}/health", timeout=5) as r:
-            data = json.loads(r.read().decode())
+    with served(NetCoinNode(chain, persist=False)) as s, urlopen(f"{s.url}/health", timeout=5) as r:
+        data = json.loads(r.read().decode())
     assert data["ok"] is True
     assert data["height"] == 1
     assert data["version"] == NODE_VERSION
@@ -47,10 +47,9 @@ def test_metrics_endpoint_prometheus_format(tmp_path: Path):
     miner = Wallet.create()
     for _ in range(2):
         chain.mine_block(miner.address)
-    with served(NetCoinNode(chain, persist=False)) as s:
-        with urlopen(f"{s.url}/metrics", timeout=5) as r:
-            body = r.read().decode()
-            content_type = r.headers.get("Content-Type", "")
+    with served(NetCoinNode(chain, persist=False)) as s, urlopen(f"{s.url}/metrics", timeout=5) as r:
+        body = r.read().decode()
+        content_type = r.headers.get("Content-Type", "")
     assert "text/plain" in content_type
     assert "netcoin_block_height 2" in body
     assert "# TYPE netcoin_block_height gauge" in body
@@ -59,9 +58,8 @@ def test_metrics_endpoint_prometheus_format(tmp_path: Path):
 
 def test_info_includes_handshake_fields(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
-    with served(NetCoinNode(chain, persist=False)) as s:
-        with urlopen(f"{s.url}/info", timeout=5) as r:
-            node = json.loads(r.read().decode())["node"]
+    with served(NetCoinNode(chain, persist=False)) as s, urlopen(f"{s.url}/info", timeout=5) as r:
+        node = json.loads(r.read().decode())["node"]
     assert node["version"] == NODE_VERSION
     assert node["network"] == NETWORK_NAME
     assert node["genesis_hash"] == chain.chain[0].hash()

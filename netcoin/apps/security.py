@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 PREDICTION_MARKET_WARNING = (
-    "Demo/testnet-only event market. Do not use for regulated real-money "
-    "markets without legal and security review."
+    "Demo/testnet-only event market. Do not use for regulated real-money " "markets without legal and security review."
 )
 
 RESTRICTED_MARKET_TERMS = {

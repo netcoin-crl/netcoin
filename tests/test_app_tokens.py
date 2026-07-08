@@ -1,5 +1,7 @@
 """App-layer NET-20 style token ledger tests (indexed ledger, not consensus)."""
+
 import json
+import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -7,11 +9,43 @@ from urllib.request import Request, urlopen
 
 import pytest
 
-from netcoin.apps import AppError, AppStore, canonical_app_action, format_token_amount, parse_token_units, route_app_get, route_app_post
+from netcoin.apps import (
+    AppError,
+    AppStore,
+    canonical_app_action,
+    format_token_amount,
+    parse_token_units,
+    route_app_get,
+    route_app_post,
+)
+from netcoin.apps.auth import SignedEnvelope, canonical_body_hash
 from netcoin.chain import Blockchain
 from netcoin.crypto import sign_message
 from netcoin.node import NetCoinNode, make_handler
 from netcoin.wallet import Wallet
+
+
+def signed_payload(payload: dict, wallet: Wallet, path: str) -> dict:
+    body = dict(payload)
+    env = SignedEnvelope(
+        address=wallet.segwit_address,
+        method="POST",
+        path=path,
+        body_hash=canonical_body_hash(body),
+        timestamp=int(time.time()),
+        nonce="test-nonce",
+        signature="",
+    )
+    body["signed_envelope"] = {
+        "address": env.address,
+        "method": env.method,
+        "path": env.path,
+        "body_hash": env.body_hash,
+        "timestamp": env.timestamp,
+        "nonce": env.nonce,
+        "signature": sign_message(wallet.private_key, env.message()),
+    }
+    return body
 
 
 class served:
@@ -60,7 +94,16 @@ def test_token_units_parsing_and_formatting():
 def test_token_create_mint_transfer_burn(tmp_path: Path):
     store, _, alice, bob = make_store(tmp_path)
 
-    token = store.create_token({"symbol": "demo", "name": "Demo Points", "decimals": 2, "creator": alice.segwit_address, "initial_supply": "100", "max_supply": "150"})
+    token = store.create_token(
+        {
+            "symbol": "demo",
+            "name": "Demo Points",
+            "decimals": 2,
+            "creator": alice.segwit_address,
+            "initial_supply": "100",
+            "max_supply": "150",
+        }
+    )
     assert token["symbol"] == "DEMO"
     assert token["standard"] == "NET-20"
     assert token["supply_units"] == 10_000
@@ -140,10 +183,17 @@ def test_token_username_accounts_and_validation(tmp_path: Path):
 def test_token_http_routes(tmp_path: Path):
     store, chain, alice, bob = make_store(tmp_path)
 
-    status, created = route_app_post(store, chain, "/api/tokens", {"symbol": "WEB", "creator": alice.segwit_address, "initial_supply": "5"})
+    status, created = route_app_post(
+        store, chain, "/api/tokens", {"symbol": "WEB", "creator": alice.segwit_address, "initial_supply": "5"}
+    )
     assert status == 200 and created["symbol"] == "WEB"
 
-    status, _ = route_app_post(store, chain, f"/api/tokens/{created['token_id']}/transfer", {"from": alice.segwit_address, "to": bob.segwit_address, "amount": "2"})
+    status, _ = route_app_post(
+        store,
+        chain,
+        f"/api/tokens/{created['token_id']}/transfer",
+        {"from": alice.segwit_address, "to": bob.segwit_address, "amount": "2"},
+    )
     assert status == 200
 
     status, listing, ctype = route_app_get(store, chain, "/api/tokens", {})
@@ -170,7 +220,13 @@ def test_token_routes_served_over_http(tmp_path: Path):
     with served(NetCoinNode(chain, persist=False)) as s:
         req = Request(
             f"{s.url}/api/tokens",
-            data=json.dumps({"symbol": "HTTP", "creator": alice.segwit_address, "initial_supply": "7", "decimals": 0}).encode(),
+            data=json.dumps(
+                signed_payload(
+                    {"symbol": "HTTP", "creator": alice.segwit_address, "initial_supply": "7", "decimals": 0},
+                    alice,
+                    "/tokens",
+                )
+            ).encode(),
             headers={"Content-Type": "application/json"},
             method="POST",
         )

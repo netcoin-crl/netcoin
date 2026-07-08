@@ -50,6 +50,7 @@ paths:
     post:
       tags: [markets]
       summary: Create a testnet/play-money prediction market
+      description: Sensitive write; requires a NetCoin signed envelope/signature on public HTTP writes.
       responses:
         "200": { description: Created market with outcomes, compliance record, and CLOB snapshot. }
   /markets/{market_id}/order:
@@ -86,6 +87,104 @@ paths:
         - { name: trader, in: query, schema: { type: string } }
       responses:
         "200": { description: Wallet balances, positions, mark values, and equity. }
+  /markets/{market_id}/trades:
+    get:
+      tags: [markets]
+      summary: Recent matched trades for a market
+      parameters:
+        - { name: market_id, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+      responses:
+        "200": { description: Recent trade tape with price, quantity, maker, taker, and timestamp. }
+  /markets/{market_id}/depth:
+    get:
+      tags: [markets]
+      summary: Depth chart data for UI rendering
+      parameters:
+        - { name: market_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Cumulative bid/ask depth by outcome. }
+  /markets/{market_id}/candles:
+    get:
+      tags: [markets]
+      summary: Probability candle history for charting
+      parameters:
+        - { name: market_id, in: path, required: true, schema: { type: string } }
+        - { name: interval, in: query, schema: { type: integer, default: 3600 } }
+      responses:
+        "200": { description: OHLC probability candles from matched trades. }
+  /markets/{market_id}/open-interest:
+    get:
+      tags: [markets]
+      summary: Open interest by outcome
+      parameters:
+        - { name: market_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Outstanding play-money shares by market and outcome. }
+  /markets/{market_id}/volume:
+    get:
+      tags: [markets]
+      summary: Volume buckets for 1h, 6h, 24h, 7d, and all-time
+      parameters:
+        - { name: market_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Trade count and notional volume by time bucket. }
+
+  /markets/{market_id}/batch-orders:
+    post:
+      tags: [markets]
+      summary: Place multiple market-maker or trader orders
+      description: Sensitive write; requires a NetCoin signed envelope on public HTTP writes.
+      responses:
+        "200": { description: Batch order placement result. }
+  /markets/{market_id}/cancel-all:
+    post:
+      tags: [markets]
+      summary: Cancel all open orders for a trader or market operator
+      description: Sensitive write; requires a NetCoin signed envelope on public HTTP writes.
+      responses:
+        "200": { description: Cancel-all result. }
+  /markets/{market_id}/pause:
+    post:
+      tags: [markets]
+      summary: Pause a market
+      description: Sensitive admin write; requires a NetCoin signed envelope/signature on public HTTP writes.
+      responses:
+        "200": { description: Updated market. }
+  /markets/{market_id}/resume:
+    post:
+      tags: [markets]
+      summary: Resume a paused market
+      description: Sensitive admin write; requires a NetCoin signed envelope/signature on public HTTP writes.
+      responses:
+        "200": { description: Updated market. }
+  /markets/{market_id}/oracles:
+    get:
+      tags: [markets]
+      summary: Market oracle/evidence dossier
+      responses:
+        "200": { description: Evidence, approved oracles, and disputes for the market. }
+  /markets/{market_id}/evidence:
+    post:
+      tags: [markets]
+      summary: Submit market resolution evidence
+      description: Sensitive write; requires a NetCoin signed envelope/signature on public HTTP writes.
+      responses:
+        "200": { description: Evidence object. }
+  /markets/{market_id}/reconciliation:
+    get:
+      tags: [markets]
+      summary: Settlement reconciliation report
+      responses:
+        "200": { description: Claimable payout and accounting checks. }
+  /markets/portfolio:
+    get:
+      tags: [markets]
+      summary: Portfolio across all play-money markets
+      parameters:
+        - { name: trader, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Cross-market positions, realized/unrealized PnL, and claimable payout. }
   /markets/external/polymarket:
     get:
       tags: [markets]

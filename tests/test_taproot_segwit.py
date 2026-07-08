@@ -1,5 +1,6 @@
 """Deeper Taproot/SegWit spend coverage (#29): key-path spends, witness tamper,
 and Schnorr sign/verify edges."""
+
 from pathlib import Path
 
 import pytest
@@ -10,7 +11,7 @@ from netcoin.crypto import (
     schnorr_sign,
     schnorr_verify,
 )
-from netcoin.tx import Transaction, TransactionError, amount_to_sats
+from netcoin.tx import amount_to_sats
 from netcoin.wallet import Wallet
 
 
@@ -26,9 +27,12 @@ def funded(tmp_path: Path, address_attr: str):
 
 # --- round-trip spends per address type ---
 
+
 def test_taproot_keypath_spend(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path, "taproot_address")
-    tx = miner.create_transaction(chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="taproot")
+    tx = miner.create_transaction(
+        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="taproot"
+    )
     assert tx.has_witness and len(tx.inputs[0].witness) == 1  # single Schnorr sig
     chain.add_mempool_transaction(tx)
     chain.mine_block(miner.address)
@@ -37,7 +41,9 @@ def test_taproot_keypath_spend(tmp_path: Path):
 
 def test_segwit_p2wpkh_spend(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path, "segwit_address")
-    tx = miner.create_transaction(chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="segwit")
+    tx = miner.create_transaction(
+        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="segwit"
+    )
     assert len(tx.inputs[0].witness) == 2  # sig + pubkey
     chain.add_mempool_transaction(tx)
     assert chain.mempool_info()["size"] == 1
@@ -58,9 +64,12 @@ def test_p2sh_segwit_spend(tmp_path: Path):
 
 # --- witness tampering is rejected ---
 
+
 def test_tampered_taproot_signature_rejected(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path, "taproot_address")
-    tx = miner.create_transaction(chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="taproot")
+    tx = miner.create_transaction(
+        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="taproot"
+    )
     sig = tx.inputs[0].witness[0]
     tx.inputs[0].witness[0] = ("1" if sig[0] == "0" else "0") + sig[1:]  # corrupt the Schnorr sig
     with pytest.raises(ChainError, match="signature"):
@@ -69,7 +78,9 @@ def test_tampered_taproot_signature_rejected(tmp_path: Path):
 
 def test_tampered_segwit_pubkey_rejected(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path, "segwit_address")
-    tx = miner.create_transaction(chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="segwit")
+    tx = miner.create_transaction(
+        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"), from_type="segwit"
+    )
     # Replace the witness pubkey with a different wallet's key (hash160 won't match).
     tx.inputs[0].witness[1] = Wallet.create().public_key_hex
     with pytest.raises(ChainError, match="signature"):
@@ -88,6 +99,7 @@ def test_tampered_p2sh_segwit_pubkey_rejected(tmp_path: Path):
 
 
 # --- Schnorr primitive edges ---
+
 
 def test_schnorr_sign_verify_roundtrip_and_failures():
     w = Wallet.create()

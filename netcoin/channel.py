@@ -9,10 +9,10 @@ This deliberately omits the hard parts of real Lightning (revocation/penalty for
 old states, HTLCs, routing, unilateral close). It demonstrates the core idea:
 settle on-chain rarely, transact off-chain freely, secured by a 2-of-2 multisig.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
 
 from .crypto import ecdsa_sign
 from .script import multisig_redeem_script, script_to_p2sh_address
@@ -27,7 +27,7 @@ class PaymentChannel:
     balance_a: int
     balance_b: int
     version: int = 0
-    funding_txid: Optional[str] = None
+    funding_txid: str | None = None
     funding_vout: int = 0
 
     @property
@@ -40,13 +40,13 @@ class PaymentChannel:
         return script_to_p2sh_address(self.redeem_script)
 
     @classmethod
-    def open(cls, pubkey_a: str, pubkey_b: str, capacity: int, balance_a: Optional[int] = None) -> "PaymentChannel":
+    def open(cls, pubkey_a: str, pubkey_b: str, capacity: int, balance_a: int | None = None) -> PaymentChannel:
         a = capacity if balance_a is None else balance_a
         if not 0 <= a <= capacity:
             raise ValueError("balance_a out of range")
         return cls(pubkey_a=pubkey_a, pubkey_b=pubkey_b, capacity=capacity, balance_a=a, balance_b=capacity - a)
 
-    def set_funding(self, txid: str, vout: int, amount: Optional[int] = None) -> None:
+    def set_funding(self, txid: str, vout: int, amount: int | None = None) -> None:
         self.funding_txid = txid
         self.funding_vout = vout
         if amount is not None:
@@ -78,8 +78,11 @@ class PaymentChannel:
         if self.funding_txid is None:
             raise ValueError("channel is not funded yet")
         return SpendableOutput(
-            txid=self.funding_txid, vout=self.funding_vout,
-            output=TxOutput(amount=self.capacity, address=self.address), height=0, coinbase=False,
+            txid=self.funding_txid,
+            vout=self.funding_vout,
+            output=TxOutput(amount=self.capacity, address=self.address),
+            height=0,
+            coinbase=False,
         )
 
     def settlement_tx(self, addr_a: str, addr_b: str, fee: int = 0) -> Transaction:
@@ -89,14 +92,16 @@ class PaymentChannel:
         out_a = self.balance_a - fee  # the funder (A) covers the close fee
         if out_a < 0:
             raise ValueError("A's balance is too low to cover the fee")
-        outputs: List[TxOutput] = []
+        outputs: list[TxOutput] = []
         if out_a > 0:
             outputs.append(TxOutput(amount=out_a, address=addr_a))
         if self.balance_b > 0:
             outputs.append(TxOutput(amount=self.balance_b, address=addr_b))
         if not outputs:
             raise ValueError("nothing to settle")
-        return Transaction(inputs=[TxInput(txid=self.funding_txid, vout=self.funding_vout)], outputs=outputs, locktime=0)
+        return Transaction(
+            inputs=[TxInput(txid=self.funding_txid, vout=self.funding_vout)], outputs=outputs, locktime=0
+        )
 
     def cosign(self, tx: Transaction, privkey_a: int, privkey_b: int) -> Transaction:
         """Both parties sign the close tx's 2-of-2 input (cooperative close)."""

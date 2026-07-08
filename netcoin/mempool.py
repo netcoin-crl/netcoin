@@ -9,9 +9,9 @@ weight, ancestor/descendant limits, and simple opt-in replace-by-fee.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from statistics import median
-from typing import Dict, Iterable, List, Sequence, Tuple
 
 from .params import (
     DUST_LIMIT,
@@ -46,7 +46,7 @@ def output_is_dust(amount: int) -> bool:
     return 0 < amount < DUST_LIMIT
 
 
-def transaction_fee(tx: Transaction, utxos: Dict[str, SpendableOutput]) -> int:
+def transaction_fee(tx: Transaction, utxos: dict[str, SpendableOutput]) -> int:
     if tx.is_coinbase:
         return 0
     input_total = 0
@@ -69,7 +69,7 @@ def mempool_entry(tx: Transaction, fee: int) -> MempoolEntry:
     )
 
 
-def conflicts_with_mempool(tx: Transaction, mempool: Sequence[Transaction]) -> List[Transaction]:
+def conflicts_with_mempool(tx: Transaction, mempool: Sequence[Transaction]) -> list[Transaction]:
     spending = {txin.outpoint() for txin in tx.inputs}
     conflicts = []
     for other in mempool:
@@ -136,7 +136,7 @@ def check_standard_policy(tx: Transaction, fee: int, mempool: Sequence[Transacti
             raise MempoolPolicyError("mempool exceeds descendant limit")
 
 
-def replacement_allowed(new_tx: Transaction, new_fee: int, conflicts: Sequence[Tuple[Transaction, int]]) -> bool:
+def replacement_allowed(new_tx: Transaction, new_fee: int, conflicts: Sequence[tuple[Transaction, int]]) -> bool:
     """Simple opt-in RBF rule: conflicts must signal RBF and new fee must pay more."""
     if not conflicts:
         return True
@@ -148,7 +148,7 @@ def replacement_allowed(new_tx: Transaction, new_fee: int, conflicts: Sequence[T
     return new_fee >= old_fee_total + required_delta
 
 
-def estimate_smart_fee(mempool: Sequence[Transaction], fee_lookup: Dict[str, int], target_blocks: int = 1) -> int:
+def estimate_smart_fee(mempool: Sequence[Transaction], fee_lookup: dict[str, int], target_blocks: int = 1) -> int:
     """Return a rough sat/vB estimate based on the local mempool."""
     rates = []
     for tx in mempool:

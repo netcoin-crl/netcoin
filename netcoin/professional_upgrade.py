@@ -4,6 +4,7 @@ This module does not claim NetCoin is production ready. It gives operators and
 CI a concrete way to track whether the code, docs, config, tests, and ops hooks
 for the 15 professionalization workstreams exist in the repository.
 """
+
 from __future__ import annotations
 
 import json

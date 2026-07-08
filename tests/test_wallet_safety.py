@@ -1,4 +1,5 @@
 """Wallet safety: seed-phrase verification, recovery round-trips, encryption."""
+
 import json
 import os
 import stat

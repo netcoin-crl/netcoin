@@ -1,5 +1,6 @@
 """Node ops: propagation event log, rate limiting, timeout/retry config, and
 multi-node mempool/block propagation."""
+
 import json
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -83,7 +84,12 @@ def test_events_endpoint_over_http(tmp_path: Path):
     miner = Wallet.create()
     block = solve_template(chain.get_block_template(miner_address=miner.address), miner.address)
     with served(NetCoinNode(chain, persist=False)) as s:
-        req = Request(f"{s.url}/block", data=json.dumps(block.to_dict()).encode(), headers={"Content-Type": "application/json"}, method="POST")
+        req = Request(
+            f"{s.url}/block",
+            data=json.dumps(block.to_dict()).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
         urlopen(req, timeout=5).read()
         with urlopen(f"{s.url}/events", timeout=5) as r:
             events = json.loads(r.read().decode())["events"]
@@ -93,9 +99,8 @@ def test_events_endpoint_over_http(tmp_path: Path):
 def test_relay_endpoint_reports_queue(tmp_path: Path):
     node = NetCoinNode(Blockchain(tmp_path / "chain"), peers=["http://127.0.0.1:1"], persist=False)
     node.enqueue_relay("tx", "/tx", "abc", {"version": 1})
-    with served(node) as s:
-        with urlopen(f"{s.url}/relay", timeout=5) as r:
-            data = json.loads(r.read().decode())
+    with served(node) as s, urlopen(f"{s.url}/relay", timeout=5) as r:
+        data = json.loads(r.read().decode())
     assert data["queue"] == 1
     assert data["items"][0]["kind"] == "tx"
 

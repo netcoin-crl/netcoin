@@ -1,4 +1,5 @@
 """Persistent/incremental UTXO set correctness (#22 foundation)."""
+
 from pathlib import Path
 
 from netcoin.chain import Blockchain

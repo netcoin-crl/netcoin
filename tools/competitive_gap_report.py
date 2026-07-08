@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """Generate NetCoin competitive-feature scaffold or 5/10 midlevel reports."""
+
 from __future__ import annotations
+
+# Allow `python tools/<script>.py` from the repository root or elsewhere.
+import sys as _sys
+from pathlib import Path as _Path
+
+_repo_root = _Path(__file__).resolve().parents[1]
+if str(_repo_root) not in _sys.path:
+    _sys.path.insert(0, str(_repo_root))
 
 import argparse
 import json
@@ -11,11 +20,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.competitive import build_competitive_gap_report, build_level5_report, validate_level5, all_area_smokes
+from netcoin.competitive import all_area_smokes, build_competitive_gap_report, build_level5_report, validate_level5
 
 
 def to_markdown(report: dict) -> str:
-    title = "NetCoin Competitive Level-5 Report" if report.get("schema") == "netcoin-competitive-level5-v1" else "NetCoin Competitive Feature Report"
+    title = (
+        "NetCoin Competitive Level-5 Report"
+        if report.get("schema") == "netcoin-competitive-level5-v1"
+        else "NetCoin Competitive Feature Report"
+    )
     lines = [
         f"# {title}\n\n",
         f"- Area count: {report['area_count']}\n",
@@ -67,7 +80,11 @@ def main() -> None:
             if not matches:
                 raise SystemExit(f"unknown area: {area}")
             report = {**report, "areas": matches, "area_count": 1, "feature_count": matches[0]["feature_count"]}
-    text = json.dumps(report, indent=2, sort_keys=True) + "\n" if args.json or args.validate or args.smoke else to_markdown(report)
+    text = (
+        json.dumps(report, indent=2, sort_keys=True) + "\n"
+        if args.json or args.validate or args.smoke
+        else to_markdown(report)
+    )
     if args.out:
         Path(args.out).write_text(text, encoding="utf-8")
     else:

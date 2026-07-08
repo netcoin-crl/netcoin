@@ -17,6 +17,7 @@
   const MAX_WALLET_SEND_INPUTS = 500;
   const SESSION_STORE = "ncw.unlockedSession.v2";
   const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+  const Vault = window.NCWVault || null;
 
   let state = null; // { secretType, seed?, privHex, address, profile }
   let lastSpendableSats = 0;
@@ -906,6 +907,7 @@
   function emptyProfiles() { return { active: "Default", profiles: {} }; }
 
   function loadProfiles() {
+    if (Vault) return Vault.loadProfiles({ profileStore: PROFILE_STORE, legacyStore: STORE });
     let data;
     try { data = JSON.parse(localStorage.getItem(PROFILE_STORE) || "null"); } catch { data = null; }
     if (!data || typeof data !== "object" || !data.profiles || typeof data.profiles !== "object") data = emptyProfiles();
@@ -918,6 +920,7 @@
   }
 
   function saveProfiles(data) {
+    if (Vault) return Vault.saveProfiles(data, PROFILE_STORE);
     localStorage.setItem(PROFILE_STORE, JSON.stringify({ active: data.active || "Default", profiles: data.profiles || {} }));
   }
 
@@ -953,15 +956,19 @@
   }
 
   function encryptedProfile(name) {
+    if (Vault) return Vault.encryptedProfile(name, { profileStore: PROFILE_STORE, legacyStore: STORE });
     const data = loadProfiles();
     return data.profiles[name || data.active];
   }
 
   function deleteProfile(name) {
-    const data = loadProfiles();
-    delete data.profiles[name];
-    data.active = Object.keys(data.profiles).sort()[0] || "Default";
-    saveProfiles(data);
+    if (Vault) Vault.deleteProfile(name, { profileStore: PROFILE_STORE, legacyStore: STORE });
+    else {
+      const data = loadProfiles();
+      delete data.profiles[name];
+      data.active = Object.keys(data.profiles).sort()[0] || "Default";
+      saveProfiles(data);
+    }
     renderProfiles();
   }
 
@@ -989,13 +996,14 @@
   function rememberUnlocked(secretType, secretValue, profile, force = false) {
     try {
       const keep = force || $("unlockRemember")?.checked || $("privateKeyRemember")?.checked;
+      if (Vault) { Vault.rememberUnlocked(secretType, secretValue, profile, { store: SESSION_STORE, ttlMs: SESSION_TTL_MS, force, shouldRemember: keep }); return; }
       if (!keep) return;
       sessionStorage.setItem(SESSION_STORE, JSON.stringify({ type: secretType, value: secretValue, profile, expires: Date.now() + SESSION_TTL_MS }));
     } catch { /* ignore private browsing/session storage errors */ }
   }
 
   function clearUnlockedSession() {
-    try { sessionStorage.removeItem(SESSION_STORE); } catch { /* ignore */ }
+    try { if (Vault) Vault.clearSession(SESSION_STORE); else sessionStorage.removeItem(SESSION_STORE); } catch { /* ignore */ }
   }
 
   function loadWalletFromPrivateKey(privHex, profile = loadProfiles().active, remember = true) {
@@ -1026,10 +1034,14 @@
 
   function resumeUnlockedSession() {
     try {
-      const raw = sessionStorage.getItem(SESSION_STORE);
-      if (!raw) return false;
-      const saved = JSON.parse(raw);
-      if (!saved || Number(saved.expires || 0) < Date.now()) { clearUnlockedSession(); return false; }
+      const saved = Vault ? Vault.resumeSession(SESSION_STORE) : (() => {
+        const raw = sessionStorage.getItem(SESSION_STORE);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || Number(parsed.expires || 0) < Date.now()) { clearUnlockedSession(); return null; }
+        return parsed;
+      })();
+      if (!saved) return false;
       loadWalletSecret({ type: saved.type || "seed", value: saved.value }, cleanProfileName(saved.profile, loadProfiles().active), true);
       return true;
     } catch {
@@ -1040,12 +1052,14 @@
 
   // ---------- encryption at rest (WebCrypto) ----------
   async function deriveKey(password, salt) {
+    if (Vault) return Vault.deriveKey(password, salt);
     const base = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey(
       { name: "PBKDF2", salt, iterations: 200000, hash: "SHA-256" },
       base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
   }
   async function encryptWalletSecret(secretType, secretValue, password) {
+    if (Vault) return Vault.encryptWalletSecret(secretType, secretValue, password);
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const key = await deriveKey(password, salt);
@@ -1054,6 +1068,7 @@
     return { version: 2, type: secretType, salt: b64(salt), iv: b64(iv), ct: b64(ct) };
   }
   async function decryptWalletSecret(blob, password) {
+    if (Vault) return Vault.decryptWalletSecret(blob, password);
     const key = await deriveKey(password, unb64(blob.salt));
     const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(blob.iv) }, key, unb64(blob.ct));
     const text = new TextDecoder().decode(pt);
@@ -1073,6 +1088,7 @@
   }
 
   async function encryptText(text, password) {
+    if (Vault) return Vault.encryptText(text, password);
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const key = await deriveKey(password, salt);
@@ -1081,6 +1097,7 @@
   }
 
   async function decryptText(blob, password) {
+    if (Vault) return Vault.decryptText(blob, password);
     const key = await deriveKey(password, unb64(blob.salt));
     const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(blob.iv) }, key, unb64(blob.ct));
     return new TextDecoder().decode(pt);

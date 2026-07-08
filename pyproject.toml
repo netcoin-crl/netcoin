@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netcoin"
-version = "0.13.0"
+version = "0.14.0"
 description = "Educational Bitcoin-like cryptocurrency with Script, SegWit-style witness, Taproot-style Schnorr, RPC, and explorer"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,7 +13,8 @@ license = {text = "MIT"}
 dependencies = ["cryptography>=42"]
 
 [project.optional-dependencies]
-test = ["pytest", "coincurve>=20"]
+test = ["pytest", "pytest-cov", "pytest-timeout", "coincurve>=20"]
+dev = ["pytest", "pytest-cov", "pytest-timeout", "coincurve>=20", "ruff>=0.6.0", "black>=24.0", "mypy>=1.10", "bandit>=1.7.9", "pre-commit>=3.7"]
 # Optional libsecp256k1 acceleration for signature verification (enable with
 # NETCOIN_FAST_CRYPTO=1). Recommended for public nodes; never required.
 fast = ["coincurve>=20"]
@@ -28,3 +29,59 @@ include = ["netcoin*"]
 # The ddtrace auto-loaded pytest plugin can keep local HTTP-server tests alive in some sandboxes.
 # Disable it by default so `pytest` runs deterministically for this repo.
 addopts = "-p no:ddtrace"
+
+
+[tool.black]
+line-length = 120
+target-version = ["py310"]
+include = "\\.pyi?$"
+extend-exclude = '''
+/(\.git|\.venv|build|dist|webwallet-browser/node_modules)/
+'''
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["webwallet-browser/node_modules", "dist", "build"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C4", "DTZ", "PIE", "RET", "RUF"]
+ignore = [
+  "E501",   # black owns wrapping
+  "RET504", # explicit intermediate names improve readability in consensus code
+  "SIM108", # prefer readable branches in protocol checks
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "B011", "DTZ005"]
+"tools/**/*.py" = ["T201"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+no_implicit_optional = true
+check_untyped_defs = true
+ignore_missing_imports = true
+pretty = true
+files = [
+  "netcoin/chain.py",
+  "netcoin/tx.py",
+  "netcoin/wallet.py",
+  "netcoin/mempool.py",
+  "netcoin/node.py",
+  "netcoin/apps/markets/__init__.py",
+  "netcoin/consensus.py",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["netcoin"]
+omit = ["*/tests/*", "*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 55
+
+[tool.coverage.paths]
+source = ["netcoin", "*/netcoin"]

@@ -1,5 +1,6 @@
 """Client-side remote-node compatibility warnings (helps diagnose a seed that
 runs an older NetCoin than the CLI)."""
+
 import netcoin.cli as cli
 from netcoin.params import NODE_VERSION, PROTOCOL_VERSION
 
@@ -29,7 +30,10 @@ def test_warns_on_missing_required_service(monkeypatch, capsys):
 
 
 def test_no_warning_for_compatible_node(monkeypatch, capsys):
-    _patch_info(monkeypatch, {"protocol_version": PROTOCOL_VERSION, "version": NODE_VERSION, "services": ["block-template", "mempool"]})
+    _patch_info(
+        monkeypatch,
+        {"protocol_version": PROTOCOL_VERSION, "version": NODE_VERSION, "services": ["block-template", "mempool"]},
+    )
     cli.warn_if_node_incompatible("http://seed", need_service="block-template")
     assert capsys.readouterr().err == ""
 

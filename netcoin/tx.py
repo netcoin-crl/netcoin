@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 from .crypto import (
     address_type,
@@ -91,8 +92,8 @@ class TxOutput:
             return address_to_script_pubkey(self.address)
         return ""
 
-    def to_dict(self) -> Dict[str, Any]:
-        data: Dict[str, Any] = {"amount": self.amount, "address": self.address}
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {"amount": self.amount, "address": self.address}
         # Only include script_pubkey when it was explicitly present. This keeps
         # old NetCoin txids stable for already-mined JSON-chain transactions.
         if self.script_pubkey:
@@ -100,7 +101,7 @@ class TxOutput:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TxOutput":
+    def from_dict(cls, data: dict[str, Any]) -> TxOutput:
         return cls(
             amount=int(data["amount"]),
             address=str(data.get("address", "")),
@@ -116,7 +117,7 @@ class TxInput:
     public_key: str = ""
     coinbase: str = ""
     script_sig: str = ""
-    witness: List[str] = field(default_factory=list)
+    witness: list[str] = field(default_factory=list)
     sequence: int = 0xFFFFFFFF
 
     def __post_init__(self) -> None:
@@ -132,8 +133,8 @@ class TxInput:
     def outpoint(self) -> str:
         return f"{self.txid}:{self.vout}"
 
-    def to_dict(self, include_scripts: bool = True, include_witness: bool = True) -> Dict[str, Any]:
-        data: Dict[str, Any] = {"txid": self.txid, "vout": self.vout}
+    def to_dict(self, include_scripts: bool = True, include_witness: bool = True) -> dict[str, Any]:
+        data: dict[str, Any] = {"txid": self.txid, "vout": self.vout}
         if include_scripts:
             # Preserve original fields unconditionally for backward-compatible
             # txids of v1 NetCoin JSON transactions.
@@ -147,7 +148,7 @@ class TxInput:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TxInput":
+    def from_dict(cls, data: dict[str, Any]) -> TxInput:
         return cls(
             txid=str(data["txid"]),
             vout=int(data["vout"]),
@@ -162,8 +163,8 @@ class TxInput:
 
 @dataclass
 class Transaction:
-    inputs: List[TxInput]
-    outputs: List[TxOutput]
+    inputs: list[TxInput]
+    outputs: list[TxOutput]
     version: int = 1
     locktime: int = 0
 
@@ -194,16 +195,18 @@ class Transaction:
     def signals_rbf(self) -> bool:
         return any(txin.sequence < 0xFFFFFFFE for txin in self.inputs)
 
-    def to_dict(self, include_scripts: bool = True, include_witness: bool = True) -> Dict[str, Any]:
+    def to_dict(self, include_scripts: bool = True, include_witness: bool = True) -> dict[str, Any]:
         return {
             "version": self.version,
-            "inputs": [txin.to_dict(include_scripts=include_scripts, include_witness=include_witness) for txin in self.inputs],
+            "inputs": [
+                txin.to_dict(include_scripts=include_scripts, include_witness=include_witness) for txin in self.inputs
+            ],
             "outputs": [txout.to_dict() for txout in self.outputs],
             "locktime": self.locktime,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Transaction":
+    def from_dict(cls, data: dict[str, Any]) -> Transaction:
         return cls(
             version=int(data.get("version", 1)),
             inputs=[TxInput.from_dict(item) for item in data["inputs"]],
@@ -220,7 +223,7 @@ class Transaction:
         return serialize_transaction(self, include_witness=include_witness, include_scripts=include_scripts)
 
     @classmethod
-    def from_hex(cls, raw_hex: str) -> "Transaction":
+    def from_hex(cls, raw_hex: str) -> Transaction:
         # NetCoin can encode raw tx hex, but full binary decoding of every script
         # template is intentionally not consensus-critical yet.
         raise TransactionError("raw binary transaction decoding is not implemented; use JSON import/export")
@@ -242,7 +245,7 @@ class Transaction:
     def total_output(self) -> int:
         return sum(output.amount for output in self.outputs)
 
-    def sighash(self, input_index: int, prevout: "SpendableOutput", sighash_type: int = SIGHASH_ALL) -> bytes:
+    def sighash(self, input_index: int, prevout: SpendableOutput, sighash_type: int = SIGHASH_ALL) -> bytes:
         if input_index < 0 or input_index >= len(self.inputs):
             raise TransactionError("input index out of range")
         if self.is_coinbase:
@@ -307,7 +310,9 @@ class Transaction:
             payload["single_output_index"] = input_index
         return double_sha256(canonical_json(payload))
 
-    def sign_input(self, input_index: int, private_key: int, prevout: "SpendableOutput", sighash_type: int = SIGHASH_ALL) -> None:
+    def sign_input(
+        self, input_index: int, private_key: int, prevout: SpendableOutput, sighash_type: int = SIGHASH_ALL
+    ) -> None:
         public_key = private_key_to_public_key(private_key, compressed=True)
         digest = self.sighash(input_index, prevout, sighash_type)
         script_pubkey = prevout.output.effective_script_pubkey()
@@ -359,7 +364,7 @@ class Transaction:
         txin.signature = bytes_to_hex(signature)
         txin.script_sig = f"{txin.signature} {txin.public_key}"
 
-    def verify_input(self, input_index: int, prevout: "SpendableOutput") -> bool:
+    def verify_input(self, input_index: int, prevout: SpendableOutput) -> bool:
         txin = self.inputs[input_index]
         script_pubkey = prevout.output.effective_script_pubkey()
         kind = classify_script(script_pubkey)
@@ -484,18 +489,22 @@ class SpendableOutput:
     def outpoint(self) -> str:
         return f"{self.txid}:{self.vout}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "txid": self.txid,
             "vout": self.vout,
             "output": self.output.to_dict(),
             "height": self.height,
             "coinbase": self.coinbase,
-            "script_type": classify_script(self.output.effective_script_pubkey()) if self.output.effective_script_pubkey() else "unknown",
+            "script_type": (
+                classify_script(self.output.effective_script_pubkey())
+                if self.output.effective_script_pubkey()
+                else "unknown"
+            ),
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SpendableOutput":
+    def from_dict(cls, data: dict[str, Any]) -> SpendableOutput:
         return cls(
             txid=str(data["txid"]),
             vout=int(data["vout"]),
@@ -562,6 +571,7 @@ def ensure_unique_inputs(inputs: Iterable[TxInput]) -> None:
         if outpoint in seen:
             raise TransactionError("transaction spends the same outpoint more than once")
         seen.add(outpoint)
+
 
 # Runtime convenience methods used by RPC/CLI/explorer.
 def _tx_weight(self: Transaction) -> int:

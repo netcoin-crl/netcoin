@@ -15,15 +15,15 @@ Usage:
 Allocated coins live in the genesis coinbase, so they follow the normal coinbase
 maturity rule (spendable after COINBASE_MATURITY blocks on the new chain).
 """
+
 from __future__ import annotations
 
 import json
-from typing import Dict
 
 
-def export_allocation(chain) -> Dict[str, int]:
+def export_allocation(chain) -> dict[str, int]:
     """Total balance (in sats) per address from a chain's current UTXO set."""
-    allocation: Dict[str, int] = {}
+    allocation: dict[str, int] = {}
     for utxo in chain._utxos.values():
         address = utxo.output.address
         if address and utxo.output.amount > 0:
@@ -31,14 +31,13 @@ def export_allocation(chain) -> Dict[str, int]:
     return allocation
 
 
-def save_allocation(allocation: Dict[str, int], path: str) -> None:
+def save_allocation(allocation: dict[str, int], path: str) -> None:
     with open(path, "w", encoding="utf-8") as handle:
-        json.dump({"allocation": allocation, "total_sats": sum(allocation.values())},
-                  handle, indent=2, sort_keys=True)
+        json.dump({"allocation": allocation, "total_sats": sum(allocation.values())}, handle, indent=2, sort_keys=True)
 
 
-def load_allocation(path: str) -> Dict[str, int]:
-    with open(path, "r", encoding="utf-8") as handle:
+def load_allocation(path: str) -> dict[str, int]:
+    with open(path, encoding="utf-8") as handle:
         data = json.load(handle)
     raw = data.get("allocation", data)
     return {str(addr): int(amount) for addr, amount in raw.items()}

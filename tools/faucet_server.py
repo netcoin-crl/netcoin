@@ -8,6 +8,14 @@ hot wallet, and broadcasts the transaction to a seed node.
 
 from __future__ import annotations
 
+# Allow `python tools/<script>.py` from the repository root or elsewhere.
+import sys as _sys
+from pathlib import Path as _Path
+
+_repo_root = _Path(__file__).resolve().parents[1]
+if str(_repo_root) not in _sys.path:
+    _sys.path.insert(0, str(_repo_root))
+
 import html
 import json
 import os
@@ -22,7 +30,6 @@ from urllib.request import Request, urlopen
 from netcoin.crypto import validate_address
 from netcoin.node import client_ip_from_headers
 from netcoin.tx import amount_to_sats
-
 
 HOST = os.environ.get("NETCOIN_FAUCET_HOST", "127.0.0.1")
 PORT = int(os.environ.get("NETCOIN_FAUCET_PORT", "8081"))
@@ -55,7 +62,12 @@ CAPTCHA_SITEKEY = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SITEKEY", "")
 CAPTCHA_SECRET = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SECRET", "")
 CAPTCHA_SIMPLE_QUESTION = os.environ.get("NETCOIN_FAUCET_CAPTCHA_QUESTION", "Type netcoin")
 CAPTCHA_SIMPLE_ANSWER = os.environ.get("NETCOIN_FAUCET_CAPTCHA_ANSWER", "netcoin").strip().lower()
-TRUST_PROXY_HEADERS = os.environ.get("NETCOIN_FAUCET_TRUST_PROXY_HEADERS", "").strip().lower() in ("1", "true", "yes", "on")
+TRUST_PROXY_HEADERS = os.environ.get("NETCOIN_FAUCET_TRUST_PROXY_HEADERS", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 
 PAGE = """<!doctype html>
@@ -408,7 +420,7 @@ def message_box(message: str, error: bool = False) -> str:
 class FaucetHandler(BaseHTTPRequestHandler):
     server_version = "NetCoinFaucet/0.1"
 
-    def log_message(self, format: str, *args) -> None:  # noqa: A003
+    def log_message(self, format: str, *args) -> None:
         return
 
     def render(self, message: str = "") -> None:
@@ -433,7 +445,7 @@ class FaucetHandler(BaseHTTPRequestHandler):
         auth = self.headers.get("Authorization", "")
         return auth == f"Bearer {ADMIN_TOKEN}"
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
         if path == "/history":
             self.write_json({"grants": public_history(load_state())})
@@ -459,7 +471,7 @@ class FaucetHandler(BaseHTTPRequestHandler):
             return
         self.render()
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         if self.path == "/admin/process-queue":
             if not self.admin_allowed():
                 self.write_json({"ok": False, "error": "unauthorized"}, status=401)

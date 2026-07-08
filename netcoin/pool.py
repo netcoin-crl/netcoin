@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .block import Block
 from .chain import Blockchain
@@ -23,12 +23,12 @@ class MiningPool:
         self.accepted = 0
         self.rejected = 0
 
-    def job(self) -> Dict[str, Any]:
+    def job(self) -> dict[str, Any]:
         template = self.chain.get_block_template(miner_address=self.payout_address)
         template["pool"] = {"payout_address": self.payout_address, "accepted": self.accepted, "rejected": self.rejected}
         return template
 
-    def submit(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def submit(self, data: dict[str, Any]) -> dict[str, Any]:
         block = Block.from_dict(data["block"])
         try:
             block_hash = self.chain.add_block(block)
@@ -47,10 +47,10 @@ def make_handler(pool: MiningPool):
     class Handler(BaseHTTPRequestHandler):
         server_version = "NetCoinPool/0.2"
 
-        def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
+        def log_message(self, format: str, *args: Any) -> None:
             return
 
-        def send_json(self, payload: Dict[str, Any], status: int = 200) -> None:
+        def send_json(self, payload: dict[str, Any], status: int = 200) -> None:
             body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
@@ -58,7 +58,7 @@ def make_handler(pool: MiningPool):
             self.end_headers()
             self.wfile.write(body)
 
-        def read_json(self) -> Dict[str, Any]:
+        def read_json(self) -> dict[str, Any]:
             try:
                 length = int(self.headers.get("Content-Length", "0"))
             except (TypeError, ValueError) as exc:
@@ -69,13 +69,13 @@ def make_handler(pool: MiningPool):
                 return {}
             return json.loads(self.rfile.read(length).decode("utf-8"))
 
-        def do_GET(self) -> None:  # noqa: N802
+        def do_GET(self) -> None:
             if self.path in ("/", "/job", "/getblocktemplate"):
                 self.send_json(pool.job())
             else:
                 self.send_json({"ok": False, "error": "not found"}, status=404)
 
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
             try:
                 if self.path == "/submit":
                     self.send_json(pool.submit(self.read_json()))

@@ -17,23 +17,29 @@ import ipaddress
 import json
 import os
 import re
+import secrets
 import socket
 import sqlite3
-import secrets
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
-from typing import Any, Iterable
+from typing import Any
 from urllib.parse import quote, urlencode, urlparse
 
 from ..crypto import decode_address, validate_address, verify_message
 from ..descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
-from ..script import ScriptError, timelocked_redeem_script, script_to_p2sh_address
-from ..params import REWARD_REDUCTION_DENOMINATOR, REWARD_REDUCTION_INTERVAL, REWARD_REDUCTION_NUMERATOR, REWARD_SCHEDULE_ACTIVATION_HEIGHT
 from ..emission import next_reduction_height
+from ..params import (
+    REWARD_REDUCTION_DENOMINATOR,
+    REWARD_REDUCTION_INTERVAL,
+    REWARD_REDUCTION_NUMERATOR,
+    REWARD_SCHEDULE_ACTIVATION_HEIGHT,
+)
+from ..script import ScriptError, script_to_p2sh_address, timelocked_redeem_script
 from ..tx import amount_to_sats, sats_to_amount
 
 
@@ -66,8 +72,14 @@ def assert_public_webhook_url(url: str) -> None:
         raise AppError(f"webhook host does not resolve: {exc}")
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
-        if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
-                or ip.is_multicast or ip.is_unspecified):
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
             raise AppError("webhook URL must point to a public host (SSRF blocked)")
 
 
@@ -104,6 +116,9 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     "api_usage": {},
     "app_idempotency_keys": {},
     "app_nonces": {},
+    "immutable_audit_log": [],
+    "rbac_roles": {},
+    "csrf_sessions": {},
     "treasury_addresses": [],
     "treasury_proposals": {},
     "node_reports": [],
@@ -156,9 +171,16 @@ def looks_like_sensitive_secret(text: str) -> bool:
     """
     lower = text.lower()
     dangerous_phrases = (
-        "seed phrase", "recovery phrase", "private key", "privkey",
-        "secret access key", "api key", "password:", "passphrase",
-        "aws_secret_access_key", "authorization: bearer",
+        "seed phrase",
+        "recovery phrase",
+        "private key",
+        "privkey",
+        "secret access key",
+        "api key",
+        "password:",
+        "passphrase",
+        "aws_secret_access_key",
+        "authorization: bearer",
     )
     if any(phrase in lower for phrase in dangerous_phrases):
         return True
@@ -184,7 +206,7 @@ def parse_amount_sats(value: Any, field: str = "amount") -> int:
         value = format(value, ".8f")
     try:
         sats = amount_to_sats(str(value))
-    except Exception as exc:  # noqa: BLE001 - present a concise app-layer error
+    except Exception as exc:
         raise AppError(f"{field} must be a valid NET amount") from exc
     if sats < 0:
         raise AppError(f"{field} must be non-negative")
@@ -272,10 +294,7 @@ def canonical_app_action(action: str, payload: dict[str, Any]) -> str:
     App-layer state is not consensus, so the signature proves "the address owner
     asked this node to do this app action" rather than spending chain coins.
     """
-    clean = {
-        str(k): v for k, v in payload.items()
-        if str(k) not in SIGNED_ACTION_EXCLUDE_FIELDS and v is not None
-    }
+    clean = {str(k): v for k, v in payload.items() if str(k) not in SIGNED_ACTION_EXCLUDE_FIELDS and v is not None}
     body = json.dumps(clean, sort_keys=True, separators=(",", ":"))
     return f"NetCoin app-layer action\nv1\n{action}\n{body}"
 
@@ -284,7 +303,9 @@ def app_signatures_required() -> bool:
     return os.environ.get("NETCOIN_APP_REQUIRE_SIGNATURES", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def verify_app_action_signature(action: str, signer: str, payload: dict[str, Any], *, required: bool | None = None) -> dict[str, Any]:
+def verify_app_action_signature(
+    action: str, signer: str, payload: dict[str, Any], *, required: bool | None = None
+) -> dict[str, Any]:
     """Verify an optional signed app-layer action.
 
     When ``required`` is true (or NETCOIN_APP_REQUIRE_SIGNATURES=1), missing or
@@ -407,16 +428,26 @@ class AppStore:
         self.path = self.data_dir / "app_layer.json"
         self.sqlite_path = self.data_dir / "app_layer.sqlite3"
         from .storage import normalize_storage_backend
+
         self.storage_backend = normalize_storage_backend(os.environ.get("NETCOIN_APP_STORAGE"))
         self.lock = RLock()
 
     def _sqlite_conn(self) -> sqlite3.Connection:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.sqlite_path)
-        conn.execute("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)")
-        conn.execute("CREATE TABLE IF NOT EXISTS app_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL, payload TEXT NOT NULL, created_at INTEGER NOT NULL)")
-        conn.execute("CREATE TABLE IF NOT EXISTS app_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL)")
-        conn.execute("INSERT OR IGNORE INTO app_migrations(version, name, applied_at) VALUES (?, ?, ?)", (APP_SCHEMA_VERSION, "initial_app_state_json_blob", now()))
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)"
+        )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS app_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL, payload TEXT NOT NULL, created_at INTEGER NOT NULL)"
+        )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS app_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL)"
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO app_migrations(version, name, applied_at) VALUES (?, ?, ?)",
+            (APP_SCHEMA_VERSION, "initial_app_state_json_blob", now()),
+        )
         return conn
 
     def _load_sqlite(self) -> dict[str, Any]:
@@ -429,7 +460,10 @@ class AppStore:
                 data = json.loads(self.path.read_text())
             except (FileNotFoundError, json.JSONDecodeError):
                 data = _copy_default()
-            conn.execute("INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES (?, ?, ?)", ("state", json.dumps(data, sort_keys=True), now()))
+            conn.execute(
+                "INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES (?, ?, ?)",
+                ("state", json.dumps(data, sort_keys=True), now()),
+            )
             conn.commit()
             return data
 
@@ -459,7 +493,10 @@ class AppStore:
             self.data_dir.mkdir(parents=True, exist_ok=True)
             if self.storage_backend in {"sqlite", "sqlite3"}:
                 with self._sqlite_conn() as conn:
-                    conn.execute("INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES (?, ?, ?)", ("state", json.dumps(data, indent=2, sort_keys=True), now()))
+                    conn.execute(
+                        "INSERT OR REPLACE INTO app_state(key, value, updated_at) VALUES (?, ?, ?)",
+                        ("state", json.dumps(data, indent=2, sort_keys=True), now()),
+                    )
                     conn.commit()
                 return
             tmp = self.path.with_suffix(".json.tmp")
@@ -475,7 +512,10 @@ class AppStore:
         self.save(data)
         if self.storage_backend in {"sqlite", "sqlite3"}:
             with self._sqlite_conn() as conn:
-                conn.execute("INSERT INTO app_audit(event, payload, created_at) VALUES (?, ?, ?)", (event, json.dumps(payload, sort_keys=True), rec["created_at"]))
+                conn.execute(
+                    "INSERT INTO app_audit(event, payload, created_at) VALUES (?, ?, ?)",
+                    (event, json.dumps(payload, sort_keys=True), rec["created_at"]),
+                )
                 conn.commit()
 
     # ----- security / custody policy -----
@@ -505,14 +545,18 @@ class AppStore:
             raise AppError("hot-wallet signing requires acknowledge_hot_wallet_risk=true")
         data = self.load()
         policy = data.get("payout_signing_policy", DEFAULT_APP_STATE["payout_signing_policy"]).copy()
-        policy.update({
-            "mode": mode,
-            "hot_wallet_enabled": hot_wallet,
-            "require_operator_review": bool(payload.get("require_operator_review", True)),
-            "max_auto_broadcast_sats": parse_amount_sats(payload.get("max_auto_broadcast_sats", payload.get("max_auto_broadcast", 0)), "max auto broadcast"),
-            "updated_at": now(),
-            "notes": str(payload.get("notes") or "")[:500],
-        })
+        policy.update(
+            {
+                "mode": mode,
+                "hot_wallet_enabled": hot_wallet,
+                "require_operator_review": bool(payload.get("require_operator_review", True)),
+                "max_auto_broadcast_sats": parse_amount_sats(
+                    payload.get("max_auto_broadcast_sats", payload.get("max_auto_broadcast", 0)), "max auto broadcast"
+                ),
+                "updated_at": now(),
+                "notes": str(payload.get("notes") or "")[:500],
+            }
+        )
         data["payout_signing_policy"] = policy
         self.save(data)
         self.audit("security.payout_policy_updated", {"mode": mode, "hot_wallet_enabled": hot_wallet})
@@ -540,7 +584,11 @@ class AppStore:
                     confirmations=max(0, chain.height() - int(height) + 1) if height is not None else 0,
                     outputs_to_address_sats=by_addr,
                     total_output_sats=tx.total_output(),
-                    timestamp=block.header.timestamp if block else int(getattr(chain, "mempool_times", {}).get(tx.txid(), now())),
+                    timestamp=(
+                        block.header.timestamp
+                        if block
+                        else int(getattr(chain, "mempool_times", {}).get(tx.txid(), now()))
+                    ),
                 )
             )
         return out
@@ -568,7 +616,9 @@ class AppStore:
 
     # ----- payments / invoices -----
     def create_invoice(self, chain: Any, payload: dict[str, Any]) -> dict[str, Any]:
-        address = normalize_address(payload.get("recipient_address") or payload.get("address") or payload.get("recipient"))
+        address = normalize_address(
+            payload.get("recipient_address") or payload.get("address") or payload.get("recipient")
+        )
         amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "amount")
         if amount_sats <= 0:
             raise AppError("invoice amount must be greater than zero")
@@ -601,7 +651,15 @@ class AppStore:
         data = self.load()
         data["invoices"][invoice_id] = invoice
         data["payments"][invoice_id] = invoice
-        data["leaderboard_events"].append({"type": "invoice_created", "invoice_id": invoice_id, "merchant_id": merchant_id, "amount_sats": amount_sats, "t": created})
+        data["leaderboard_events"].append(
+            {
+                "type": "invoice_created",
+                "invoice_id": invoice_id,
+                "merchant_id": merchant_id,
+                "amount_sats": amount_sats,
+                "t": created,
+            }
+        )
         self.save(data)
         return self.invoice_status(chain, invoice_id)
 
@@ -671,14 +729,21 @@ class AppStore:
         data["invoices"][invoice_id].update({"status": status, "receipt_txid": best_txid})
         data["payments"][invoice_id] = data["invoices"][invoice_id]
         if previous_status != status:
-            data["webhook_events"].append({
-                "event_id": clean_id("evt"),
-                "event": "payment." + status,
-                "merchant_id": invoice.get("merchant_id", "default"),
-                "payload": {"invoice_id": invoice_id, "status": status, "receipt_txid": best_txid, "paid_total_sats": total_seen},
-                "created_at": now(),
-                "delivered": False,
-            })
+            data["webhook_events"].append(
+                {
+                    "event_id": clean_id("evt"),
+                    "event": "payment." + status,
+                    "merchant_id": invoice.get("merchant_id", "default"),
+                    "payload": {
+                        "invoice_id": invoice_id,
+                        "status": status,
+                        "receipt_txid": best_txid,
+                        "paid_total_sats": total_seen,
+                    },
+                    "created_at": now(),
+                    "delivered": False,
+                }
+            )
             data["webhook_events"] = data["webhook_events"][-500:]
         self.save(data)
         return invoice
@@ -742,13 +807,21 @@ class AppStore:
             "key_id": key_id,
             "merchant_id": merchant_id,
             "key_hash": hashlib.sha256(raw.encode()).hexdigest(),
-            "permissions": payload.get("permissions", ["payments:create", "payments:read", "merchant:write", "webhooks:deliver"]),
+            "permissions": payload.get(
+                "permissions", ["payments:create", "payments:read", "merchant:write", "webhooks:deliver"]
+            ),
+            "scopes": payload.get("scopes", ["merchant", "write"]),
             "created_at": now(),
             "last_used_at": None,
         }
         data["merchants"].setdefault(merchant_id, {"merchant_id": merchant_id, "created_at": now()})
         self.save(data)
-        return {"key_id": key_id, "merchant_id": merchant_id, "api_key": raw, "warning": "Store this API key now. Only its hash is saved."}
+        return {
+            "key_id": key_id,
+            "merchant_id": merchant_id,
+            "api_key": raw,
+            "warning": "Store this API key now. Only its hash is saved.",
+        }
 
     def register_public_api_key(self, payload: dict[str, Any], client_ip: str) -> dict[str, Any]:
         """Free self-service developer key (NIP-0004 auth). Public reads stay
@@ -780,7 +853,12 @@ class AppStore:
         if len(regs) > 10_000:
             data["api_key_registrations"] = dict(sorted(regs.items(), key=lambda kv: max(kv[1] or [0]))[-5_000:])
         self.save(data)
-        return {"key_id": key_id, "app": app_name, "api_key": raw, "warning": "Store this API key now. Only its hash is saved. Send it as the X-Netcoin-Api-Key header on write requests."}
+        return {
+            "key_id": key_id,
+            "app": app_name,
+            "api_key": raw,
+            "warning": "Store this API key now. Only its hash is saved. Send it as the X-Netcoin-Api-Key header on write requests.",
+        }
 
     def check_api_key(self, raw: Any) -> bool:
         """True if the presented key matches any stored key hash (self-service
@@ -789,15 +867,11 @@ class AppStore:
         if not candidate:
             return False
         digest = hashlib.sha256(candidate.encode()).hexdigest()
-        return any(
-            hmac.compare_digest(rec.get("key_hash", ""), digest)
-            for rec in self.load()["api_keys"].values()
-        )
+        return any(hmac.compare_digest(rec.get("key_hash", ""), digest) for rec in self.load()["api_keys"].values())
 
     def _hash_idempotent_payload(self, action: str, payload: dict[str, Any]) -> str:
         clean = {
-            str(k): v for k, v in payload.items()
-            if str(k) not in {"api_key", "_idempotency_key", "idempotency_key"}
+            str(k): v for k, v in payload.items() if str(k) not in {"api_key", "_idempotency_key", "idempotency_key"}
         }
         body = json.dumps({"action": action, "payload": clean}, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(body.encode()).hexdigest()
@@ -847,7 +921,9 @@ class AppStore:
         # Retain recent keys only. Idempotency is an operational protection, not
         # an immutable audit log.
         if len(records) > 5000:
-            data["app_idempotency_keys"] = dict(sorted(records.items(), key=lambda kv: kv[1].get("created_at", 0))[-2500:])
+            data["app_idempotency_keys"] = dict(
+                sorted(records.items(), key=lambda kv: kv[1].get("created_at", 0))[-2500:]
+            )
         self.save(data)
 
     def enforce_app_nonce(self, action: str, payload: dict[str, Any]) -> None:
@@ -857,7 +933,9 @@ class AppStore:
         The signer is detected from common account fields. Clients may also send
         require_nonce=true during testing to enforce it for one request.
         """
-        require = os.environ.get("NETCOIN_APP_REQUIRE_NONCE", "0").lower() in {"1", "true", "yes", "on"} or bool(payload.get("require_nonce"))
+        require = os.environ.get("NETCOIN_APP_REQUIRE_NONCE", "0").lower() in {"1", "true", "yes", "on"} or bool(
+            payload.get("require_nonce")
+        )
         nonce_value = payload.get("app_nonce", payload.get("nonce"))
         signer = str(
             payload.get("signer")
@@ -902,10 +980,14 @@ class AppStore:
                 break
         if not matched_id:
             return
-        usage = data.setdefault("api_usage", {}).setdefault(matched_id, {"key_id": matched_id, "total": 0, "by_action": {}, "last_used_at": None})
+        usage = data.setdefault("api_usage", {}).setdefault(
+            matched_id, {"key_id": matched_id, "total": 0, "by_action": {}, "last_used_at": None}
+        )
         usage["total"] = int(usage.get("total", 0) or 0) + 1
         usage["last_used_at"] = now()
-        action_row = usage.setdefault("by_action", {}).setdefault(action, {"count": 0, "last_status": None, "last_used_at": None})
+        action_row = usage.setdefault("by_action", {}).setdefault(
+            action, {"count": 0, "last_status": None, "last_used_at": None}
+        )
         action_row["count"] = int(action_row.get("count", 0) or 0) + 1
         action_row["last_status"] = int(status)
         action_row["last_used_at"] = now()
@@ -916,15 +998,46 @@ class AppStore:
         rows = []
         for key_id, usage in data.get("api_usage", {}).items():
             rec = data.get("api_keys", {}).get(key_id, {})
-            rows.append({
-                "key_id": key_id,
-                "merchant_id": rec.get("merchant_id"),
-                "total": int(usage.get("total", 0) or 0),
-                "last_used_at": usage.get("last_used_at"),
-                "by_action": usage.get("by_action", {}),
-            })
+            rows.append(
+                {
+                    "key_id": key_id,
+                    "merchant_id": rec.get("merchant_id"),
+                    "total": int(usage.get("total", 0) or 0),
+                    "last_used_at": usage.get("last_used_at"),
+                    "by_action": usage.get("by_action", {}),
+                }
+            )
         rows.sort(key=lambda r: (-(r.get("total") or 0), str(r.get("key_id"))))
         return {"api_usage": rows, "count": len(rows)}
+
+    def append_immutable_audit(self, event: str, payload: dict[str, Any]) -> dict[str, Any]:
+        data = self.load()
+        previous = (
+            data.setdefault("immutable_audit_log", [])[-1]["hash"] if data.get("immutable_audit_log") else "0" * 64
+        )
+        rec = {"event": event, "payload": payload, "created_at": now(), "previous_hash": previous}
+        rec_hash = hashlib.sha256(json.dumps(rec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        rec["hash"] = rec_hash
+        data.setdefault("immutable_audit_log", []).append(rec)
+        data["immutable_audit_log"] = data["immutable_audit_log"][-5000:]
+        self.save(data)
+        return rec
+
+    def assign_role(self, payload: dict[str, Any]) -> dict[str, Any]:
+        principal = str(payload.get("principal") or payload.get("address") or "").strip()
+        role = str(payload.get("role") or "auditor").strip()
+        if not principal:
+            raise AppError("principal is required")
+        data = self.load()
+        roles = data.setdefault("rbac_roles", {}).setdefault(principal, [])
+        if role not in roles:
+            roles.append(role)
+        self.save(data)
+        return {"principal": principal, "roles": roles}
+
+    def require_role(self, principal: str, allowed: set[str]) -> bool:
+        roles = set(self.load().get("rbac_roles", {}).get(principal, []))
+        return bool(roles & allowed or "admin" in roles)
 
     def register_webhook(self, payload: dict[str, Any]) -> dict[str, Any]:
         merchant_id = str(payload.get("merchant_id") or "default")[:80]
@@ -948,7 +1061,10 @@ class AppStore:
         data["webhooks"][hook_id] = record
         self.save(data)
         self.audit("merchant.webhook_registered", {"merchant_id": merchant_id, "webhook_id": hook_id})
-        return record | {"secret": secret, "warning": "Store and protect this webhook secret. It is retained locally so NetCoin can sign webhook deliveries."}
+        return record | {
+            "secret": secret,
+            "warning": "Store and protect this webhook secret. It is retained locally so NetCoin can sign webhook deliveries.",
+        }
 
     def queue_webhook_event(self, payload: dict[str, Any]) -> dict[str, Any]:
         data = self.load()
@@ -991,7 +1107,21 @@ class AppStore:
     def invoices_csv(self, chain: Any, merchant_id: str | None = None) -> str:
         invoices = self.list_invoices(chain, limit=200, merchant_id=merchant_id)["invoices"]
         buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=["invoice_id", "created_at", "expires_at", "merchant_id", "order_id", "amount", "status", "paid_total", "receipt_txid", "memo"])
+        writer = csv.DictWriter(
+            buf,
+            fieldnames=[
+                "invoice_id",
+                "created_at",
+                "expires_at",
+                "merchant_id",
+                "order_id",
+                "amount",
+                "status",
+                "paid_total",
+                "receipt_txid",
+                "memo",
+            ],
+        )
         writer.writeheader()
         for inv in invoices:
             writer.writerow({k: inv.get(k, "") for k in writer.fieldnames})
@@ -1010,7 +1140,9 @@ class AppStore:
         self.save(data)
         return {"merchant_id": merchant_id, "api_key_required": merchant["api_key_required"]}
 
-    def verify_api_key(self, raw_key: str, merchant_id: str | None = None, permission: str | None = None) -> dict[str, Any]:
+    def verify_api_key(
+        self, raw_key: str, merchant_id: str | None = None, permission: str | None = None
+    ) -> dict[str, Any]:
         if not raw_key:
             raise AppError("merchant API key is required")
         digest = hashlib.sha256(raw_key.encode()).hexdigest()
@@ -1020,7 +1152,11 @@ class AppStore:
                 continue
             if merchant_id and rec.get("merchant_id") != merchant_id:
                 raise AppError("merchant API key does not match merchant")
-            if permission and permission not in set(rec.get("permissions", [])) and "*" not in set(rec.get("permissions", [])):
+            if (
+                permission
+                and permission not in set(rec.get("permissions", []))
+                and "*" not in set(rec.get("permissions", []))
+            ):
                 raise AppError("merchant API key is missing permission")
             rec["last_used_at"] = now()
             self.save(data)
@@ -1080,7 +1216,12 @@ class AppStore:
                     },
                     method="POST",
                 )
-                attempt = {"event_id": event.get("event_id"), "webhook_id": hook.get("webhook_id"), "url": hook.get("url"), "attempted_at": current}
+                attempt = {
+                    "event_id": event.get("event_id"),
+                    "webhook_id": hook.get("webhook_id"),
+                    "url": hook.get("url"),
+                    "attempted_at": current,
+                }
                 try:
                     # Re-check at delivery time so a stored hook (or DNS rebinding)
                     # can never reach an internal/private target.
@@ -1088,7 +1229,7 @@ class AppStore:
                     with urllib.request.urlopen(req, timeout=float(payload.get("timeout", 3) or 3)) as resp:
                         attempt["status"] = int(resp.status)
                         attempt["ok"] = 200 <= int(resp.status) < 300
-                except Exception as exc:  # noqa: BLE001 - delivery logs should record network failure strings
+                except Exception as exc:
                     attempt["status"] = 0
                     attempt["ok"] = False
                     attempt["error"] = str(exc)[:300]
@@ -1104,19 +1245,31 @@ class AppStore:
                 else:
                     failed += 1
                     backoff = int(hook.get("backoff_seconds", 60) or 60)
-                    event["next_attempt_at"] = current + min(86400, backoff * (2 ** min(8, int(event.get("attempt_count", 1) - 1))))
+                    event["next_attempt_at"] = current + min(
+                        86400, backoff * (2 ** min(8, int(event.get("attempt_count", 1) - 1)))
+                    )
                     if int(event.get("attempt_count", 0) or 0) >= max_attempts:
                         event["dead_letter"] = True
                         event["dead_letter_at"] = now()
         self.save(data)
         if attempts:
-            self.audit("merchant.webhook_delivery_batch", {"delivered": delivered, "failed": failed, "skipped": skipped})
+            self.audit(
+                "merchant.webhook_delivery_batch", {"delivered": delivered, "failed": failed, "skipped": skipped}
+            )
         return {"delivered": delivered, "failed": failed, "skipped": skipped, "attempts": attempts}
 
     def checkout_html(self, chain: Any, invoice_id: str) -> str:
         inv = self.invoice_status(chain, invoice_id)
-        status_class = "ok" if inv.get("status") == "confirmed" else "warn" if inv.get("status") in {"pending", "underpaid"} else "muted"
-        tx_link = f"<p>Receipt: <a href='/receipt/{esc(inv.get('receipt_txid'))}'>{esc(inv.get('receipt_txid'))}</a></p>" if inv.get("receipt_txid") else ""
+        status_class = (
+            "ok"
+            if inv.get("status") == "confirmed"
+            else "warn" if inv.get("status") in {"pending", "underpaid"} else "muted"
+        )
+        tx_link = (
+            f"<p>Receipt: <a href='/receipt/{esc(inv.get('receipt_txid'))}'>{esc(inv.get('receipt_txid'))}</a></p>"
+            if inv.get("receipt_txid")
+            else ""
+        )
         body = f"""<h1>NetCoin checkout</h1><div class=card>
 <p>Status: <strong class='{status_class}'>{esc(inv.get('status'))}</strong></p>
 <p>Amount due: <strong>{esc(inv.get('amount'))} NET</strong></p>
@@ -1140,8 +1293,20 @@ class AppStore:
     def tip_html(self, name: str) -> str:
         profile = self.resolve_username(name)
         amt = ""
-        uri = payment_uri(profile["address"], label="Tip " + (profile.get("display_name") or profile["username"]), message="NetCoin tip")
-        button = esc(self.tip_button({"username": profile["username"], "address": profile["address"], "label": "Tip " + (profile.get("display_name") or profile["username"])})["html"])
+        uri = payment_uri(
+            profile["address"],
+            label="Tip " + (profile.get("display_name") or profile["username"]),
+            message="NetCoin tip",
+        )
+        button = esc(
+            self.tip_button(
+                {
+                    "username": profile["username"],
+                    "address": profile["address"],
+                    "label": "Tip " + (profile.get("display_name") or profile["username"]),
+                }
+            )["html"]
+        )
         body = f"""<h1>Tip {esc(profile.get('display_name') or profile['username'])}</h1>
 <div class=card><p>Send a NetCoin tip to:</p><p class=mono>{esc(profile['address'])}</p>
 <p><a class=button href='{esc(uri)}'>Open payment link</a></p><p class=mono>{esc(uri)}</p></div>
@@ -1150,7 +1315,9 @@ class AppStore:
 
     def receipt_html(self, chain: Any, txid: str) -> str:
         rec = self.receipt(chain, txid)
-        lines = "".join(f"<li>{esc(addr)}: {esc(amount)} NET</li>" for addr, amount in rec.get("outputs_to_address", {}).items())
+        lines = "".join(
+            f"<li>{esc(addr)}: {esc(amount)} NET</li>" for addr, amount in rec.get("outputs_to_address", {}).items()
+        )
         body = f"""<h1>NetCoin receipt</h1><div class=card><p>Transaction:</p><p class=mono>{esc(txid)}</p>
 <p>Confirmed: <strong>{esc(rec.get('confirmed'))}</strong></p><p>Confirmations: {esc(rec.get('confirmations'))}</p>
 <p>Total output: {esc(rec.get('total_output'))} NET</p><ul>{lines}</ul>
@@ -1179,9 +1346,13 @@ class AppStore:
             if amount_sats <= 0:
                 raise AppError("payout amount must be greater than zero")
             total += amount_sats
-            clean_outputs.append({"address": address, "amount_sats": amount_sats, "amount": sats_to_amount(amount_sats)})
+            clean_outputs.append(
+                {"address": address, "amount_sats": amount_sats, "amount": sats_to_amount(amount_sats)}
+            )
         policy = self.load().get("payout_signing_policy", DEFAULT_APP_STATE["payout_signing_policy"])
-        requires_review = bool(policy.get("require_operator_review", True)) or total > int(policy.get("max_auto_broadcast_sats", 0) or 0)
+        requires_review = bool(policy.get("require_operator_review", True)) or total > int(
+            policy.get("max_auto_broadcast_sats", 0) or 0
+        )
         return {
             "payout_id": clean_id("pay"),
             "kind": kind,
@@ -1201,7 +1372,6 @@ class AppStore:
             "instructions": "Import this payout plan into a NetCoin wallet, review outputs, sign, and broadcast. Hot-wallet auto-broadcast is disabled unless an operator explicitly enables it in the signing policy.",
         }
 
-
     # ----- admin/operator dashboard and manual payout signing -----
     def _payout_plan_rows_from_data(self, data: dict[str, Any]) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
@@ -1209,17 +1379,21 @@ class AppStore:
         def add(source_type: str, source_id: str, record: dict[str, Any], plan: dict[str, Any], path: str) -> None:
             if not isinstance(plan, dict) or not plan.get("payout_id"):
                 return
-            public_record = {k: v for k, v in record.items() if k not in {"payout_plan", "rows", "secret", "secret_hash", "key_hash"}}
+            public_record = {
+                k: v for k, v in record.items() if k not in {"payout_plan", "rows", "secret", "secret_hash", "key_hash"}
+            }
             if len(json.dumps(public_record, default=str)) > 3000:
                 public_record = {"summary": str(public_record)[:3000]}
-            rows.append({
-                **plan,
-                "source_type": source_type,
-                "source_id": source_id,
-                "source_status": record.get("status", ""),
-                "source_path": path,
-                "source_record": public_record,
-            })
+            rows.append(
+                {
+                    **plan,
+                    "source_type": source_type,
+                    "source_id": source_id,
+                    "source_status": record.get("status", ""),
+                    "source_path": path,
+                    "source_record": public_record,
+                }
+            )
 
         for rid, rec in data.get("refunds", {}).items():
             add("refund", rid, rec, rec.get("payout_plan", {}), f"refunds.{rid}.payout_plan")
@@ -1246,7 +1420,13 @@ class AppStore:
                     if isinstance(proposal, dict)
                 )
             for pid, proposal in proposal_items:
-                add("team_wallet", pid, proposal, proposal.get("payout_plan", {}), f"team_wallets.{wid}.proposals.{pid}.payout_plan")
+                add(
+                    "team_wallet",
+                    pid,
+                    proposal,
+                    proposal.get("payout_plan", {}),
+                    f"team_wallets.{wid}.proposals.{pid}.payout_plan",
+                )
         rows.sort(key=lambda x: int(x.get("created_at", 0) or 0), reverse=True)
         return rows
 
@@ -1301,7 +1481,9 @@ class AppStore:
         def updater(plan: dict[str, Any]) -> dict[str, Any]:
             plan["reviewed_by"] = reviewer
             plan["reviewed_at"] = now()
-            plan.setdefault("operator_notes", []).append({"type": "review", "operator": reviewer, "note": note, "created_at": now(), "approved": approved})
+            plan.setdefault("operator_notes", []).append(
+                {"type": "review", "operator": reviewer, "note": note, "created_at": now(), "approved": approved}
+            )
             plan["status"] = "ready_for_wallet_signing" if approved else "rejected"
             return plan
 
@@ -1357,7 +1539,9 @@ class AppStore:
             if signed_tx:
                 plan["signed_tx_sha256"] = hashlib.sha256(signed_tx.encode()).hexdigest()
                 plan["signed_tx_preview"] = signed_tx[:80] + ("..." if len(signed_tx) > 80 else "")
-            plan.setdefault("operator_notes", []).append({"type": "signed", "operator": signer, "created_at": now(), "txid": signed_txid})
+            plan.setdefault("operator_notes", []).append(
+                {"type": "signed", "operator": signer, "created_at": now(), "txid": signed_txid}
+            )
             return plan
 
         updated = self._update_payout_plan(payout_id, updater)
@@ -1377,7 +1561,9 @@ class AppStore:
             plan["broadcast_txid"] = txid
             plan["broadcast_recorded_at"] = now()
             plan["broadcast_recorded_by"] = operator
-            plan.setdefault("operator_notes", []).append({"type": "broadcast", "operator": operator, "created_at": now(), "txid": txid})
+            plan.setdefault("operator_notes", []).append(
+                {"type": "broadcast", "operator": operator, "created_at": now(), "txid": txid}
+            )
             return plan
 
         updated = self._update_payout_plan(payout_id, updater)
@@ -1429,7 +1615,11 @@ class AppStore:
 
     def create_refund_plan(self, payload: dict[str, Any]) -> dict[str, Any]:
         record = self.record_refund(payload)
-        plan = self.plan_payout("refund", [{"address": record["to_address"], "amount_sats": record["amount_sats"]}], memo=record.get("reason", ""))
+        plan = self.plan_payout(
+            "refund",
+            [{"address": record["to_address"], "amount_sats": record["amount_sats"]}],
+            memo=record.get("reason", ""),
+        )
         data = self.load()
         data["refunds"][record["refund_id"]]["payout_plan"] = plan
         data["refunds"][record["refund_id"]]["status"] = "ready_for_wallet_signing"
@@ -1448,7 +1638,15 @@ class AppStore:
             valid = validate_address(str(addr).strip())
             duplicate = str(addr).strip() in seen
             seen.add(str(addr).strip())
-            rows.append({"address": str(addr).strip(), "valid": valid, "duplicate": duplicate, "amount_sats": amount_sats, "amount": sats_to_amount(amount_sats)})
+            rows.append(
+                {
+                    "address": str(addr).strip(),
+                    "valid": valid,
+                    "duplicate": duplicate,
+                    "amount_sats": amount_sats,
+                    "amount": sats_to_amount(amount_sats),
+                }
+            )
         valid_rows = [r for r in rows if r["valid"] and not r["duplicate"]]
         dry_run = bool(payload.get("dry_run", True))
         record = {
@@ -1463,7 +1661,9 @@ class AppStore:
             "created_at": now(),
         }
         if not dry_run:
-            record["payout_plan"] = self.plan_payout("airdrop", valid_rows, memo=str(payload.get("memo") or "NetCoin airdrop"))
+            record["payout_plan"] = self.plan_payout(
+                "airdrop", valid_rows, memo=str(payload.get("memo") or "NetCoin airdrop")
+            )
             record["status"] = "ready_for_wallet_signing"
         data = self.load()
         data["airdrops"][record["airdrop_id"]] = record
@@ -1485,7 +1685,16 @@ class AppStore:
         raise AppError("token not found")
 
     def _token_event(self, data: dict[str, Any], token: dict[str, Any], kind: str, detail: dict[str, Any]) -> None:
-        data["token_events"].append({"event_id": clean_id("tev"), "token_id": token["token_id"], "symbol": token["symbol"], "kind": kind, "detail": detail, "created_at": now()})
+        data["token_events"].append(
+            {
+                "event_id": clean_id("tev"),
+                "token_id": token["token_id"],
+                "symbol": token["symbol"],
+                "kind": kind,
+                "detail": detail,
+                "created_at": now(),
+            }
+        )
         data["token_events"] = data["token_events"][-500:]
 
     def create_token(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1521,7 +1730,12 @@ class AppStore:
             "note": "App-layer indexed ledger. Not enforced by NetCoin consensus.",
         }
         data["tokens"][token["token_id"]] = token
-        self._token_event(data, token, "create", {"creator": creator, "initial_units": initial_units, "signature_verified": signature_status["verified"]})
+        self._token_event(
+            data,
+            token,
+            "create",
+            {"creator": creator, "initial_units": initial_units, "signature_verified": signature_status["verified"]},
+        )
         self.save(data)
         return token | {"signature": signature_status}
 
@@ -1542,23 +1756,39 @@ class AppStore:
     def token_balances(self, token_ref: str) -> dict[str, Any]:
         token = self._find_token(self.load(), token_ref)
         holders = sorted(
-            ({"account": account, "units": units, "amount": format_token_amount(units, token["decimals"])} for account, units in token["balances"].items() if units > 0),
+            (
+                {"account": account, "units": units, "amount": format_token_amount(units, token["decimals"])}
+                for account, units in token["balances"].items()
+                if units > 0
+            ),
             key=lambda h: (-h["units"], h["account"]),
         )
-        return {"token_id": token["token_id"], "symbol": token["symbol"], "decimals": token["decimals"], "holders": holders, "holder_count": len(holders)}
+        return {
+            "token_id": token["token_id"],
+            "symbol": token["symbol"],
+            "decimals": token["decimals"],
+            "holders": holders,
+            "holder_count": len(holders),
+        }
 
     def token_balance_of(self, token_ref: str, account: str) -> dict[str, Any]:
         token = self._find_token(self.load(), token_ref)
         clean = normalize_token_account(account)
         units = int(token["balances"].get(clean, 0))
-        return {"token_id": token["token_id"], "symbol": token["symbol"], "account": clean, "units": units, "amount": format_token_amount(units, token["decimals"])}
+        return {
+            "token_id": token["token_id"],
+            "symbol": token["symbol"],
+            "account": clean,
+            "units": units,
+            "amount": format_token_amount(units, token["decimals"]),
+        }
 
     def token_events(self, token_ref: str | None = None, limit: int = 100) -> dict[str, Any]:
         events = self.load()["token_events"]
         if token_ref:
             token = self._find_token(self.load(), token_ref)
             events = [e for e in events if e["token_id"] == token["token_id"]]
-        return {"events": events[-max(1, min(limit, 500)):][::-1]}
+        return {"events": events[-max(1, min(limit, 500)) :][::-1]}
 
     def mint_token(self, token_ref: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = self.load()
@@ -1575,7 +1805,9 @@ class AppStore:
             raise AppError("mint would exceed max supply")
         token["supply_units"] += units
         token["balances"][to_account] = int(token["balances"].get(to_account, 0)) + units
-        self._token_event(data, token, "mint", {"to": to_account, "units": units, "signature_verified": signature_status["verified"]})
+        self._token_event(
+            data, token, "mint", {"to": to_account, "units": units, "signature_verified": signature_status["verified"]}
+        )
         self.save(data)
         return self.token_balance_of(token["token_id"], to_account) | {"signature": signature_status}
 
@@ -1593,7 +1825,12 @@ class AppStore:
             raise AppError("insufficient token balance")
         token["balances"][sender] = balance - units
         token["balances"][recipient] = int(token["balances"].get(recipient, 0)) + units
-        self._token_event(data, token, "transfer", {"from": sender, "to": recipient, "units": units, "signature_verified": signature_status["verified"]})
+        self._token_event(
+            data,
+            token,
+            "transfer",
+            {"from": sender, "to": recipient, "units": units, "signature_verified": signature_status["verified"]},
+        )
         self.save(data)
         return {
             "token_id": token["token_id"],
@@ -1614,7 +1851,9 @@ class AppStore:
             raise AppError("insufficient token balance")
         token["balances"][account] = balance - units
         token["supply_units"] -= units
-        self._token_event(data, token, "burn", {"from": account, "units": units, "signature_verified": signature_status["verified"]})
+        self._token_event(
+            data, token, "burn", {"from": account, "units": units, "signature_verified": signature_status["verified"]}
+        )
         self.save(data)
         return self.token_balance_of(token["token_id"], account) | {"signature": signature_status}
 
@@ -1656,15 +1895,23 @@ class AppStore:
                     self.save(data)
                     raise AppError("gift expired")
                 gift.update({"status": "claimed", "claimed_by_address": address, "claimed_at": now()})
-                gift["payout_plan"] = self.plan_payout("gift", [{"address": address, "amount_sats": gift["amount_sats"]}], memo=gift.get("memo", "NetCoin gift"))
-                data["leaderboard_events"].append({"type": "gift_claimed", "address": address, "amount_sats": gift["amount_sats"], "t": now()})
+                gift["payout_plan"] = self.plan_payout(
+                    "gift",
+                    [{"address": address, "amount_sats": gift["amount_sats"]}],
+                    memo=gift.get("memo", "NetCoin gift"),
+                )
+                data["leaderboard_events"].append(
+                    {"type": "gift_claimed", "address": address, "amount_sats": gift["amount_sats"], "t": now()}
+                )
                 self.save(data)
                 return gift
         raise AppError("gift not found")
 
     def create_bounty(self, payload: dict[str, Any]) -> dict[str, Any]:
         bounty_id = str(payload.get("bounty_id") or clean_id("bty"))
-        reward_sats = parse_amount_sats(payload.get("reward_sats", payload.get("reward", payload.get("amount", 0))), "bounty reward")
+        reward_sats = parse_amount_sats(
+            payload.get("reward_sats", payload.get("reward", payload.get("amount", 0))), "bounty reward"
+        )
         record = {
             "bounty_id": bounty_id,
             "title": str(payload.get("title") or "Untitled bounty")[:140],
@@ -1706,11 +1953,24 @@ class AppStore:
         if not bounty:
             raise AppError("bounty not found")
         winner = normalize_address(payload.get("winner_address") or payload.get("address"))
-        bounty.update({"status": "awarded", "winner_address": winner, "payout_txid": str(payload.get("payout_txid") or ""), "awarded_at": now()})
+        bounty.update(
+            {
+                "status": "awarded",
+                "winner_address": winner,
+                "payout_txid": str(payload.get("payout_txid") or ""),
+                "awarded_at": now(),
+            }
+        )
         if not bounty.get("payout_txid"):
-            bounty["payout_plan"] = self.plan_payout("bounty", [{"address": winner, "amount_sats": bounty["reward_sats"]}], memo="Bounty payout: " + str(bounty.get("title", "")))
+            bounty["payout_plan"] = self.plan_payout(
+                "bounty",
+                [{"address": winner, "amount_sats": bounty["reward_sats"]}],
+                memo="Bounty payout: " + str(bounty.get("title", "")),
+            )
             bounty["status"] = "ready_for_wallet_signing"
-        data["leaderboard_events"].append({"type": "bounty_awarded", "address": winner, "amount_sats": bounty["reward_sats"], "t": now()})
+        data["leaderboard_events"].append(
+            {"type": "bounty_awarded", "address": winner, "amount_sats": bounty["reward_sats"], "t": now()}
+        )
         self.save(data)
         return bounty
 
@@ -1734,8 +1994,13 @@ class AppStore:
             for out in block.transactions[0].outputs:
                 if out.address:
                     miners[out.address] = miners.get(out.address, 0) + int(out.amount)
+
         def top(mapping: dict[str, int], n: int = 20) -> list[dict[str, Any]]:
-            return [{"id": key, "amount_sats": value, "amount": sats_to_amount(value)} for key, value in sorted(mapping.items(), key=lambda kv: kv[1], reverse=True)[:n]]
+            return [
+                {"id": key, "amount_sats": value, "amount": sats_to_amount(value)}
+                for key, value in sorted(mapping.items(), key=lambda kv: kv[1], reverse=True)[:n]
+            ]
+
         return {"top_miners": top(miners), "top_earners": top(earners), "top_donors": top(donors)}
 
     def create_reward(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1753,16 +2018,20 @@ class AppStore:
             "payout_txid": str(payload.get("payout_txid") or ""),
         }
         if not record["payout_txid"]:
-            record["payout_plan"] = self.plan_payout("reward", [{"address": address, "amount_sats": amount_sats}], memo=record["reason"])
+            record["payout_plan"] = self.plan_payout(
+                "reward", [{"address": address, "amount_sats": amount_sats}], memo=record["reason"]
+            )
         data = self.load()
         data["rewards"][reward_id] = record
-        data["leaderboard_events"].append({"type": "community_reward", "address": address, "amount_sats": amount_sats, "t": now()})
+        data["leaderboard_events"].append(
+            {"type": "community_reward", "address": address, "amount_sats": amount_sats, "t": now()}
+        )
         self.save(data)
         return record
 
     def list_community_posts(self, limit: int = 50) -> dict[str, Any]:
         data = self.load()
-        posts = list(data.get("community_posts", []))[-max(1, min(int(limit), 200)):]
+        posts = list(data.get("community_posts", []))[-max(1, min(int(limit), 200)) :]
         return {"posts": posts[::-1], "count": len(data.get("community_posts", []))}
 
     def create_community_post(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1790,10 +2059,9 @@ class AppStore:
         self.save(data)
         return rec
 
-
     def list_community_reports(self, limit: int = 100) -> dict[str, Any]:
         data = self.load()
-        reports = list(data.get("community_reports", []))[-max(1, min(int(limit), 500)):]
+        reports = list(data.get("community_reports", []))[-max(1, min(int(limit), 500)) :]
         return {"reports": reports[::-1], "count": len(data.get("community_reports", []))}
 
     def create_community_report(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1817,7 +2085,11 @@ class AppStore:
 
     def list_improvements(self) -> dict[str, Any]:
         data = self.load()
-        ideas = sorted(data.get("community_improvements", {}).values(), key=lambda x: (int(x.get("votes", 0)), int(x.get("created_at", 0))), reverse=True)
+        ideas = sorted(
+            data.get("community_improvements", {}).values(),
+            key=lambda x: (int(x.get("votes", 0)), int(x.get("created_at", 0))),
+            reverse=True,
+        )
         return {"improvements": ideas, "count": len(ideas)}
 
     def create_improvement(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1826,7 +2098,11 @@ class AppStore:
             raise AppError("title is required")
         description = str(payload.get("description") or payload.get("details") or "")[:2000].strip()
         author = str(payload.get("name") or payload.get("author") or "Anonymous")[:80].strip() or "Anonymous"
-        if looks_like_sensitive_secret(title) or looks_like_sensitive_secret(description) or looks_like_sensitive_secret(author):
+        if (
+            looks_like_sensitive_secret(title)
+            or looks_like_sensitive_secret(description)
+            or looks_like_sensitive_secret(author)
+        ):
             raise AppError("improvement ideas must not include private keys, seed phrases, passwords, or API secrets")
         rec = {
             "idea_id": clean_id("idea"),
@@ -1858,10 +2134,19 @@ class AppStore:
         amount_sats = None
         if payload.get("amount") or payload.get("amount_sats"):
             amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount")), "tip amount")
-        uri = payment_uri(address, amount_sats=amount_sats, label=label, message=str(payload.get("message") or "NetCoin tip")[:120])
+        uri = payment_uri(
+            address, amount_sats=amount_sats, label=label, message=str(payload.get("message") or "NetCoin tip")[:120]
+        )
         html_snippet = f'<a href="{esc(uri)}" rel="noopener" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#111;color:#fff;text-decoration:none">{esc(label)}</a>'
         button_id = str(payload.get("button_id") or clean_id("tip"))
-        record = {"button_id": button_id, "address": address, "label": label, "payment_uri": uri, "html": html_snippet, "created_at": now()}
+        record = {
+            "button_id": button_id,
+            "address": address,
+            "label": label,
+            "payment_uri": uri,
+            "html": html_snippet,
+            "created_at": now(),
+        }
         data = self.load()
         data["tip_buttons"][button_id] = record
         self.save(data)
@@ -1894,12 +2179,20 @@ class AppStore:
             ts = receipt.timestamp or 0
             if month:
                 import datetime as _dt
+
                 m = _dt.datetime.utcfromtimestamp(ts).strftime("%Y-%m") if ts else ""
                 if m != month:
                     continue
             amount = receipt.outputs_to_address_sats.get(address, 0)
             incoming += amount
-            rows.append(receipt.to_dict() | {"amount_sats": amount, "amount": sats_to_amount(amount), "category": data["wallet_categories"].get(receipt.txid, {}).get("category", "")})
+            rows.append(
+                receipt.to_dict()
+                | {
+                    "amount_sats": amount,
+                    "amount": sats_to_amount(amount),
+                    "category": data["wallet_categories"].get(receipt.txid, {}).get("category", ""),
+                }
+            )
         bal = chain.address_balance_summary(address)
         return {
             "address": address,
@@ -1915,7 +2208,9 @@ class AppStore:
     def wallet_statement_csv(self, chain: Any, address: str, month: str | None = None) -> str:
         statement = self.wallet_statement(chain, address, month)
         buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=["txid", "timestamp", "confirmed", "block_height", "amount", "confirmations", "category"])
+        writer = csv.DictWriter(
+            buf, fieldnames=["txid", "timestamp", "confirmed", "block_height", "amount", "confirmations", "category"]
+        )
         writer.writeheader()
         for tx in statement["transactions"]:
             writer.writerow({k: tx.get(k, "") for k in writer.fieldnames})
@@ -1931,7 +2226,9 @@ class AppStore:
             f"Transactions: {st['transaction_count']}",
         ]
         for tx in st["transactions"][:30]:
-            lines.append(f"{tx.get('txid')}  {tx.get('amount')} NET  conf={tx.get('confirmations')}  {tx.get('category','')}")
+            lines.append(
+                f"{tx.get('txid')}  {tx.get('amount')} NET  conf={tx.get('confirmations')}  {tx.get('category','')}"
+            )
         return simple_pdf("NetCoin wallet statement", lines)
 
     def upsert_alert(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1941,7 +2238,9 @@ class AppStore:
             "alert_id": alert_id,
             "address": address,
             "kind": str(payload.get("kind") or "balance_changed")[:80],
-            "threshold_sats": parse_amount_sats(payload.get("threshold_sats", payload.get("threshold", 0)), "threshold"),
+            "threshold_sats": parse_amount_sats(
+                payload.get("threshold_sats", payload.get("threshold", 0)), "threshold"
+            ),
             "channel": str(payload.get("channel") or "local")[:80],
             "target": str(payload.get("target") or "")[:300],
             "active": bool(payload.get("active", True)),
@@ -1956,11 +2255,17 @@ class AppStore:
         wallet_id = str(payload.get("wallet_id") or payload.get("address") or "default")[:140]
         record = {
             "wallet_id": wallet_id,
-            "single_tx_limit_sats": parse_amount_sats(payload.get("single_tx_limit_sats", payload.get("single_tx_limit", 0)), "single tx limit"),
-            "daily_limit_sats": parse_amount_sats(payload.get("daily_limit_sats", payload.get("daily_limit", 0)), "daily limit"),
+            "single_tx_limit_sats": parse_amount_sats(
+                payload.get("single_tx_limit_sats", payload.get("single_tx_limit", 0)), "single tx limit"
+            ),
+            "daily_limit_sats": parse_amount_sats(
+                payload.get("daily_limit_sats", payload.get("daily_limit", 0)), "daily limit"
+            ),
             "mode": str(payload.get("mode") or "daily")[:60],
             "require_backup": bool(payload.get("require_backup", False)),
-            "require_typed_confirm": bool(payload.get("require_typed_confirm", str(payload.get("mode") or "daily") == "savings")),
+            "require_typed_confirm": bool(
+                payload.get("require_typed_confirm", str(payload.get("mode") or "daily") == "savings")
+            ),
             "updated_at": now(),
         }
         record["single_tx_limit"] = sats_to_amount(record["single_tx_limit_sats"])
@@ -1976,7 +2281,11 @@ class AppStore:
         fee_sats = parse_amount_sats(payload.get("fee_sats", payload.get("fee", 0)), "fee")
         total = amount_sats + fee_sats
         data = self.load()
-        limits = data.get("spending_limits", {}).get(wallet_id) or data.get("spending_limits", {}).get(str(payload.get("address") or "")) or {}
+        limits = (
+            data.get("spending_limits", {}).get(wallet_id)
+            or data.get("spending_limits", {}).get(str(payload.get("address") or ""))
+            or {}
+        )
         ok = True
         reasons: list[str] = []
         single = int(limits.get("single_tx_limit_sats", 0) or 0)
@@ -1995,7 +2304,16 @@ class AppStore:
             if not (backup.get("seed_verified") and backup.get("encrypted_export_saved")):
                 ok = False
                 reasons.append("backup must be verified before spending")
-        return {"ok": ok, "reasons": reasons, "wallet_id": wallet_id, "total_sats": total, "total": sats_to_amount(total), "limits": limits, "spent_today_sats": spent_today, "spent_today": sats_to_amount(spent_today)}
+        return {
+            "ok": ok,
+            "reasons": reasons,
+            "wallet_id": wallet_id,
+            "total_sats": total,
+            "total": sats_to_amount(total),
+            "limits": limits,
+            "spent_today_sats": spent_today,
+            "spent_today": sats_to_amount(spent_today),
+        }
 
     def record_wallet_spend(self, payload: dict[str, Any]) -> dict[str, Any]:
         wallet_id = str(payload.get("wallet_id") or payload.get("address") or "default")[:140]
@@ -2004,9 +2322,16 @@ class AppStore:
         day = time.strftime("%Y-%m-%d", time.gmtime())
         log_key = wallet_id + ":" + day
         data = self.load()
-        data.setdefault("wallet_spend_log", {})[log_key] = int(data.setdefault("wallet_spend_log", {}).get(log_key, 0) or 0) + amount_sats + fee_sats
+        data.setdefault("wallet_spend_log", {})[log_key] = (
+            int(data.setdefault("wallet_spend_log", {}).get(log_key, 0) or 0) + amount_sats + fee_sats
+        )
         self.save(data)
-        return {"wallet_id": wallet_id, "date": day, "spent_today_sats": data["wallet_spend_log"][log_key], "spent_today": sats_to_amount(data["wallet_spend_log"][log_key])}
+        return {
+            "wallet_id": wallet_id,
+            "date": day,
+            "spent_today_sats": data["wallet_spend_log"][log_key],
+            "spent_today": sats_to_amount(data["wallet_spend_log"][log_key]),
+        }
 
     def evaluate_alerts(self, chain: Any, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         payload = payload or {}
@@ -2032,7 +2357,16 @@ class AppStore:
             alert["last_balance_sats"] = balance
             alert["last_checked_at"] = now()
             if triggered:
-                event = {"alert_id": alert["alert_id"], "address": alert["address"], "balance_sats": balance, "balance": sats_to_amount(balance), "kind": alert.get("kind"), "created_at": now(), "channel": alert.get("channel"), "target": alert.get("target")}
+                event = {
+                    "alert_id": alert["alert_id"],
+                    "address": alert["address"],
+                    "balance_sats": balance,
+                    "balance": sats_to_amount(balance),
+                    "kind": alert.get("kind"),
+                    "created_at": now(),
+                    "channel": alert.get("channel"),
+                    "target": alert.get("target"),
+                }
                 data.setdefault("alert_events", []).append(event)
                 events.append(event)
         data["alert_events"] = data.get("alert_events", [])[-500:]
@@ -2114,13 +2448,26 @@ class AppStore:
         wallet_id = str(payload.get("wallet_id") or "default")[:140]
         address = normalize_address(payload.get("address"))
         data = self.load()
-        bucket = data.setdefault("address_rotation", {}).setdefault(wallet_id, {"wallet_id": wallet_id, "addresses": []})
+        bucket = data.setdefault("address_rotation", {}).setdefault(
+            wallet_id, {"wallet_id": wallet_id, "addresses": []}
+        )
         existing = next((x for x in bucket["addresses"] if x.get("address") == address), None)
         if existing:
-            existing.update({"label": str(payload.get("label") or existing.get("label") or "")[:120], "used": bool(payload.get("used", existing.get("used", False))), "updated_at": now()})
+            existing.update(
+                {
+                    "label": str(payload.get("label") or existing.get("label") or "")[:120],
+                    "used": bool(payload.get("used", existing.get("used", False))),
+                    "updated_at": now(),
+                }
+            )
             rec = existing
         else:
-            rec = {"address": address, "label": str(payload.get("label") or "")[:120], "used": bool(payload.get("used", False)), "created_at": now()}
+            rec = {
+                "address": address,
+                "label": str(payload.get("label") or "")[:120],
+                "used": bool(payload.get("used", False)),
+                "created_at": now(),
+            }
             bucket["addresses"].append(rec)
         self.save(data)
         return rec | {"wallet_id": wallet_id}
@@ -2131,7 +2478,6 @@ class AppStore:
             if not rec.get("used"):
                 return rec | {"wallet_id": wallet_id}
         raise AppError("no unused receive address registered for this wallet")
-
 
     # ----- phase 7: contract templates, recurring payments, escrow, polls, markets -----
     def default_contract_templates(self) -> dict[str, Any]:
@@ -2147,7 +2493,13 @@ class AppStore:
                 "type": "vesting",
                 "title": "Vesting schedule",
                 "description": "Track scheduled releases over time for teams, grants, or treasury funds.",
-                "required_fields": ["beneficiary_address", "total_amount", "start_time", "interval_seconds", "installments"],
+                "required_fields": [
+                    "beneficiary_address",
+                    "total_amount",
+                    "start_time",
+                    "interval_seconds",
+                    "installments",
+                ],
                 "states": ["draft", "active", "completed", "canceled"],
             },
             "multisig": {
@@ -2194,7 +2546,9 @@ class AppStore:
         return {"templates": templates, "count": len(templates)}
 
     def _record_contract_event(self, data: dict[str, Any], event_type: str, payload: dict[str, Any]) -> None:
-        data.setdefault("contract_events", []).append({"event_id": clean_id("cevt"), "event": event_type, "payload": payload, "created_at": now()})
+        data.setdefault("contract_events", []).append(
+            {"event_id": clean_id("cevt"), "event": event_type, "payload": payload, "created_at": now()}
+        )
         data["contract_events"] = data.get("contract_events", [])[-1000:]
 
     def _valid_pubkey_hex(self, value: Any, field: str = "public_key") -> str:
@@ -2221,13 +2575,23 @@ class AppStore:
             unlock_height = int(payload.get("unlock_height", terms.get("unlock_height", 0)) or 0)
             if unlock_height <= 0:
                 raise AppError("unlock_height must be positive")
-            amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", terms.get("amount", 0))), "amount")
+            amount_sats = parse_amount_sats(
+                payload.get("amount_sats", payload.get("amount", terms.get("amount", 0))), "amount"
+            )
             redeem_script = timelocked_redeem_script(unlock_height, pub)
-            derived = {"amount_sats": amount_sats, "amount": sats_to_amount(amount_sats), "redeem_script": redeem_script, "address": script_to_p2sh_address(redeem_script)}
+            derived = {
+                "amount_sats": amount_sats,
+                "amount": sats_to_amount(amount_sats),
+                "redeem_script": redeem_script,
+                "address": script_to_p2sh_address(redeem_script),
+            }
             terms |= {"public_key": pub, "unlock_height": unlock_height}
             status = "funding_ready"
         elif contract_type == "multisig":
-            pubs = [self._valid_pubkey_hex(x, "public_key") for x in (payload.get("public_keys") or terms.get("public_keys") or [])]
+            pubs = [
+                self._valid_pubkey_hex(x, "public_key")
+                for x in (payload.get("public_keys") or terms.get("public_keys") or [])
+            ]
             required = int(payload.get("required_signatures", terms.get("required_signatures", 0)) or 0)
             if not pubs or required <= 0:
                 raise AppError("multisig requires public_keys and required_signatures")
@@ -2254,7 +2618,9 @@ class AppStore:
         }
         data = self.load()
         data["contracts"][contract_id] = record
-        self._record_contract_event(data, "contract.created", {"contract_id": contract_id, "contract_type": contract_type})
+        self._record_contract_event(
+            data, "contract.created", {"contract_id": contract_id, "contract_type": contract_type}
+        )
         self.save(data)
         return record
 
@@ -2264,19 +2630,29 @@ class AppStore:
         if not record:
             raise AppError("contract not found")
         next_status = str(payload.get("status") or payload.get("next_status") or "").strip()
-        allowed = set(record.get("template", {}).get("states", [])) | {"draft", "active", "funded", "settled", "canceled"}
+        allowed = set(record.get("template", {}).get("states", [])) | {
+            "draft",
+            "active",
+            "funded",
+            "settled",
+            "canceled",
+        }
         if not next_status or next_status not in allowed:
             raise AppError("invalid contract status transition")
         record["status"] = next_status
         record["updated_at"] = now()
-        record.setdefault("history", []).append({"status": next_status, "note": str(payload.get("note") or "")[:300], "created_at": now()})
+        record.setdefault("history", []).append(
+            {"status": next_status, "note": str(payload.get("note") or "")[:300], "created_at": now()}
+        )
         self._record_contract_event(data, "contract.transition", {"contract_id": contract_id, "status": next_status})
         self.save(data)
         return record
 
     def create_recurring_agreement(self, payload: dict[str, Any]) -> dict[str, Any]:
         payer = normalize_address(payload.get("payer_address") or payload.get("payer"))
-        recipient = normalize_address(payload.get("recipient_address") or payload.get("recipient") or payload.get("address"))
+        recipient = normalize_address(
+            payload.get("recipient_address") or payload.get("recipient") or payload.get("address")
+        )
         amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "amount")
         if amount_sats <= 0:
             raise AppError("recurring amount must be greater than zero")
@@ -2313,7 +2689,11 @@ class AppStore:
     def list_recurring_agreements(self) -> dict[str, Any]:
         items = list(self.load().get("recurring_agreements", {}).values())
         items.sort(key=lambda x: int(x.get("next_due_at", 0) or 0))
-        return {"agreements": items, "count": len(items), "due": [x for x in items if x.get("status") == "active" and int(x.get("next_due_at", 0) or 0) <= now()]}
+        return {
+            "agreements": items,
+            "count": len(items),
+            "due": [x for x in items if x.get("status") == "active" and int(x.get("next_due_at", 0) or 0) <= now()],
+        }
 
     def update_recurring_agreement(self, agreement_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = self.load()
@@ -2336,7 +2716,9 @@ class AppStore:
         self.save(data)
         return rec
 
-    def create_recurring_invoice(self, chain: Any, agreement_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    def create_recurring_invoice(
+        self, chain: Any, agreement_id: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         payload = payload or {}
         data = self.load()
         rec = data.get("recurring_agreements", {}).get(agreement_id)
@@ -2344,21 +2726,26 @@ class AppStore:
             raise AppError("recurring agreement not found")
         if rec.get("status") != "active":
             raise AppError("recurring agreement is not active")
-        invoice = self.create_invoice(chain, {
-            "address": rec["recipient_address"],
-            "amount_sats": rec["amount_sats"],
-            "memo": payload.get("memo") or rec.get("memo") or f"Recurring payment {agreement_id}",
-            "label": rec.get("label") or "Recurring payment",
-            "merchant_id": payload.get("merchant_id") or "recurring",
-            "order_id": agreement_id,
-            "expires_in_seconds": payload.get("expires_in_seconds", 86400),
-        })
+        invoice = self.create_invoice(
+            chain,
+            {
+                "address": rec["recipient_address"],
+                "amount_sats": rec["amount_sats"],
+                "memo": payload.get("memo") or rec.get("memo") or f"Recurring payment {agreement_id}",
+                "label": rec.get("label") or "Recurring payment",
+                "merchant_id": payload.get("merchant_id") or "recurring",
+                "order_id": agreement_id,
+                "expires_in_seconds": payload.get("expires_in_seconds", 86400),
+            },
+        )
         data = self.load()
         rec = data["recurring_agreements"][agreement_id]
         rec.setdefault("invoices", []).append(invoice["invoice_id"])
         rec["last_invoice_id"] = invoice["invoice_id"]
         rec["updated_at"] = now()
-        self._record_contract_event(data, "recurring.invoice_created", {"agreement_id": agreement_id, "invoice_id": invoice["invoice_id"]})
+        self._record_contract_event(
+            data, "recurring.invoice_created", {"agreement_id": agreement_id, "invoice_id": invoice["invoice_id"]}
+        )
         self.save(data)
         return invoice | {"agreement_id": agreement_id}
 
@@ -2370,7 +2757,11 @@ class AppStore:
         txid = str(payload.get("txid") or payload.get("payment_txid") or "").strip()
         if not txid:
             raise AppError("txid is required")
-        item = {"txid": txid, "paid_at": int(payload.get("paid_at", now()) or now()), "amount_sats": int(payload.get("amount_sats", rec.get("amount_sats", 0)) or 0)}
+        item = {
+            "txid": txid,
+            "paid_at": int(payload.get("paid_at", now()) or now()),
+            "amount_sats": int(payload.get("amount_sats", rec.get("amount_sats", 0)) or 0),
+        }
         rec.setdefault("payments", []).append(item)
         rec["last_payment_txid"] = txid
         rec["next_due_at"] = int(rec.get("next_due_at", now()) or now()) + int(rec.get("interval_seconds", 0) or 0)
@@ -2413,7 +2804,15 @@ class AppStore:
             record["status"] = "funded"
         data = self.load()
         data["escrows"][escrow_id] = record
-        data["contracts"][escrow_id] = {"contract_id": escrow_id, "contract_type": "escrow_2_of_3", "status": record["status"], "terms": record, "derived": {"address": address, "descriptor": descriptor}, "created_at": now(), "updated_at": now()}
+        data["contracts"][escrow_id] = {
+            "contract_id": escrow_id,
+            "contract_type": "escrow_2_of_3",
+            "status": record["status"],
+            "terms": record,
+            "derived": {"address": address, "descriptor": descriptor},
+            "created_at": now(),
+            "updated_at": now(),
+        }
         self._record_contract_event(data, "escrow.created", {"escrow_id": escrow_id, "address": address})
         self.save(data)
         return record
@@ -2427,7 +2826,9 @@ class AppStore:
             bal = chain.address_balance_summary(esc_rec["escrow_address"])
             esc_rec["funded_seen_sats"] = int(bal.get("total_sats", 0) or 0)
             esc_rec["funded_seen"] = sats_to_amount(esc_rec["funded_seen_sats"])
-            if esc_rec.get("status") == "funding_ready" and esc_rec["funded_seen_sats"] >= int(esc_rec.get("amount_sats", 0)):
+            if esc_rec.get("status") == "funding_ready" and esc_rec["funded_seen_sats"] >= int(
+                esc_rec.get("amount_sats", 0)
+            ):
                 esc_rec["status"] = "funded"
                 data["escrows"][escrow_id] = esc_rec
                 self.save(data)
@@ -2451,18 +2852,32 @@ class AppStore:
         else:
             if not signer:
                 raise AppError("signer is required")
-            approval = {"action": action, "signer": signer, "created_at": now(), "signature": str(payload.get("signature") or "")[:300]}
+            approval = {
+                "action": action,
+                "signer": signer,
+                "created_at": now(),
+                "signature": str(payload.get("signature") or "")[:300],
+            }
             if approval not in rec.setdefault("approvals", []):
                 rec["approvals"].append(approval)
             signers = {a.get("signer") for a in rec.get("approvals", []) if a.get("action") == action}
             if len(signers) >= 2:
-                to_addr = normalize_address(payload.get("to_address") or (rec.get("seller_address") if action == "release" else rec.get("buyer_address")))
-                rec["payout_plan"] = self.plan_payout("escrow_" + action, [{"address": to_addr, "amount_sats": int(rec["amount_sats"])}], memo=f"Escrow {action} {escrow_id}")
+                to_addr = normalize_address(
+                    payload.get("to_address")
+                    or (rec.get("seller_address") if action == "release" else rec.get("buyer_address"))
+                )
+                rec["payout_plan"] = self.plan_payout(
+                    "escrow_" + action,
+                    [{"address": to_addr, "amount_sats": int(rec["amount_sats"])}],
+                    memo=f"Escrow {action} {escrow_id}",
+                )
                 rec["status"] = "released" if action == "release" else "refunded"
             else:
                 rec["status"] = "pending_" + action
         rec["updated_at"] = now()
-        self._record_contract_event(data, "escrow.action", {"escrow_id": escrow_id, "action": action, "status": rec["status"]})
+        self._record_contract_event(
+            data, "escrow.action", {"escrow_id": escrow_id, "action": action, "status": rec["status"]}
+        )
         self.save(data)
         return rec
 
@@ -2490,7 +2905,14 @@ class AppStore:
         }
         data = self.load()
         data["polls"][poll_id] = record
-        data["contracts"][poll_id] = {"contract_id": poll_id, "contract_type": "poll", "status": record["status"], "terms": record, "created_at": now(), "updated_at": now()}
+        data["contracts"][poll_id] = {
+            "contract_id": poll_id,
+            "contract_type": "poll",
+            "status": record["status"],
+            "terms": record,
+            "created_at": now(),
+            "updated_at": now(),
+        }
         self._record_contract_event(data, "poll.created", {"poll_id": poll_id})
         self.save(data)
         return self.poll_results(poll_id)
@@ -2521,8 +2943,18 @@ class AppStore:
         elif not bool(payload.get("allow_unverified_demo", False)):
             raise AppError("signature is required for signed-message polls")
         weight = int(payload.get("weight", 1) or 1)
-        poll.setdefault("votes", {})[voter] = {"voter_address": voter, "option_id": option_id, "signature": signature, "verified": verified, "weight": max(1, weight), "message": message, "created_at": now()}
-        self._record_contract_event(data, "poll.vote", {"poll_id": poll_id, "voter_address": voter, "option_id": option_id})
+        poll.setdefault("votes", {})[voter] = {
+            "voter_address": voter,
+            "option_id": option_id,
+            "signature": signature,
+            "verified": verified,
+            "weight": max(1, weight),
+            "message": message,
+            "created_at": now(),
+        }
+        self._record_contract_event(
+            data, "poll.vote", {"poll_id": poll_id, "voter_address": voter, "option_id": option_id}
+        )
         self.save(data)
         return self.poll_results(poll_id)
 
@@ -2553,59 +2985,205 @@ class AppStore:
 
     def create_prediction_market(self, payload: dict[str, Any]) -> dict[str, Any]:
         from .markets import create_prediction_market_impl
+
         return create_prediction_market_impl(self, payload)
 
     def prediction_market(self, market_id: str) -> dict[str, Any]:
         from .markets import prediction_market_impl
+
         return prediction_market_impl(self, market_id)
 
     def list_prediction_markets(self) -> dict[str, Any]:
         from .markets import list_prediction_markets_impl
+
         return list_prediction_markets_impl(self)
 
     def place_market_order(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         from .markets import place_market_order_impl
+
         return place_market_order_impl(self, market_id, payload)
 
-    def cancel_market_order(self, market_id: str, order_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    def cancel_market_order(
+        self, market_id: str, order_id: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         from .markets import cancel_market_order_impl
+
         return cancel_market_order_impl(self, market_id, order_id, payload)
 
     def request_market_resolution(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         from .markets import request_market_resolution_impl
+
         return request_market_resolution_impl(self, market_id, payload)
 
     def resolve_prediction_market(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         from .markets import resolve_prediction_market_impl
+
         return resolve_prediction_market_impl(self, market_id, payload)
 
     def dispute_market_resolution(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         from .markets import dispute_market_resolution_impl
+
         return dispute_market_resolution_impl(self, market_id, payload)
 
     def market_surveillance(self, market_id: str | None = None) -> dict[str, Any]:
         from .markets import market_surveillance_impl
+
         return market_surveillance_impl(self, market_id)
 
     def market_orderbook(self, market_id: str, depth: int = 25) -> dict[str, Any]:
         from .markets import market_orderbook_impl
+
         return market_orderbook_impl(self, market_id, depth)
 
     def market_ticker(self, market_id: str) -> dict[str, Any]:
         from .markets import market_ticker_impl
+
         return market_ticker_impl(self, market_id)
 
     def market_trades(self, market_id: str, limit: int = 100) -> dict[str, Any]:
         from .markets import market_trades_impl
+
         return market_trades_impl(self, market_id, limit)
 
     def market_positions(self, market_id: str, trader: str | None = None) -> dict[str, Any]:
         from .markets import market_positions_impl
+
         return market_positions_impl(self, market_id, trader)
 
     def polymarket_markets(self, query: dict[str, list[str]] | None = None) -> dict[str, Any]:
         from .markets import polymarket_markets_impl
+
         return polymarket_markets_impl(self, query)
+
+    def market_depth(self, market_id: str, depth: int = 25) -> dict[str, Any]:
+        from .markets import market_depth_impl
+
+        return market_depth_impl(self, market_id, depth)
+
+    def market_candles(self, market_id: str, interval_seconds: int = 3600, limit: int = 168) -> dict[str, Any]:
+        from .markets import market_candles_impl
+
+        return market_candles_impl(self, market_id, interval_seconds, limit)
+
+    def market_open_interest(self, market_id: str) -> dict[str, Any]:
+        from .markets import market_open_interest_impl
+
+        return market_open_interest_impl(self, market_id)
+
+    def market_volume(self, market_id: str) -> dict[str, Any]:
+        from .markets import market_volume_impl
+
+        return market_volume_impl(self, market_id)
+
+    def market_portfolio(self, trader: str) -> dict[str, Any]:
+        from .markets import portfolio_all_markets_impl
+
+        return portfolio_all_markets_impl(self, trader)
+
+    def cancel_all_market_orders(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from .markets import cancel_all_market_orders_impl
+
+        return cancel_all_market_orders_impl(self, market_id, payload)
+
+    def batch_market_orders(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from .markets import batch_market_orders_impl
+
+        return batch_market_orders_impl(self, market_id, payload)
+
+    def transition_market_state(
+        self, market_id: str, state: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        from .markets import transition_market_state_impl
+
+        return transition_market_state_impl(self, market_id, state, payload or {})
+
+    def market_oracle_dossier(self, market_id: str) -> dict[str, Any]:
+        from .markets.oracles import OracleRegistry
+
+        data = self.load()
+        return OracleRegistry(data.setdefault("market_oracles", {})).dossier(market_id)
+
+    def register_market_oracle(self, payload: dict[str, Any]) -> dict[str, Any]:
+        from .markets.oracles import OracleRegistry
+
+        data = self.load()
+        registry = OracleRegistry(data.setdefault("market_oracles", {}))
+        rec = registry.register_oracle(
+            str(payload.get("oracle_id") or payload.get("id") or "manual"),
+            str(payload.get("name") or payload.get("oracle_id") or "Manual operator"),
+            source_type=str(payload.get("source_type") or "manual"),
+            url=str(payload.get("url") or ""),
+            public_key=str(payload.get("public_key") or ""),
+            reputation=int(payload.get("reputation", 0) or 0),
+            active=bool(payload.get("active", True)),
+        )
+        self.save(data)
+        self.audit("markets.oracle_registered", {"oracle_id": rec["oracle_id"]})
+        return rec
+
+    def submit_market_evidence(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from .markets.oracles import OracleRegistry
+
+        data = self.load()
+        registry = OracleRegistry(data.setdefault("market_oracles", {}))
+        evidence = registry.submit_evidence(
+            market_id,
+            oracle_id=str(payload.get("oracle_id") or "manual"),
+            url=str(payload.get("url") or payload.get("evidence_url") or ""),
+            title=str(payload.get("title") or ""),
+            source_type=str(payload.get("source_type") or "url"),
+            submitter=str(payload.get("submitter") or payload.get("operator") or "operator"),
+            statement=str(payload.get("statement") or payload.get("note") or ""),
+            payload=dict(payload.get("payload") or {}),
+        )
+        market = data.get("prediction_markets", {}).get(market_id)
+        if market is not None:
+            market.setdefault("resolution_evidence", []).append(evidence)
+            market["updated_at"] = now()
+        self.save(data)
+        self.audit("markets.evidence_submitted", {"market_id": market_id, "evidence_id": evidence["evidence_id"]})
+        return evidence
+
+    def dispute_market_evidence(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from .markets.oracles import OracleRegistry
+
+        data = self.load()
+        registry = OracleRegistry(data.setdefault("market_oracles", {}))
+        dispute = registry.dispute(
+            market_id,
+            commenter=str(payload.get("commenter") or payload.get("operator") or "operator"),
+            comment=str(payload.get("comment") or payload.get("note") or ""),
+            evidence_id=str(payload.get("evidence_id") or ""),
+        )
+        market = data.get("prediction_markets", {}).get(market_id)
+        if market is not None:
+            market.setdefault("dispute_comments", []).append(dispute)
+            market["status"] = "disputed"
+            market["updated_at"] = now()
+        self.save(data)
+        self.audit("markets.evidence_disputed", {"market_id": market_id, "dispute_id": dispute["dispute_id"]})
+        return dispute
+
+    def market_maker_quote_plan(self, market_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        from .markets.mm import plan_quotes, quote_orders_from_plan
+
+        payload = payload or {}
+        market = self.prediction_market(market_id)
+        plan = plan_quotes(
+            market,
+            fair_values_bps={str(k): int(v) for k, v in dict(payload.get("fair_values_bps") or {}).items()},
+            spread_bps=int(payload.get("spread_bps", 200) or 200),
+            quantity=int(payload.get("quantity", 10) or 10),
+            max_exposure=int(payload.get("max_exposure", 1000) or 1000),
+        )
+        trader = str(payload.get("trader") or payload.get("trader_address") or "demo:market-maker")
+        plan["orders"] = quote_orders_from_plan(plan, trader)
+        return plan
+
+    def market_settlement_reconciliation(self, market_id: str) -> dict[str, Any]:
+        from .markets.reconciliation import settlement_reconciliation
+
+        return settlement_reconciliation(self.prediction_market(market_id))
 
     # ----- explorer / network -----
     def upsert_known_label(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -2638,7 +3216,7 @@ class AppStore:
             "peers": sorted(getattr(node, "peers", [])) if node is not None else [],
             "difficulty_bits": getattr(chain.tip().header, "bits", None),
             "average_block_interval_seconds": int(sum(intervals) / len(intervals)) if intervals else 0,
-            "node_version": getattr(node, "info", lambda: {})().get("version") if node is not None else None,
+            "node_version": getattr(node, "info", dict)().get("version") if node is not None else None,
             "sync_status": "ready",
         }
 
@@ -2655,9 +3233,28 @@ class AppStore:
                     continue
                 rewards[out.address] = rewards.get(out.address, 0) + int(out.amount)
                 blocks[out.address] = blocks.get(out.address, 0) + 1
-                recent.append({"height": block.header.height, "address": out.address, "reward_sats": int(out.amount), "reward": sats_to_amount(int(out.amount)), "timestamp": block.header.timestamp})
+                recent.append(
+                    {
+                        "height": block.header.height,
+                        "address": out.address,
+                        "reward_sats": int(out.amount),
+                        "reward": sats_to_amount(int(out.amount)),
+                        "timestamp": block.header.timestamp,
+                    }
+                )
         top = sorted(rewards, key=lambda a: rewards[a], reverse=True)[:20]
-        return {"top_miners": [{"address": a, "blocks": blocks.get(a, 0), "reward_sats": rewards[a], "reward": sats_to_amount(rewards[a])} for a in top], "recent_rewards": recent[-30:][::-1]}
+        return {
+            "top_miners": [
+                {
+                    "address": a,
+                    "blocks": blocks.get(a, 0),
+                    "reward_sats": rewards[a],
+                    "reward": sats_to_amount(rewards[a]),
+                }
+                for a in top
+            ],
+            "recent_rewards": recent[-30:][::-1],
+        }
 
     def mining_calculator(self, chain: Any, hashrate: float = 1.0) -> dict[str, Any]:
         # Educational estimate: assumes local hashrate share against a bits-derived
@@ -2694,7 +3291,9 @@ class AppStore:
             "event_height": event,
             "blocks_remaining": max(0, event - current),
             "interval_blocks": REWARD_REDUCTION_INTERVAL,
-            "reduction_percent": int((REWARD_REDUCTION_DENOMINATOR - REWARD_REDUCTION_NUMERATOR) * 100 / REWARD_REDUCTION_DENOMINATOR),
+            "reduction_percent": int(
+                (REWARD_REDUCTION_DENOMINATOR - REWARD_REDUCTION_NUMERATOR) * 100 / REWARD_REDUCTION_DENOMINATOR
+            ),
             "current_subsidy_sats": subsidy,
             "current_subsidy": sats_to_amount(subsidy),
         }
@@ -2708,7 +3307,14 @@ class AppStore:
             try:
                 bal = chain.address_balance_summary(address)
                 total += int(bal["total_sats"])
-                result.append({"address": address, "label": entry.get("label", "Treasury") if isinstance(entry, dict) else "Treasury", "balance_sats": bal["total_sats"], "balance": bal["total"]})
+                result.append(
+                    {
+                        "address": address,
+                        "label": entry.get("label", "Treasury") if isinstance(entry, dict) else "Treasury",
+                        "balance_sats": bal["total_sats"],
+                        "balance": bal["total"],
+                    }
+                )
             except Exception as exc:
                 result.append({"address": address, "error": str(exc)})
         return {"addresses": result, "total_sats": total, "total": sats_to_amount(total)}
@@ -2733,16 +3339,23 @@ def validate_address_payload(address: str) -> dict[str, Any]:
             details = _json_safe(decode_address(address))
         except Exception as exc:  # pragma: no cover - validate_address already passed
             error = str(exc)
-    return {"address": address, "valid": valid, "network": "netcoin" if valid else None, "details": details, "error": error}
+    return {
+        "address": address,
+        "valid": valid,
+        "network": "netcoin" if valid else None,
+        "details": details,
+        "error": error,
+    }
 
-
-# -------- small routing helpers used by node.py and explorer_server.py --------
+    # -------- small routing helpers used by node.py and explorer_server.py --------
 
     # ----- professional treasury governance -----
     def create_treasury_proposal(self, payload: dict[str, Any]) -> dict[str, Any]:
         proposal_id = str(payload.get("proposal_id") or clean_id("tpr"))[:80]
         title = str(payload.get("title") or "Treasury spend")[:120]
-        amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "treasury proposal amount")
+        amount_sats = parse_amount_sats(
+            payload.get("amount_sats", payload.get("amount", 0)), "treasury proposal amount"
+        )
         to_address = normalize_address(payload.get("to_address") or payload.get("address"))
         required = max(1, int(payload.get("required_approvals", 2) or 2))
         record = {
@@ -2775,13 +3388,23 @@ def validate_address_payload(address: str) -> dict[str, Any]:
         approvals = proposal.setdefault("approvals", [])
         if not any(a.get("signer") == signer for a in approvals):
             approvals.append({"signer": signer, "note": str(payload.get("note") or "")[:250], "created_at": now()})
-        if len(approvals) >= int(proposal.get("required_approvals", 2) or 2) and proposal.get("status") == "pending_approval":
-            plan = self.plan_payout("treasury", [{"address": proposal["to_address"], "amount_sats": proposal["amount_sats"]}], memo=proposal.get("memo", ""))
+        if (
+            len(approvals) >= int(proposal.get("required_approvals", 2) or 2)
+            and proposal.get("status") == "pending_approval"
+        ):
+            plan = self.plan_payout(
+                "treasury",
+                [{"address": proposal["to_address"], "amount_sats": proposal["amount_sats"]}],
+                memo=proposal.get("memo", ""),
+            )
             proposal["payout_plan"] = plan
             proposal["status"] = "ready_for_wallet_signing"
         proposal["updated_at"] = now()
         self.save(data)
-        self.audit("treasury.proposal_approved", {"proposal_id": proposal_id, "signer": signer, "approval_count": len(approvals)})
+        self.audit(
+            "treasury.proposal_approved",
+            {"proposal_id": proposal_id, "signer": signer, "approval_count": len(approvals)},
+        )
         return proposal
 
     def treasury_governance(self) -> dict[str, Any]:
@@ -2798,7 +3421,9 @@ def validate_address_payload(address: str) -> dict[str, Any]:
         }
 
 
-def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[str]], node: Any | None = None) -> tuple[int, dict[str, Any] | str | bytes, str]:
+def route_app_get(
+    store: AppStore, chain: Any, path: str, query: dict[str, list[str]], node: Any | None = None
+) -> tuple[int, dict[str, Any] | str | bytes, str]:
     def q(name: str, default: str = "") -> str:
         return query.get(name, [default])[0]
 
@@ -2825,7 +3450,10 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, store.receipt_html(chain, path.split("/", 2)[2]), "text/html; charset=utf-8"
     if not is_api_route and path.startswith("/gift/"):
         code = path.split("/", 2)[2]
-        body = app_html_page("Claim NetCoin gift", f"<h1>Claim NetCoin gift</h1><div class=card><p>Claim code:</p><p class=mono>{esc(code)}</p><form><input name=address placeholder='your NetCoin address'><p class=muted>Submit this code and address to /api/community/gifts/claim.</p></form></div>")
+        body = app_html_page(
+            "Claim NetCoin gift",
+            f"<h1>Claim NetCoin gift</h1><div class=card><p>Claim code:</p><p class=mono>{esc(code)}</p><form><input name=address placeholder='your NetCoin address'><p class=muted>Submit this code and address to /api/community/gifts/claim.</p></form></div>",
+        )
         return 200, body, "text/html; charset=utf-8"
     if path == "/admin" or path == "/operator":
         return 200, store.admin_dashboard_html(), "text/html; charset=utf-8"
@@ -2834,7 +3462,11 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
     if path == "/validate-address":
         return 200, validate_address_payload(q("address")), "application/json"
     if path in ("/payments", "/invoices"):
-        return 200, store.list_invoices(chain, int(q("limit", "50") or 50), merchant_id=q("merchant_id") or None), "application/json"
+        return (
+            200,
+            store.list_invoices(chain, int(q("limit", "50") or 50), merchant_id=q("merchant_id") or None),
+            "application/json",
+        )
     if path.startswith("/payments/") or path.startswith("/invoices/"):
         invoice_id = path.split("/", 2)[2]
         return 200, store.invoice_status(chain, invoice_id), "application/json"
@@ -2862,7 +3494,11 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
     if path == "/merchant/export.csv":
         return 200, store.invoices_csv(chain, merchant_id=q("merchant_id") or None), "text/csv"
     if path == "/merchant/webhooks":
-        return 200, {"webhooks": list(store.load()["webhooks"].values()), "events": store.load()["webhook_events"][-100:]}, "application/json"
+        return (
+            200,
+            {"webhooks": list(store.load()["webhooks"].values()), "events": store.load()["webhook_events"][-100:]},
+            "application/json",
+        )
     if path == "/merchant/refunds":
         return 200, {"refunds": list(store.load()["refunds"].values())}, "application/json"
     if path == "/merchant/api-keys":
@@ -2915,13 +3551,26 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
     if path == "/wallet/statement.pdf":
         return 200, store.wallet_statement_pdf(chain, q("address"), q("month") or None), "application/pdf"
     if path == "/wallet/alerts":
-        return 200, {"alerts": list(store.load()["wallet_alerts"].values()), "events": store.load().get("alert_events", [])[-100:]}, "application/json"
+        return (
+            200,
+            {
+                "alerts": list(store.load()["wallet_alerts"].values()),
+                "events": store.load().get("alert_events", [])[-100:],
+            },
+            "application/json",
+        )
     if path == "/wallet/alerts/evaluate":
         return 200, store.evaluate_alerts(chain), "application/json"
     if path == "/wallet/limits":
         return 200, {"spending_limits": store.load()["spending_limits"]}, "application/json"
     if path == "/wallet/limits/check":
-        return 200, store.check_spending_limits({"wallet_id": q("wallet_id"), "address": q("address"), "amount": q("amount"), "fee": q("fee")}), "application/json"
+        return (
+            200,
+            store.check_spending_limits(
+                {"wallet_id": q("wallet_id"), "address": q("address"), "amount": q("amount"), "fee": q("fee")}
+            ),
+            "application/json",
+        )
     if path == "/wallet/team-wallets":
         return 200, {"team_wallets": list(store.load()["team_wallets"].values())}, "application/json"
     if path.startswith("/wallet/receive/next/"):
@@ -2934,9 +3583,11 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, store.security_status(), "application/json"
     if path in ("/professional-readiness", "/readiness/professional"):
         from ..professional import professional_readiness
+
         return 200, professional_readiness(Path(__file__).resolve().parents[2]), "application/json"
     if path == "/professional-issues":
         from ..professional import issue_report
+
         return 200, issue_report(Path(__file__).resolve().parents[2]), "application/json"
     if path == "/security/audit":
         return 200, {"admin_events": store.load().get("admin_events", [])[-200:]}, "application/json"
@@ -2951,7 +3602,11 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         payout_id = path.split("/")[3]
         return 200, store.get_payout_plan(payout_id), "application/json"
     if path == "/custody/policy":
-        return 200, store.load().get("payout_signing_policy", DEFAULT_APP_STATE["payout_signing_policy"]), "application/json"
+        return (
+            200,
+            store.load().get("payout_signing_policy", DEFAULT_APP_STATE["payout_signing_policy"]),
+            "application/json",
+        )
     if path == "/contracts/templates":
         return 200, store.list_contract_templates(), "application/json"
     if path == "/contracts/events":
@@ -2973,7 +3628,11 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
             raise AppError("recurring agreement not found")
         return 200, rec, "application/json"
     if path == "/escrows":
-        return 200, {"escrows": [store.escrow_status(chain, x["escrow_id"]) for x in store.load().get("escrows", {}).values()]}, "application/json"
+        return (
+            200,
+            {"escrows": [store.escrow_status(chain, x["escrow_id"]) for x in store.load().get("escrows", {}).values()]},
+            "application/json",
+        )
     if path.startswith("/escrows/"):
         return 200, store.escrow_status(chain, path.split("/", 2)[2]), "application/json"
     if path == "/polls":
@@ -3009,6 +3668,30 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, store.market_trades(path.split("/")[2], limit), "application/json"
     if path.startswith("/markets/") and path.endswith("/positions"):
         return 200, store.market_positions(path.split("/")[2], q("trader") or None), "application/json"
+    if path == "/markets/portfolio":
+        return 200, store.market_portfolio(q("trader") or "demo:trader"), "application/json"
+    if path.startswith("/markets/") and path.endswith("/depth"):
+        return 200, store.market_depth(path.split("/")[2], int(q("depth", "25") or 25)), "application/json"
+    if path.startswith("/markets/") and path.endswith("/candles"):
+        return (
+            200,
+            store.market_candles(path.split("/")[2], int(q("interval", "3600") or 3600), int(q("limit", "168") or 168)),
+            "application/json",
+        )
+    if path.startswith("/markets/") and path.endswith("/open-interest"):
+        return 200, store.market_open_interest(path.split("/")[2]), "application/json"
+    if path.startswith("/markets/") and path.endswith("/volume"):
+        return 200, store.market_volume(path.split("/")[2]), "application/json"
+    if path.startswith("/markets/") and path.endswith("/oracles"):
+        return 200, store.market_oracle_dossier(path.split("/")[2]), "application/json"
+    if path.startswith("/markets/") and path.endswith("/reconciliation"):
+        return 200, store.market_settlement_reconciliation(path.split("/")[2]), "application/json"
+    if path.startswith("/markets/") and path.endswith("/maker-plan"):
+        return (
+            200,
+            store.market_maker_quote_plan(path.split("/")[2], {"trader": q("trader") or "demo:market-maker"}),
+            "application/json",
+        )
     if path.startswith("/markets/"):
         return 200, store.prediction_market(path.split("/", 2)[2]), "application/json"
     if path == "/network":
@@ -3028,7 +3711,9 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
     raise AppError("not an app-layer route")
 
 
-def _route_app_post_uncached(store: AppStore, chain: Any, path: str, body: dict[str, Any], node: Any | None = None) -> tuple[int, dict[str, Any]]:
+def _route_app_post_uncached(
+    store: AppStore, chain: Any, path: str, body: dict[str, Any], node: Any | None = None
+) -> tuple[int, dict[str, Any]]:
     if path.startswith("/api"):
         path = path[4:] or "/"
     if path.startswith("/app"):
@@ -3127,6 +3812,16 @@ def _route_app_post_uncached(store: AppStore, chain: Any, path: str, body: dict[
         return 200, store.create_prediction_market(body)
     if path.startswith("/markets/") and path.endswith("/order"):
         return 200, store.place_market_order(path.split("/")[2], body)
+    if path.startswith("/markets/") and path.endswith("/batch-orders"):
+        return 200, store.batch_market_orders(path.split("/")[2], body)
+    if path.startswith("/markets/") and path.endswith("/cancel-all"):
+        return 200, store.cancel_all_market_orders(path.split("/")[2], body)
+    if path.startswith("/markets/") and path.endswith("/pause"):
+        return 200, store.transition_market_state(path.split("/")[2], "paused", body)
+    if path.startswith("/markets/") and path.endswith("/resume"):
+        return 200, store.transition_market_state(path.split("/")[2], "open", body)
+    if path.startswith("/markets/") and path.endswith("/close"):
+        return 200, store.transition_market_state(path.split("/")[2], "closed", body)
     if path.startswith("/markets/") and "/orders/" in path and path.endswith("/cancel"):
         parts = path.split("/")
         return 200, store.cancel_market_order(parts[2], parts[4], body)
@@ -3139,6 +3834,14 @@ def _route_app_post_uncached(store: AppStore, chain: Any, path: str, body: dict[
         return 200, store.dispute_market_resolution(path.split("/")[2], body)
     if path.startswith("/markets/") and path.endswith("/resolve"):
         return 200, store.resolve_prediction_market(path.split("/")[2], body)
+    if path == "/markets/oracles":
+        return 200, store.register_market_oracle(body)
+    if path.startswith("/markets/") and path.endswith("/evidence"):
+        return 200, store.submit_market_evidence(path.split("/")[2], body)
+    if path.startswith("/markets/") and path.endswith("/evidence-dispute"):
+        return 200, store.dispute_market_evidence(path.split("/")[2], body)
+    if path.startswith("/markets/") and path.endswith("/maker-plan"):
+        return 200, store.market_maker_quote_plan(path.split("/")[2], body)
     if path == "/wallet/categories":
         return 200, store.set_category(body)
     if path == "/wallet/alerts":
@@ -3181,13 +3884,26 @@ def _route_app_post_uncached(store: AppStore, chain: Any, path: str, body: dict[
         return 200, store.treasury(chain)
     raise AppError("not an app-layer route")
 
-def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any], node: Any | None = None) -> tuple[int, dict[str, Any]]:
+
+def route_app_post(
+    store: AppStore, chain: Any, path: str, body: dict[str, Any], node: Any | None = None
+) -> tuple[int, dict[str, Any]]:
     """Route an app-layer write with optional idempotency and nonce protection."""
     action = path[4:] if path.startswith("/api") else path
     action = action[4:] if action.startswith("/app") else action
+    from .auth import require_signed_envelope_if_needed
+
+    envelope_status = require_signed_envelope_if_needed("POST", action, body)
+    if envelope_status.get("verified"):
+        body = dict(body)
+        body["signed_envelope_verified"] = envelope_status
     replay = store.idempotency_lookup(action, body)
     if replay is not None:
-        response = dict(replay["response"]) if isinstance(replay.get("response"), dict) else {"response": replay.get("response")}
+        response = (
+            dict(replay["response"])
+            if isinstance(replay.get("response"), dict)
+            else {"response": replay.get("response")}
+        )
         response["idempotent_replay"] = True
         response["idempotency_key"] = replay.get("idempotency_key")
         return int(replay.get("status", 200)), response
@@ -3196,5 +3912,6 @@ def route_app_post(store: AppStore, chain: Any, path: str, body: dict[str, Any],
     if isinstance(payload, dict):
         store.idempotency_store(action, body, status, payload)
         store.record_api_usage(body, action, status)
+        if action.startswith(("/markets", "/merchant", "/admin", "/custody", "/treasury")):
+            store.append_immutable_audit(action, {"status": status, "keys": sorted(str(k) for k in body.keys())})
     return status, payload
-

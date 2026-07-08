@@ -9,6 +9,7 @@ file. If SHA256SUMS.asc exists and gpg is installed, the detached signature is
 verified too. Missing signatures are reported as unsigned rather than treated as
 checksum failure so local/dev builds remain possible.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -77,7 +78,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         verified = verify_checksums(dist)
         sig = verify_signature(dist)
-    except Exception as exc:  # noqa: BLE001 - command-line tool wants concise failure
+    except Exception as exc:
         print(f"release verification failed: {exc}", file=sys.stderr)
         return 1
     print("checksums verified:", ", ".join(verified))

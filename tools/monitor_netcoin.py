@@ -14,7 +14,6 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-
 OUTPUT = Path("/opt/netcoin/monitor/status.json")
 TARGETS = {
     "seed1": "http://seed1.netcoin.online:28444/info",

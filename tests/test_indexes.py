@@ -1,4 +1,5 @@
 """Persistent block/transaction indexes and chainstate integrity (#5, #6, #24)."""
+
 from pathlib import Path
 
 from netcoin.chain import Blockchain

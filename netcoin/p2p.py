@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import json
 import socket
-from socketserver import BaseRequestHandler, ThreadingTCPServer
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from socketserver import BaseRequestHandler, ThreadingTCPServer
+from typing import Any
 
 from .crypto import double_sha256
 from .params import DEFAULT_P2P_PORT, MAX_REQUEST_BODY_BYTES, NETWORK_NAME, NODE_VERSION, P2P_MAGIC, PROTOCOL_VERSION
@@ -37,7 +37,7 @@ class Message:
         return P2P_MAGIC + command_field + len(self.payload).to_bytes(4, "little") + checksum + self.payload
 
     @classmethod
-    def parse(cls, data: bytes) -> "Message":
+    def parse(cls, data: bytes) -> Message:
         if len(data) < 24:
             raise P2PError("message too short")
         if data[:4] != P2P_MAGIC:
@@ -78,25 +78,27 @@ def write_message(sock: socket.socket, message: Message) -> None:
     sock.sendall(message.serialize())
 
 
-def request_message(host: str, port: int, message: Message, timeout: int = 10) -> Optional[Message]:
+def request_message(host: str, port: int, message: Message, timeout: int = 10) -> Message | None:
     with socket.create_connection((host, int(port)), timeout=timeout) as sock:
         sock.settimeout(timeout)
         write_message(sock, message)
         try:
             return read_message(sock)
-        except (socket.timeout, P2PError):
+        except (TimeoutError, P2PError):
             return None
 
 
-def json_payload(data: Dict[str, Any]) -> bytes:
+def json_payload(data: dict[str, Any]) -> bytes:
     return json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
-def _json(message: Message) -> Dict[str, Any]:
+def _json(message: Message) -> dict[str, Any]:
     return json.loads(message.payload or b"{}")
 
 
-def version_message(start_height: int, genesis_hash: str = "", user_agent: str = f"/NetCoin:{NODE_VERSION}/") -> Message:
+def version_message(
+    start_height: int, genesis_hash: str = "", user_agent: str = f"/NetCoin:{NODE_VERSION}/"
+) -> Message:
     return Message(
         "version",
         json_payload(
@@ -123,11 +125,11 @@ def pong_message(nonce: int) -> Message:
     return Message("pong", json_payload({"nonce": int(nonce)}))
 
 
-def inv_message(items: List[Dict[str, str]]) -> Message:
+def inv_message(items: list[dict[str, str]]) -> Message:
     return Message("inv", json_payload({"inventory": list(items)}))
 
 
-def getdata_message(items: List[Dict[str, str]]) -> Message:
+def getdata_message(items: list[dict[str, str]]) -> Message:
     return Message("getdata", json_payload({"inventory": list(items)}))
 
 
@@ -138,7 +140,7 @@ def getheaders_message(locator_hash: str, start: int | None = None) -> Message:
     return Message("getheaders", json_payload(payload))
 
 
-def headers_message(headers: List[Dict[str, Any]]) -> Message:
+def headers_message(headers: list[dict[str, Any]]) -> Message:
     return Message("headers", json_payload({"headers": headers}))
 
 
@@ -158,7 +160,7 @@ def read_tx_message(message: Message) -> Any:
     return tx_from_binary(message.payload)[0]
 
 
-def handle_message(message: Message, chain: Optional[Any] = None) -> Optional[Message]:
+def handle_message(message: Message, chain: Any | None = None) -> Message | None:
     """Process an inbound message and return a response, Bitcoin-flow style:
     version->verack, ping->pong, getheaders->headers, inv->getdata, getdata->block/tx.
     Returns None when no response is warranted (e.g. verack, headers, block, tx)."""
@@ -218,7 +220,7 @@ def sync_headers_first(host: str, port: int, chain: Any, timeout: int = 10, limi
     response = request_message(host, port, getheaders_message(locator, start=chain.height() + 1), timeout=timeout)
     if response is None or response.command != "headers":
         return 0
-    remote_headers = json.loads(response.payload or b"{}") .get("headers", [])
+    remote_headers = json.loads(response.payload or b"{}").get("headers", [])
     if hasattr(chain, "validate_headers_from_tip"):
         remote_headers = chain.validate_headers_from_tip(remote_headers[:limit])
     accepted = 0
@@ -226,7 +228,9 @@ def sync_headers_first(host: str, port: int, chain: Any, timeout: int = 10, limi
         block_hash = header.get("hash")
         if not block_hash:
             continue
-        block_response = request_message(host, port, getdata_message([{"type": "block", "hash": block_hash}]), timeout=timeout)
+        block_response = request_message(
+            host, port, getdata_message([{"type": "block", "hash": block_hash}]), timeout=timeout
+        )
         if block_response is None or block_response.command != "block":
             break
         block = read_block_message(block_response)
@@ -269,3 +273,145 @@ def run_p2p_server(data_dir: str, host: str = "127.0.0.1", port: int = DEFAULT_P
         server.serve_forever()
     finally:
         server.server_close()
+
+
+# ---------------------------------------------------------------------------
+# Professional peer-management primitives
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class PeerState:
+    address: str
+    direction: str = "outbound"  # inbound/outbound/anchor/feeler
+    services: list[str] | None = None
+    user_agent: str = ""
+    protocol_version: int = PROTOCOL_VERSION
+    best_height: int = 0
+    score: int = 0
+    bytes_in: int = 0
+    bytes_out: int = 0
+    last_seen: int = 0
+    banned_until: int = 0
+    discourage_until: int = 0
+    disconnect_reason: str = ""
+
+    def public(self) -> dict[str, Any]:
+        return {
+            "address": self.address,
+            "direction": self.direction,
+            "services": list(self.services or []),
+            "user_agent": self.user_agent,
+            "protocol_version": self.protocol_version,
+            "best_height": self.best_height,
+            "score": self.score,
+            "bytes_in": self.bytes_in,
+            "bytes_out": self.bytes_out,
+            "banned_until": self.banned_until,
+            "discourage_until": self.discourage_until,
+            "disconnect_reason": self.disconnect_reason,
+        }
+
+
+class PeerManager:
+    """Small peer manager with scoring, diversity, ban, and relay-dedup hooks."""
+
+    def __init__(self, *, max_per_prefix: int = 4, ban_score: int = 100, ban_seconds: int = 24 * 3600):
+        self.max_per_prefix = int(max_per_prefix)
+        self.ban_score = int(ban_score)
+        self.ban_seconds = int(ban_seconds)
+        self.peers: dict[str, PeerState] = {}
+        self.inventory_seen: set[tuple[str, str]] = set()
+
+    @staticmethod
+    def _now() -> int:
+        import time
+
+        return int(time.time())
+
+    @staticmethod
+    def network_prefix(address: str) -> str:
+        host = address.rsplit(":", 1)[0]
+        parts = host.split(".")
+        if len(parts) == 4 and all(p.isdigit() for p in parts):
+            return ".".join(parts[:3]) + ".0/24"
+        return host.split("%", 1)[0]
+
+    def add_peer(
+        self, address: str, *, direction: str = "outbound", services: list[str] | None = None, user_agent: str = ""
+    ) -> PeerState:
+        peer = self.peers.get(address)
+        if peer is None:
+            if not self.diversity_allows(address) and direction not in {"anchor", "inbound"}:
+                raise P2PError("peer diversity limit reached for network prefix")
+            peer = PeerState(
+                address=address,
+                direction=direction,
+                services=services or [],
+                user_agent=user_agent,
+                last_seen=self._now(),
+            )
+            self.peers[address] = peer
+        else:
+            peer.direction = direction or peer.direction
+            peer.services = services or peer.services
+            peer.user_agent = user_agent or peer.user_agent
+            peer.last_seen = self._now()
+        return peer
+
+    def diversity_allows(self, address: str) -> bool:
+        prefix = self.network_prefix(address)
+        count = sum(
+            1 for p in self.peers.values() if self.network_prefix(p.address) == prefix and p.banned_until <= self._now()
+        )
+        return count < self.max_per_prefix
+
+    def report_misbehavior(self, address: str, points: int, reason: str) -> PeerState:
+        peer = self.peers.setdefault(address, PeerState(address=address, last_seen=self._now()))
+        peer.score += int(points)
+        peer.disconnect_reason = reason[:160]
+        if peer.score >= self.ban_score:
+            peer.banned_until = self._now() + self.ban_seconds
+        elif peer.score >= self.ban_score // 2:
+            peer.discourage_until = self._now() + min(self.ban_seconds, 3600)
+        return peer
+
+    def record_bandwidth(self, address: str, *, bytes_in: int = 0, bytes_out: int = 0) -> None:
+        peer = self.peers.setdefault(address, PeerState(address=address, last_seen=self._now()))
+        peer.bytes_in += max(0, int(bytes_in))
+        peer.bytes_out += max(0, int(bytes_out))
+        peer.last_seen = self._now()
+
+    def should_relay_inventory(self, inv_type: str, inv_hash: str) -> bool:
+        key = (str(inv_type), str(inv_hash).lower())
+        if key in self.inventory_seen:
+            return False
+        self.inventory_seen.add(key)
+        if len(self.inventory_seen) > 50_000:
+            self.inventory_seen = set(list(self.inventory_seen)[-25_000:])
+        return True
+
+    def disconnect(self, address: str, reason: str) -> None:
+        peer = self.peers.get(address)
+        if peer:
+            peer.disconnect_reason = reason[:160]
+
+    def active_peers(self) -> list[dict[str, Any]]:
+        now = self._now()
+        return [p.public() for p in self.peers.values() if p.banned_until <= now]
+
+    def banlist(self) -> list[dict[str, Any]]:
+        now = self._now()
+        return [p.public() for p in self.peers.values() if p.banned_until > now]
+
+    def compatibility_check(
+        self, address: str, version: int, network: str, genesis_hash: str, expected_genesis: str = ""
+    ) -> tuple[bool, str]:
+        if int(version) != PROTOCOL_VERSION:
+            return False, f"protocol mismatch: peer={version} local={PROTOCOL_VERSION}"
+        if network != NETWORK_NAME:
+            return False, f"network mismatch: {network}"
+        if expected_genesis and genesis_hash and genesis_hash != expected_genesis:
+            return False, "genesis hash mismatch"
+        self.add_peer(address)
+        return True, "compatible"

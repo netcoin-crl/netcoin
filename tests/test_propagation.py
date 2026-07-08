@@ -1,5 +1,5 @@
 """Block propagation: relay de-duplication so echoed blocks do not loop."""
-import json
+
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread

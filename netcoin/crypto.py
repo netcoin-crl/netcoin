@@ -5,8 +5,9 @@ pieces NetCoin needs for a Bitcoin-like educational chain: SHA-256, HASH160,
 Base58Check, Bech32/Bech32m, ECDSA over secp256k1, and a compact BIP340-style
 Schnorr signature implementation for Taproot-like outputs.
 
-Do not use this as production wallet software. Production cryptography should
-use well-reviewed constant-time libraries.
+Do not use the pure-Python signing path as production wallet software. When
+``coincurve`` is installed, NetCoin defaults verification to libsecp256k1 and
+keeps the pure-Python code as a readable reference/fallback.
 """
 
 from __future__ import annotations
@@ -17,11 +18,12 @@ import hashlib
 import hmac
 import os
 import secrets
-from typing import Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import Optional
 
 from .params import P2PKH_ADDRESS_VERSION, P2SH_ADDRESS_VERSION, WITNESS_HRP
 
-Point = Optional[Tuple[int, int]]
+Point = Optional[tuple[int, int]]
 
 # secp256k1 domain parameters.
 P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -109,7 +111,7 @@ def base58check_decode(text: str) -> bytes:
 # ---------------------------------------------------------------------------
 
 
-def bech32_hrp_expand(hrp: str) -> List[int]:
+def bech32_hrp_expand(hrp: str) -> list[int]:
     return [ord(x) >> 5 for x in hrp] + [0] + [ord(x) & 31 for x in hrp]
 
 
@@ -125,14 +127,14 @@ def bech32_polymod(values: Iterable[int]) -> int:
     return chk
 
 
-def bech32_create_checksum(hrp: str, data: List[int], spec: str = "bech32") -> List[int]:
+def bech32_create_checksum(hrp: str, data: list[int], spec: str = "bech32") -> list[int]:
     const = 1 if spec == "bech32" else BECH32M_CONST
     values = bech32_hrp_expand(hrp) + data
     polymod = bech32_polymod(values + [0, 0, 0, 0, 0, 0]) ^ const
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
-def bech32_verify_checksum(hrp: str, data: List[int]) -> Optional[str]:
+def bech32_verify_checksum(hrp: str, data: list[int]) -> str | None:
     check = bech32_polymod(bech32_hrp_expand(hrp) + data)
     if check == 1:
         return "bech32"
@@ -141,12 +143,12 @@ def bech32_verify_checksum(hrp: str, data: List[int]) -> Optional[str]:
     return None
 
 
-def bech32_encode(hrp: str, data: List[int], spec: str = "bech32") -> str:
+def bech32_encode(hrp: str, data: list[int], spec: str = "bech32") -> str:
     combined = data + bech32_create_checksum(hrp, data, spec)
     return hrp + "1" + "".join(BECH32_ALPHABET[d] for d in combined)
 
 
-def bech32_decode(text: str) -> Tuple[str, List[int], str]:
+def bech32_decode(text: str) -> tuple[str, list[int], str]:
     if any(ord(x) < 33 or ord(x) > 126 for x in text):
         raise ValueError("invalid Bech32 character range")
     if text.lower() != text and text.upper() != text:
@@ -167,10 +169,10 @@ def bech32_decode(text: str) -> Tuple[str, List[int], str]:
     return hrp, data[:-6], spec
 
 
-def convertbits(data: bytes | List[int], frombits: int, tobits: int, pad: bool = True) -> List[int]:
+def convertbits(data: bytes | list[int], frombits: int, tobits: int, pad: bool = True) -> list[int]:
     acc = 0
     bits = 0
-    result: List[int] = []
+    result: list[int] = []
     maxv = (1 << tobits) - 1
     max_acc = (1 << (frombits + tobits - 1)) - 1
     for value in data:
@@ -201,7 +203,7 @@ def encode_witness_address(version: int, program: bytes, hrp: str = WITNESS_HRP)
     return bech32_encode(hrp, data, spec)
 
 
-def decode_witness_address(address: str, hrp: str = WITNESS_HRP) -> Tuple[int, bytes, str]:
+def decode_witness_address(address: str, hrp: str = WITNESS_HRP) -> tuple[int, bytes, str]:
     got_hrp, data, spec = bech32_decode(address)
     if got_hrp != hrp:
         raise ValueError("wrong witness address human-readable part")
@@ -405,7 +407,7 @@ def message_digest(message: str) -> bytes:
     return double_sha256(MESSAGE_MAGIC + _message_varint(len(body)) + body)
 
 
-def _recover_public_point(digest: bytes, r: int, s: int, recid: int) -> Optional[Point]:
+def _recover_public_point(digest: bytes, r: int, s: int, recid: int) -> Point | None:
     x = r + (recid // 2) * N
     if x >= P:
         return None
@@ -467,7 +469,7 @@ def verify_message(address: str, message: str, signature_b64: str) -> bool:
     return address in candidates
 
 
-def decode_address(address: str) -> Dict[str, object]:
+def decode_address(address: str) -> dict[str, object]:
     try:
         payload = base58check_decode(address)
         if len(payload) == 21 and payload[:1] == P2PKH_ADDRESS_VERSION:
@@ -572,12 +574,16 @@ def ecdsa_sign(private_key: int, digest: bytes) -> bytes:
 # tests/test_fast_crypto_differential.py fuzzes both against each other; because
 # they agree, a network of mixed fast/pure nodes cannot split on validity.
 def _fast_crypto_requested() -> bool:
-    return os.environ.get("NETCOIN_FAST_CRYPTO", "0") == "1"
+    value = os.environ.get("NETCOIN_FAST_CRYPTO", "auto").strip().lower()
+    if value in {"0", "false", "no", "off", "pure"}:
+        return False
+    return True
 
 
 def _coincurve_available() -> bool:
     try:
         import coincurve  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -587,12 +593,12 @@ def _fast_crypto_enabled() -> bool:
     return _fast_crypto_requested() and _coincurve_available()
 
 
-def crypto_backend_status() -> Dict[str, object]:
+def crypto_backend_status() -> dict[str, object]:
     """Return public, non-secret crypto backend status for operators.
 
-    NetCoin keeps the pure-Python implementation as the readable reference. The
-    optional fast backend is only used when explicitly requested and available,
-    and differential tests keep the accept/reject set aligned.
+    NetCoin keeps the pure-Python implementation as the readable reference and
+    fallback.  When coincurve/libsecp256k1 is installed it is used by default;
+    set NETCOIN_FAST_CRYPTO=0 to force the reference path for debugging.
     """
     requested = _fast_crypto_requested()
     available = _coincurve_available()
@@ -654,6 +660,39 @@ def ecdsa_verify(public_key: bytes, digest: bytes, signature: bytes) -> bool:
     return _ecdsa_verify_pure(public_key, digest, signature)
 
 
+def constant_time_equal(left: bytes | str, right: bytes | str) -> bool:
+    """Constant-time equality helper for signatures, digests, and secrets."""
+    if isinstance(left, str):
+        left = left.encode("utf-8")
+    if isinstance(right, str):
+        right = right.encode("utf-8")
+    return hmac.compare_digest(left, right)
+
+
+def zero_secret_buffer(buffer: bytearray | memoryview) -> None:
+    """Best-effort in-place zeroing for mutable secret buffers.
+
+    Python integers/strings cannot be reliably zeroed, so wallet code should keep
+    decrypted secrets in short-lived mutable buffers where possible.
+    """
+    view = memoryview(buffer)
+    for idx in range(len(view)):
+        view[idx] = 0
+
+
+def crypto_self_test() -> dict[str, object]:
+    """Run a tiny startup self-test for hash/sign/verify primitives."""
+    priv = 1
+    digest = sha256(b"netcoin crypto self test")
+    pub = private_key_to_public_key(priv, compressed=True)
+    sig = ecdsa_sign(priv, digest)
+    ok = ecdsa_verify(pub, digest, sig) and not ecdsa_verify(pub, sha256(b"tampered"), sig)
+    schnorr = schnorr_verify(
+        private_key_to_xonly_public_key(priv), digest, schnorr_sign(priv, digest, aux_rand=b"\x00" * 32)
+    )
+    return {"ok": bool(ok and schnorr), "ecdsa": bool(ok), "schnorr": bool(schnorr), "backend": crypto_backend_status()}
+
+
 # ---------------------------------------------------------------------------
 # BIP340-style Schnorr signatures for Taproot-like key path spends
 # ---------------------------------------------------------------------------
@@ -664,7 +703,7 @@ def tagged_hash(tag: str, msg: bytes) -> bytes:
     return sha256(tag_hash + tag_hash + msg)
 
 
-def schnorr_sign(private_key: int, digest: bytes, aux_rand: Optional[bytes] = None) -> bytes:
+def schnorr_sign(private_key: int, digest: bytes, aux_rand: bytes | None = None) -> bytes:
     if len(digest) != 32:
         raise ValueError("digest must be 32 bytes")
     if aux_rand is None:
@@ -711,6 +750,7 @@ def schnorr_verify(xonly_public_key: bytes, digest: bytes, signature: bytes) -> 
     if r_point is None or r_point[1] % 2 != 0:
         return False
     return r_point[0] == r
+
 
 # ---------------------------------------------------------------------------
 # Compatibility aliases and WIF helpers for v2 CLI

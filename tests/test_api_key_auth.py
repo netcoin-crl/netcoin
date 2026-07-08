@@ -1,5 +1,7 @@
 """NIP-0004 write auth: self-service API keys + node-level write enforcement."""
+
 import json
+import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -9,7 +11,9 @@ from urllib.request import Request, urlopen
 import pytest
 
 from netcoin.apps import AppError, AppStore
+from netcoin.apps.auth import SignedEnvelope, canonical_body_hash
 from netcoin.chain import Blockchain
+from netcoin.crypto import sign_message
 from netcoin.node import NetCoinNode, make_handler
 from netcoin.wallet import Wallet
 
@@ -31,9 +35,37 @@ class served:
 
 
 def post(url, payload, headers=None):
-    req = Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", **(headers or {})}, method="POST")
+    req = Request(
+        url,
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json", **(headers or {})},
+        method="POST",
+    )
     with urlopen(req, timeout=5) as res:
         return res.status, json.loads(res.read().decode())
+
+
+def signed_payload(payload: dict, wallet: Wallet, path: str) -> dict:
+    body = dict(payload)
+    env = SignedEnvelope(
+        address=wallet.segwit_address,
+        method="POST",
+        path=path,
+        body_hash=canonical_body_hash(body),
+        timestamp=int(time.time()),
+        nonce="test-nonce",
+        signature="",
+    )
+    body["signed_envelope"] = {
+        "address": env.address,
+        "method": env.method,
+        "path": env.path,
+        "body_hash": env.body_hash,
+        "timestamp": env.timestamp,
+        "nonce": env.nonce,
+        "signature": sign_message(wallet.private_key, env.message()),
+    }
+    return body
 
 
 def test_self_service_key_register_verify_and_ip_cap(tmp_path: Path):
@@ -67,14 +99,21 @@ def test_node_enforces_api_key_on_writes(tmp_path: Path, monkeypatch):
 
         # Write without a key -> 401 with a self-help message.
         with pytest.raises(HTTPError) as err:
-            post(f"{s.url}/api/tokens", {"symbol": "AUTH", "creator": alice.segwit_address, "initial_supply": "1", "decimals": 0})
+            post(
+                f"{s.url}/api/tokens",
+                {"symbol": "AUTH", "creator": alice.segwit_address, "initial_supply": "1", "decimals": 0},
+            )
         assert err.value.code == 401
         assert "keys/register" in err.value.read().decode()
 
         # Same write with the key -> accepted.
         status, created = post(
             f"{s.url}/api/tokens",
-            {"symbol": "AUTH", "creator": alice.segwit_address, "initial_supply": "1", "decimals": 0},
+            signed_payload(
+                {"symbol": "AUTH", "creator": alice.segwit_address, "initial_supply": "1", "decimals": 0},
+                alice,
+                "/tokens",
+            ),
             headers={"X-Netcoin-Api-Key": reg["api_key"]},
         )
         assert status == 200 and created["symbol"] == "AUTH"
@@ -90,5 +129,12 @@ def test_enforcement_off_by_default(tmp_path: Path, monkeypatch):
     alice = Wallet.create()
     chain.mine_block(alice.address)
     with served(NetCoinNode(chain, persist=False)) as s:
-        status, created = post(f"{s.url}/api/tokens", {"symbol": "OPEN", "creator": alice.segwit_address, "initial_supply": "1", "decimals": 0})
+        status, created = post(
+            f"{s.url}/api/tokens",
+            signed_payload(
+                {"symbol": "OPEN", "creator": alice.segwit_address, "initial_supply": "1", "decimals": 0},
+                alice,
+                "/tokens",
+            ),
+        )
         assert status == 200 and created["symbol"] == "OPEN"

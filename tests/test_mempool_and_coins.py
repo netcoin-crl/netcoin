@@ -1,4 +1,5 @@
 """Mempool expiry/eviction (#10) and coin-selection strategies (#34)."""
+
 import time
 from pathlib import Path
 
@@ -35,6 +36,7 @@ def add_spends(chain, miner, receiver, count):
 
 # --- 10 mempool expiry / eviction ---
 
+
 def test_evict_expired_mempool(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path)
     txids = add_spends(chain, miner, receiver, 3)
@@ -60,6 +62,7 @@ def test_evict_mempool_to_size(tmp_path: Path):
 
 # --- 34 coin selection ---
 
+
 def test_order_utxos_strategies(tmp_path: Path):
     chain, miner, _ = funded(tmp_path)
     utxos = chain.utxos_for_address(miner.address)
@@ -77,7 +80,10 @@ def test_order_utxos_strategies(tmp_path: Path):
 def test_send_with_strategy_builds_valid_tx(tmp_path: Path):
     chain, miner, receiver = funded(tmp_path)
     tx = miner.create_transaction(
-        chain, receiver.address, amount_to_sats("1"), amount_to_sats("0.01"),
+        chain,
+        receiver.address,
+        amount_to_sats("1"),
+        amount_to_sats("0.01"),
         strategy="largest-first",
     )
     chain.add_mempool_transaction(tx)

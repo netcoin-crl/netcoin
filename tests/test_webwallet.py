@@ -1,5 +1,6 @@
 """Local web wallet/faucet/explorer page (#web): page serves, and the remote
 send path produces a chain-valid, broadcastable transaction."""
+
 import json
 import os
 import re
@@ -12,8 +13,8 @@ from urllib.request import urlopen
 
 import pytest
 
-from netcoin import cli
 import netcoin.webwallet as ww
+from netcoin import cli
 from netcoin.chain import Blockchain
 from netcoin.tx import Transaction
 from netcoin.wallet import Wallet
@@ -78,14 +79,18 @@ def test_build_and_broadcast_produces_valid_tx(tmp_path, monkeypatch):
     monkeypatch.setattr(ww, "_node_post", fake_post)
 
     dest = Wallet.create().address_for("segwit")
-    out = ww.build_and_broadcast(wallet, dest, amount_sats=100_000_000, fee_sats=1_000_000, from_type="legacy", node_url="http://x")
+    out = ww.build_and_broadcast(
+        wallet, dest, amount_sats=100_000_000, fee_sats=1_000_000, from_type="legacy", node_url="http://x"
+    )
     assert out["txid"] == captured["txid"]
     assert chain.mempool_info()["size"] == 1
 
 
 def test_insufficient_funds_rejected(tmp_path, monkeypatch):
     wallet = Wallet.create()
-    monkeypatch.setattr(ww, "_node_get", lambda u, p, timeout=15: {"node": {"height": 0}} if p == "/info" else {"utxos": []})
+    monkeypatch.setattr(
+        ww, "_node_get", lambda u, p, timeout=15: {"node": {"height": 0}} if p == "/info" else {"utxos": []}
+    )
     try:
         ww.build_and_broadcast(wallet, "Ncdest", 100, 1, "legacy", "http://x")
         assert False, "expected failure"
@@ -94,7 +99,9 @@ def test_insufficient_funds_rejected(tmp_path, monkeypatch):
 
 
 def test_server_serves_page_and_config():
-    server = ThreadingHTTPServer(("127.0.0.1", 0), ww.make_handler("http://node.example", faucet_url="http://faucet.example"))
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", 0), ww.make_handler("http://node.example", faucet_url="http://faucet.example")
+    )
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         base = f"http://127.0.0.1:{server.server_address[1]}"
@@ -114,7 +121,9 @@ def test_web_command_default_faucet_points_to_live_https_route():
 
 
 def test_history_endpoint_proxies_address_summary(monkeypatch):
-    monkeypatch.setattr(ww, "_node_get", lambda url, path, timeout=15: {"transaction_count": 2, "transaction_ids": ["aa", "bb"]})
+    monkeypatch.setattr(
+        ww, "_node_get", lambda url, path, timeout=15: {"transaction_count": 2, "transaction_ids": ["aa", "bb"]}
+    )
     server = ThreadingHTTPServer(("127.0.0.1", 0), ww.make_handler("http://node.example"))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:

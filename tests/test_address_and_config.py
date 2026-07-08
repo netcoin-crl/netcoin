@@ -1,5 +1,6 @@
 """Address index + /address endpoint (#7/#42), node config file (#17),
 faucet history API (#40)."""
+
 import importlib.util
 import json
 from http.server import ThreadingHTTPServer
@@ -39,6 +40,7 @@ def load_faucet():
 
 # --- 7 / 42 address index ---
 
+
 def test_address_index_tracks_outputs(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     miner = Wallet.create()
@@ -74,11 +76,20 @@ def test_address_endpoint_over_http(tmp_path: Path):
 
 # --- 17 node config file ---
 
+
 def test_load_config_json(tmp_path: Path):
     p = tmp_path / "netcoin.json"
-    p.write_text(json.dumps({"host": "0.0.0.0", "port": 28444, "seeds": True,
-                             "peers": ["http://a:28444", "http://b:28444"],
-                             "sync_interval": 30}))
+    p.write_text(
+        json.dumps(
+            {
+                "host": "0.0.0.0",
+                "port": 28444,
+                "seeds": True,
+                "peers": ["http://a:28444", "http://b:28444"],
+                "sync_interval": 30,
+            }
+        )
+    )
     cfg = load_config(p)
     assert cfg["host"] == "0.0.0.0"
     assert cfg["port"] == 28444
@@ -117,12 +128,15 @@ def test_load_config_coerces_trust_proxy_headers_bool(tmp_path: Path):
 
 # --- 40 faucet history ---
 
+
 def test_faucet_public_history_excludes_ips():
     faucet = load_faucet()
-    state = {"requests": [
-        {"ip": "203.0.113.1", "address": "Na", "amount": "5", "txid": "t1", "timestamp": 100},
-        {"ip": "203.0.113.2", "address": "Nb", "amount": "5", "txid": "t2", "timestamp": 200},
-    ]}
+    state = {
+        "requests": [
+            {"ip": "203.0.113.1", "address": "Na", "amount": "5", "txid": "t1", "timestamp": 100},
+            {"ip": "203.0.113.2", "address": "Nb", "amount": "5", "txid": "t2", "timestamp": 200},
+        ]
+    }
     history = faucet.public_history(state, limit=10)
     assert history[0]["txid"] == "t2"  # newest first
     assert all("ip" not in g for g in history)

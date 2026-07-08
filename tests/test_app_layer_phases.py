@@ -7,7 +7,8 @@ from urllib.request import Request, urlopen
 from netcoin.apps import AppStore, validate_address_payload
 from netcoin.chain import Blockchain
 from netcoin.explorer_server import make_handler as make_explorer_handler
-from netcoin.node import NetCoinNode, make_handler as make_node_handler
+from netcoin.node import NetCoinNode
+from netcoin.node import make_handler as make_node_handler
 from netcoin.tx import amount_to_sats
 from netcoin.wallet import Wallet
 
@@ -34,7 +35,9 @@ def get_json(url: str):
 
 
 def post_json(url: str, payload: dict):
-    req = Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
+    req = Request(
+        url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST"
+    )
     with urlopen(req, timeout=5) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -69,7 +72,9 @@ def test_app_store_invoice_username_merchant_community_wallet_and_network(tmp_pa
     assert paid["receipt_txid"] == tx.txid()
     assert paid["payment_uri"].startswith("netcoin:")
 
-    username = store.upsert_username({"username": "contributor", "address": merchant.address, "display_name": "contributor"})
+    username = store.upsert_username(
+        {"username": "contributor", "address": merchant.address, "display_name": "contributor"}
+    )
     assert username["address"] == merchant.address
     assert store.resolve_username("contributor")["display_name"] == "contributor"
 
