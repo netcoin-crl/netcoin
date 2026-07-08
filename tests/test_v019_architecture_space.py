@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 from netcoin.apps import AppStore, route_app_get
 from netcoin.architecture import architecture_status, architecture_summary
@@ -50,6 +53,8 @@ def test_architecture_checks_and_openapi_pass() -> None:
 
 
 def test_rust_and_typescript_upgrade_scaffolds_are_parseable() -> None:
+    if shutil.which("node") is None:
+        pytest.skip("node not installed")
     assert (ROOT / "core-rs/Cargo.toml").exists()
     assert (ROOT / "api/tsconfig.json").exists()
     assert (ROOT / "web/tsconfig.json").exists()

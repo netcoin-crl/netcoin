@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 from netcoin.apps import AppStore, route_app_get
 from netcoin.chain import Blockchain
@@ -60,6 +63,8 @@ def test_v018_feature_status_and_product_surface_include_live_routes() -> None:
 
 
 def test_v018_frontend_js_syntax_and_release_verify_file_input() -> None:
+    if shutil.which("node") is None:
+        pytest.skip("node not installed")
     files = [
         "sites/explorer/explorer-pro.js",
         "sites/markets/markets-pro.js",

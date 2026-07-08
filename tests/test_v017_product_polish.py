@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -66,6 +69,8 @@ def test_v017_tools_and_product_surface_pass() -> None:
 
 
 def test_new_javascript_syntax() -> None:
+    if shutil.which("node") is None:
+        pytest.skip("node not installed")
     files = [
         "sites/explorer/explorer-pro.js",
         "sites/markets/markets-pro.js",
