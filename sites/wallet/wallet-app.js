@@ -1373,24 +1373,50 @@
     } catch { /* offline: leave the static copy */ }
   }
 
-  async function updateFeeEstimates() {
-    try {
-      const d = await api("/fee-estimates");
-      const presets = d.presets || {};
-      const options = [];
-      for (const [name, info] of Object.entries(presets)) {
-        const sats = Math.max(1000, Number(info.estimated_fee_sats || 0));
-        const net = satsToInput(sats);
-        options.push(`<option value="${net}"${name === "normal" ? " selected" : ""}>${name[0].toUpperCase() + name.slice(1)} — ${net} NET</option>`);
-      }
-      if (options.length) {
-        options.push('<option value="custom">Custom</option>');
-        $("feePreset").innerHTML = options.join("");
-        $("fee").value = $("feePreset").value;
-        updateFeeHint();
-      }
-    } catch { /* old node: keep static fee presets */ }
+  // ---- auto-calculated, size-based fees ----
+  // The network min relay fee is 1 sat/vbyte. Slow = the real minimum for THIS
+  // transaction's size; Normal = 10x that ("1000% more"); Fast = 10x Normal
+  // ("another 1000%"). Fees therefore scale with how many coins a send spends,
+  // so a big multi-input payment automatically pays enough to relay/confirm.
+  const FEE_RATE_MIN_SATS_PER_VBYTE = 1; // matches node MIN_RELAY_FEE_PER_KB=1000
+  const FEE_FLOOR_SATS = 500;            // keep tiny sends from looking like zero
+  function estimateInputsForAmount(amountSats) {
+    if (!lastUtxos.length) return 1;
+    const desc = [...lastUtxos].sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+    let total = 0, n = 0;
+    for (const u of desc) { total += Number(u.amount || 0); n++; if (total >= amountSats) break; }
+    return Math.max(1, Math.min(n, MAX_WALLET_SEND_INPUTS));
   }
+  function estimateVsize(nInputs) {
+    // segwit p2wpkh: ~68 vbytes/input, ~31/output (recipient + change), ~11 overhead.
+    return 11 + nInputs * 68 + 2 * 31;
+  }
+  function autoFeeTiers(amountSats) {
+    const nInputs = estimateInputsForAmount(amountSats);
+    const slow = Math.max(FEE_FLOOR_SATS, Math.ceil(estimateVsize(nInputs) * FEE_RATE_MIN_SATS_PER_VBYTE));
+    return { slow, normal: slow * 10, fast: slow * 100, inputs: nInputs };
+  }
+  function refreshAutoFees(keepCustom = true) {
+    // Preserve a user's Custom fee; otherwise recompute from the current amount.
+    const preset = $("feePreset");
+    const wasCustom = keepCustom && preset && preset.value === "custom";
+    let amountSats = 0;
+    try { amountSats = netToSats($("amount").value, { allowZero: true }); } catch { amountSats = 0; }
+    const t = autoFeeTiers(amountSats || lastSpendableSats || 0);
+    if (preset) {
+      const sel = wasCustom ? "custom" : (preset.value && preset.value !== "custom" ? preset.value : "normal");
+      preset.innerHTML =
+        `<option value="slow">Slow — ${satsToInput(t.slow)} NET (minimum)</option>` +
+        `<option value="normal">Normal — ${satsToInput(t.normal)} NET (recommended)</option>` +
+        `<option value="fast">Fast — ${satsToInput(t.fast)} NET</option>` +
+        `<option value="custom">Custom</option>`;
+      preset.value = sel === "slow" || sel === "fast" || sel === "custom" ? sel : "normal";
+      preset._tiers = t;
+      if (!wasCustom) $("fee").value = satsToInput(t[preset.value] ?? t.normal);
+    }
+    updateFeeHint();
+  }
+  async function updateFeeEstimates() { refreshAutoFees(false); }
 
   async function loadHistory() {
     if (!state || !$("txHistory")) return;
@@ -1601,7 +1627,16 @@
   });
   $("btnLock").onclick = () => { state = null; clearUnlockedSession(); renderProfiles(); show(hasProfiles() ? "unlock" : "welcome"); };
   $("fee").oninput = () => { $("feePreset").value = "custom"; updateFeeHint(); };
-  $("feePreset").onchange = () => { if ($("feePreset").value !== "custom") { $("fee").value = $("feePreset").value; updateFeeHint(); } };
+  $("feePreset").onchange = () => {
+    const p = $("feePreset");
+    if (p.value !== "custom") {
+      const tiers = p._tiers || autoFeeTiers(0);
+      $("fee").value = satsToInput(tiers[p.value] ?? tiers.normal);
+      updateFeeHint();
+    }
+  };
+  // Recompute size-based fees whenever the amount changes (more coins => higher min).
+  $("amount").addEventListener("input", () => refreshAutoFees(true));
   $("btnMakePaymentLink").onclick = makePaymentRequest;
   $("btnCopyPaymentLink").onclick = copyPaymentLink;
   $("btnSharePaymentLink").onclick = sharePaymentLink;

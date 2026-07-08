@@ -357,12 +357,13 @@ body{letter-spacing:-.01em}
         </div>
         <label>Network fee (NET)</label>
         <select id="feePreset" aria-label="Fee preset">
-          <option value="0.00010000">Slow — 0.00010000 NET</option>
-          <option value="0.00050000" selected>Normal — 0.00050000 NET</option>
-          <option value="0.00200000">Fast — 0.00200000 NET</option>
+          <option value="slow">Slow — minimum</option>
+          <option value="normal" selected>Normal — recommended</option>
+          <option value="fast">Fast</option>
           <option value="custom">Custom</option>
         </select>
-        <input id="fee" inputmode="decimal" placeholder="0.00050000" value="0.00050000" />
+        <input id="fee" inputmode="decimal" placeholder="auto" value="0.00050000" />
+        <p class="muted">Fees are auto-calculated from your transaction size. Slow = network minimum, Normal = 10× that, Fast = 100×.</p>
         <p class="muted" id="feeHint">Amount + positive fee must be less than your spendable balance.</p>
         <p class="muted" id="coinHealth">Coin status loads after balance refresh.</p>
         <details>
@@ -475,7 +476,7 @@ body{letter-spacing:-.01em}
   </div>
 
   <script src="netcoin-wallet.js?v=20260707-cap500" integrity="sha384-f2rfd5w+8CoOw7hqpFx1tEJNdaahCW+OeVInr/33yCnqqJKmAfMfQ1GeU4vSIMuJ" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260707-cap500" integrity="sha384-ENoDFeXjRbhveHZMsk93lUJ+dOQluXpf2IeA8vaB83XX+YAEKJb1ZzV0KaZrlB8K" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260707-autofee" integrity="sha384-BDzFzYsOxyIUUr52uWbOatlAwiJuoSlg0Pffr7qCFz3z3bQqVMjHgs+gGBEEkU0D" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260630-reward-schedule"></script>
 </body>
 </html>
