@@ -1,0 +1,239 @@
+{
+  "generated_for": "v0.12.x-professionalization-pass",
+  "production_ready": false,
+  "requires_external_audit": true,
+  "schema": "netcoin-professional-upgrade-manifest-v1",
+  "workstreams": [
+    {
+      "acceptance": [
+        "Known scaffold configs exist",
+        "Version/readme mismatch is removed",
+        "CI has tests plus quality gates"
+      ],
+      "anchors": {
+        "paths": [
+          "config/competitive/security_audit.json",
+          ".github/workflows/ci.yml",
+          "pyproject.toml"
+        ]
+      },
+      "id": 1,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Repo consistency and CI gates"
+    },
+    {
+      "acceptance": [
+        "Every competitive area has operator-readable config",
+        "Production-ready remains false until audited"
+      ],
+      "anchors": {
+        "paths": [
+          "config/competitive",
+          "netcoin/competitive/registry.py"
+        ]
+      },
+      "id": 2,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Competitive scaffolds converted to trackable configs"
+    },
+    {
+      "acceptance": [
+        "Consensus vectors and reorg tests anchor behavior"
+      ],
+      "anchors": {
+        "paths": [
+          "docs/PROTOCOL_SPEC.md",
+          "tests/test_protocol_vectors.py",
+          "tests/test_reorg.py"
+        ]
+      },
+      "id": 3,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Consensus and chain validation hardening"
+    },
+    {
+      "acceptance": [
+        "Optional coincurve backend remains differentially tested"
+      ],
+      "anchors": {
+        "paths": [
+          "netcoin/crypto.py",
+          "tests/test_fast_crypto_differential.py"
+        ]
+      },
+      "id": 4,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Audited crypto backend path"
+    },
+    {
+      "acceptance": [
+        "SQLite is app-layer default",
+        "Migration table exists",
+        "JSON remains explicit dev mode"
+      ],
+      "anchors": {
+        "paths": [
+          "netcoin/apps/__init__.py",
+          "netcoin/apps/storage.py",
+          "tests/test_sqlite_backend.py"
+        ]
+      },
+      "id": 5,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "SQLite storage and migrations"
+    },
+    {
+      "acceptance": [
+        "Peer reputation and sync resilience tests exist"
+      ],
+      "anchors": {
+        "paths": [
+          "netcoin/p2p.py",
+          "netcoin/node.py",
+          "tests/test_peer_reputation.py",
+          "tests/test_p2p_node_sync.py"
+        ]
+      },
+      "id": 6,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "P2P hardening"
+    },
+    {
+      "acceptance": [
+        "Autolock, PSBT-like flow, and wallet safety tests exist"
+      ],
+      "anchors": {
+        "paths": [
+          "netcoin/wallet.py",
+          "tests/test_wallet_safety.py",
+          "tests/test_psbt_flow.py"
+        ]
+      },
+      "id": 7,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Wallet security and UX"
+    },
+    {
+      "acceptance": [
+        "Canonical app action signatures exist",
+        "Nonce/idempotency protections exist"
+      ],
+      "anchors": {
+        "paths": [
+          "netcoin/apps/__init__.py",
+          "tests/test_app_idempotency_nonce.py",
+          "tests/test_api_key_auth.py"
+        ]
+      },
+      "id": 8,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Signature-bound app-layer writes"
+    },
+    {
+      "acceptance": [
+        "Deposit/withdrawal integration docs and RPC tests exist"
+      ],
+      "anchors": {
+        "paths": [
+          "exchange/README.md",
+          "docs/EXCHANGE_INTEGRATION.md",
+          "tests/test_exchange_rpc.py"
+        ]
+      },
+      "id": 9,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Exchange and custody state machines"
+    },
+    {
+      "acceptance": [
+        "Address indexes and explorer server tests exist"
+      ],
+      "anchors": {
+        "paths": [
+          "netcoin/explorer.py",
+          "netcoin/explorer_server.py",
+          "tests/test_indexes.py"
+        ]
+      },
+      "id": 10,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Explorer/indexer API"
+    },
+    {
+      "acceptance": [
+        "Prometheus and incident response anchors exist"
+      ],
+      "anchors": {
+        "paths": [
+          "ops/prometheus/netcoin_competitive_rules.yml",
+          "tools/monitor_netcoin.py",
+          "docs/INCIDENT_RESPONSE.md"
+        ]
+      },
+      "id": 11,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Monitoring and alerting"
+    },
+    {
+      "acceptance": [
+        "Rate limits, CAPTCHA hooks, and admin tooling exist"
+      ],
+      "anchors": {
+        "paths": [
+          "tools/faucet_server.py",
+          "tools/faucet_admin.py",
+          "tests/test_faucet_hardening.py"
+        ]
+      },
+      "id": 12,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Faucet abuse controls"
+    },
+    {
+      "acceptance": [
+        "Checksums and release verification tools exist"
+      ],
+      "anchors": {
+        "paths": [
+          "tools/make_release.sh",
+          "tools/verify_release.py",
+          ".github/workflows/release.yml",
+          "tools/generate_sbom.py"
+        ]
+      },
+      "id": 13,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Release supply-chain hardening"
+    },
+    {
+      "acceptance": [
+        "Fuzz/soak/test-by-file tools exist"
+      ],
+      "anchors": {
+        "paths": [
+          "netcoin/fuzz.py",
+          "netcoin/soak.py",
+          "tools/run_test_suite_by_file.py"
+        ]
+      },
+      "id": 14,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Adversarial testing and quality"
+    },
+    {
+      "acceptance": [
+        "CLOB levels, ticker, portfolios, IOC/FOK/market orders, and resolution workflow are tested"
+      ],
+      "anchors": {
+        "paths": [
+          "netcoin/apps/markets.py",
+          "sites/markets/markets.js",
+          "tests/test_polymarket_style_markets.py"
+        ]
+      },
+      "id": 15,
+      "status": "implemented_anchor_not_mainnet_ready",
+      "title": "Polymarket-style prediction markets"
+    }
+  ]
+}

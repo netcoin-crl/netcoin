@@ -11,6 +11,26 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-07 — Markets Labs CLOB + professional-upgrade tracking, SBOM, CI gates
+
+### Added
+- Polymarket-style central-limit order book on Markets Labs: aggregated price
+  levels, per-outcome ticker, marked portfolios, and market/IOC/FOK/post-only
+  orders, exposed via `/markets/{id}/orderbook|ticker|trades|positions` and
+  rendered in the Labs UI. Engine stays app-layer/play-money.
+- Professional-upgrade tracking: a 15-workstream manifest
+  (`config/professional_upgrade_manifest.json`), a validator module
+  (`netcoin/professional_upgrade.py`), and `tools/professional_upgrade_audit.py`.
+  `production_ready` stays false pending external audit.
+- Source SBOM/provenance generator (`tools/generate_sbom.py`), wired into
+  `tools/make_release.sh` and checksummed alongside the release archive.
+- CI now compiles the package and gates on the upgrade-manifest audit, an SBOM
+  smoke check, and competitive-registry validation.
+
+### Changed
+- Competitive scaffolds converted to richer per-feature configs with code/test/
+  doc anchors, owner, and acceptance criteria.
+
 ### Added
 - Markets Labs is now a real play-money/testnet dashboard instead of a static
   placeholder: create demo markets, place and cancel orders, view order books,

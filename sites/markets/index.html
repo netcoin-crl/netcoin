@@ -55,6 +55,9 @@
         </div>
         <label for="resolutionSource">Resolution source / evidence URL</label>
         <input id="resolutionSource" name="resolutionSource" placeholder="manual operator review" />
+        <div class="row"><div><label for="marketCategory">Category</label><input id="marketCategory" value="Technology" /></div><div><label for="marketTags">Tags</label><input id="marketTags" value="netcoin,labs" /></div></div>
+        <label for="marketRules">Resolution rules</label>
+        <textarea id="marketRules" rows="3" placeholder="Define what counts as YES and what source resolves the market."></textarea>
         <label class="check"><input id="legalAck" type="checkbox" checked /> I acknowledge this is testnet/play-money only.</label>
         <button type="submit">Create market</button>
       </form>
@@ -64,9 +67,11 @@
         <p class="muted">Demo trader IDs can be names like <span class="mono">demo:alice</span>. Real NetCoin addresses also work.</p>
         <div class="row"><div><label for="orderTrader">Trader</label><input id="orderTrader" value="demo:alice" /></div><div><label for="orderSide">Side</label><select id="orderSide"><option value="buy">Buy</option><option value="sell">Sell</option></select></div></div>
         <div class="row"><div><label for="orderOutcome">Outcome</label><select id="orderOutcome"></select></div><div><label for="orderQuantity">Shares</label><input id="orderQuantity" type="number" min="1" value="5" /></div></div>
+        <div class="row"><div><label for="orderType">Order type</label><select id="orderType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC limit</option><option value="fok">FOK limit</option></select></div><div><label for="timeInForce">Time in force</label><select id="timeInForce"><option value="GTC">GTC</option><option value="IOC">IOC</option><option value="FOK">FOK</option></select></div></div>
         <label for="orderPrice">Limit price bps, 1 to 9999</label>
         <input id="orderPrice" type="number" min="1" max="9999" value="5000" />
-        <button type="submit">Place limit order</button>
+        <label class="check"><input id="postOnly" type="checkbox" /> Post-only maker order</label>
+        <button type="submit">Place order</button>
       </form>
 
       <form class="card" id="resolveForm">

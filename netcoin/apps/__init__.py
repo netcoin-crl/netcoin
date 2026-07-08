@@ -415,6 +415,8 @@ class AppStore:
         conn = sqlite3.connect(self.sqlite_path)
         conn.execute("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)")
         conn.execute("CREATE TABLE IF NOT EXISTS app_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL, payload TEXT NOT NULL, created_at INTEGER NOT NULL)")
+        conn.execute("CREATE TABLE IF NOT EXISTS app_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL)")
+        conn.execute("INSERT OR IGNORE INTO app_migrations(version, name, applied_at) VALUES (?, ?, ?)", (APP_SCHEMA_VERSION, "initial_app_state_json_blob", now()))
         return conn
 
     def _load_sqlite(self) -> dict[str, Any]:
@@ -493,6 +495,7 @@ class AppStore:
             "webhook_dead_letters": sum(1 for e in data.get("webhook_events", []) if e.get("dead_letter")),
             "idempotency_keys": len(data.get("app_idempotency_keys", {})),
             "app_nonce_scopes": len(data.get("app_nonces", {})),
+            "migration_table": "app_migrations" if self.storage_backend in {"sqlite", "sqlite3"} else "json_mode",
         }
 
     def set_payout_signing_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -2584,6 +2587,22 @@ class AppStore:
         from .markets import market_surveillance_impl
         return market_surveillance_impl(self, market_id)
 
+    def market_orderbook(self, market_id: str, depth: int = 25) -> dict[str, Any]:
+        from .markets import market_orderbook_impl
+        return market_orderbook_impl(self, market_id, depth)
+
+    def market_ticker(self, market_id: str) -> dict[str, Any]:
+        from .markets import market_ticker_impl
+        return market_ticker_impl(self, market_id)
+
+    def market_trades(self, market_id: str, limit: int = 100) -> dict[str, Any]:
+        from .markets import market_trades_impl
+        return market_trades_impl(self, market_id, limit)
+
+    def market_positions(self, market_id: str, trader: str | None = None) -> dict[str, Any]:
+        from .markets import market_positions_impl
+        return market_positions_impl(self, market_id, trader)
+
     def polymarket_markets(self, query: dict[str, list[str]] | None = None) -> dict[str, Any]:
         from .markets import polymarket_markets_impl
         return polymarket_markets_impl(self, query)
@@ -2972,6 +2991,24 @@ def route_app_get(store: AppStore, chain: Any, path: str, query: dict[str, list[
         return 200, store.market_surveillance(), "application/json"
     if path.startswith("/markets/") and path.endswith("/surveillance"):
         return 200, store.market_surveillance(path.split("/")[2]), "application/json"
+    if path.startswith("/markets/") and path.endswith("/orderbook"):
+        depth_raw = q("depth", "25") or "25"
+        try:
+            depth = int(depth_raw)
+        except ValueError:
+            depth = 25
+        return 200, store.market_orderbook(path.split("/")[2], depth), "application/json"
+    if path.startswith("/markets/") and path.endswith("/ticker"):
+        return 200, store.market_ticker(path.split("/")[2]), "application/json"
+    if path.startswith("/markets/") and path.endswith("/trades"):
+        limit_raw = q("limit", "100") or "100"
+        try:
+            limit = int(limit_raw)
+        except ValueError:
+            limit = 100
+        return 200, store.market_trades(path.split("/")[2], limit), "application/json"
+    if path.startswith("/markets/") and path.endswith("/positions"):
+        return 200, store.market_positions(path.split("/")[2], q("trader") or None), "application/json"
     if path.startswith("/markets/"):
         return 200, store.prediction_market(path.split("/", 2)[2]), "application/json"
     if path == "/network":

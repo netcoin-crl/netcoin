@@ -1,0 +1,177 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "security_audit",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::external_security_audit_intake_and_finding_tracker",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#external-security-audit-intake-and-finding-tracker",
+      "owner": "unassigned",
+      "slug": "external_security_audit_intake_and_finding_tracker",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "External security audit intake and finding tracker"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::bug_bounty_scope_and_safe_harbor_workflow",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#bug-bounty-scope-and-safe-harbor-workflow",
+      "owner": "unassigned",
+      "slug": "bug_bounty_scope_and_safe_harbor_workflow",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Bug bounty scope and safe-harbor workflow"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::threat_model_attack_tree_registry",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#threat-model-attack-tree-registry",
+      "owner": "unassigned",
+      "slug": "threat_model_attack_tree_registry",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Threat-model attack-tree registry"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::block_transaction_p2p_api_fuzzing_harness_placeholders",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#block-transaction-p2p-api-fuzzing-harness-placeholders",
+      "owner": "unassigned",
+      "slug": "block_transaction_p2p_api_fuzzing_harness_placeholders",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Block/transaction/P2P/API fuzzing harness placeholders"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::static_analysis_and_dependency_secret_scanning_gates",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#static-analysis-and-dependency-secret-scanning-gates",
+      "owner": "unassigned",
+      "slug": "static_analysis_and_dependency_secret_scanning_gates",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Static analysis and dependency/secret scanning gates"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::secrets_inventory_and_rotation_checklist",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#secrets-inventory-and-rotation-checklist",
+      "owner": "unassigned",
+      "slug": "secrets_inventory_and_rotation_checklist",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Secrets inventory and rotation checklist"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::incident_response_owner_escalation_mapping",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#incident-response-owner-escalation-mapping",
+      "owner": "unassigned",
+      "slug": "incident_response_owner_escalation_mapping",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Incident-response owner/escalation mapping"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::security_advisory_and_patch_release_workflow",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#security-advisory-and-patch-release-workflow",
+      "owner": "unassigned",
+      "slug": "security_advisory_and_patch_release_workflow",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Security advisory and patch-release workflow"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::penetration_test_scope_for_explorer_api_admin_markets_faucet",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#penetration-test-scope-for-explorer-api-admin-markets-faucet",
+      "owner": "unassigned",
+      "slug": "penetration_test_scope_for_explorer_api_admin_markets_faucet",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Penetration-test scope for explorer/API/admin/markets/faucet"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/security.py::abuse_simulations_for_faucet_markets_spam_peers_and_wallet_phishing",
+      "config_anchor": "config/competitive/security_audit.json",
+      "doc_anchor": "docs/competitive/security_audit.md#abuse-simulations-for-faucet-markets-spam-peers-and-wallet-phishing",
+      "owner": "unassigned",
+      "slug": "abuse_simulations_for_faucet_markets_spam_peers_and_wallet_phishing",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Abuse simulations for faucet, markets, spam, peers, and wallet phishing"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "External-audit readiness, disclosure, fuzzing, static analysis, penetration-testing, and abuse simulation scaffolds.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Security Audit and Abuse Defense"
+}

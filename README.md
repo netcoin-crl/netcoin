@@ -4,7 +4,7 @@ NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in 
 
 NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should not be used as real money software. Public-testnet NET has no real-money value.
 
-> Current release: **v0.10.1** · 3 public seeds · deterministic emission (50 NET −10% / 265k blocks) · 5-minute blocks from height 5,010 · app-layer tokens + developer API keys
+> Current release: **v0.13.0** · 3 public seeds · deterministic emission (50 NET −10% / 265k blocks) · 5-minute blocks from height 5,010 · app-layer tokens + developer API keys + Polymarket-style Labs CLOB
 
 ## Start here
 

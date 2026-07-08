@@ -1,0 +1,177 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "testing_quality",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::full_test_suite_ci_matrix_with_timeout_budgets",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#full-test-suite-ci-matrix-with-timeout-budgets",
+      "owner": "unassigned",
+      "slug": "full_test_suite_ci_matrix_with_timeout_budgets",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Full test suite CI matrix with timeout budgets"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::property_based_randomized_consensus_and_wallet_tests",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#property-based-randomized-consensus-and-wallet-tests",
+      "owner": "unassigned",
+      "slug": "property_based_randomized_consensus_and_wallet_tests",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Property-based randomized consensus and wallet tests"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::parser_and_network_fuzzing_jobs",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#parser-and-network-fuzzing-jobs",
+      "owner": "unassigned",
+      "slug": "parser_and_network_fuzzing_jobs",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Parser and network fuzzing jobs"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::explorer_api_faucet_market_load_tests",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#explorer-api-faucet-market-load-tests",
+      "owner": "unassigned",
+      "slug": "explorer_api_faucet_market_load_tests",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Explorer/API/faucet/market load tests"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::long_running_node_soak_tests",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#long-running-node-soak-tests",
+      "owner": "unassigned",
+      "slug": "long_running_node_soak_tests",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Long-running node soak tests"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::chaos_tests_for_restarts_db_corruption_partitions_and_bad_peers",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#chaos-tests-for-restarts-db-corruption-partitions-and-bad-peers",
+      "owner": "unassigned",
+      "slug": "chaos_tests_for_restarts_db_corruption_partitions_and_bad_peers",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Chaos tests for restarts, DB corruption, partitions, and bad peers"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::browser_ui_tests_for_wallet_explorer_markets",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#browser-ui-tests-for-wallet-explorer-markets",
+      "owner": "unassigned",
+      "slug": "browser_ui_tests_for_wallet_explorer_markets",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Browser UI tests for wallet/explorer/markets"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::security_regression_tests_for_auth_replay_csrf_rate_limits",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#security-regression-tests-for-auth-replay-csrf-rate-limits",
+      "owner": "unassigned",
+      "slug": "security_regression_tests_for_auth_replay_csrf_rate_limits",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Security regression tests for auth/replay/CSRF/rate limits"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::migration_compatibility_tests_from_old_data_formats",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#migration-compatibility-tests-from-old-data-formats",
+      "owner": "unassigned",
+      "slug": "migration_compatibility_tests_from_old_data_formats",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Migration compatibility tests from old data formats"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/testing.py::release_verification_workflow_tests",
+      "config_anchor": "config/competitive/testing_quality.json",
+      "doc_anchor": "docs/competitive/testing_quality.md#release-verification-workflow-tests",
+      "owner": "unassigned",
+      "slug": "release_verification_workflow_tests",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Release verification workflow tests"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Full CI, property tests, fuzzing, load/soak/chaos/browser/security/migration/release verification tests.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Testing, Quality, and Chaos Engineering"
+}

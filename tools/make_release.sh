@@ -34,19 +34,20 @@ fi
 DIST="$ROOT/dist"
 ARCHIVE="netcoin-${VERSION}.zip"
 mkdir -p "$DIST"
-rm -f "$DIST/$ARCHIVE" "$DIST/SHA256SUMS" "$DIST/SHA256SUMS.asc"
+rm -f "$DIST/$ARCHIVE" "$DIST/SHA256SUMS" "$DIST/SHA256SUMS.asc" "$DIST/netcoin-sbom.json"
 
 # `git archive` is reproducible: it only includes tracked files at REF and
 # honors .gitignore implicitly (untracked junk is never tracked).
 echo "Archiving $REF -> dist/$ARCHIVE (version $VERSION)"
 git archive --format=zip --prefix="netcoin-${VERSION}/" -o "$DIST/$ARCHIVE" "$REF"
+python tools/generate_sbom.py --out "$DIST/netcoin-sbom.json" >/dev/null
 
 cd "$DIST"
 if command -v sha256sum >/dev/null 2>&1; then
-  sha256sum "$ARCHIVE" > SHA256SUMS
+  sha256sum "$ARCHIVE" netcoin-sbom.json > SHA256SUMS
 else
   # macOS ships shasum, not sha256sum.
-  shasum -a 256 "$ARCHIVE" > SHA256SUMS
+  shasum -a 256 "$ARCHIVE" netcoin-sbom.json > SHA256SUMS
 fi
 echo "Wrote dist/SHA256SUMS:"
 cat SHA256SUMS

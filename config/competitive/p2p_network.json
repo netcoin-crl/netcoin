@@ -1,0 +1,193 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "p2p_network",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::peer_scoring_by_latency_stale_tips_invalid_messages_and_behavior",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#peer-scoring-by-latency-stale-tips-invalid-messages-and-behavior",
+      "owner": "unassigned",
+      "slug": "peer_scoring_by_latency_stale_tips_invalid_messages_and_behavior",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Peer scoring by latency, stale tips, invalid messages, and behavior"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::temporary_and_permanent_peer_banning_policy",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#temporary-and-permanent-peer-banning-policy",
+      "owner": "unassigned",
+      "slug": "temporary_and_permanent_peer_banning_policy",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Temporary and permanent peer banning policy"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::eclipse_attack_peer_diversity_constraints",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#eclipse-attack-peer-diversity-constraints",
+      "owner": "unassigned",
+      "slug": "eclipse_attack_peer_diversity_constraints",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Eclipse-attack peer diversity constraints"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::dns_seed_and_fallback_seed_operations_registry",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#dns-seed-and-fallback-seed-operations-registry",
+      "owner": "unassigned",
+      "slug": "dns_seed_and_fallback_seed_operations_registry",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "DNS seed and fallback seed operations registry"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::address_gossip_freshness_model",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#address-gossip-freshness-model",
+      "owner": "unassigned",
+      "slug": "address_gossip_freshness_model",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Address gossip freshness model"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::headers_first_initial_sync_plan",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#headers-first-initial-sync-plan",
+      "owner": "unassigned",
+      "slug": "headers_first_initial_sync_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Headers-first initial sync plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::compact_block_relay_roadmap",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#compact-block-relay-roadmap",
+      "owner": "unassigned",
+      "slug": "compact_block_relay_roadmap",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Compact block relay roadmap"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::bandwidth_and_message_rate_limits",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#bandwidth-and-message-rate-limits",
+      "owner": "unassigned",
+      "slug": "bandwidth_and_message_rate_limits",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Bandwidth and message-rate limits"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::tor_i2p_transport_placeholders",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#tor-i2p-transport-placeholders",
+      "owner": "unassigned",
+      "slug": "tor_i2p_transport_placeholders",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Tor/I2P transport placeholders"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::public_node_map_and_version_dashboard_hooks",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#public-node-map-and-version-dashboard-hooks",
+      "owner": "unassigned",
+      "slug": "public_node_map_and_version_dashboard_hooks",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Public node map and version dashboard hooks"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/p2p.py::node_upgrade_and_unsafe_version_alerts",
+      "config_anchor": "config/competitive/p2p_network.json",
+      "doc_anchor": "docs/competitive/p2p_network.md#node-upgrade-and-unsafe-version-alerts",
+      "owner": "unassigned",
+      "slug": "node_upgrade_and_unsafe_version_alerts",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Node upgrade and unsafe-version alerts"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Peer scoring, banning, eclipse-resistance, discovery, relay efficiency, privacy transport, and node-map scaffolds.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Node and P2P Network Hardening"
+}

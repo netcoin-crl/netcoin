@@ -1,0 +1,145 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "governance_treasury",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/governance.py::proposal_lifecycle_states_and_metadata",
+      "config_anchor": "config/competitive/governance_treasury.json",
+      "doc_anchor": "docs/competitive/governance_treasury.md#proposal-lifecycle-states-and-metadata",
+      "owner": "unassigned",
+      "slug": "proposal_lifecycle_states_and_metadata",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Proposal lifecycle states and metadata"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/governance.py::on_chain_off_chain_voting_rules_quorum_periods_and_snapshots",
+      "config_anchor": "config/competitive/governance_treasury.json",
+      "doc_anchor": "docs/competitive/governance_treasury.md#on-chain-off-chain-voting-rules-quorum-periods-and-snapshots",
+      "owner": "unassigned",
+      "slug": "on_chain_off_chain_voting_rules_quorum_periods_and_snapshots",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "On-chain/off-chain voting rules, quorum, periods, and snapshots"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/governance.py::treasury_multisig_signer_policy_and_rotation_plan",
+      "config_anchor": "config/competitive/governance_treasury.json",
+      "doc_anchor": "docs/competitive/governance_treasury.md#treasury-multisig-signer-policy-and-rotation-plan",
+      "owner": "unassigned",
+      "slug": "treasury_multisig_signer_policy_and_rotation_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Treasury multisig signer policy and rotation plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/governance.py::public_treasury_dashboard_feed",
+      "config_anchor": "config/competitive/governance_treasury.json",
+      "doc_anchor": "docs/competitive/governance_treasury.md#public-treasury-dashboard-feed",
+      "owner": "unassigned",
+      "slug": "public_treasury_dashboard_feed",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Public treasury dashboard feed"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/governance.py::immutable_spending_audit_trail",
+      "config_anchor": "config/competitive/governance_treasury.json",
+      "doc_anchor": "docs/competitive/governance_treasury.md#immutable-spending-audit-trail",
+      "owner": "unassigned",
+      "slug": "immutable_spending_audit_trail",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Immutable spending audit trail"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/governance.py::governance_calendar_and_upgrade_schedule",
+      "config_anchor": "config/competitive/governance_treasury.json",
+      "doc_anchor": "docs/competitive/governance_treasury.md#governance-calendar-and-upgrade-schedule",
+      "owner": "unassigned",
+      "slug": "governance_calendar_and_upgrade_schedule",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Governance calendar and upgrade schedule"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/governance.py::permanent_decision_log",
+      "config_anchor": "config/competitive/governance_treasury.json",
+      "doc_anchor": "docs/competitive/governance_treasury.md#permanent-decision-log",
+      "owner": "unassigned",
+      "slug": "permanent_decision_log",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Permanent decision log"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/governance.py::emergency_governance_and_critical_patch_process",
+      "config_anchor": "config/competitive/governance_treasury.json",
+      "doc_anchor": "docs/competitive/governance_treasury.md#emergency-governance-and-critical-patch-process",
+      "owner": "unassigned",
+      "slug": "emergency_governance_and_critical_patch_process",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Emergency governance and critical-patch process"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Proposal lifecycle, voting rules, treasury multisig, public dashboard, spending audit trail, governance calendar, decision log, and emergency governance.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Governance and Treasury"
+}

@@ -1,0 +1,209 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "wallet_security_ux",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::strong_encrypted_wallet_file_and_migration_policy",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#strong-encrypted-wallet-file-and-migration-policy",
+      "owner": "unassigned",
+      "slug": "strong_encrypted_wallet_file_and_migration_policy",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Strong encrypted wallet file and migration policy"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::seed_phrase_backup_verification_requirement",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#seed-phrase-backup-verification-requirement",
+      "owner": "unassigned",
+      "slug": "seed_phrase_backup_verification_requirement",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Seed phrase backup verification requirement"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::auto_lock_idle_timeout_model",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#auto-lock-idle-timeout-model",
+      "owner": "unassigned",
+      "slug": "auto_lock_idle_timeout_model",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Auto-lock idle timeout model"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::hardware_wallet_signer_interface_placeholder",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#hardware-wallet-signer-interface-placeholder",
+      "owner": "unassigned",
+      "slug": "hardware_wallet_signer_interface_placeholder",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Hardware wallet signer interface placeholder"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::watch_only_wallet_workflow",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#watch-only-wallet-workflow",
+      "owner": "unassigned",
+      "slug": "watch_only_wallet_workflow",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Watch-only wallet workflow"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::multisig_wallet_creation_sign_combine_broadcast_workflow",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#multisig-wallet-creation-sign-combine-broadcast-workflow",
+      "owner": "unassigned",
+      "slug": "multisig_wallet_creation_sign_combine_broadcast_workflow",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Multisig wallet creation/sign/combine/broadcast workflow"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::offline_and_qr_based_signing_flows",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#offline-and-qr-based-signing-flows",
+      "owner": "unassigned",
+      "slug": "offline_and_qr_based_signing_flows",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Offline and QR-based signing flows"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::address_book_with_labels_and_warnings",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#address-book-with-labels-and-warnings",
+      "owner": "unassigned",
+      "slug": "address_book_with_labels_and_warnings",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Address book with labels and warnings"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::address_reuse_and_address_poisoning_warnings",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#address-reuse-and-address-poisoning-warnings",
+      "owner": "unassigned",
+      "slug": "address_reuse_and_address_poisoning_warnings",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Address reuse and address poisoning warnings"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::transaction_simulation_and_risk_scoring_hooks",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#transaction-simulation-and-risk-scoring-hooks",
+      "owner": "unassigned",
+      "slug": "transaction_simulation_and_risk_scoring_hooks",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Transaction simulation and risk scoring hooks"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::coin_control_ui_api_plan",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#coin-control-ui-api-plan",
+      "owner": "unassigned",
+      "slug": "coin_control_ui_api_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Coin-control UI/API plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/wallet.py::spending_limits_and_wallet_policy_rules",
+      "config_anchor": "config/competitive/wallet_security_ux.json",
+      "doc_anchor": "docs/competitive/wallet_security_ux.md#spending-limits-and-wallet-policy-rules",
+      "owner": "unassigned",
+      "slug": "spending_limits_and_wallet_policy_rules",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Spending limits and wallet policy rules"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Encrypted wallets, seed backup verification, auto-locking, hardware/watch-only/multisig/offline signing, risk warnings, and policy controls.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Wallet Security and Professional UX"
+}

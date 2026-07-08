@@ -1,0 +1,161 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "exchange_custody",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/exchange.py::deposit_confirmation_policy_by_risk_level",
+      "config_anchor": "config/competitive/exchange_custody.json",
+      "doc_anchor": "docs/competitive/exchange_custody.md#deposit-confirmation-policy-by-risk-level",
+      "owner": "unassigned",
+      "slug": "deposit_confirmation_policy_by_risk_level",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Deposit confirmation policy by risk level"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/exchange.py::reorg_handling_for_deposits_and_balance_reconciliation",
+      "config_anchor": "config/competitive/exchange_custody.json",
+      "doc_anchor": "docs/competitive/exchange_custody.md#reorg-handling-for-deposits-and-balance-reconciliation",
+      "owner": "unassigned",
+      "slug": "reorg_handling_for_deposits_and_balance_reconciliation",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Reorg handling for deposits and balance reconciliation"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/exchange.py::withdrawal_queue_batching_approvals_and_limits",
+      "config_anchor": "config/competitive/exchange_custody.json",
+      "doc_anchor": "docs/competitive/exchange_custody.md#withdrawal-queue-batching-approvals-and-limits",
+      "owner": "unassigned",
+      "slug": "withdrawal_queue_batching_approvals_and_limits",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Withdrawal queue, batching, approvals, and limits"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/exchange.py::hot_cold_wallet_separation_architecture",
+      "config_anchor": "config/competitive/exchange_custody.json",
+      "doc_anchor": "docs/competitive/exchange_custody.md#hot-cold-wallet-separation-architecture",
+      "owner": "unassigned",
+      "slug": "hot_cold_wallet_separation_architecture",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Hot/cold wallet separation architecture"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/exchange.py::exchange_safe_address_validation_endpoint_contract",
+      "config_anchor": "config/competitive/exchange_custody.json",
+      "doc_anchor": "docs/competitive/exchange_custody.md#exchange-safe-address-validation-endpoint-contract",
+      "owner": "unassigned",
+      "slug": "exchange_safe_address_validation_endpoint_contract",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Exchange-safe address validation endpoint contract"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/exchange.py::proof_of_reserves_guide_and_data_model",
+      "config_anchor": "config/competitive/exchange_custody.json",
+      "doc_anchor": "docs/competitive/exchange_custody.md#proof-of-reserves-guide-and-data-model",
+      "owner": "unassigned",
+      "slug": "proof_of_reserves_guide_and_data_model",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Proof-of-reserves guide and data model"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/exchange.py::chain_halt_fork_alerting_for_exchanges",
+      "config_anchor": "config/competitive/exchange_custody.json",
+      "doc_anchor": "docs/competitive/exchange_custody.md#chain-halt-fork-alerting-for-exchanges",
+      "owner": "unassigned",
+      "slug": "chain_halt_fork_alerting_for_exchanges",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Chain halt/fork alerting for exchanges"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/exchange.py::exchange_integration_guide_with_api_examples",
+      "config_anchor": "config/competitive/exchange_custody.json",
+      "doc_anchor": "docs/competitive/exchange_custody.md#exchange-integration-guide-with-api-examples",
+      "owner": "unassigned",
+      "slug": "exchange_integration_guide_with_api_examples",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Exchange integration guide with API examples"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/exchange.py::custody_key_ceremony_signer_roles_and_access_control_policy",
+      "config_anchor": "config/competitive/exchange_custody.json",
+      "doc_anchor": "docs/competitive/exchange_custody.md#custody-key-ceremony-signer-roles-and-access-control-policy",
+      "owner": "unassigned",
+      "slug": "custody_key_ceremony_signer_roles_and_access_control_policy",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Custody key ceremony, signer roles, and access-control policy"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Deposits, reorgs, withdrawals, hot/cold wallets, address validation, proof-of-reserves, fork alerts, exchange guide, and custody policy.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Exchange and Custody Readiness"
+}

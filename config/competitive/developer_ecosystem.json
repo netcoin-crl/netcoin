@@ -1,0 +1,161 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "developer_ecosystem",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/developer.py::typed_javascript_sdk_coverage_plan",
+      "config_anchor": "config/competitive/developer_ecosystem.json",
+      "doc_anchor": "docs/competitive/developer_ecosystem.md#typed-javascript-sdk-coverage-plan",
+      "owner": "unassigned",
+      "slug": "typed_javascript_sdk_coverage_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Typed JavaScript SDK coverage plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/developer.py::full_python_sdk_endpoint_coverage_plan",
+      "config_anchor": "config/competitive/developer_ecosystem.json",
+      "doc_anchor": "docs/competitive/developer_ecosystem.md#full-python-sdk-endpoint-coverage-plan",
+      "owner": "unassigned",
+      "slug": "full_python_sdk_endpoint_coverage_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Full Python SDK endpoint coverage plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/developer.py::machine_readable_openapi_schema",
+      "config_anchor": "config/competitive/developer_ecosystem.json",
+      "doc_anchor": "docs/competitive/developer_ecosystem.md#machine-readable-openapi-schema",
+      "owner": "unassigned",
+      "slug": "machine_readable_openapi_schema",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Machine-readable OpenAPI schema"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/developer.py::postman_collection_generation_placeholder",
+      "config_anchor": "config/competitive/developer_ecosystem.json",
+      "doc_anchor": "docs/competitive/developer_ecosystem.md#postman-collection-generation-placeholder",
+      "owner": "unassigned",
+      "slug": "postman_collection_generation_placeholder",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Postman collection generation placeholder"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/developer.py::example_wallet_faucet_market_explorer_apps",
+      "config_anchor": "config/competitive/developer_ecosystem.json",
+      "doc_anchor": "docs/competitive/developer_ecosystem.md#example-wallet-faucet-market-explorer-apps",
+      "owner": "unassigned",
+      "slug": "example_wallet_faucet_market_explorer_apps",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Example wallet/faucet/market/explorer apps"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/developer.py::one_command_docker_multi_node_devnet",
+      "config_anchor": "config/competitive/developer_ecosystem.json",
+      "doc_anchor": "docs/competitive/developer_ecosystem.md#one-command-docker-multi-node-devnet",
+      "owner": "unassigned",
+      "slug": "one_command_docker_multi_node_devnet",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "One-command Docker multi-node devnet"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/developer.py::cli_profile_and_error_polish_checklist",
+      "config_anchor": "config/competitive/developer_ecosystem.json",
+      "doc_anchor": "docs/competitive/developer_ecosystem.md#cli-profile-and-error-polish-checklist",
+      "owner": "unassigned",
+      "slug": "cli_profile_and_error_polish_checklist",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "CLI profile and error-polish checklist"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/developer.py::signed_webhook_receiver_examples",
+      "config_anchor": "config/competitive/developer_ecosystem.json",
+      "doc_anchor": "docs/competitive/developer_ecosystem.md#signed-webhook-receiver-examples",
+      "owner": "unassigned",
+      "slug": "signed_webhook_receiver_examples",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Signed webhook receiver examples"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/developer.py::public_testnet_status_api_with_chain_faucet_health",
+      "config_anchor": "config/competitive/developer_ecosystem.json",
+      "doc_anchor": "docs/competitive/developer_ecosystem.md#public-testnet-status-api-with-chain-faucet-health",
+      "owner": "unassigned",
+      "slug": "public_testnet_status_api_with_chain_faucet_health",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Public testnet status API with chain/faucet health"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "SDK coverage, OpenAPI, Postman, example apps, Docker devnet, CLI polish, webhooks, and public testnet status API.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Developer Ecosystem"
+}

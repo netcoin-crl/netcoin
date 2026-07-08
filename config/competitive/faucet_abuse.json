@@ -1,0 +1,145 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "faucet_abuse",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/faucet.py::faucet_abuse_dashboard_and_anomaly_counters",
+      "config_anchor": "config/competitive/faucet_abuse.json",
+      "doc_anchor": "docs/competitive/faucet_abuse.md#faucet-abuse-dashboard-and-anomaly-counters",
+      "owner": "unassigned",
+      "slug": "faucet_abuse_dashboard_and_anomaly_counters",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Faucet abuse dashboard and anomaly counters"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/faucet.py::captcha_or_proof_of_work_challenge_adapter",
+      "config_anchor": "config/competitive/faucet_abuse.json",
+      "doc_anchor": "docs/competitive/faucet_abuse.md#captcha-or-proof-of-work-challenge-adapter",
+      "owner": "unassigned",
+      "slug": "captcha_or_proof_of_work_challenge_adapter",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Captcha or proof-of-work challenge adapter"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/faucet.py::device_ip_reputation_fingerprinting_hooks",
+      "config_anchor": "config/competitive/faucet_abuse.json",
+      "doc_anchor": "docs/competitive/faucet_abuse.md#device-ip-reputation-fingerprinting-hooks",
+      "owner": "unassigned",
+      "slug": "device_ip_reputation_fingerprinting_hooks",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Device/IP/reputation fingerprinting hooks"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/faucet.py::faucet_hot_wallet_balance_and_daily_spend_limits",
+      "config_anchor": "config/competitive/faucet_abuse.json",
+      "doc_anchor": "docs/competitive/faucet_abuse.md#faucet-hot-wallet-balance-and-daily-spend-limits",
+      "owner": "unassigned",
+      "slug": "faucet_hot_wallet_balance_and_daily_spend_limits",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Faucet hot-wallet balance and daily spend limits"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/faucet.py::faucet_refill_and_low_balance_alerts",
+      "config_anchor": "config/competitive/faucet_abuse.json",
+      "doc_anchor": "docs/competitive/faucet_abuse.md#faucet-refill-and-low-balance-alerts",
+      "owner": "unassigned",
+      "slug": "faucet_refill_and_low_balance_alerts",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Faucet refill and low-balance alerts"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/faucet.py::request_queue_analytics_and_decision_logs",
+      "config_anchor": "config/competitive/faucet_abuse.json",
+      "doc_anchor": "docs/competitive/faucet_abuse.md#request-queue-analytics-and-decision-logs",
+      "owner": "unassigned",
+      "slug": "request_queue_analytics_and_decision_logs",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Request queue analytics and decision logs"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/faucet.py::automatic_emergency_pause_during_abnormal_activity",
+      "config_anchor": "config/competitive/faucet_abuse.json",
+      "doc_anchor": "docs/competitive/faucet_abuse.md#automatic-emergency-pause-during-abnormal-activity",
+      "owner": "unassigned",
+      "slug": "automatic_emergency_pause_during_abnormal_activity",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Automatic emergency pause during abnormal activity"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/faucet.py::faucet_user_request_reputation_scoring",
+      "config_anchor": "config/competitive/faucet_abuse.json",
+      "doc_anchor": "docs/competitive/faucet_abuse.md#faucet-user-request-reputation-scoring",
+      "owner": "unassigned",
+      "slug": "faucet_user_request_reputation_scoring",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Faucet user/request reputation scoring"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Faucet anti-abuse dashboard, captcha/proof-of-work, fingerprinting, hot-wallet limits, alerts, queues, and emergency pause.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Faucet Abuse Control"
+}

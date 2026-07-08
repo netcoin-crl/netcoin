@@ -103,6 +103,35 @@
     return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" role="img" aria-label="Recent price chart"><polyline points="${coords}" fill="none" stroke="currentColor" stroke-width="3"/><line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="currentColor" opacity=".2"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}" stroke="currentColor" opacity=".2"/></svg>`;
   }
 
+
+  function renderTicker(m) {
+    const rows = (((m.ticker || {}).outcomes) || []).map((o) => `<div class="stat"><div class="k">${esc(o.label)}</div><div class="v">${esc(o.price || "-")}</div><small class="muted">Bid ${esc(o.best_bid || "-")} · Ask ${esc(o.best_ask || "-")} · Spread ${esc(o.spread || "-")}</small></div>`).join("");
+    return rows ? `<div class="stats compact-stats probability-strip">${rows}</div>` : `<p class="muted">No ticker yet.</p>`;
+  }
+
+  function renderClobLevels(m) {
+    const books = ((m.clob || {}).books) || {};
+    return (m.outcomes || []).map((outcome) => {
+      const book = books[outcome.outcome_id] || { bids: [], asks: [] };
+      const maxRows = Math.max((book.bids || []).length, (book.asks || []).length, 1);
+      const rows = Array.from({ length: Math.min(maxRows, 8) }, (_, i) => {
+        const bid = (book.bids || [])[i];
+        const ask = (book.asks || [])[i];
+        return `<tr><td>${bid ? `${esc(bid.price)} / ${esc(bid.quantity)} (${esc(bid.order_count)} orders)` : ""}</td><td>${ask ? `${esc(ask.price)} / ${esc(ask.quantity)} (${esc(ask.order_count)} orders)` : ""}</td></tr>`;
+      }).join("");
+      return `<div class="book"><h3>${esc(outcome.label)} aggregated book</h3><p class="muted">Mid ${esc(book.midpoint || "-")} · Bid depth ${esc(book.bid_depth_shares || 0)} · Ask depth ${esc(book.ask_depth_shares || 0)}</p><table><thead><tr><th>Bids</th><th>Asks</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }).join("");
+  }
+
+  function renderPortfolio(m) {
+    const portfolios = (((m.portfolio || {}).portfolios) || []).slice(0, 8);
+    if (!portfolios.length) return `<p class="muted">Portfolios appear after trades.</p>`;
+    return `<table><thead><tr><th>Trader</th><th>Equity</th><th>Marked positions</th></tr></thead><tbody>${portfolios.map((p) => {
+      const pos = (p.positions || []).filter((x) => Number(x.quantity || 0) !== 0).map((x) => `${x.label}:${x.quantity} @ ${x.mark_price || "-"}`).join("<br>") || "-";
+      return `<tr><td class="mono">${esc(p.trader_id)}</td><td>${esc(p.equity || "0")}</td><td>${pos}</td></tr>`;
+    }).join("")}</tbody></table>`;
+  }
+
   function renderOrderbook(m) {
     if (!m) return "";
     return (m.outcomes || []).map((outcome) => {
@@ -153,11 +182,14 @@
     detail.innerHTML = `<div class="detail-title"><div><h2>${esc(m.question)}</h2><p class="mono muted">${esc(m.market_id)}</p></div>${marketBadge(m)}</div>
       <p class="notice warn">${esc(m.warning || "Testnet/play-money only.")}</p>
       <div class="stats compact-stats"><div class="stat"><div class="k">Volume</div><div class="v">${esc(stats.volume || "0")}</div></div><div class="stat"><div class="k">Open interest</div><div class="v">${esc(stats.open_interest_shares || 0)}</div></div><div class="stat"><div class="k">Liquidity</div><div class="v">${esc(stats.liquidity_shares || 0)}</div></div><div class="stat"><div class="k">Trades</div><div class="v">${esc(stats.trade_count || 0)}</div></div></div>
+      <h3>Outcome ticker</h3>${renderTicker(m)}
       <h3>Probability chart</h3>${renderSparkline(m)}
+      <h3>Aggregated CLOB levels</h3>${renderClobLevels(m)}
       <h3>Order book</h3>${renderOrderbook(m)}
       <h3>Recent trades</h3>${renderTrades(m)}
+      <h3>Marked portfolios</h3>${renderPortfolio(m)}
       <h3>Demo wallets & positions</h3>${renderWallets(m)}
-      <h3>Resolution</h3><p class="muted">Workflow: ${esc(workflow.status || "unresolved")} · Source: ${esc(m.resolution_source || workflow.evidence_url || "manual")}</p>`;
+      <h3>Resolution</h3><p class="muted">Workflow: ${esc(workflow.status || "unresolved")} · Oracle status: ${esc(workflow.optimistic_oracle_status || "unproposed")} · Source: ${esc(m.resolution_source || workflow.evidence_url || "manual")}</p>`;
     detail.querySelectorAll("[data-cancel]").forEach((btn) => btn.addEventListener("click", async () => {
       await cancelOrder(btn.getAttribute("data-cancel") || "");
     }));
@@ -231,7 +263,11 @@
     try {
       const payload = await api("/markets/external/polymarket?limit=8&active=true");
       if (!payload.ok) throw new Error(payload.error || "feed unavailable");
-      const rows = (payload.markets || []).map((m) => `<div class="external-market"><b>${esc(m.question || m.slug || m.external_id)}</b><span class="muted">Volume: ${esc(m.volume || "-")} · Liquidity: ${esc(m.liquidity || "-")} · End: ${esc(m.end_date || "-")}</span><span class="mono muted">${esc(m.external_id || "")}</span></div>`).join("");
+      const rows = (payload.markets || []).map((m) => {
+        const outcomes = (m.outcomes || []).map((o) => `<span class="pill">${esc(o.label)} ${esc(o.price || "-")}</span>`).join(" ");
+        const link = m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener">Open source market</a>` : "";
+        return `<div class="external-market"><b>${esc(m.question || m.slug || m.external_id)}</b><span class="muted">Category: ${esc(m.category || "-")} · 24h volume: ${esc(m.volume_24h || "-")} · Liquidity: ${esc(m.liquidity || "-")} · End: ${esc(m.end_date || "-")}</span><span>${outcomes}</span><span class="mono muted">${esc(m.condition_id || m.external_id || "")}</span>${link}</div>`;
+      }).join("");
       box.innerHTML = rows || `<p class="muted">No public markets returned.</p>`;
       log("Loaded Polymarket read-only feed", { count: (payload.markets || []).length });
     } catch (err) {
@@ -263,6 +299,9 @@
         oracle: "manual",
         close_time: close,
         resolution_source: $("#resolutionSource").value,
+        category: $("#marketCategory").value,
+        tags: $("#marketTags").value,
+        rules: $("#marketRules").value,
         legal_acknowledged: $("#legalAck").checked,
         sandbox_short_mode: true
       });
@@ -276,8 +315,11 @@
         trader_address: $("#orderTrader").value,
         outcome_id: $("#orderOutcome").value,
         side: $("#orderSide").value,
+        order_type: $("#orderType").value,
+        time_in_force: $("#timeInForce").value,
+        post_only: $("#postOnly").checked,
         quantity: Number($("#orderQuantity").value),
-        price_bps: Number($("#orderPrice").value),
+        price_bps: $("#orderType").value === "market" ? undefined : Number($("#orderPrice").value),
         allow_unverified_demo: true,
         sandbox_short_mode: true
       });

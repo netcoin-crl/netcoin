@@ -1,0 +1,145 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "mining_pool",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mining.py::stratum_style_mining_pool_protocol_adapter",
+      "config_anchor": "config/competitive/mining_pool.json",
+      "doc_anchor": "docs/competitive/mining_pool.md#stratum-style-mining-pool-protocol-adapter",
+      "owner": "unassigned",
+      "slug": "stratum_style_mining_pool_protocol_adapter",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Stratum-style mining pool protocol adapter"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mining.py::mining_pool_dashboard_data_model",
+      "config_anchor": "config/competitive/mining_pool.json",
+      "doc_anchor": "docs/competitive/mining_pool.md#mining-pool-dashboard-data-model",
+      "owner": "unassigned",
+      "slug": "mining_pool_dashboard_data_model",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Mining pool dashboard data model"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mining.py::rejected_share_tracking_and_diagnostics",
+      "config_anchor": "config/competitive/mining_pool.json",
+      "doc_anchor": "docs/competitive/mining_pool.md#rejected-share-tracking-and-diagnostics",
+      "owner": "unassigned",
+      "slug": "rejected_share_tracking_and_diagnostics",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Rejected share tracking and diagnostics"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mining.py::transparent_pool_payout_accounting_ledger",
+      "config_anchor": "config/competitive/mining_pool.json",
+      "doc_anchor": "docs/competitive/mining_pool.md#transparent-pool-payout-accounting-ledger",
+      "owner": "unassigned",
+      "slug": "transparent_pool_payout_accounting_ledger",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Transparent pool payout accounting ledger"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mining.py::orphan_stale_block_rate_tracking",
+      "config_anchor": "config/competitive/mining_pool.json",
+      "doc_anchor": "docs/competitive/mining_pool.md#orphan-stale-block-rate-tracking",
+      "owner": "unassigned",
+      "slug": "orphan_stale_block_rate_tracking",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Orphan/stale block-rate tracking"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mining.py::miner_friendly_block_template_api",
+      "config_anchor": "config/competitive/mining_pool.json",
+      "doc_anchor": "docs/competitive/mining_pool.md#miner-friendly-block-template-api",
+      "owner": "unassigned",
+      "slug": "miner_friendly_block_template_api",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Miner-friendly block template API"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mining.py::mining_profitability_calculator_inputs",
+      "config_anchor": "config/competitive/mining_pool.json",
+      "doc_anchor": "docs/competitive/mining_pool.md#mining-profitability-calculator-inputs",
+      "owner": "unassigned",
+      "slug": "mining_profitability_calculator_inputs",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Mining profitability calculator inputs"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mining.py::difficulty_hashrate_explorer_chart_hooks",
+      "config_anchor": "config/competitive/mining_pool.json",
+      "doc_anchor": "docs/competitive/mining_pool.md#difficulty-hashrate-explorer-chart-hooks",
+      "owner": "unassigned",
+      "slug": "difficulty_hashrate_explorer_chart_hooks",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Difficulty/hashrate explorer chart hooks"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Stratum-style pool, miner dashboard, share tracking, payout accounting, orphan metrics, block templates, and profitability scaffolds.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Mining and Pool Infrastructure"
+}

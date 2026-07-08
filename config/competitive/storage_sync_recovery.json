@@ -1,0 +1,145 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "storage_sync_recovery",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/storage.py::reindex_command_plan_for_chainstate_and_explorer_index",
+      "config_anchor": "config/competitive/storage_sync_recovery.json",
+      "doc_anchor": "docs/competitive/storage_sync_recovery.md#reindex-command-plan-for-chainstate-and-explorer-index",
+      "owner": "unassigned",
+      "slug": "reindex_command_plan_for_chainstate_and_explorer_index",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Reindex command plan for chainstate and explorer index"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/storage.py::prune_mode_capability_map",
+      "config_anchor": "config/competitive/storage_sync_recovery.json",
+      "doc_anchor": "docs/competitive/storage_sync_recovery.md#prune-mode-capability-map",
+      "owner": "unassigned",
+      "slug": "prune_mode_capability_map",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Prune-mode capability map"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/storage.py::snapshot_bootstrap_import_and_verification_workflow",
+      "config_anchor": "config/competitive/storage_sync_recovery.json",
+      "doc_anchor": "docs/competitive/storage_sync_recovery.md#snapshot-bootstrap-import-and-verification-workflow",
+      "owner": "unassigned",
+      "slug": "snapshot_bootstrap_import_and_verification_workflow",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Snapshot/bootstrap import and verification workflow"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/storage.py::crash_safe_write_and_corruption_test_matrix",
+      "config_anchor": "config/competitive/storage_sync_recovery.json",
+      "doc_anchor": "docs/competitive/storage_sync_recovery.md#crash-safe-write-and-corruption-test-matrix",
+      "owner": "unassigned",
+      "slug": "crash_safe_write_and_corruption_test_matrix",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Crash-safe write and corruption-test matrix"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/storage.py::versioned_database_migration_registry",
+      "config_anchor": "config/competitive/storage_sync_recovery.json",
+      "doc_anchor": "docs/competitive/storage_sync_recovery.md#versioned-database-migration-registry",
+      "owner": "unassigned",
+      "slug": "versioned_database_migration_registry",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Versioned database migration registry"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/storage.py::backup_and_restore_tooling_checklist",
+      "config_anchor": "config/competitive/storage_sync_recovery.json",
+      "doc_anchor": "docs/competitive/storage_sync_recovery.md#backup-and-restore-tooling-checklist",
+      "owner": "unassigned",
+      "slug": "backup_and_restore_tooling_checklist",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Backup and restore tooling checklist"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/storage.py::chainstate_repair_and_audit_hooks",
+      "config_anchor": "config/competitive/storage_sync_recovery.json",
+      "doc_anchor": "docs/competitive/storage_sync_recovery.md#chainstate-repair-and-audit-hooks",
+      "owner": "unassigned",
+      "slug": "chainstate_repair_and_audit_hooks",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Chainstate repair and audit hooks"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/storage.py::long_run_node_soak_test_plan",
+      "config_anchor": "config/competitive/storage_sync_recovery.json",
+      "doc_anchor": "docs/competitive/storage_sync_recovery.md#long-run-node-soak-test-plan",
+      "owner": "unassigned",
+      "slug": "long_run_node_soak_test_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Long-run node soak-test plan"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Reindexing, pruning, snapshots, crash-safe writes, migrations, backups, chain repair, and soak-test scaffolds.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Storage, Sync, and Recovery"
+}

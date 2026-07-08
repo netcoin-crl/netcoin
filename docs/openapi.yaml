@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: NetCoin Public API
-  version: 0.11.0
+  version: 0.12.0
   description: |
     Public HTTP API served by every NetCoin node (default port 28444) and by the
     hosted relay at `https://api.netcoin.online/api`.
@@ -37,7 +37,61 @@ tags:
     description: App-layer services (invoices, usernames, webhooks)
   - name: tokens
     description: NET-20 style app-layer token ledger (indexed, not consensus)
+  - name: markets
+    description: Polymarket-style play-money prediction-market Labs APIs (app-layer only)
 paths:
+
+  /markets:
+    get:
+      tags: [markets]
+      summary: List play-money prediction markets
+      responses:
+        "200": { description: Markets, totals, and testnet warning. }
+    post:
+      tags: [markets]
+      summary: Create a testnet/play-money prediction market
+      responses:
+        "200": { description: Created market with outcomes, compliance record, and CLOB snapshot. }
+  /markets/{market_id}/order:
+    post:
+      tags: [markets]
+      summary: Place a limit, market, IOC, or FOK play-money order
+      parameters:
+        - { name: market_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Updated market, order book, ticker, trades, and portfolios. }
+  /markets/{market_id}/orderbook:
+    get:
+      tags: [markets]
+      summary: Polymarket-style aggregated CLOB levels
+      parameters:
+        - { name: market_id, in: path, required: true, schema: { type: string } }
+        - { name: depth, in: query, schema: { type: integer, default: 25 } }
+      responses:
+        "200": { description: Per-outcome bids, asks, midpoint, spread, and depth. }
+  /markets/{market_id}/ticker:
+    get:
+      tags: [markets]
+      summary: Market ticker with implied probability, bid, ask, spread, and last trade
+      parameters:
+        - { name: market_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Ticker snapshot. }
+  /markets/{market_id}/positions:
+    get:
+      tags: [markets]
+      summary: Marked play-money portfolios for all traders or one trader
+      parameters:
+        - { name: market_id, in: path, required: true, schema: { type: string } }
+        - { name: trader, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Wallet balances, positions, mark values, and equity. }
+  /markets/external/polymarket:
+    get:
+      tags: [markets]
+      summary: Read-only public Polymarket discovery proxy
+      responses:
+        "200": { description: Public Gamma market metadata; never routes NetCoin orders externally. }
   /info:
     get:
       tags: [node]

@@ -1,0 +1,209 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "prediction_markets",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::real_money_compliance_gate_that_blocks_production_claims",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#real-money-compliance-gate-that-blocks-production-claims",
+      "owner": "unassigned",
+      "slug": "real_money_compliance_gate_that_blocks_production_claims",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Real-money compliance gate that blocks production claims"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::manipulation_surveillance_for_wash_trading_spoofing_self_trades_and_rapid_moves",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#manipulation-surveillance-for-wash-trading-spoofing-self-trades-and-rapid-moves",
+      "owner": "unassigned",
+      "slug": "manipulation_surveillance_for_wash_trading_spoofing_self_trades_and_rapid_moves",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Manipulation surveillance for wash trading, spoofing, self-trades, and rapid moves"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::dispute_timeline_evidence_upload_appeal_and_operator_role_workflow",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#dispute-timeline-evidence-upload-appeal-and-operator-role-workflow",
+      "owner": "unassigned",
+      "slug": "dispute_timeline_evidence_upload_appeal_and_operator_role_workflow",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Dispute timeline, evidence upload, appeal, and operator-role workflow"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::oracle_evidence_trusted_source_registry_and_snapshot_proof_model",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#oracle-evidence-trusted-source-registry-and-snapshot-proof-model",
+      "owner": "unassigned",
+      "slug": "oracle_evidence_trusted_source_registry_and_snapshot_proof_model",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Oracle/evidence trusted source registry and snapshot proof model"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::liquidity_and_exposure_controls",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#liquidity-and-exposure-controls",
+      "owner": "unassigned",
+      "slug": "liquidity_and_exposure_controls",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Liquidity and exposure controls"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::market_creator_reputation_model",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#market-creator-reputation-model",
+      "owner": "unassigned",
+      "slug": "market_creator_reputation_model",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Market creator reputation model"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::jurisdiction_restriction_placeholder_for_future_legal_review",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#jurisdiction-restriction-placeholder-for-future-legal-review",
+      "owner": "unassigned",
+      "slug": "jurisdiction_restriction_placeholder_for_future_legal_review",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Jurisdiction-restriction placeholder for future legal review"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::responsible_use_warnings_across_ui_api_docs",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#responsible-use-warnings-across-ui-api-docs",
+      "owner": "unassigned",
+      "slug": "responsible_use_warnings_across_ui_api_docs",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Responsible-use warnings across UI/API/docs"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::operator_separation_of_duties_for_creator_resolver_auditor_admin_roles",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#operator-separation-of-duties-for-creator-resolver-auditor-admin-roles",
+      "owner": "unassigned",
+      "slug": "operator_separation_of_duties_for_creator_resolver_auditor_admin_roles",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Operator separation of duties for creator/resolver/auditor/admin roles"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::payout_reconciliation_accounting_checks",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#payout-reconciliation-accounting-checks",
+      "owner": "unassigned",
+      "slug": "payout_reconciliation_accounting_checks",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Payout reconciliation accounting checks"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::market_maker_liquidity_bot_tooling_placeholder",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#market-maker-liquidity-bot-tooling-placeholder",
+      "owner": "unassigned",
+      "slug": "market_maker_liquidity_bot_tooling_placeholder",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Market-maker/liquidity-bot tooling placeholder"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/markets.py::historical_probability_volume_and_open_interest_analytics",
+      "config_anchor": "config/competitive/prediction_markets.json",
+      "doc_anchor": "docs/competitive/prediction_markets.md#historical-probability-volume-and-open-interest-analytics",
+      "owner": "unassigned",
+      "slug": "historical_probability_volume_and_open_interest_analytics",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Historical probability, volume, and open-interest analytics"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Play-money market integrity scaffolds: surveillance, disputes, oracles, liquidity controls, reputation, warnings, operators, reconciliation, and analytics.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Prediction-Market Integrity"
+}

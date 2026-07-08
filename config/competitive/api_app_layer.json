@@ -1,0 +1,177 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "api_app_layer",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::mandatory_signed_writes_for_sensitive_endpoints",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#mandatory-signed-writes-for-sensitive-endpoints",
+      "owner": "unassigned",
+      "slug": "mandatory_signed_writes_for_sensitive_endpoints",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Mandatory signed writes for sensitive endpoints"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::global_nonce_replay_protection_coverage_map",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#global-nonce-replay-protection-coverage-map",
+      "owner": "unassigned",
+      "slug": "global_nonce_replay_protection_coverage_map",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Global nonce replay protection coverage map"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::global_idempotency_key_coverage_map",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#global-idempotency-key-coverage-map",
+      "owner": "unassigned",
+      "slug": "global_idempotency_key_coverage_map",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Global idempotency-key coverage map"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::scoped_api_key_model_for_read_write_admin_market_faucet_actions",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#scoped-api-key-model-for-read-write-admin-market-faucet-actions",
+      "owner": "unassigned",
+      "slug": "scoped_api_key_model_for_read_write_admin_market_faucet_actions",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Scoped API key model for read/write/admin/market/faucet actions"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::per_key_api_usage_dashboard_and_export",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#per-key-api-usage-dashboard-and-export",
+      "owner": "unassigned",
+      "slug": "per_key_api_usage_dashboard_and_export",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Per-key API usage dashboard and export"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::webhook_hmac_signing_and_verification_contract",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#webhook-hmac-signing-and-verification-contract",
+      "owner": "unassigned",
+      "slug": "webhook_hmac_signing_and_verification_contract",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Webhook HMAC signing and verification contract"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::webhook_retry_log_and_manual_replay_workflow",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#webhook-retry-log-and-manual-replay-workflow",
+      "owner": "unassigned",
+      "slug": "webhook_retry_log_and_manual_replay_workflow",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Webhook retry log and manual replay workflow"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::role_based_admin_permissions",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#role-based-admin-permissions",
+      "owner": "unassigned",
+      "slug": "role_based_admin_permissions",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Role-based admin permissions"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::immutable_audit_log_for_sensitive_actions",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#immutable-audit-log-for-sensitive-actions",
+      "owner": "unassigned",
+      "slug": "immutable_audit_log_for_sensitive_actions",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Immutable audit log for sensitive actions"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/api.py::complete_openapi_schema_and_example_set",
+      "config_anchor": "config/competitive/api_app_layer.json",
+      "doc_anchor": "docs/competitive/api_app_layer.md#complete-openapi-schema-and-example-set",
+      "owner": "unassigned",
+      "slug": "complete_openapi_schema_and_example_set",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Complete OpenAPI schema and example set"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Signed writes, replay/idempotency protection, scoped API keys, usage dashboards, webhooks, RBAC, audit logs, and OpenAPI scaffolds.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "App-Layer API Professionalization"
+}

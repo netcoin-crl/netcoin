@@ -182,6 +182,183 @@ def _build_orderbook(market: dict[str, Any]) -> dict[str, Any]:
     return orderbook
 
 
+def _slug_text(value: str, fallback: str) -> str:
+    text = "".join(ch.lower() if ch.isalnum() else "-" for ch in str(value or "")).strip("-")
+    text = "-".join(part for part in text.split("-") if part)
+    return (text or fallback)[:96]
+
+
+def _format_bps(value: int | None) -> str | None:
+    return _price_decimal(value) if value is not None else None
+
+
+def _aggregate_levels(orders: list[dict[str, Any]], side: str, depth: int = 25) -> list[dict[str, Any]]:
+    grouped: dict[int, dict[str, Any]] = {}
+    for order in orders:
+        remaining = int(order.get("remaining", 0) or 0)
+        if remaining <= 0:
+            continue
+        price = int(order.get("price_bps", 0) or 0)
+        level = grouped.setdefault(price, {"price_bps": price, "price": _price_decimal(price), "quantity": 0, "order_count": 0})
+        level["quantity"] += remaining
+        level["order_count"] += 1
+    reverse = side == "buy"
+    return [grouped[p] for p in sorted(grouped, reverse=reverse)[: max(1, min(depth, 100))]]
+
+
+def _clob_orderbook(market: dict[str, Any], orderbook: dict[str, Any] | None = None, depth: int = 25) -> dict[str, Any]:
+    """Polymarket-style aggregated CLOB snapshot.
+
+    ``orderbook`` keeps the legacy per-order shape. This helper adds the view a
+    trading UI normally needs: price levels, midpoint, spread, depth, and a
+    canonical token id per outcome. The engine remains app-layer/play-money.
+    """
+    orderbook = orderbook or _build_orderbook(market)
+    books: dict[str, Any] = {}
+    for outcome in market.get("outcomes", []):
+        oid = outcome["outcome_id"]
+        book = orderbook.get(oid, {"buys": [], "sells": []})
+        bid = book.get("best_bid_bps")
+        ask = book.get("best_ask_bps")
+        mid = (int(bid) + int(ask)) // 2 if bid is not None and ask is not None else None
+        bids = _aggregate_levels(book.get("buys", []), "buy", depth)
+        asks = _aggregate_levels(book.get("sells", []), "sell", depth)
+        books[oid] = {
+            "market_id": market.get("market_id"),
+            "asset_id": outcome.get("asset_id") or f"{market.get('market_id')}:{oid}",
+            "condition_id": market.get("condition_id"),
+            "outcome_id": oid,
+            "outcome": outcome.get("label"),
+            "bids": bids,
+            "asks": asks,
+            "best_bid_bps": bid,
+            "best_ask_bps": ask,
+            "best_bid": _format_bps(bid),
+            "best_ask": _format_bps(ask),
+            "midpoint_bps": mid,
+            "midpoint": _format_bps(mid),
+            "spread_bps": book.get("spread_bps"),
+            "spread": book.get("spread"),
+            "bid_depth_shares": sum(int(x.get("quantity", 0) or 0) for x in bids),
+            "ask_depth_shares": sum(int(x.get("quantity", 0) or 0) for x in asks),
+        }
+    return {"type": "central_limit_order_book", "depth": depth, "books": books, "updated_at": now()}
+
+
+def _market_ticker(market: dict[str, Any], orderbook: dict[str, Any] | None = None) -> dict[str, Any]:
+    orderbook = orderbook or _build_orderbook(market)
+    trades = market.get("trades", [])
+    last_trade = trades[-1] if trades else None
+    outcomes = []
+    for outcome in market.get("outcomes", []):
+        oid = outcome["outcome_id"]
+        book = orderbook.get(oid, {})
+        bid = book.get("best_bid_bps")
+        ask = book.get("best_ask_bps")
+        last = None
+        for trade in reversed(trades):
+            if trade.get("outcome_id") == oid:
+                last = int(trade.get("price_bps", 0) or 0)
+                break
+        mid = (int(bid) + int(ask)) // 2 if bid is not None and ask is not None else None
+        probability = mid if mid is not None else last if last is not None else bid if bid is not None else ask
+        outcomes.append({
+            "outcome_id": oid,
+            "label": outcome.get("label"),
+            "price_bps": probability,
+            "price": _format_bps(probability),
+            "best_bid_bps": bid,
+            "best_ask_bps": ask,
+            "best_bid": _format_bps(bid),
+            "best_ask": _format_bps(ask),
+            "last_price_bps": last,
+            "last_price": _format_bps(last),
+            "spread_bps": book.get("spread_bps"),
+            "spread": book.get("spread"),
+        })
+    return {
+        "market_id": market.get("market_id"),
+        "slug": market.get("slug"),
+        "question": market.get("question"),
+        "status": market.get("status"),
+        "closed": market.get("status") in {"closed", "resolved"},
+        "volume_sats": sum(int(t.get("cost_sats", 0) or 0) for t in trades),
+        "volume": sats_to_amount(sum(int(t.get("cost_sats", 0) or 0) for t in trades)),
+        "liquidity_shares": sum(int(o.get("remaining", 0) or 0) for o in market.get("orders", []) if o.get("status") == "open"),
+        "last_trade": _deepcopy(last_trade),
+        "outcomes": outcomes,
+        "updated_at": now(),
+    }
+
+
+def _portfolio_report(market: dict[str, Any], trader: str | None = None) -> dict[str, Any]:
+    orderbook = _build_orderbook(market)
+    ticker = _market_ticker(market, orderbook)
+    price_by_outcome = {x["outcome_id"]: int(x.get("price_bps") or 0) for x in ticker.get("outcomes", []) if x.get("price_bps") is not None}
+    traders = [trader] if trader else sorted(market.get("positions", {}).keys())
+    portfolios = []
+    unit = int(market.get("unit_payout_sats", DEFAULT_UNIT_PAYOUT_SATS) or DEFAULT_UNIT_PAYOUT_SATS)
+    for tid in traders:
+        if not tid:
+            continue
+        wallet = _ensure_market_wallet(market, tid)
+        positions = []
+        position_value_sats = 0
+        for outcome in market.get("outcomes", []):
+            oid = outcome["outcome_id"]
+            qty = int(market.get("positions", {}).get(tid, {}).get(oid, 0) or 0)
+            mark_bps = price_by_outcome.get(oid)
+            mark_sats = _share_cost_sats(mark_bps, abs(qty), unit) if mark_bps is not None else 0
+            if qty < 0:
+                mark_sats = -mark_sats
+            position_value_sats += mark_sats
+            positions.append({
+                "outcome_id": oid,
+                "label": outcome.get("label"),
+                "quantity": qty,
+                "mark_price_bps": mark_bps,
+                "mark_price": _format_bps(mark_bps),
+                "mark_value_sats": mark_sats,
+                "mark_value": sats_to_amount(mark_sats),
+            })
+        portfolios.append({
+            "trader_id": tid,
+            "wallet": _deepcopy(wallet),
+            "positions": positions,
+            "position_value_sats": position_value_sats,
+            "position_value": sats_to_amount(position_value_sats),
+            "equity_sats": int(wallet.get("balance_sats", 0) or 0) + position_value_sats,
+            "equity": sats_to_amount(int(wallet.get("balance_sats", 0) or 0) + position_value_sats),
+        })
+    return {"market_id": market.get("market_id"), "portfolios": portfolios, "updated_at": now()}
+
+
+def _crossing_depth(market: dict[str, Any], outcome_id: str, side: str, price_bps: int) -> int:
+    opposite = "sell" if side == "buy" else "buy"
+    depth = 0
+    for other in market.get("orders", []):
+        if other.get("status") != "open" or other.get("outcome_id") != outcome_id or other.get("side") != opposite:
+            continue
+        other_price = int(other.get("price_bps", 0) or 0)
+        crosses = price_bps >= other_price if side == "buy" else other_price >= price_bps
+        if crosses:
+            depth += int(other.get("remaining", 0) or 0)
+    return depth
+
+
+def _cancel_unfilled_order(market: dict[str, Any], order: dict[str, Any], reason: str) -> None:
+    wallet = _ensure_market_wallet(market, order["trader_address"])
+    _release(wallet, int(order.get("reserved_sats_remaining", 0) or 0))
+    order["reserved_sats_remaining"] = 0
+    if int(order.get("remaining", 0) or 0) < int(order.get("quantity", 0) or 0):
+        order["status"] = "partially_filled"
+    else:
+        order["status"] = "canceled"
+    order["cancel_reason"] = reason
+    order["canceled_at"] = now()
+    order["updated_at"] = now()
+
+
 def _market_stats(market: dict[str, Any], orderbook: dict[str, Any]) -> dict[str, Any]:
     trades = market.get("trades", [])
     unit = int(market.get("unit_payout_sats", DEFAULT_UNIT_PAYOUT_SATS) or DEFAULT_UNIT_PAYOUT_SATS)
@@ -221,6 +398,7 @@ def _market_stats(market: dict[str, Any], orderbook: dict[str, Any]) -> dict[str
         "last_trade": _deepcopy(last_trade),
         "implied_probabilities": implied,
         "top_traders": _top_traders(market),
+        "ticker": _market_ticker(market, orderbook),
     }
 
 
@@ -314,6 +492,9 @@ def _hydrate_market(market: dict[str, Any]) -> dict[str, Any]:
     result["orders"] = [_public_order(o) for o in market.get("orders", [])]
     result["open_orders"] = [_public_order(o) for o in market.get("orders", []) if o.get("status") == "open"]
     result["orderbook"] = orderbook
+    result["clob"] = _clob_orderbook(market, orderbook)
+    result["ticker"] = _market_ticker(market, orderbook)
+    result["portfolio"] = _portfolio_report(market)
     result["stats"] = _market_stats(market, orderbook)
     result["analytics"] = _analytics_series(market)
     result["surveillance"] = _surveillance_report(market)
@@ -336,6 +517,7 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
     if len(outcomes) < 2:
         raise AppError("market requires at least two outcomes")
     market_id = str(payload.get("market_id") or clean_id("mkt"))
+    slug = _slug_text(str(payload.get("slug") or question), market_id)
     mode = str(payload.get("mode") or "testnet_demo")
     if mode not in {"testnet_demo", "play_money", "private_dev"}:
         raise AppError("prediction markets are restricted to testnet_demo, play_money, or private_dev modes")
@@ -356,7 +538,17 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
         "market_id": market_id,
         "question": question[:240],
         "description": str(payload.get("description") or "")[:2000],
-        "outcomes": [{"outcome_id": f"out{i+1}", "label": label} for i, label in enumerate(outcomes)],
+        "slug": slug,
+        "category": str(payload.get("category") or "General")[:80],
+        "tags": [str(x).strip()[:40] for x in (payload.get("tags") or []) if str(x).strip()][:8] if isinstance(payload.get("tags"), list) else [x.strip()[:40] for x in str(payload.get("tags") or "").split(",") if x.strip()][:8],
+        "market_type": str(payload.get("market_type") or ("binary" if len(outcomes) == 2 else "categorical"))[:40],
+        "condition_id": str(payload.get("condition_id") or f"cond_{market_id}")[:120],
+        "min_tick_bps": int(payload.get("min_tick_bps", 100) or 100),
+        "min_order_size": int(payload.get("min_order_size", 1) or 1),
+        "fee_bps": int(payload.get("fee_bps", 0) or 0),
+        "featured": bool(payload.get("featured", False)),
+        "rules": str(payload.get("rules") or payload.get("resolution_criteria") or "")[:4000],
+        "outcomes": [{"outcome_id": f"out{i+1}", "label": label, "asset_id": f"{market_id}:out{i+1}"} for i, label in enumerate(outcomes)],
         "oracle": str(payload.get("oracle") or "manual")[:120],
         "resolution_source": str(payload.get("resolution_source") or "")[:500],
         "mode": mode,
@@ -529,15 +721,36 @@ def place_market_order_impl(store: Any, market_id: str, payload: dict[str, Any])
     side = str(payload.get("side") or "buy").lower()
     if side not in {"buy", "sell"}:
         raise AppError("side must be buy or sell")
+    order_type = str(payload.get("order_type") or payload.get("type") or "limit").lower()
+    if order_type not in {"limit", "market", "ioc", "fok"}:
+        raise AppError("order_type must be limit, market, ioc, or fok")
+    time_in_force = str(payload.get("time_in_force") or ("IOC" if order_type in {"market", "ioc"} else "FOK" if order_type == "fok" else "GTC")).upper()
+    if time_in_force not in {"GTC", "IOC", "FOK"}:
+        raise AppError("time_in_force must be GTC, IOC, or FOK")
     trader = _normalize_trader_id(payload)
     wallet = _ensure_market_wallet(m, trader, payload)
     quantity = int(payload.get("quantity", payload.get("shares", 0)) or 0)
-    raw_price = payload.get("price_bps")
-    price_bps = int(raw_price if raw_price is not None and str(raw_price) != "" else round(float(payload.get("price", 0)) * 10000))
     if quantity <= 0:
         raise AppError("quantity must be positive")
+    if quantity < int(m.get("min_order_size", 1) or 1):
+        raise AppError("quantity is below the market minimum order size")
+    raw_price = payload.get("price_bps")
+    synthetic_market_price = order_type == "market" and (raw_price is None or str(raw_price) == "") and payload.get("price") in {None, ""}
+    if synthetic_market_price:
+        # Prediction-market market orders are implemented as IOC orders that
+        # cross the visible book up to a safe bound.
+        price_bps = 9999 if side == "buy" else 1
+    else:
+        price_bps = int(raw_price if raw_price is not None and str(raw_price) != "" else round(float(payload.get("price", 0)) * 10000))
     if not 1 <= price_bps <= 9999:
         raise AppError("price_bps must be 1..9999")
+    tick = max(1, int(m.get("min_tick_bps", 1) or 1))
+    if not synthetic_market_price and price_bps % tick != 0 and not bool(payload.get("allow_subtick", False)):
+        raise AppError(f"price_bps must be a multiple of market min_tick_bps={tick}")
+    if bool(payload.get("post_only", False)) and _crossing_depth(m, outcome_id, side, price_bps) > 0:
+        raise AppError("post_only order would immediately cross the book")
+    if time_in_force == "FOK" and _crossing_depth(m, outcome_id, side, price_bps) < quantity:
+        raise AppError("FOK order cannot be fully filled at the requested price")
     unit = int(m.get("unit_payout_sats", DEFAULT_UNIT_PAYOUT_SATS) or DEFAULT_UNIT_PAYOUT_SATS)
     current_pos = _available_position(m, trader, outcome_id)
     short_needed = side == "sell" and current_pos < quantity
@@ -557,7 +770,10 @@ def place_market_order_impl(store: Any, market_id: str, payload: dict[str, Any])
         "price": _price_decimal(price_bps),
         "status": "open",
         "role": "taker",
-        "type": str(payload.get("type") or "limit"),
+        "type": order_type,
+        "order_type": order_type,
+        "time_in_force": time_in_force,
+        "post_only": bool(payload.get("post_only", False)),
         "maker": None,
         "taker": trader,
         "fills": [],
@@ -568,20 +784,23 @@ def place_market_order_impl(store: Any, market_id: str, payload: dict[str, Any])
         "updated_at": now(),
     }
     _match_order(m, order)
-    if int(order.get("remaining", 0) or 0) > 0:
+    remaining = int(order.get("remaining", 0) or 0)
+    should_post = remaining > 0 and order_type == "limit" and time_in_force == "GTC"
+    if should_post:
         order["role"] = "maker"
         order["maker"] = trader
         order["status"] = "open"
+    elif remaining > 0:
+        _cancel_unfilled_order(m, order, "time_in_force_expired" if time_in_force in {"IOC", "FOK"} else "market_unfilled")
     else:
         order["status"] = "filled"
         order["filled_at"] = now()
     m.setdefault("orders", []).append(order)
     m["updated_at"] = now()
-    store._record_contract_event(data, "market.order", {"market_id": market_id, "order_id": order["order_id"], "status": order["status"]})
-    _market_event(m, "market.order", {"market_id": market_id, "order_id": order["order_id"], "status": order["status"]})
+    store._record_contract_event(data, "market.order", {"market_id": market_id, "order_id": order["order_id"], "status": order["status"], "type": order_type, "time_in_force": time_in_force})
+    _market_event(m, "market.order", {"market_id": market_id, "order_id": order["order_id"], "status": order["status"], "type": order_type, "time_in_force": time_in_force})
     store.save(data)
     return prediction_market_impl(store, market_id)
-
 
 def cancel_market_order_impl(store: Any, market_id: str, order_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
@@ -620,12 +839,17 @@ def request_market_resolution_impl(store: Any, market_id: str, payload: dict[str
     winning = str(payload.get("winning_outcome_id") or payload.get("winner") or "").strip()
     if winning not in {o["outcome_id"] for o in m.get("outcomes", [])}:
         raise AppError("invalid winning outcome")
-    m.setdefault("resolution_workflow", {})["status"] = "pending_operator_approval"
-    m["resolution_workflow"]["pending_resolution"] = {
+    workflow = m.setdefault("resolution_workflow", {})
+    workflow["status"] = "pending_operator_approval"
+    workflow["optimistic_oracle_status"] = "proposed"
+    workflow["pending_resolution"] = {
         "winning_outcome_id": winning,
         "resolution_note": str(payload.get("resolution_note") or "")[:1000],
         "evidence_url": str(payload.get("evidence_url") or payload.get("resolution_source") or "")[:500],
+        "proposer": str(payload.get("proposer") or payload.get("actor") or "operator")[:120],
+        "bond_sats": int(payload.get("bond_sats", 0) or 0),
         "requested_at": now(),
+        "dispute_deadline": now() + int(m.get("dispute_window_seconds", 86400) or 86400),
     }
     m["status"] = "closed"
     m["updated_at"] = now()
@@ -651,6 +875,7 @@ def dispute_market_resolution_impl(store: Any, market_id: str, payload: dict[str
     workflow = m.setdefault("resolution_workflow", {})
     workflow.setdefault("disputes", []).append(dispute)
     workflow["status"] = "disputed"
+    workflow["optimistic_oracle_status"] = "disputed"
     m["status"] = "closed"
     m["updated_at"] = now()
     _market_event(m, "market.resolution_disputed", {"market_id": market_id, "dispute_id": dispute["dispute_id"]})
@@ -738,6 +963,39 @@ def resolve_prediction_market_impl(store: Any, market_id: str, payload: dict[str
     return prediction_market_impl(store, market_id)
 
 
+
+
+def market_orderbook_impl(store: Any, market_id: str, depth: int = 25) -> dict[str, Any]:
+    m = store.load().get("prediction_markets", {}).get(market_id)
+    if not m:
+        raise AppError("prediction market not found")
+    return _clob_orderbook(m, depth=depth)
+
+
+def market_ticker_impl(store: Any, market_id: str) -> dict[str, Any]:
+    m = store.load().get("prediction_markets", {}).get(market_id)
+    if not m:
+        raise AppError("prediction market not found")
+    return _market_ticker(m)
+
+
+def market_trades_impl(store: Any, market_id: str, limit: int = 100) -> dict[str, Any]:
+    m = store.load().get("prediction_markets", {}).get(market_id)
+    if not m:
+        raise AppError("prediction market not found")
+    limit = max(1, min(int(limit or 100), 500))
+    return {"market_id": market_id, "trades": _deepcopy(m.get("trades", [])[-limit:]), "count": min(limit, len(m.get("trades", [])))}
+
+
+def market_positions_impl(store: Any, market_id: str, trader: str | None = None) -> dict[str, Any]:
+    m = store.load().get("prediction_markets", {}).get(market_id)
+    if not m:
+        raise AppError("prediction market not found")
+    if trader:
+        trader_payload = {"trader": trader, "allow_unverified_demo": True, "demo_wallet": str(trader).startswith("demo:")}
+        trader = _normalize_trader_id(trader_payload)
+    return _portfolio_report(m, trader)
+
 def polymarket_markets_impl(store: Any, query: dict[str, list[str]] | None = None) -> dict[str, Any]:
     query = query or {}
     limit_raw = (query.get("limit") or ["10"])[0]
@@ -760,15 +1018,36 @@ def polymarket_markets_impl(store: Any, query: dict[str, list[str]] | None = Non
     for item in markets[:limit]:
         if not isinstance(item, dict):
             continue
+        outcomes_raw = item.get("outcomes") or item.get("shortOutcomes") or []
+        prices_raw = item.get("outcomePrices") or item.get("prices") or []
+        if isinstance(outcomes_raw, str):
+            try:
+                outcomes_raw = json.loads(outcomes_raw)
+            except json.JSONDecodeError:
+                outcomes_raw = []
+        if isinstance(prices_raw, str):
+            try:
+                prices_raw = json.loads(prices_raw)
+            except json.JSONDecodeError:
+                prices_raw = []
+        outcome_cards = []
+        if isinstance(outcomes_raw, list):
+            for idx, label in enumerate(outcomes_raw[:8]):
+                price = prices_raw[idx] if isinstance(prices_raw, list) and idx < len(prices_raw) else None
+                outcome_cards.append({"label": str(label), "price": str(price) if price is not None else None})
         normalized.append({
             "external_id": str(item.get("id") or item.get("conditionId") or item.get("slug") or ""),
+            "condition_id": item.get("conditionId") or item.get("condition_id"),
             "question": str(item.get("question") or item.get("title") or item.get("slug") or "")[:240],
             "slug": item.get("slug"),
+            "category": item.get("category") or item.get("categorySlug"),
             "active": item.get("active"),
             "closed": item.get("closed"),
             "end_date": item.get("endDate") or item.get("end_date_iso"),
             "volume": item.get("volume") or item.get("volumeNum"),
+            "volume_24h": item.get("volume24hr") or item.get("volume24hrClob"),
             "liquidity": item.get("liquidity") or item.get("liquidityNum"),
+            "outcomes": outcome_cards,
             "url": item.get("url") or (f"https://polymarket.com/event/{item.get('slug')}" if item.get("slug") else None),
         })
     return {

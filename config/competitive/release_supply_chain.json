@@ -1,0 +1,145 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "release_supply_chain",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/release.py::deterministic_reproducible_build_verification_in_ci",
+      "config_anchor": "config/competitive/release_supply_chain.json",
+      "doc_anchor": "docs/competitive/release_supply_chain.md#deterministic-reproducible-build-verification-in-ci",
+      "owner": "unassigned",
+      "slug": "deterministic_reproducible_build_verification_in_ci",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Deterministic/reproducible build verification in CI"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/release.py::gpg_sigstore_signed_release_artifacts",
+      "config_anchor": "config/competitive/release_supply_chain.json",
+      "doc_anchor": "docs/competitive/release_supply_chain.md#gpg-sigstore-signed-release-artifacts",
+      "owner": "unassigned",
+      "slug": "gpg_sigstore_signed_release_artifacts",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "GPG/Sigstore signed release artifacts"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/release.py::automatic_checksum_generation_and_publishing",
+      "config_anchor": "config/competitive/release_supply_chain.json",
+      "doc_anchor": "docs/competitive/release_supply_chain.md#automatic-checksum-generation-and-publishing",
+      "owner": "unassigned",
+      "slug": "automatic_checksum_generation_and_publishing",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Automatic checksum generation and publishing"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/release.py::sbom_generation_and_vulnerability_review_gate",
+      "config_anchor": "config/competitive/release_supply_chain.json",
+      "doc_anchor": "docs/competitive/release_supply_chain.md#sbom-generation-and-vulnerability-review-gate",
+      "owner": "unassigned",
+      "slug": "sbom_generation_and_vulnerability_review_gate",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "SBOM generation and vulnerability-review gate"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/release.py::source_to_artifact_provenance_attestation",
+      "config_anchor": "config/competitive/release_supply_chain.json",
+      "doc_anchor": "docs/competitive/release_supply_chain.md#source-to-artifact-provenance-attestation",
+      "owner": "unassigned",
+      "slug": "source_to_artifact_provenance_attestation",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Source-to-artifact provenance attestation"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/release.py::dependency_lock_and_human_review_workflow",
+      "config_anchor": "config/competitive/release_supply_chain.json",
+      "doc_anchor": "docs/competitive/release_supply_chain.md#dependency-lock-and-human-review-workflow",
+      "owner": "unassigned",
+      "slug": "dependency_lock_and_human_review_workflow",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Dependency lock and human review workflow"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/release.py::binary_source_verification_instructions_for_users",
+      "config_anchor": "config/competitive/release_supply_chain.json",
+      "doc_anchor": "docs/competitive/release_supply_chain.md#binary-source-verification-instructions-for-users",
+      "owner": "unassigned",
+      "slug": "binary_source_verification_instructions_for_users",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Binary/source verification instructions for users"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/release.py::bad_release_rollback_and_revocation_process",
+      "config_anchor": "config/competitive/release_supply_chain.json",
+      "doc_anchor": "docs/competitive/release_supply_chain.md#bad-release-rollback-and-revocation-process",
+      "owner": "unassigned",
+      "slug": "bad_release_rollback_and_revocation_process",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Bad release rollback and revocation process"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Reproducible builds, signatures, checksums, SBOM, attestations, dependency review, verification docs, and rollback plan.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Release Trust and Supply Chain"
+}

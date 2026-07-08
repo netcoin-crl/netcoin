@@ -1,0 +1,177 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "observability_ops",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::prometheus_metric_namespace_for_node_explorer_faucet_market_api",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#prometheus-metric-namespace-for-node-explorer-faucet-market-api",
+      "owner": "unassigned",
+      "slug": "prometheus_metric_namespace_for_node_explorer_faucet_market_api",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Prometheus metric namespace for node/explorer/faucet/market/API"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::grafana_dashboard_skeletons",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#grafana-dashboard-skeletons",
+      "owner": "unassigned",
+      "slug": "grafana_dashboard_skeletons",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Grafana dashboard skeletons"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::public_status_page_backed_by_live_health_data",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#public-status-page-backed-by-live-health-data",
+      "owner": "unassigned",
+      "slug": "public_status_page_backed_by_live_health_data",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Public status page backed by live health data"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::slack_discord_email_pagerduty_alert_hooks",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#slack-discord-email-pagerduty-alert-hooks",
+      "owner": "unassigned",
+      "slug": "slack_discord_email_pagerduty_alert_hooks",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Slack/Discord/email/PagerDuty alert hooks"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::chain_split_and_divergent_tip_alerts",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#chain-split-and-divergent-tip-alerts",
+      "owner": "unassigned",
+      "slug": "chain_split_and_divergent_tip_alerts",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Chain split and divergent-tip alerts"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::stuck_block_alerting",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#stuck-block-alerting",
+      "owner": "unassigned",
+      "slug": "stuck_block_alerting",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Stuck block alerting"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::api_latency_and_error_rate_alerting",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#api-latency-and-error-rate-alerting",
+      "owner": "unassigned",
+      "slug": "api_latency_and_error_rate_alerting",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "API latency and error-rate alerting"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::backup_completion_monitoring",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#backup-completion-monitoring",
+      "owner": "unassigned",
+      "slug": "backup_completion_monitoring",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Backup completion monitoring"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::disaster_recovery_restore_drills",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#disaster-recovery-restore-drills",
+      "owner": "unassigned",
+      "slug": "disaster_recovery_restore_drills",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Disaster recovery restore drills"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/observability.py::public_incident_history_feed",
+      "config_anchor": "config/competitive/observability_ops.json",
+      "doc_anchor": "docs/competitive/observability_ops.md#public-incident-history-feed",
+      "owner": "unassigned",
+      "slug": "public_incident_history_feed",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Public incident history feed"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Prometheus/Grafana, public status, alerts, chain/faucet/API monitoring, backups, disaster recovery, and incident history.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Observability and Operations"
+}

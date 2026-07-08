@@ -1,0 +1,177 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "product_trust",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::public_roadmap_with_status_and_dates",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#public-roadmap-with-status-and-dates",
+      "owner": "unassigned",
+      "slug": "public_roadmap_with_status_and_dates",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Public roadmap with status and dates"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::security_page_with_disclosure_policy_and_audit_status",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#security-page-with-disclosure-policy-and-audit-status",
+      "owner": "unassigned",
+      "slug": "security_page_with_disclosure_policy_and_audit_status",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Security page with disclosure policy and audit status"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::download_verification_page_for_checksums_signatures",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#download-verification-page-for-checksums-signatures",
+      "owner": "unassigned",
+      "slug": "download_verification_page_for_checksums_signatures",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Download verification page for checksums/signatures"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::project_transparency_page_for_maintainers_and_governance_roles",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#project-transparency-page-for-maintainers-and-governance-roles",
+      "owner": "unassigned",
+      "slug": "project_transparency_page_for_maintainers_and_governance_roles",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Project transparency page for maintainers and governance roles"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::consistent_testnet_educational_no_real_value_risk_disclosures",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#consistent-testnet-educational-no-real-value-risk-disclosures",
+      "owner": "unassigned",
+      "slug": "consistent_testnet_educational_no_real_value_risk_disclosures",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Consistent testnet/educational/no-real-value risk disclosures"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::brand_legal_disclaimer_registry_across_public_pages",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#brand-legal-disclaimer-registry-across-public-pages",
+      "owner": "unassigned",
+      "slug": "brand_legal_disclaimer_registry_across_public_pages",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Brand/legal disclaimer registry across public pages"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::public_changelog_grouped_by_release",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#public-changelog-grouped-by-release",
+      "owner": "unassigned",
+      "slug": "public_changelog_grouped_by_release",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Public changelog grouped by release"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::faq_for_wallet_mining_faucet_markets_safety_testnet",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#faq-for-wallet-mining-faucet-markets-safety-testnet",
+      "owner": "unassigned",
+      "slug": "faq_for_wallet_mining_faucet_markets_safety_testnet",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "FAQ for wallet/mining/faucet/markets/safety/testnet"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::miner_setup_and_troubleshooting_guide",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#miner-setup-and-troubleshooting-guide",
+      "owner": "unassigned",
+      "slug": "miner_setup_and_troubleshooting_guide",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Miner setup and troubleshooting guide"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/product.py::node_operator_install_upgrade_monitor_recover_guide",
+      "config_anchor": "config/competitive/product_trust.json",
+      "doc_anchor": "docs/competitive/product_trust.md#node-operator-install-upgrade-monitor-recover-guide",
+      "owner": "unassigned",
+      "slug": "node_operator_install_upgrade_monitor_recover_guide",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Node operator install/upgrade/monitor/recover guide"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Roadmap, security/download pages, transparency, risk disclosures, legal disclaimers, changelog, FAQ, miner guide, and node-operator guide.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Product, Website, and Trust"
+}

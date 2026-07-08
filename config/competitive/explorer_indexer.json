@@ -1,0 +1,161 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "explorer_indexer",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/explorer.py::dedicated_production_indexer_with_db_migrations",
+      "config_anchor": "config/competitive/explorer_indexer.json",
+      "doc_anchor": "docs/competitive/explorer_indexer.md#dedicated-production-indexer-with-db-migrations",
+      "owner": "unassigned",
+      "slug": "dedicated_production_indexer_with_db_migrations",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Dedicated production indexer with DB migrations"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/explorer.py::rich_address_pages_with_balance_history_and_transaction_graph",
+      "config_anchor": "config/competitive/explorer_indexer.json",
+      "doc_anchor": "docs/competitive/explorer_indexer.md#rich-address-pages-with-balance-history-and-transaction-graph",
+      "owner": "unassigned",
+      "slug": "rich_address_pages_with_balance_history_and_transaction_graph",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Rich address pages with balance history and transaction graph"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/explorer.py::mempool_explorer_for_pending_transactions_and_fee_levels",
+      "config_anchor": "config/competitive/explorer_indexer.json",
+      "doc_anchor": "docs/competitive/explorer_indexer.md#mempool-explorer-for-pending-transactions-and-fee-levels",
+      "owner": "unassigned",
+      "slug": "mempool_explorer_for_pending_transactions_and_fee_levels",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Mempool explorer for pending transactions and fee levels"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/explorer.py::supply_difficulty_block_time_fee_hashrate_chart_feeds",
+      "config_anchor": "config/competitive/explorer_indexer.json",
+      "doc_anchor": "docs/competitive/explorer_indexer.md#supply-difficulty-block-time-fee-hashrate-chart-feeds",
+      "owner": "unassigned",
+      "slug": "supply_difficulty_block_time_fee_hashrate_chart_feeds",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Supply/difficulty/block-time/fee/hashrate chart feeds"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/explorer.py::token_contract_holder_event_and_transfer_pages",
+      "config_anchor": "config/competitive/explorer_indexer.json",
+      "doc_anchor": "docs/competitive/explorer_indexer.md#token-contract-holder-event-and-transfer-pages",
+      "owner": "unassigned",
+      "slug": "token_contract_holder_event_and_transfer_pages",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Token/contract holder, event, and transfer pages"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/explorer.py::explorer_openapi_docs_and_examples",
+      "config_anchor": "config/competitive/explorer_indexer.json",
+      "doc_anchor": "docs/competitive/explorer_indexer.md#explorer-openapi-docs-and-examples",
+      "owner": "unassigned",
+      "slug": "explorer_openapi_docs_and_examples",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Explorer OpenAPI docs and examples"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/explorer.py::explorer_api_rate_limit_and_abuse_detection_policy",
+      "config_anchor": "config/competitive/explorer_indexer.json",
+      "doc_anchor": "docs/competitive/explorer_indexer.md#explorer-api-rate-limit-and-abuse-detection-policy",
+      "owner": "unassigned",
+      "slug": "explorer_api_rate_limit_and_abuse_detection_policy",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Explorer API rate-limit and abuse-detection policy"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/explorer.py::verified_known_address_labels",
+      "config_anchor": "config/competitive/explorer_indexer.json",
+      "doc_anchor": "docs/competitive/explorer_indexer.md#verified-known-address-labels",
+      "owner": "unassigned",
+      "slug": "verified_known_address_labels",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Verified known-address labels"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/explorer.py::explorer_uptime_latency_and_error_rate_metrics",
+      "config_anchor": "config/competitive/explorer_indexer.json",
+      "doc_anchor": "docs/competitive/explorer_indexer.md#explorer-uptime-latency-and-error-rate-metrics",
+      "owner": "unassigned",
+      "slug": "explorer_uptime_latency_and_error_rate_metrics",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Explorer uptime, latency, and error-rate metrics"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Production indexer, address history, mempool explorer, charts, token/contract pages, API docs, rate limits, labels, and uptime hooks.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Explorer and Indexer"
+}

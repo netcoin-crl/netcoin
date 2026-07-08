@@ -1,0 +1,177 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "smart_contracts_tokens",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::deterministic_vm_execution_model_design_placeholder",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#deterministic-vm-execution-model-design-placeholder",
+      "owner": "unassigned",
+      "slug": "deterministic_vm_execution_model_design_placeholder",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Deterministic VM/execution-model design placeholder"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::gas_resource_metering_policy",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#gas-resource-metering-policy",
+      "owner": "unassigned",
+      "slug": "gas_resource_metering_policy",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Gas/resource metering policy"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::contract_sandboxing_boundary",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#contract-sandboxing-boundary",
+      "owner": "unassigned",
+      "slug": "contract_sandboxing_boundary",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Contract sandboxing boundary"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::contract_static_analyzer_rule_registry",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#contract-static-analyzer-rule-registry",
+      "owner": "unassigned",
+      "slug": "contract_static_analyzer_rule_registry",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Contract static analyzer rule registry"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::verified_source_registry_and_explorer_integration_plan",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#verified-source-registry-and-explorer-integration-plan",
+      "owner": "unassigned",
+      "slug": "verified_source_registry_and_explorer_integration_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Verified source registry and explorer integration plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::contract_event_log_indexing_plan",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#contract-event-log-indexing-plan",
+      "owner": "unassigned",
+      "slug": "contract_event_log_indexing_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Contract event log/indexing plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::contract_upgrade_and_admin_safety_policy",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#contract-upgrade-and-admin-safety-policy",
+      "owner": "unassigned",
+      "slug": "contract_upgrade_and_admin_safety_policy",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Contract upgrade and admin-safety policy"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::oracle_design_and_risk_registry",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#oracle-design-and-risk-registry",
+      "owner": "unassigned",
+      "slug": "oracle_design_and_risk_registry",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Oracle design and risk registry"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::reentrancy_access_control_integer_randomness_dos_safety_checklist",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#reentrancy-access-control-integer-randomness-dos-safety-checklist",
+      "owner": "unassigned",
+      "slug": "reentrancy_access_control_integer_randomness_dos_safety_checklist",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Reentrancy/access-control/integer/randomness/DoS safety checklist"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/contracts.py::fungible_and_non_fungible_token_standards_roadmap",
+      "config_anchor": "config/competitive/smart_contracts_tokens.json",
+      "doc_anchor": "docs/competitive/smart_contracts_tokens.md#fungible-and-non-fungible-token-standards-roadmap",
+      "owner": "unassigned",
+      "slug": "fungible_and_non_fungible_token_standards_roadmap",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Fungible and non-fungible token standards roadmap"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Formal VM/execution model, gas metering, sandboxing, static analysis, source verification, events, upgrades, oracles, and token standards.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Smart Contracts and Tokens"
+}

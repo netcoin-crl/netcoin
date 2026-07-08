@@ -1,0 +1,161 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "consensus_chain",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/consensus.py::complete_consensus_protocol_specification_map",
+      "config_anchor": "config/competitive/consensus_chain.json",
+      "doc_anchor": "docs/competitive/consensus_chain.md#complete-consensus-protocol-specification-map",
+      "owner": "unassigned",
+      "slug": "complete_consensus_protocol_specification_map",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Complete consensus protocol specification map"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/consensus.py::expanded_block_transaction_signature_difficulty_test_vectors",
+      "config_anchor": "config/competitive/consensus_chain.json",
+      "doc_anchor": "docs/competitive/consensus_chain.md#expanded-block-transaction-signature-difficulty-test-vectors",
+      "owner": "unassigned",
+      "slug": "expanded_block_transaction_signature_difficulty_test_vectors",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Expanded block/transaction/signature/difficulty test vectors"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/consensus.py::deep_reorg_handling_matrix_for_wallet_explorer_and_exchange_deposits",
+      "config_anchor": "config/competitive/consensus_chain.json",
+      "doc_anchor": "docs/competitive/consensus_chain.md#deep-reorg-handling-matrix-for-wallet-explorer-and-exchange-deposits",
+      "owner": "unassigned",
+      "slug": "deep_reorg_handling_matrix_for_wallet_explorer_and_exchange_deposits",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Deep reorg handling matrix for wallet, explorer, and exchange deposits"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/consensus.py::fork_choice_edge_case_tests_and_activation_rules",
+      "config_anchor": "config/competitive/consensus_chain.json",
+      "doc_anchor": "docs/competitive/consensus_chain.md#fork-choice-edge-case-tests-and-activation-rules",
+      "owner": "unassigned",
+      "slug": "fork_choice_edge_case_tests_and_activation_rules",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Fork-choice edge-case tests and activation rules"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/consensus.py::difficulty_timestamp_hash_rate_stress_test_plan",
+      "config_anchor": "config/competitive/consensus_chain.json",
+      "doc_anchor": "docs/competitive/consensus_chain.md#difficulty-timestamp-hash-rate-stress-test-plan",
+      "owner": "unassigned",
+      "slug": "difficulty_timestamp_hash_rate_stress_test_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Difficulty/timestamp/hash-rate stress-test plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/consensus.py::chain_split_detection_and_alert_hooks",
+      "config_anchor": "config/competitive/consensus_chain.json",
+      "doc_anchor": "docs/competitive/consensus_chain.md#chain-split-detection-and-alert-hooks",
+      "owner": "unassigned",
+      "slug": "chain_split_detection_and_alert_hooks",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Chain split detection and alert hooks"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/consensus.py::invalid_block_and_transaction_corpus_registry",
+      "config_anchor": "config/competitive/consensus_chain.json",
+      "doc_anchor": "docs/competitive/consensus_chain.md#invalid-block-and-transaction-corpus-registry",
+      "owner": "unassigned",
+      "slug": "invalid_block_and_transaction_corpus_registry",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Invalid block and transaction corpus registry"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/consensus.py::deterministic_genesis_regeneration_workflow",
+      "config_anchor": "config/competitive/consensus_chain.json",
+      "doc_anchor": "docs/competitive/consensus_chain.md#deterministic-genesis-regeneration-workflow",
+      "owner": "unassigned",
+      "slug": "deterministic_genesis_regeneration_workflow",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Deterministic genesis regeneration workflow"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/consensus.py::consensus_code_isolation_boundary_checklist",
+      "config_anchor": "config/competitive/consensus_chain.json",
+      "doc_anchor": "docs/competitive/consensus_chain.md#consensus-code-isolation-boundary-checklist",
+      "owner": "unassigned",
+      "slug": "consensus_code_isolation_boundary_checklist",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Consensus-code isolation boundary checklist"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Consensus-critical specification, test vectors, reorg/fork handling, difficulty tests, and invalid-data corpus scaffolds.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Consensus and Chain Correctness"
+}

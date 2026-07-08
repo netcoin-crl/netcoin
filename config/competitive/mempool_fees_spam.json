@@ -1,0 +1,161 @@
+{
+  "acceptance_summary": [
+    "implementation exists behind a safe testnet/default-off gate",
+    "unit and integration tests cover normal and failure paths",
+    "operator documentation and rollback notes exist",
+    "security review has no unresolved critical/high findings"
+  ],
+  "area": "mempool_fees_spam",
+  "default_gate": "testnet_or_private_dev_only",
+  "features": [
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mempool.py::dynamic_fee_estimation_from_mempool_and_recent_blocks",
+      "config_anchor": "config/competitive/mempool_fees_spam.json",
+      "doc_anchor": "docs/competitive/mempool_fees_spam.md#dynamic-fee-estimation-from-mempool-and-recent-blocks",
+      "owner": "unassigned",
+      "slug": "dynamic_fee_estimation_from_mempool_and_recent_blocks",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Dynamic fee estimation from mempool and recent blocks"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mempool.py::minimum_relay_fee_and_spam_protection_policy",
+      "config_anchor": "config/competitive/mempool_fees_spam.json",
+      "doc_anchor": "docs/competitive/mempool_fees_spam.md#minimum-relay-fee-and-spam-protection-policy",
+      "owner": "unassigned",
+      "slug": "minimum_relay_fee_and_spam_protection_policy",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Minimum relay fee and spam-protection policy"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mempool.py::mempool_eviction_for_low_fee_stale_conflicting_transactions",
+      "config_anchor": "config/competitive/mempool_fees_spam.json",
+      "doc_anchor": "docs/competitive/mempool_fees_spam.md#mempool-eviction-for-low-fee-stale-conflicting-transactions",
+      "owner": "unassigned",
+      "slug": "mempool_eviction_for_low_fee_stale_conflicting_transactions",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Mempool eviction for low-fee/stale/conflicting transactions"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mempool.py::replace_by_fee_transaction_replacement_plan",
+      "config_anchor": "config/competitive/mempool_fees_spam.json",
+      "doc_anchor": "docs/competitive/mempool_fees_spam.md#replace-by-fee-transaction-replacement-plan",
+      "owner": "unassigned",
+      "slug": "replace_by_fee_transaction_replacement_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Replace-by-fee transaction replacement plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mempool.py::child_pays_for_parent_fee_bumping_plan",
+      "config_anchor": "config/competitive/mempool_fees_spam.json",
+      "doc_anchor": "docs/competitive/mempool_fees_spam.md#child-pays-for-parent-fee-bumping-plan",
+      "owner": "unassigned",
+      "slug": "child_pays_for_parent_fee_bumping_plan",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Child-pays-for-parent fee bumping plan"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mempool.py::ancestor_and_descendant_dependency_limits",
+      "config_anchor": "config/competitive/mempool_fees_spam.json",
+      "doc_anchor": "docs/competitive/mempool_fees_spam.md#ancestor-and-descendant-dependency-limits",
+      "owner": "unassigned",
+      "slug": "ancestor_and_descendant_dependency_limits",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Ancestor and descendant dependency limits"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mempool.py::dust_rules_and_uneconomical_output_rejection",
+      "config_anchor": "config/competitive/mempool_fees_spam.json",
+      "doc_anchor": "docs/competitive/mempool_fees_spam.md#dust-rules-and-uneconomical-output-rejection",
+      "owner": "unassigned",
+      "slug": "dust_rules_and_uneconomical_output_rejection",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Dust rules and uneconomical output rejection"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mempool.py::utxo_bloat_detection_and_discouragement",
+      "config_anchor": "config/competitive/mempool_fees_spam.json",
+      "doc_anchor": "docs/competitive/mempool_fees_spam.md#utxo-bloat-detection-and-discouragement",
+      "owner": "unassigned",
+      "slug": "utxo_bloat_detection_and_discouragement",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "UTXO bloat detection and discouragement"
+    },
+    {
+      "acceptance_criteria": [
+        "implementation exists behind a safe testnet/default-off gate",
+        "unit and integration tests cover normal and failure paths",
+        "operator documentation and rollback notes exist",
+        "security review has no unresolved critical/high findings"
+      ],
+      "code_anchor": "netcoin/competitive/mempool.py::mempool_fee_histogram_size_age_and_top_transaction_analytics",
+      "config_anchor": "config/competitive/mempool_fees_spam.json",
+      "doc_anchor": "docs/competitive/mempool_fees_spam.md#mempool-fee-histogram-size-age-and-top-transaction-analytics",
+      "owner": "unassigned",
+      "slug": "mempool_fee_histogram_size_age_and_top_transaction_analytics",
+      "status": "midlevel_testnet",
+      "test_anchor": "tests/test_competitive_scaffold.py",
+      "title": "Mempool fee histogram, size, age, and top transaction analytics"
+    }
+  ],
+  "production_ready": false,
+  "purpose": "Dynamic fees, relay policy, eviction, RBF/CPFP, dependency limits, dust/UTXO-bloat controls, and analytics.",
+  "requires_external_audit": true,
+  "schema": "netcoin-competitive-area-v1",
+  "title": "Mempool, Fees, and Spam Resistance"
+}
