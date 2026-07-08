@@ -28,6 +28,14 @@ from urllib.parse import parse_qs, urlencode
 from urllib.request import Request, urlopen
 
 from netcoin.crypto import validate_address
+from netcoin.faucet_abuse import (
+    abuse_summary,
+    daily_spend_report,
+    issue_challenge,
+    record_abuse_event,
+    reputation_score,
+    verify_pow,
+)
 from netcoin.node import client_ip_from_headers
 from netcoin.tx import amount_to_sats
 
@@ -62,6 +70,16 @@ CAPTCHA_SITEKEY = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SITEKEY", "")
 CAPTCHA_SECRET = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SECRET", "")
 CAPTCHA_SIMPLE_QUESTION = os.environ.get("NETCOIN_FAUCET_CAPTCHA_QUESTION", "Type netcoin")
 CAPTCHA_SIMPLE_ANSWER = os.environ.get("NETCOIN_FAUCET_CAPTCHA_ANSWER", "netcoin").strip().lower()
+POW_DIFFICULTY = int(os.environ.get("NETCOIN_FAUCET_POW_DIFFICULTY", "0"))
+POW_SECRET = os.environ.get("NETCOIN_FAUCET_POW_SECRET", "netcoin-faucet-local-secret")
+POW_TTL_SECONDS = int(os.environ.get("NETCOIN_FAUCET_POW_TTL", "300"))
+DAILY_SPEND_CAP_SATS = int(os.environ.get("NETCOIN_FAUCET_DAILY_CAP_SATS", "0"))
+DEVICE_REPUTATION_ENABLED = os.environ.get("NETCOIN_FAUCET_DEVICE_REPUTATION", "1").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 TRUST_PROXY_HEADERS = os.environ.get("NETCOIN_FAUCET_TRUST_PROXY_HEADERS", "").strip().lower() in (
     "1",
     "true",
@@ -119,6 +137,11 @@ def load_state() -> dict:
         state = {}
     state.setdefault("requests", [])
     state.setdefault("queue", [])
+    state.setdefault("abuse", [])
+    state.setdefault("paused", False)
+    state.setdefault("difficulty", POW_DIFFICULTY)
+    state.setdefault("daily_cap_sats", DAILY_SPEND_CAP_SATS)
+    state.setdefault("reputation", {})
     return state
 
 
@@ -271,13 +294,11 @@ def process_queue(state: dict, limit: int = 1) -> dict:
     return {"processed": processed, "sent": sent_count, "failed": failed_count, "errors": errors}
 
 
-def record_abuse(state: dict, ip: str, reason: str, now: int | None = None) -> None:
+def record_abuse(
+    state: dict, ip: str, reason: str, now: int | None = None, address: str = "", device: str = ""
+) -> None:
     """Append a rejected attempt to a capped in-state abuse log for later review."""
-    now = int(time.time()) if now is None else now
-    log = state.setdefault("abuse", [])
-    log.append({"ip": ip, "reason": reason, "timestamp": now})
-    if len(log) > MAX_ABUSE_LOG:
-        del log[: len(log) - MAX_ABUSE_LOG]
+    record_abuse_event(state, ip=ip, address=address, device=device, reason=reason, now=now, max_log=MAX_ABUSE_LOG)
 
 
 def sufficient_funds(spendable_sats: int | None, amount: str, fee: str) -> bool:
@@ -453,16 +474,42 @@ class FaucetHandler(BaseHTTPRequestHandler):
         if path == "/queue":
             self.write_json({"queue": public_queue(load_state())})
             return
+        if path == "/challenge":
+            challenge = issue_challenge(
+                client_ip(self), secret=POW_SECRET, difficulty=POW_DIFFICULTY, ttl_seconds=POW_TTL_SECONDS
+            )
+            self.write_json({"ok": True, "enabled": POW_DIFFICULTY > 0, **challenge.to_dict()})
+            return
+        if path == "/admin/status":
+            if not self.admin_allowed():
+                self.write_json({"ok": False, "error": "unauthorized"}, status=401)
+                return
+            path = "/status"
         if path == "/status":
             state = load_state()
             queued = sum(1 for item in state.get("queue", []) if item.get("status") == "queued")
+            spend = daily_spend_report(state, cap_sats=DAILY_SPEND_CAP_SATS, amount_sats=amount_to_sats(AMOUNT))
             self.write_json(
                 {
                     "ok": True,
                     "queue_mode": QUEUE_MODE,
                     "captcha": {"enabled": captcha_enabled(), "provider": CAPTCHA_PROVIDER},
+                    "proof_of_work": {
+                        "enabled": POW_DIFFICULTY > 0,
+                        "difficulty": POW_DIFFICULTY,
+                        "ttl_seconds": POW_TTL_SECONDS,
+                    },
+                    "daily_cap": spend,
+                    "abuse": abuse_summary(state),
                     "queued": queued,
                     "hot_wallet": hot_wallet_status(faucet_spendable_sats()),
+                    "paused": bool(state.get("paused", False)),
+                    "daily_spend_sats": spend.get("spent_sats", 0),
+                    "daily_cap_sats": state.get("daily_cap_sats", DAILY_SPEND_CAP_SATS),
+                    "challenge_bits": state.get("difficulty", POW_DIFFICULTY),
+                    "reputation": state.get("reputation", {}),
+                    "recent_requests": public_history(state, 100),
+                    "blocked_requests": list(reversed(state.get("abuse", []) or []))[:100],
                 }
             )
             return
@@ -472,6 +519,41 @@ class FaucetHandler(BaseHTTPRequestHandler):
         self.render()
 
     def do_POST(self) -> None:
+        if self.path == "/admin/pause":
+            if not self.admin_allowed():
+                self.write_json({"ok": False, "error": "unauthorized"}, status=401)
+                return
+            state = load_state()
+            state["paused"] = True
+            save_state(state)
+            self.write_json({"ok": True, "paused": True})
+            return
+        if self.path == "/admin/resume":
+            if not self.admin_allowed():
+                self.write_json({"ok": False, "error": "unauthorized"}, status=401)
+                return
+            state = load_state()
+            state["paused"] = False
+            save_state(state)
+            self.write_json({"ok": True, "paused": False})
+            return
+        if self.path == "/admin/config":
+            if not self.admin_allowed():
+                self.write_json({"ok": False, "error": "unauthorized"}, status=401)
+                return
+            length = request_content_length(self)
+            body = self.rfile.read(max(0, min(length, MAX_BODY_BYTES))).decode("utf-8", "replace")
+            form = parse_qs(body)
+            state = load_state()
+            if form.get("difficulty", [""])[0]:
+                state["difficulty"] = max(0, int(form.get("difficulty", ["0"])[0]))
+            if form.get("daily_cap_sats", [""])[0]:
+                state["daily_cap_sats"] = max(0, int(form.get("daily_cap_sats", ["0"])[0]))
+            save_state(state)
+            self.write_json(
+                {"ok": True, "difficulty": state.get("difficulty"), "daily_cap_sats": state.get("daily_cap_sats")}
+            )
+            return
         if self.path == "/admin/process-queue":
             if not self.admin_allowed():
                 self.write_json({"ok": False, "error": "unauthorized"}, status=401)
@@ -497,32 +579,61 @@ class FaucetHandler(BaseHTTPRequestHandler):
             return
         form = parse_qs(self.rfile.read(length).decode("utf-8"))
         address = form.get("address", [""])[0].strip()
+        device = (
+            form.get("device", [self.headers.get("User-Agent", "")[:80]])[0].strip()
+            if DEVICE_REPUTATION_ENABLED
+            else ""
+        )
         state = load_state()
         if not validate_address(address):
-            record_abuse(state, ip, "invalid-address")
+            record_abuse(state, ip, "invalid-address", address=address, device=device)
             save_state(state)
             self.render(message_box("Invalid NetCoin address.", error=True))
             return
+        rep = reputation_score(state, ip=ip, address=address, device=device)
+        if rep["risk"] == "block":
+            record_abuse(state, ip, "reputation-block", address=address, device=device)
+            save_state(state)
+            self.render(
+                message_box("Faucet risk controls blocked this request. Try later or contact an operator.", error=True)
+            )
+            return
+        spend = daily_spend_report(state, cap_sats=DAILY_SPEND_CAP_SATS, amount_sats=amount_to_sats(AMOUNT))
+        if spend["would_exceed"]:
+            record_abuse(state, ip, "daily-cap", address=address, device=device)
+            save_state(state)
+            self.render(message_box("Faucet daily spend cap reached. Try again tomorrow.", error=True))
+            return
+        if POW_DIFFICULTY > 0 or rep["risk"] == "challenge":
+            challenge = form.get("pow_challenge", [""])[0]
+            nonce = form.get("pow_nonce", [""])[0]
+            expected = issue_challenge(ip, secret=POW_SECRET, difficulty=POW_DIFFICULTY, ttl_seconds=POW_TTL_SECONDS)
+            difficulty = POW_DIFFICULTY or 3
+            if challenge != expected.challenge or not verify_pow(challenge, nonce, difficulty=difficulty):
+                record_abuse(state, ip, "pow-failed", address=address, device=device)
+                save_state(state)
+                self.render(message_box("Proof-of-work challenge failed. Refresh and try again.", error=True))
+                return
         captcha_ok, captcha_reason = verify_captcha(form, ip)
         if not captcha_ok:
-            record_abuse(state, ip, f"captcha:{captcha_reason}")
+            record_abuse(state, ip, f"captcha:{captcha_reason}", address=address, device=device)
             save_state(state)
             self.render(message_box("CAPTCHA verification failed. Please try again.", error=True))
             return
         limited, remaining = rate_limited(ip, state)
         if limited:
-            record_abuse(state, ip, "rate-limited")
+            record_abuse(state, ip, "rate-limited", address=address, device=device)
             save_state(state)
             hours = max(1, (remaining + 3599) // 3600)
             self.render(message_box(f"Rate limit active. Try again in about {hours} hour(s).", error=True))
             return
         if burst_limited(state):
-            record_abuse(state, ip, "burst")
+            record_abuse(state, ip, "burst", address=address, device=device)
             save_state(state)
             self.render(message_box("Faucet is busy. Please wait a minute and try again.", error=True))
             return
         if queue_full(state):
-            record_abuse(state, ip, "queue-full")
+            record_abuse(state, ip, "queue-full", address=address, device=device)
             save_state(state)
             self.render(message_box("Faucet queue is full. Please try again later.", error=True))
             return

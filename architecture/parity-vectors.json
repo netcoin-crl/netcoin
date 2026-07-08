@@ -1,0 +1,382 @@
+{
+  "schema_version": 3,
+  "generated_by": "netcoin-v0.22-rust-parity-expansion",
+  "purpose": "Executable cross-language parity vectors for Python reference, Rust core parity crates, and TypeScript API/client migration lanes. Replacement code must match these vectors before live promotion.",
+  "consensus": {
+    "vector_set": "consensus-executable-vectors-v2",
+    "reference": "python-netcoin-reference",
+    "valid_cases": 8,
+    "invalid_cases": 6,
+    "cases": [
+      {
+        "id": "hash-empty-double-sha256",
+        "kind": "double_sha256",
+        "valid": true,
+        "input_hex": "",
+        "expected_hex": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"
+      },
+      {
+        "id": "hash-abc-double-sha256",
+        "kind": "double_sha256",
+        "valid": true,
+        "input_utf8": "abc",
+        "expected_hex": "4f8b42c22dd3729b519ba6f68d2da7cc5b2d606d05daed5ad5128cc03e6c6358"
+      },
+      {
+        "id": "money-zero",
+        "kind": "money_range",
+        "valid": true,
+        "amount_sats": 0,
+        "max_money_sats": 2100000000000000,
+        "expected": true
+      },
+      {
+        "id": "money-negative",
+        "kind": "money_range",
+        "valid": false,
+        "amount_sats": -1,
+        "max_money_sats": 2100000000000000,
+        "expected": false
+      },
+      {
+        "id": "money-too-large",
+        "kind": "money_range",
+        "valid": false,
+        "amount_sats": 2100000000000001,
+        "max_money_sats": 2100000000000000,
+        "expected": false
+      },
+      {
+        "id": "linked-header-chain",
+        "kind": "headers",
+        "valid": true,
+        "genesis_previous": "0",
+        "headers": [
+          {
+            "height": 0,
+            "hash": "a",
+            "previous_hash": "0"
+          },
+          {
+            "height": 1,
+            "hash": "b",
+            "previous_hash": "a"
+          }
+        ],
+        "expected": true
+      },
+      {
+        "id": "broken-header-chain",
+        "kind": "headers",
+        "valid": false,
+        "genesis_previous": "0",
+        "headers": [
+          {
+            "height": 0,
+            "hash": "a",
+            "previous_hash": "0"
+          },
+          {
+            "height": 1,
+            "hash": "b",
+            "previous_hash": "x"
+          }
+        ],
+        "expected": false
+      },
+      {
+        "id": "checkpoint-mismatch",
+        "kind": "checkpoint",
+        "valid": false,
+        "headers": [
+          {
+            "height": 5,
+            "hash": "bad",
+            "previous_hash": "prev"
+          }
+        ],
+        "checkpoints": {
+          "5": "good"
+        },
+        "expected": false
+      },
+      {
+        "id": "merkle-pair-starter",
+        "kind": "merkle_pair",
+        "valid": true,
+        "left_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+        "right_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "expected_hex": "6e9ff7ddcf4e1585c3f8472dbc6d58bfcb15b20b2c2e4b924950a06dbc9e940e"
+      },
+      {
+        "id": "oversized-block-weight",
+        "kind": "block_weight",
+        "valid": false,
+        "weight": 4000001,
+        "max_weight": 4000000,
+        "expected": false
+      },
+      {
+        "id": "tx-fee-nonnegative",
+        "kind": "tx_fee",
+        "valid": true,
+        "input_sats": 150000,
+        "output_sats": 149000,
+        "expected": true
+      },
+      {
+        "id": "tx-fee-negative",
+        "kind": "tx_fee",
+        "valid": false,
+        "input_sats": 149000,
+        "output_sats": 150000,
+        "expected": false
+      },
+      {
+        "id": "merkle-root-three-leaves",
+        "kind": "merkle_root",
+        "valid": true,
+        "leaves_hex": [
+          "00",
+          "11",
+          "22"
+        ],
+        "expected_hex": "4c55a74a2a917812895f7cdef957bf41dcebc315bcb4be16ffc0dad87a2034ef"
+      },
+      {
+        "id": "subsidy-after-two-reductions",
+        "kind": "subsidy",
+        "valid": true,
+        "base_reward_sats": 5000000000,
+        "height": 530000,
+        "interval": 265000,
+        "numerator": 9,
+        "denominator": 10,
+        "expected_sats": 4050000000
+      }
+    ]
+  },
+  "wallet": {
+    "vector_set": "wallet-executable-vectors-v2",
+    "reference": "python-netcoin-wallet",
+    "cases": [
+      {
+        "id": "preview-safe-send",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 500,
+        "balance_after_sats": 900000,
+        "warnings": [],
+        "decision": "allow"
+      },
+      {
+        "id": "preview-high-fee",
+        "input_count": 2,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 50000,
+        "balance_after_sats": 850000,
+        "warnings": [
+          "high fee"
+        ],
+        "decision": "review"
+      },
+      {
+        "id": "preview-frozen-coin",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 500,
+        "balance_after_sats": 900000,
+        "warnings": [
+          "frozen coin selected"
+        ],
+        "decision": "block"
+      },
+      {
+        "id": "preview-negative-balance",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 500,
+        "balance_after_sats": -1,
+        "warnings": [],
+        "decision": "block"
+      },
+      {
+        "id": "preview-many-inputs",
+        "input_count": 25,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 500,
+        "balance_after_sats": 900000,
+        "warnings": [],
+        "decision": "review"
+      },
+      {
+        "id": "preview-fee-rate-review",
+        "input_count": 2,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 12000,
+        "balance_after_sats": 888000,
+        "fee_rate_sat_vb": 75,
+        "warnings": [],
+        "decision": "review"
+      },
+      {
+        "id": "preview-fee-rate-block",
+        "input_count": 2,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 90000,
+        "balance_after_sats": 810000,
+        "fee_rate_sat_vb": 300,
+        "warnings": [],
+        "decision": "block"
+      },
+      {
+        "id": "preview-dust-change",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 999000,
+        "fee_sats": 500,
+        "balance_after_sats": 500,
+        "dust_change_sats": 500,
+        "warnings": [],
+        "decision": "review"
+      },
+      {
+        "id": "preview-reused-recipient",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 500,
+        "balance_after_sats": 899500,
+        "recipient_reused": true,
+        "warnings": [],
+        "decision": "review"
+      }
+    ]
+  },
+  "markets": {
+    "vector_set": "markets-executable-vectors-v2",
+    "reference": "python-netcoin-markets",
+    "cases": [
+      {
+        "id": "quote-valid",
+        "kind": "quote",
+        "outcome": "YES",
+        "side": "buy",
+        "price_bps": 5000,
+        "quantity": 100,
+        "expected": true
+      },
+      {
+        "id": "quote-zero-quantity",
+        "kind": "quote",
+        "outcome": "YES",
+        "side": "buy",
+        "price_bps": 5000,
+        "quantity": 0,
+        "expected": false
+      },
+      {
+        "id": "quote-bound-price",
+        "kind": "quote",
+        "outcome": "NO",
+        "side": "sell",
+        "price_bps": 10000,
+        "quantity": 100,
+        "expected": false
+      },
+      {
+        "id": "binary-yes-no-sum",
+        "kind": "probability_sum",
+        "yes_bps": 5200,
+        "no_bps": 4800,
+        "tolerance_bps": 50,
+        "expected": true
+      },
+      {
+        "id": "binary-wide-spread-review",
+        "kind": "probability_sum",
+        "yes_bps": 6500,
+        "no_bps": 4800,
+        "tolerance_bps": 50,
+        "expected": false
+      },
+      {
+        "id": "settlement-conservation",
+        "kind": "settlement",
+        "locked_collateral_sats": 100000,
+        "claimable_payout_sats": 99000,
+        "fees_sats": 1000,
+        "expected": true
+      },
+      {
+        "id": "settlement-overpay",
+        "kind": "settlement",
+        "locked_collateral_sats": 100000,
+        "claimable_payout_sats": 100001,
+        "fees_sats": 0,
+        "expected": false
+      },
+      {
+        "id": "fee-within-cap",
+        "kind": "fee_cap",
+        "fee_bps": 25,
+        "max_fee_bps": 50,
+        "expected": true
+      },
+      {
+        "id": "fee-over-cap",
+        "kind": "fee_cap",
+        "fee_bps": 75,
+        "max_fee_bps": 50,
+        "expected": false
+      },
+      {
+        "id": "order-notional-ok",
+        "kind": "order_notional",
+        "price_bps": 4000,
+        "quantity": 10000,
+        "min_notional_sats": 3000,
+        "expected": true
+      },
+      {
+        "id": "order-notional-too-small",
+        "kind": "order_notional",
+        "price_bps": 100,
+        "quantity": 100,
+        "min_notional_sats": 5,
+        "expected": false
+      }
+    ]
+  },
+  "api": {
+    "vector_set": "api-schema-vectors-v1",
+    "reference": "python-openapi-and-typescript-schemas",
+    "required_routes": [
+      "/api/migration-status",
+      "/api/parity-status",
+      "/api/explorer/address/{address}",
+      "/api/wallet/drafts",
+      "/api/markets/{market_id}/orderbook",
+      "/api/parity-vectors",
+      "/api/migration-readiness"
+    ],
+    "required_schemas": [
+      "SignedEnvelopeSchema",
+      "ExplorerAddressSchema",
+      "WalletDraftSchema",
+      "MarketOrderSchema",
+      "ParityStatusSchema",
+      "ExplorerTransactionSchema",
+      "WalletPreviewSchema",
+      "MarketSettlementSchema",
+      "ParityVectorSchema"
+    ]
+  }
+}

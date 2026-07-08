@@ -1,0 +1,19 @@
+[workspace]
+members = [
+  "crates/consensus",
+  "crates/node",
+  "crates/wallet-core",
+  "crates/markets-core"
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/netcoin/netcoin"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "1"

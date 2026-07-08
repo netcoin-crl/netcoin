@@ -1,0 +1,109 @@
+{
+  "version": "0.22.0",
+  "codename": "Parity Bridge",
+  "current_live_runtime": "python-reference-app",
+  "target_runtime": "rust-core-typescript-app-python-ops",
+  "upgrade_principle": "No component replaces live Python behavior until it passes frozen vector parity, API contract checks, product checks, and rollback documentation.",
+  "lanes": [
+    {
+      "id": "rust-consensus-parity",
+      "language": "Rust",
+      "status": "starter-parity-crate",
+      "current_owner": "core-rs/crates/consensus",
+      "must_pass_before_live": [
+        "consensus parity vectors",
+        "invalid block corpus",
+        "reorg corpus",
+        "chainstate hash parity"
+      ]
+    },
+    {
+      "id": "rust-wallet-core",
+      "language": "Rust",
+      "status": "starter-domain-model",
+      "current_owner": "core-rs/crates/wallet-core",
+      "must_pass_before_live": [
+        "address parity",
+        "tx builder parity",
+        "risk preview parity",
+        "offline signing parity"
+      ]
+    },
+    {
+      "id": "rust-markets-core",
+      "language": "Rust",
+      "status": "starter-invariants",
+      "current_owner": "core-rs/crates/markets-core",
+      "must_pass_before_live": [
+        "orderbook invariant tests",
+        "settlement conservation",
+        "dispute lifecycle parity"
+      ]
+    },
+    {
+      "id": "typescript-api-contracts",
+      "language": "TypeScript",
+      "status": "typed-schema-starter",
+      "current_owner": "api/src",
+      "must_pass_before_live": [
+        "OpenAPI parity",
+        "signed-envelope examples",
+        "SDK contract tests"
+      ]
+    },
+    {
+      "id": "next-web-app",
+      "language": "TypeScript",
+      "status": "migration-space",
+      "current_owner": "web/src",
+      "must_pass_before_live": [
+        "browser E2E",
+        "accessibility checks",
+        "feature status checks"
+      ]
+    },
+    {
+      "id": "rust-p2p-sync",
+      "language": "Rust",
+      "status": "planned-parity-lane",
+      "current_owner": "core-rs/crates/node",
+      "must_pass_before_live": [
+        "header sync parity",
+        "bad peer simulator",
+        "block download retry parity",
+        "hostile p2p soak"
+      ]
+    },
+    {
+      "id": "rust-indexer-core",
+      "language": "Rust",
+      "status": "planned-parity-lane",
+      "current_owner": "indexer-rs",
+      "must_pass_before_live": [
+        "address index parity",
+        "reorg rollback parity",
+        "mempool index parity"
+      ]
+    },
+    {
+      "id": "parity-reporting",
+      "language": "Python",
+      "status": "active-parity-runner",
+      "current_owner": "netcoin/parity_suite.py",
+      "must_pass_before_live": [
+        "reports/parity_suite_report.json green",
+        "all executable vectors green"
+      ]
+    }
+  ],
+  "v1_final_gates": [
+    "Full Python reference suite green",
+    "Rust core parity suite green",
+    "Executable parity suite green",
+    "TypeScript API schema parity green",
+    "Browser E2E green",
+    "P2P hostile soak green",
+    "External crypto/security audit complete",
+    "Release provenance and SBOM verified"
+  ]
+}

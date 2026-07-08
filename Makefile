@@ -1,4 +1,4 @@
-.PHONY: install-dev test test-fast test-full lint format typecheck coverage release-check provenance-check upgrade-healthcheck ops-bundle devnet fuzz browser-test browser-e2e openapi-contract security-check clean
+.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check full-suite-report devnet fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -24,7 +24,12 @@ test:
 	$(PYTHON) tools/run_test_suite_by_file.py --timeout 180
 
 test-full:
-	$(PYTHON) -m pytest -q --timeout=300 --cov=netcoin --cov-report=term-missing
+	$(PYTHON) tools/full_suite_report.py --run --timeout 240 --out reports/full_suite_report.json
+
+test-report:
+	$(PYTHON) tools/full_suite_report.py --out reports/full_suite_plan.json
+
+ci-local: lint typecheck release-check product-check arch-check migration-check rust-workspace-check ts-api-check parity-check site-audit test-fast
 
 coverage:
 	$(PYTHON) -m pytest -q --cov=netcoin --cov-report=term-missing --cov-report=xml
@@ -38,6 +43,9 @@ browser-test:
 
 browser-e2e:
 	npx playwright test webwallet-browser/tests/e2e sites/tests/e2e
+
+browser-e2e-local:
+	$(PYTHON) tools/run_browser_e2e.py
 
 openapi-contract:
 	$(PYTHON) tools/check_openapi_contract.py
@@ -71,3 +79,33 @@ upgrade-healthcheck:
 ops-bundle:
 	mkdir -p dist
 	$(PYTHON) tools/generate_ops_bundle.py --out dist/netcoin-ops-bundle.json
+
+site-sync:
+	$(PYTHON) tools/sync_site_assets.py
+
+site-audit:
+	$(PYTHON) tools/audit_site_ui.py
+
+product-check:
+	$(PYTHON) tools/check_product_surface.py
+
+arch-check:
+	$(PYTHON) tools/check_architecture_space.py
+
+migration-check:
+	$(PYTHON) tools/check_migration_parity.py
+
+rust-workspace-check:
+	$(PYTHON) tools/check_rust_workspace.py
+
+ts-api-check:
+	$(PYTHON) tools/check_ts_workspace.py
+
+parity-check:
+	$(PYTHON) tools/run_parity_suite.py
+
+full-suite-report:
+	$(PYTHON) tools/full_suite_report.py
+
+v022-check: parity-check rust-workspace-check ts-api-check migration-check
+	$(PYTHON) -m pytest -q tests/test_v022_rust_ts_parity_expansion.py

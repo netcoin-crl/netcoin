@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: NetCoin Public API
-  version: 0.12.0
+  version: 0.22.0
   description: |
     Public HTTP API served by every NetCoin node (default port 28444) and by the
     hosted relay at `https://api.netcoin.online/api`.
@@ -40,6 +40,43 @@ tags:
   - name: markets
     description: Polymarket-style play-money prediction-market Labs APIs (app-layer only)
 paths:
+
+  /health-center:
+    get:
+      tags: [apps]
+      summary: Product health-center payload for operator and exchange dashboards
+      responses:
+        "200": { description: Sites, feature coverage, release trust, API contract depth, metrics, and active alerts. }
+  /product/status:
+    get:
+      tags: [apps]
+      summary: Alias for the NetCoin product health-center payload
+      responses:
+        "200": { description: Unified product health status. }
+  /feature-status:
+    get:
+      tags: [apps]
+      summary: Live feature-to-file/test/route wiring status
+      responses:
+        "200": { description: Feature probes with working, partial, or missing status. }
+  /architecture:
+    get:
+      tags: [apps]
+      summary: Professional hybrid architecture and final-version migration map
+      responses:
+        "200": { description: Rust/TypeScript/Python architecture layers, upgrade lanes, and v1.0 gates. }
+  /migration-status:
+    get:
+      tags: [apps]
+      summary: Cross-language migration parity status and frozen vector fingerprint
+      responses:
+        "200": { description: Current Python reference runtime, Rust/TypeScript migration lanes, parity vector fingerprint, and v1.0 readiness gates. }
+  /parity-status:
+    get:
+      tags: [apps]
+      summary: Executable parity-suite status for Rust/TypeScript migration lanes
+      responses:
+        "200": { description: Vector fingerprint, per-lane pass/fail counts, and parity bridge status. }
 
   /markets:
     get:
@@ -523,3 +560,106 @@ paths:
       summary: Community feed
       responses:
         "200": { description: Recent posts. }
+  /explorer/address/{address}:
+    get:
+      tags: [explorer]
+      summary: Rich address profile for the product Explorer UI
+      parameters:
+        - { name: address, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Balance, UTXOs, activity, exports, and profile metadata. }
+  /explorer/address/{address}/csv:
+    get:
+      tags: [explorer]
+      summary: Address activity CSV export
+      parameters:
+        - { name: address, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: CSV transaction activity. }
+  /explorer/tx/{txid}:
+    get:
+      tags: [explorer]
+      summary: Rich transaction detail payload
+      parameters:
+        - { name: txid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Transaction status, confirmations, block, and raw fields. }
+  /explorer/block/{id}:
+    get:
+      tags: [explorer]
+      summary: Rich block detail payload by height or hash
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Block summary, txids, and raw fields. }
+  /explorer/mempool:
+    get:
+      tags: [explorer]
+      summary: Mempool dashboard payload
+      responses:
+        "200": { description: Mempool summary and pending transactions. }
+  /explorer/watchlist:
+    get:
+      tags: [explorer]
+      summary: Explorer watchlist activity cards
+      responses:
+        "200": { description: Watched address activity summaries. }
+  /wallet/workflow:
+    get:
+      tags: [wallet]
+      summary: Wallet send safety workflow status
+      responses:
+        "200": { description: Drafts, approvals, fee presets, vault, and offline signing status. }
+  /wallet/drafts:
+    post:
+      tags: [wallet]
+      summary: Save a transaction draft for later approval or offline signing
+      responses:
+        "200": { description: Draft record. }
+  /operator/live:
+    get:
+      tags: [operator]
+      summary: Live operator control-room payload
+      responses:
+        "200": { description: Height, peers, mempool, runbook actions, and diagnostic bundle link. }
+  /exchange/live:
+    get:
+      tags: [exchange]
+      summary: Live exchange custody dashboard payload
+      responses:
+        "200": { description: Deposits, withdrawals, approvals, custody, reserve attestations, and risk alerts. }
+  /release/verify:
+    get:
+      tags: [release]
+      summary: Release verification readiness and checksum check
+      responses:
+        "200": { description: Verification tool status, commands, and optional checksum result. }
+    post:
+      tags: [release]
+      summary: Verify release metadata from the browser verification page
+      responses:
+        "200": { description: Verification summary. }
+  /operator/diagnostics/bundle:
+    get:
+      tags: [operator]
+      summary: Redacted operator diagnostic bundle
+      responses:
+        "200": { description: Health-center payload, operator controls, and bundle hash. }
+  /faucet/status:
+    get:
+      tags: [faucet]
+      summary: Faucet admin/status payload for dashboard UI
+      responses:
+        "200": { description: Pause state, request history, abuse log, reputation, and spend caps. }
+
+
+  /api/parity-vectors:
+    get:
+      summary: Return frozen parity vectors for Rust/TypeScript migration lanes.
+      responses:
+        '200': { description: Parity vectors }
+  /api/migration-readiness:
+    get:
+      summary: Return migration readiness, parity status, and final-version gates.
+      responses:
+        '200': { description: Migration readiness }

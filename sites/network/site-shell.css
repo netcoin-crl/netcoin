@@ -407,3 +407,37 @@ td,th{border-color:var(--line-soft)!important}
   :root{--max:1600px}
   .grid,.dashboard-grid{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))!important}
 }
+
+/* NetCoin sleek UI pass 20260708: compact, modern, feature-complete. */
+:root{
+  --bg:#05070b!important;
+  --surface:#0b111a!important;
+  --surface-2:#0f1724!important;
+  --surface-3:#141f2e!important;
+  --line:#223044!important;
+  --line-soft:rgba(148,163,184,.16)!important;
+  --fg:#f4f7fb!important;
+  --mut:#8fa1b5!important;
+  --mut-2:#c8d4e3!important;
+  --accent:#45f0a5!important;
+  --accent-2:#7fb5ff!important;
+  --radius:16px!important;
+  --shadow:0 18px 50px rgba(0,0,0,.28)!important;
+}
+body{
+  background:
+    radial-gradient(circle at 12% -8%,rgba(69,240,165,.14),transparent 32%),
+    radial-gradient(circle at 88% 2%,rgba(127,181,255,.11),transparent 28%),
+    linear-gradient(180deg,#080c13,#05070b 58%,#04060a)!important;
+}
+.shell,.wrap{max-width:min(1320px,calc(100vw - 32px))!important;padding:18px clamp(14px,2vw,28px) 56px!important}
+.topbar{grid-template-columns:auto minmax(0,1fr)!important;gap:12px 16px!important;margin-bottom:12px!important}
+.brand .logo,.logo{border-radius:14px!important;box-shadow:0 12px 30px rgba(69,240,165,.18)!important}
+.brand h1,.brand>div:last-child{font-size:18px!important}.brand small,.sub{font-size:11px!important;color:var(--mut)!important}
+.site-nav{gap:7px!important}.site-nav a,.site-nav summary,.site-tools-more summary,.site-settings summary{min-height:34px!important;padding:7px 11px!important;border-radius:999px!important;font-size:12px!important;background:rgba(255,255,255,.035)!important}.site-nav a.active{background:rgba(69,240,165,.12)!important}
+.site-tools{grid-template-columns:minmax(180px,.75fr) minmax(260px,440px)!important;gap:10px!important;margin-top:2px!important}.site-context{min-height:34px!important}.site-context small{font-size:12px!important}.site-search input,.site-search button{height:36px!important;border-radius:999px!important}.site-search button{min-width:58px!important;padding:0 13px!important}
+.feature-dock{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:10px!important;margin:10px 0 18px!important}.feature-group{border:1px solid var(--line-soft)!important;border-radius:18px!important;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018))!important;padding:11px!important;min-width:0!important}.feature-group>b{display:block!important;color:var(--fg)!important;font-size:12px!important;margin-bottom:8px!important}.feature-group>div{display:flex!important;flex-wrap:wrap!important;gap:6px!important}.feature-group a{display:inline-flex!important;align-items:center!important;min-height:26px!important;border:1px solid rgba(148,163,184,.14)!important;border-radius:999px!important;padding:5px 8px!important;color:var(--mut-2)!important;text-decoration:none!important;font-size:11px!important;font-weight:750!important;background:rgba(0,0,0,.16)!important}.feature-group a:hover{border-color:var(--accent)!important;color:var(--accent)!important;text-decoration:none!important}
+.site-more-panel{border-radius:18px!important;grid-template-columns:repeat(4,minmax(0,1fr))!important}.site-more-panel a{min-height:64px!important;border-radius:14px!important}.site-more-panel a small{font-size:11px!important;line-height:1.25!important}
+.card,.stat,.biglink,.notice,.warn,.statusbar,.checkout-box,.review{border-radius:18px!important;background:linear-gradient(180deg,rgba(255,255,255,.052),rgba(255,255,255,.018))!important;box-shadow:0 14px 40px rgba(0,0,0,.20)!important}.card{padding:clamp(15px,1.35vw,20px)!important}.card h2{font-size:15px!important;margin-bottom:8px!important}.hero,.dashboard-hero{gap:13px!important;margin-bottom:13px!important}.hero h1,.dashboard-hero h1,.lead h1{font-size:clamp(30px,3.6vw,48px)!important;margin:6px 0 8px!important}.hero p,.dashboard-hero p,.lead p{font-size:15px!important;line-height:1.45!important;margin-bottom:10px!important}.muted{line-height:1.45!important}.grid,.dashboard-grid,.split{gap:13px!important}.biglink{padding:15px!important}.biglink span{font-size:13px!important}.pill{border-radius:999px!important;padding:6px 10px!important}.footer{font-size:12px!important;color:var(--mut)!important}.github-quickstart{display:none!important}
+@media (max-width:1100px){.feature-dock{grid-template-columns:repeat(2,minmax(0,1fr))!important}.site-tools{grid-template-columns:1fr!important}.site-more-panel{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media (max-width:640px){.shell,.wrap{max-width:100%!important;padding:14px 12px 48px!important}.topbar{grid-template-columns:1fr!important;grid-template-areas:"brand" "nav" "tools"!important}.feature-dock{display:flex!important;overflow-x:auto!important;padding-bottom:4px!important}.feature-group{min-width:230px!important}.site-more-panel{grid-template-columns:1fr!important}.site-search{display:none!important}}

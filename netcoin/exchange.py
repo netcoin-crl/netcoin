@@ -65,6 +65,30 @@ class ExchangeLedger:
                 )""")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_deposits_state ON deposits(state)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_withdrawals_state ON withdrawals(state)")
+            conn.execute("""CREATE TABLE IF NOT EXISTS custody_accounts(
+                    account_id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    address TEXT NOT NULL,
+                    balance_sats INTEGER NOT NULL DEFAULT 0,
+                    daily_limit_sats INTEGER NOT NULL DEFAULT 0,
+                    single_limit_sats INTEGER NOT NULL DEFAULT 0,
+                    min_approvals INTEGER NOT NULL DEFAULT 1,
+                    active INTEGER NOT NULL DEFAULT 1,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    metadata_json TEXT DEFAULT '{}'
+                )""")
+            conn.execute("""CREATE TABLE IF NOT EXISTS withdrawal_approvals(
+                    approval_id TEXT PRIMARY KEY,
+                    withdrawal_id TEXT NOT NULL,
+                    operator TEXT NOT NULL,
+                    decision TEXT NOT NULL,
+                    reason TEXT DEFAULT '',
+                    created_at INTEGER NOT NULL,
+                    UNIQUE(withdrawal_id, operator)
+                )""")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_custody_kind ON custody_accounts(kind)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_withdrawal_approvals ON withdrawal_approvals(withdrawal_id)")
             conn.commit()
 
     @staticmethod
@@ -301,4 +325,201 @@ class ExchangeLedger:
             "withdrawal_obligations_sats": int(withdrawals or 0),
             "net_liability_sats": net,
             "net_liability": sats_to_amount(net),
+        }
+
+    def configure_custody_account(
+        self,
+        account_id: str,
+        *,
+        kind: str,
+        address: str,
+        balance_sats: int = 0,
+        daily_limit_sats: int = 0,
+        single_limit_sats: int = 0,
+        min_approvals: int = 1,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a hot/warm/cold custody account policy."""
+        if kind not in {"hot", "warm", "cold"}:
+            raise ExchangeLedgerError("custody account kind must be hot, warm, or cold")
+        current = int(time.time())
+        with self.connect() as conn:
+            conn.execute(
+                """INSERT INTO custody_accounts(account_id,kind,address,balance_sats,daily_limit_sats,single_limit_sats,min_approvals,created_at,updated_at,metadata_json)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(account_id) DO UPDATE SET
+                       kind=excluded.kind,address=excluded.address,balance_sats=excluded.balance_sats,
+                       daily_limit_sats=excluded.daily_limit_sats,single_limit_sats=excluded.single_limit_sats,
+                       min_approvals=excluded.min_approvals,updated_at=excluded.updated_at,metadata_json=excluded.metadata_json""",
+                (
+                    account_id,
+                    kind,
+                    address,
+                    int(balance_sats),
+                    int(daily_limit_sats),
+                    int(single_limit_sats),
+                    int(min_approvals),
+                    current,
+                    current,
+                    json.dumps(metadata or {}, sort_keys=True),
+                ),
+            )
+            conn.commit()
+        return self.get_custody_account(account_id)
+
+    def get_custody_account(self, account_id: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            row = conn.execute("SELECT * FROM custody_accounts WHERE account_id=?", (account_id,)).fetchone()
+        if not row:
+            raise ExchangeLedgerError("custody account not found")
+        data = dict(row)
+        data["metadata"] = json.loads(data.pop("metadata_json") or "{}")
+        data["balance"] = sats_to_amount(int(data["balance_sats"]))
+        data["daily_limit"] = sats_to_amount(int(data["daily_limit_sats"]))
+        data["single_limit"] = sats_to_amount(int(data["single_limit_sats"]))
+        return data
+
+    def custody_status(self) -> dict[str, Any]:
+        with self.connect() as conn:
+            rows = [
+                dict(r) for r in conn.execute("SELECT * FROM custody_accounts ORDER BY kind, account_id").fetchall()
+            ]
+            pending = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT * FROM withdrawals WHERE state IN ('requested','approved','signed','broadcast') ORDER BY created_at"
+                ).fetchall()
+            ]
+        accounts = []
+        for row in rows:
+            row["metadata"] = json.loads(row.pop("metadata_json") or "{}")
+            row["balance"] = sats_to_amount(int(row["balance_sats"]))
+            accounts.append(row)
+        hot_balance = sum(
+            int(a["balance_sats"]) for a in accounts if a.get("kind") == "hot" and int(a.get("active") or 0)
+        )
+        cold_balance = sum(
+            int(a["balance_sats"]) for a in accounts if a.get("kind") == "cold" and int(a.get("active") or 0)
+        )
+        pending_total = sum(int(w.get("amount_sats") or 0) + int(w.get("fee_sats") or 0) for w in pending)
+        return {
+            "accounts": accounts,
+            "hot_balance_sats": hot_balance,
+            "hot_balance": sats_to_amount(hot_balance),
+            "cold_balance_sats": cold_balance,
+            "cold_balance": sats_to_amount(cold_balance),
+            "pending_withdrawal_sats": pending_total,
+            "pending_withdrawal_total": sats_to_amount(pending_total),
+            "hot_wallet_coverage_ok": hot_balance >= pending_total,
+        }
+
+    def withdrawal_policy(self, withdrawal_id: str) -> dict[str, Any]:
+        withdrawal = self.get_withdrawal(withdrawal_id)
+        with self.connect() as conn:
+            hot = [
+                dict(r) for r in conn.execute("SELECT * FROM custody_accounts WHERE kind='hot' AND active=1").fetchall()
+            ]
+            approvals = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT * FROM withdrawal_approvals WHERE withdrawal_id=?", (withdrawal_id,)
+                ).fetchall()
+            ]
+        amount = int(withdrawal["amount_sats"]) + int(withdrawal["fee_sats"])
+        blockers: list[str] = []
+        required = 1
+        eligible_accounts = []
+        for acct in hot:
+            required = max(required, int(acct.get("min_approvals") or 1))
+            if int(acct.get("single_limit_sats") or 0) and amount > int(acct["single_limit_sats"]):
+                blockers.append(f"single_limit_exceeded:{acct['account_id']}")
+                continue
+            if amount <= int(acct.get("balance_sats") or 0):
+                eligible_accounts.append(acct["account_id"])
+        if not hot:
+            blockers.append("no_active_hot_wallet")
+        if not eligible_accounts:
+            blockers.append("hot_wallet_balance_insufficient")
+        approved = [a for a in approvals if a.get("decision") == "approved"]
+        denied = [a for a in approvals if a.get("decision") == "denied"]
+        if denied:
+            blockers.append("approval_denied")
+        return {
+            "withdrawal_id": withdrawal_id,
+            "amount_sats": amount,
+            "required_approvals": required,
+            "approved_count": len(approved),
+            "denied_count": len(denied),
+            "eligible_hot_accounts": eligible_accounts,
+            "ready_to_sign": len(approved) >= required and not blockers,
+            "blockers": sorted(set(blockers)),
+        }
+
+    def approve_withdrawal(
+        self, withdrawal_id: str, *, operator: str, decision: str = "approved", reason: str = ""
+    ) -> dict[str, Any]:
+        if decision not in {"approved", "denied"}:
+            raise ExchangeLedgerError("approval decision must be approved or denied")
+        approval_id = f"appr_{withdrawal_id}_{operator}"
+        with self.connect() as conn:
+            conn.execute(
+                """INSERT INTO withdrawal_approvals(approval_id,withdrawal_id,operator,decision,reason,created_at)
+                   VALUES(?,?,?,?,?,?)
+                   ON CONFLICT(withdrawal_id, operator) DO UPDATE SET decision=excluded.decision,reason=excluded.reason,created_at=excluded.created_at""",
+                (approval_id, withdrawal_id, operator, decision, reason, int(time.time())),
+            )
+            conn.commit()
+        policy = self.withdrawal_policy(withdrawal_id)
+        if policy["ready_to_sign"] and self.get_withdrawal(withdrawal_id)["state"] == "requested":
+            self.transition_withdrawal(withdrawal_id, "approved", operator=operator)
+            policy = self.withdrawal_policy(withdrawal_id)
+        return policy
+
+    def prepare_hot_withdrawal_batch(self, *, limit: int = 25) -> dict[str, Any]:
+        with self.connect() as conn:
+            rows = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT withdrawal_id FROM withdrawals WHERE state IN ('requested','approved') ORDER BY created_at LIMIT ?",
+                    (int(limit),),
+                ).fetchall()
+            ]
+        ready = []
+        blocked = []
+        for row in rows:
+            policy = self.withdrawal_policy(row["withdrawal_id"])
+            if policy["ready_to_sign"]:
+                ready.append(policy)
+            else:
+                blocked.append(policy)
+        return {"ready": ready, "blocked": blocked, "ready_count": len(ready), "blocked_count": len(blocked)}
+
+    def record_cold_to_hot_transfer(
+        self, *, cold_account_id: str, hot_account_id: str, amount_sats: int, txid: str = ""
+    ) -> dict[str, Any]:
+        amount = int(amount_sats)
+        cold = self.get_custody_account(cold_account_id)
+        hot = self.get_custody_account(hot_account_id)
+        if cold["kind"] != "cold" or hot["kind"] != "hot":
+            raise ExchangeLedgerError("cold-to-hot transfer requires cold source and hot destination")
+        if int(cold["balance_sats"]) < amount:
+            raise ExchangeLedgerError("cold account balance is insufficient")
+        with self.connect() as conn:
+            now = int(time.time())
+            conn.execute(
+                "UPDATE custody_accounts SET balance_sats=balance_sats-?,updated_at=? WHERE account_id=?",
+                (amount, now, cold_account_id),
+            )
+            conn.execute(
+                "UPDATE custody_accounts SET balance_sats=balance_sats+?,updated_at=? WHERE account_id=?",
+                (amount, now, hot_account_id),
+            )
+            conn.commit()
+        return {
+            "ok": True,
+            "from": cold_account_id,
+            "to": hot_account_id,
+            "amount_sats": amount,
+            "amount": sats_to_amount(amount),
+            "txid": txid,
         }

@@ -171,11 +171,7 @@
 
   // ---------- wallet tab shell and modes ----------
   const WALLET_TABS = [
-    { id: "overview", label: "Overview", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "send", label: "Send", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "receive", label: "Receive", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "activity", label: "Activity", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "contacts", label: "Contacts", modes: ["simple", "business", "advanced", "developer"] },
+    { id: "wallet", label: "Wallet", modes: ["simple", "business", "advanced", "developer"] },
     { id: "mining", label: "Mining", modes: ["simple", "advanced", "developer"] },
     { id: "tokens", label: "Tokens", modes: ["business", "advanced", "developer"] },
     { id: "payments", label: "Payments", modes: ["business", "advanced", "developer"] },
@@ -220,7 +216,8 @@
   }
   window.addEventListener("netcoin:siteModeChanged", (ev) => syncWalletModeFromSite(ev.detail?.mode));
   function activeWalletTab() {
-    return localStorage.getItem(UI_TAB_STORE) || "overview";
+    const tab = localStorage.getItem(UI_TAB_STORE) || "wallet";
+    return ["overview", "send", "receive", "activity", "contacts"].includes(tab) ? "wallet" : tab;
   }
   function setActiveWalletTab(tab) {
     localStorage.setItem(UI_TAB_STORE, tab);
@@ -256,17 +253,30 @@
     }
     const firstCard = wallet.querySelector(":scope > .card");
     if (firstCard) wallet.insertBefore(tabs, firstCard);
+    const workspace = document.createElement("nav");
+    workspace.id = "walletWorkspaceNav";
+    workspace.className = "wallet-workspace-nav";
+    workspace.setAttribute("aria-label", "Wallet workspace sections");
+    workspace.innerHTML = [
+      ["Overview", "#wallet-home"],
+      ["Send", "#wallet-send"],
+      ["Receive", "#wallet-receive"],
+      ["Activity", "#wallet-activity"],
+      ["Contacts", "#wallet-contacts"]
+    ].map((item) => `<a href="${item[1]}">${item[0]}</a>`).join("");
+    if (firstCard) wallet.insertBefore(workspace, firstCard);
 
     const cards = Array.from(wallet.querySelectorAll(":scope > .card"));
     for (const card of cards) {
-      let tab = "overview";
-      if (card.querySelector("#receiveOut")) tab = "receive";
-      else if (card.querySelector("#btnSend")) tab = "send";
-      else if (card.querySelector("#txHistory")) tab = "activity";
+      let tab = "wallet";
+      if (card.classList.contains("wallet-overview-card")) { tab = "wallet"; card.id = card.id || "wallet-home"; }
+      else if (card.querySelector("#receiveOut")) { tab = "wallet"; card.id = card.id || "wallet-receive"; }
+      else if (card.querySelector("#btnSend")) { tab = "wallet"; card.id = card.id || "wallet-send"; }
+      else if (card.querySelector("#txHistory")) { tab = "wallet"; card.id = card.id || "wallet-activity"; }
+      else if (card.querySelector("#contactsImportFile")) { tab = "wallet"; card.id = card.id || "wallet-contacts"; }
       else if (card.querySelector("#statementOut")) tab = "reports";
       else if (card.querySelector("#walletDescriptor")) tab = "advanced";
       else if (card.querySelector("#watchList")) tab = "watch";
-      else if (card.querySelector("#contactsImportFile")) tab = "contacts";
       card.classList.add("wallet-section");
       card.dataset.walletTab = tab;
     }
@@ -340,7 +350,7 @@
     ensureWalletTabShell();
     const mode = walletUiMode();
     let tab = activeWalletTab();
-    if (!tabAllowed(tab, mode)) tab = "overview";
+    if (!tabAllowed(tab, mode)) tab = "wallet";
     if ($("walletUiMode")) $("walletUiMode").value = mode;
     if ($("walletModeHelp")) $("walletModeHelp").textContent = MODE_INFO[mode];
     document.querySelectorAll("[data-wallet-mode-button]").forEach((btn) => btn.classList.toggle("active", btn.dataset.walletModeButton === mode));
@@ -350,6 +360,8 @@
       btn.classList.toggle("active", allowed && btn.dataset.walletTabButton === tab);
       btn.setAttribute("aria-selected", allowed && btn.dataset.walletTabButton === tab ? "true" : "false");
     });
+    const workspaceNav = $("walletWorkspaceNav");
+    if (workspaceNav) workspaceNav.classList.toggle("hide", tab !== "wallet");
     document.querySelectorAll(".wallet-section").forEach((section) => {
       const visible = section.dataset.walletTab === tab && tabAllowed(section.dataset.walletTab, mode);
       section.classList.toggle("active-section", visible);
@@ -1704,6 +1716,51 @@
       $("sendMsg").textContent = "Failed: " + e.message;
     }
   };
+  function estimateTxVbytes(inputCount, outputCount) {
+    return Math.max(120, 10 + Number(inputCount || 1) * 68 + Number(outputCount || 2) * 31);
+  }
+  function simulateWalletRisk(to, amt, fee, selected) {
+    const autoInputs = selected.length ? selected : lastUtxos.slice().sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+    const used = [];
+    let inputTotal = 0;
+    for (const coin of autoInputs) {
+      if (!selected.length && inputTotal >= amt + fee) break;
+      used.push(coin);
+      inputTotal += Number(coin.amount || 0);
+    }
+    const change = inputTotal - amt - fee;
+    const vbytes = estimateTxVbytes(Math.max(1, used.length), change > 0 ? 2 : 1);
+    const feeRate = fee / vbytes;
+    const warnings = [];
+    let decision = "allow";
+    if (inputTotal < amt + fee) { decision = "block"; warnings.push("Selected or available coins do not cover amount + fee."); }
+    if (feeRate > 250) { decision = decision === "block" ? "block" : "review"; warnings.push("Fee rate is unusually high."); }
+    if (change > 0 && change < 546) { decision = decision === "block" ? "block" : "review"; warnings.push("Change output would be dust-sized."); }
+    if (used.length > 50) { decision = decision === "block" ? "block" : "review"; warnings.push("This spend uses many UTXOs; consolidate first if possible."); }
+    if (lastSpendableSats && amt + fee > lastSpendableSats * 0.8) { decision = decision === "block" ? "block" : "review"; warnings.push("This spend empties most of the wallet."); }
+    if (sameAddress(to, state.address)) warnings.push("Recipient is your own wallet; this looks like consolidation.");
+    const balanceAfter = Math.max(0, Number(lastSpendableSats || 0) - amt - fee);
+    return { decision, warnings, inputTotal, change, vbytes, feeRate, inputCount: used.length, balanceAfter };
+  }
+  function renderRiskSimulation(risk) {
+    const panel = $("riskPanel");
+    if (!panel) return;
+    panel.classList.remove("hide");
+    $("riskDecision").textContent = risk.decision.toUpperCase();
+    $("riskBalanceAfter").textContent = satsToInput(risk.balanceAfter) + " NET";
+    $("riskChange").textContent = satsToInput(Math.max(0, risk.change)) + " NET";
+    $("riskInputs").textContent = `${risk.inputCount} input(s), ${risk.vbytes} vbytes est.`;
+    $("riskFeeRate").textContent = `${risk.feeRate.toFixed(2)} sats/vB`;
+    const list = $("riskWarnings");
+    list.innerHTML = "";
+    const warnings = risk.warnings.length ? risk.warnings : ["No major wallet-risk warnings detected."];
+    for (const warning of warnings) {
+      const li = document.createElement("li");
+      li.textContent = warning;
+      list.appendChild(li);
+    }
+  }
+
   async function reviewSend() {
     const msg = $("sendMsg"); msg.className = ""; msg.textContent = "";
     try {
@@ -1724,9 +1781,11 @@
         const selectedTotal = selected.reduce((sum, u) => sum + Number(u.amount || 0), 0);
         if (selectedTotal < amt + fee) throw new Error("selected UTXOs do not cover amount + fee");
       }
+      const risk = simulateWalletRisk(to, amt, fee, selected);
+      renderRiskSimulation(risk);
       await checkSpendingLimits(amt, fee);
       const contact = loadContacts().find((c) => sameAddress(c.address, to));
-      const warnings = [];
+      const warnings = [...risk.warnings.map((w) => "⚠ " + w)];
       // Address-poisoning check: a recipient that looks like a known address but
       // is not that address is the classic lookalike scam pattern.
       const known = [
@@ -1750,22 +1809,63 @@
         warnBox.textContent = warnings.join(" ");
         warnBox.classList.toggle("hide", !warnings.length);
       }
-      pendingSend = { to, amt, fee, outpoints: selected.map(outpointOf) };
+      pendingSend = { to, amt, fee, outpoints: selected.map(outpointOf), blocked: risk.decision === "block", risk };
       $("reviewTo").textContent = to;
       $("reviewContact").textContent = contact ? contact.name : "—";
       $("reviewAmount").textContent = satsToInput(amt) + " NET";
       $("reviewFee").textContent = satsToInput(fee) + " NET";
       $("reviewTotal").textContent = satsToInput(amt + fee) + " NET";
       $("reviewUtxos").textContent = selected.length ? `${selected.length} selected (${satsToInput(selected.reduce((sum, u) => sum + Number(u.amount || 0), 0))} NET)` : "Automatic coin selection";
+      $("btnConfirmSend").disabled = risk.decision === "block";
+      $("btnConfirmSend").textContent = risk.decision === "block" ? "Blocked by risk check" : "Send now";
       $("sendReview").classList.remove("hide");
     } catch (e) { msg.className = "err"; msg.textContent = "Failed: " + e.message; }
   }
 
+
+  async function refreshWalletWorkflowStatus() {
+    const msg = $("walletWorkflowMsg");
+    if (!msg) return;
+    try {
+      const status = await api("/wallet/workflow");
+      const presets = Object.keys(status.fee_presets || {}).join(" / ");
+      msg.textContent = `Workflow: drafts ${(status.drafts||[]).length} · approvals ${(status.approvals||[]).length} · fee presets ${presets || "ready"} · offline signing ${status.offline_signing?.unsigned_export ? "ready" : "review"}.`;
+      msg.className = "muted";
+    } catch (e) {
+      msg.textContent = "Workflow status unavailable: " + e.message;
+      msg.className = "muted";
+    }
+  }
+
+  async function savePendingDraft() {
+    const msg = $("sendMsg");
+    if (!pendingSend) { msg.className = "err"; msg.textContent = "Review the transaction before saving a draft."; return; }
+    try {
+      const draft = await api("/wallet/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: pendingSend.to, amount: satsToInput(pendingSend.amt), fee: satsToInput(pendingSend.fee), memo: "browser wallet draft" }) });
+      msg.className = "ok"; msg.textContent = "Saved draft " + (draft.draft_id || "ready") + ".";
+      refreshWalletWorkflowStatus();
+    } catch (e) { msg.className = "err"; msg.textContent = "Could not save draft: " + e.message; }
+  }
+
+  async function exportPendingUnsigned() {
+    const msg = $("sendMsg");
+    if (!pendingSend) { msg.className = "err"; msg.textContent = "Review the transaction before exporting."; return; }
+    try {
+      const payload = { magic: "netcoin-unsigned-send-v1", to: pendingSend.to, amount_sats: pendingSend.amt, fee_sats: pendingSend.fee, outpoints: pendingSend.outpoints || [], created_at: new Date().toISOString(), risk: pendingSend.risk || {} };
+      downloadText("netcoin-unsigned-send.json", JSON.stringify(payload, null, 2));
+      msg.className = "ok"; msg.textContent = "Unsigned transaction request exported for offline signing.";
+    } catch (e) { msg.className = "err"; msg.textContent = "Export failed: " + e.message; }
+  }
+
   $("btnSend").onclick = reviewSend;
+  if ($("btnSaveDraft")) $("btnSaveDraft").onclick = savePendingDraft;
+  if ($("btnExportUnsigned")) $("btnExportUnsigned").onclick = exportPendingUnsigned;
+  refreshWalletWorkflowStatus();
   $("btnCancelSend").onclick = () => { pendingSend = null; $("sendReview").classList.add("hide"); };
   $("btnConfirmSend").onclick = async () => {
     const msg = $("sendMsg");
     if (!pendingSend) { msg.className = "err"; msg.textContent = "Review the transaction first."; return; }
+    if (pendingSend.blocked) { msg.className = "err"; msg.textContent = "Blocked by wallet risk simulator. Adjust amount, fee, or coins."; return; }
     msg.className = ""; msg.textContent = "Sending…";
     try {
       const txid = await send(pendingSend.to, pendingSend.amt, pendingSend.fee, pendingSend.outpoints || []);

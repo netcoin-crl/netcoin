@@ -87,6 +87,8 @@
   </style>
   <link rel="stylesheet" href="ui-polish.css?v=20260630-wide-desktop" />
     <link rel="stylesheet" href="site-shell.css?v=20260630-reward-schedule" />
+
+<style id="explorer-v016-polish">.explorer-pro-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:0 0 16px}.pro-card{display:block;border:1px solid var(--line,var(--bd));border-radius:12px;padding:14px;background:rgba(255,255,255,.035);text-decoration:none;color:inherit}.pro-card:hover{border-color:var(--accent,var(--acc));text-decoration:none}.pro-card b{display:block;font-size:18px;margin-bottom:4px}.pro-card span{display:block;color:var(--mut);font-size:13px}</style>
 </head>
 <body data-site="explorer" data-default-route="">
   <div class="wrap">
@@ -95,6 +97,12 @@
           <nav class="site-nav" aria-label="NetCoin ecosystem"><a href="https://wallet.netcoin.online" data-modes="all">Wallet</a><a href="https://pay.netcoin.online" data-modes="simple merchant">Pay</a><a href="https://explorer.netcoin.online" data-modes="simple developer node labs" class="active" aria-current="page">Explorer</a><a href="https://merchant.netcoin.online" data-modes="merchant">Merchant</a><a href="https://community.netcoin.online" data-modes="simple community">Community</a><a href="https://learn.netcoin.online" data-modes="all">Learn</a><details class="site-more"><summary>More</summary><div class="site-more-panel"><a href="https://nodes.netcoin.online" data-modes="node developer">Network<small>nodes, seeds, status, mining</small></a><a href="https://api.netcoin.online" data-modes="developer merchant node labs">Developers<small>API, SDKs, webhooks, examples</small></a><a href="https://governance.netcoin.online" data-modes="community node developer labs">Governance<small>NIPs, votes, treasury, roadmap</small></a><a href="https://security.netcoin.online" data-modes="all">Security<small>trust center and release safety</small></a><a href="https://markets.netcoin.online" data-modes="labs">Labs<small>experimental market demos</small></a><a href="https://faucet.netcoin.online" data-modes="simple">Faucet<small>request testnet coins</small></a><a href="https://learn.netcoin.online#download" data-modes="developer node simple">Download<small>install from Learn</small></a><a href="https://api.netcoin.online" data-modes="developer merchant">API host<small>machine API endpoint</small></a></div></details></nav>
     </header>
     <div class="search"><input id="q" type="search" placeholder="Search height, block hash, txid, or address - Enter" autocomplete="off" /></div>
+    <section class="explorer-pro-grid" id="explorerProGrid">
+      <a class="pro-card" href="#/mempool"><b>Mempool</b><span>Pending txs, fee pressure, relay state</span></a>
+      <a class="pro-card" href="#/latest"><b>Latest blocks</b><span>Recent blocks and rewards</span></a>
+      <a class="pro-card" href="#/address"><b>Address lookup</b><span>Balances, UTXOs, labels, history</span></a>
+      <a class="pro-card" href="https://operator.netcoin.online"><b>Operator health</b><span>Sync, alerts, release trust</span></a>
+    </section>
     <div id="view"></div>
     <p class="muted" id="footer"></p>
   </div>

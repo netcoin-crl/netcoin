@@ -1,0 +1,8 @@
+'use strict';
+(() => {
+  const $=(s)=>document.querySelector(s); const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  async function api(path, body){const r=await fetch('/api'+path, body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined); const t=await r.text(); let d; try{d=JSON.parse(t)}catch{d={text:t}}; if(!r.ok) throw new Error(d.error||'HTTP '+r.status); return d;}
+  async function sha256File(file){const buf=await file.arrayBuffer(); const hash=await crypto.subtle.digest('SHA-256',buf); return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+  $('#checkHash')?.addEventListener('click',async()=>{const a=$('#expected').value.trim().toLowerCase(); let b=$('#actual').value.trim().toLowerCase(); const file=$('#artifactFile')?.files?.[0]; if(file) b=await sha256File(file); $('#actual').value=b; const result=await api('/release/verify',{expected_sha256:a,sha256:b}).catch(()=>({checksum:{match:a&&b&&a===b}})); $('#hashOut').innerHTML = result.checksum?.match ? '<b class="ok">verified checksum match</b>' : '<b class="warn">not matching or waiting for both hashes</b><pre class="mono">'+esc(JSON.stringify(result.commands||{},null,2))+'</pre>';});
+  fetch('/api/health-center').then(r=>r.json()).then(d=>{$('#trust').innerHTML='Release trust: <b>'+esc(d.release?.status||'unknown')+'</b> · '+esc(d.release?.score||0)+'/'+esc(d.release?.max_score||0)+' checks · fingerprint <span class="mono">'+esc(String(d.fingerprint||'').slice(0,16))+'</span>';}).catch(e=>{$('#trust').textContent='Health center unavailable: '+e.message;});
+})();

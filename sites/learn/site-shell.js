@@ -5,32 +5,32 @@
   const modes = {
     standard: {
       label: 'Standard',
-      detail: 'Wallet, Pay, Faucet, Explorer, Learn, and Community first.',
+      detail: 'Wallet, pay, explorer, faucet, community.',
       groups: ['Basics', 'Commerce', 'Build', 'Operate', 'Trust', 'Labs']
     },
     merchant: {
       label: 'Merchant',
-      detail: 'Invoices, checkout, API keys, reports, and payment operations first.',
+      detail: 'Checkout, invoices, reports, webhooks.',
       groups: ['Commerce', 'Basics', 'Build', 'Operate', 'Trust', 'Labs']
     },
     developer: {
       label: 'Developer',
-      detail: 'API docs, SDKs, examples, tokens, and integration references first.',
+      detail: 'API, SDKs, examples, tokens.',
       groups: ['Build', 'Operate', 'Basics', 'Commerce', 'Trust', 'Labs']
     },
     operator: {
       label: 'Operator',
-      detail: 'Nodes, network health, status, mining, and release checks first.',
+      detail: 'Nodes, mining, status, releases.',
       groups: ['Operate', 'Trust', 'Build', 'Basics', 'Commerce', 'Labs']
     },
     governance: {
       label: 'Governance',
-      detail: 'Security, proposals, treasury, public status, and accountability first.',
+      detail: 'Security, governance, treasury.',
       groups: ['Trust', 'Operate', 'Basics', 'Build', 'Commerce', 'Labs']
     },
     labs: {
       label: 'Labs',
-      detail: 'Experimental markets and advanced demos first, with safety context.',
+      detail: 'Markets Labs and advanced demos.',
       groups: ['Labs', 'Trust', 'Build', 'Operate', 'Basics', 'Commerce']
     }
   };
@@ -41,19 +41,86 @@
     { href: 'https://pay.netcoin.online', host: 'pay.netcoin.online', label: 'Pay', detail: 'payment links and receipts', group: 'Basics', primary: true },
     { href: 'https://explorer.netcoin.online', host: 'explorer.netcoin.online', label: 'Explorer', detail: 'blocks, txs, addresses', group: 'Basics', primary: true },
     { href: 'https://learn.netcoin.online', host: 'learn.netcoin.online', label: 'Learn', detail: 'setup and downloads', group: 'Basics', primary: true },
+    { href: 'https://features.netcoin.online', host: 'features.netcoin.online', label: 'Features', detail: 'all tools and ratings', group: 'Basics', primary: true },
+    { href: 'https://architecture.netcoin.online', host: 'architecture.netcoin.online', label: 'Architecture', detail: 'final system stack', group: 'Build', primary: true },
     { href: 'https://faucet.netcoin.online', host: 'faucet.netcoin.online', label: 'Faucet', detail: 'testnet funds', group: 'Basics' },
     { href: 'https://community.netcoin.online', host: 'community.netcoin.online', label: 'Community', detail: 'questions and coordination', group: 'Basics' },
     { href: 'https://learn.netcoin.online#download', host: 'download.netcoin.online', label: 'Download', detail: 'install commands', group: 'Basics' },
     { href: 'https://merchant.netcoin.online', host: 'merchant.netcoin.online', label: 'Merchant', detail: 'checkout and reports', group: 'Commerce' },
+    { href: 'https://exchange.netcoin.online', host: 'exchange.netcoin.online', label: 'Exchange', detail: 'custody and reserves', group: 'Commerce' },
     { href: 'https://api.netcoin.online', host: 'api.netcoin.online', label: 'Developers', detail: 'API, SDKs, examples', group: 'Build' },
     { href: 'https://docs.netcoin.online', host: 'docs.netcoin.online', label: 'Docs', detail: 'reference map', group: 'Build' },
     { href: 'https://nodes.netcoin.online', host: 'nodes.netcoin.online', label: 'Nodes', detail: 'seeds and mining', group: 'Operate' },
+    { href: 'https://operator.netcoin.online', host: 'operator.netcoin.online', label: 'Operator', detail: 'health center and runbooks', group: 'Operate' },
     { href: 'https://nodes.netcoin.online#network', host: 'nodes.netcoin.online', label: 'Network', detail: 'operator dashboard', group: 'Operate' },
     { href: 'https://status.netcoin.online', host: 'status.netcoin.online', label: 'Status', detail: 'service health', group: 'Operate' },
     { href: 'https://security.netcoin.online', host: 'security.netcoin.online', label: 'Security', detail: 'trust center', group: 'Trust' },
     { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and voting', group: 'Trust' },
     { href: 'https://treasury.netcoin.online', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'budgets and grants', group: 'Trust' },
     { href: 'https://markets.netcoin.online', host: 'markets.netcoin.online', label: 'Markets Labs', detail: 'experimental demos', group: 'Labs' }
+  ];
+
+
+
+  const featureGroups = [
+    {
+      title: 'Use',
+      items: [
+        ['Wallet', 'https://wallet.netcoin.online'],
+        ['Send', 'https://wallet.netcoin.online#wallet-send'],
+        ['Receive', 'https://wallet.netcoin.online#wallet-receive'],
+        ['Recovery', 'https://wallet.netcoin.online#recovery'],
+        ['Pay', 'https://pay.netcoin.online'],
+        ['Exchange', 'https://exchange.netcoin.online'],
+        ['Faucet', 'https://faucet.netcoin.online'],
+        ['Faucet admin', 'https://faucet.netcoin.online/admin.html'],
+        ['All features', 'https://features.netcoin.online'],
+        ['Architecture', 'https://architecture.netcoin.online']
+      ]
+    },
+    {
+      title: 'Explore',
+      items: [
+        ['Explorer', 'https://explorer.netcoin.online'],
+        ['Address', 'https://explorer.netcoin.online/address.html'],
+        ['Mempool', 'https://explorer.netcoin.online/mempool.html'],
+        ['Network', 'https://nodes.netcoin.online#network'],
+        ['Operator', 'https://operator.netcoin.online'],
+        ['Status', 'https://status.netcoin.online']
+      ]
+    },
+    {
+      title: 'Build',
+      items: [
+        ['Architecture', 'https://architecture.netcoin.online'],
+        ['API', 'https://api.netcoin.online'],
+        ['Docs', 'https://docs.netcoin.online'],
+        ['SDKs', 'https://developers.netcoin.online'],
+        ['Download', 'https://learn.netcoin.online#download'],
+        ['Security', 'https://security.netcoin.online'],
+        ['Verify release', 'https://download.netcoin.online/verify.html']
+      ]
+    },
+    {
+      title: 'Community',
+      items: [
+        ['Posts', 'https://community.netcoin.online#posts'],
+        ['Ideas', 'https://community.netcoin.online#ideas'],
+        ['Bounties', 'https://community.netcoin.online#bounties'],
+        ['Leaderboard', 'https://community.netcoin.online#leaderboards'],
+        ['Governance', 'https://governance.netcoin.online'],
+        ['Treasury', 'https://treasury.netcoin.online']
+      ]
+    },
+    {
+      title: 'Labs',
+      items: [
+        ['Markets', 'https://markets.netcoin.online'],
+        ['Trade', 'https://markets.netcoin.online/trade.html'],
+        ['Disputes', 'https://markets.netcoin.online/disputes.html'],
+        ['Settlement', 'https://markets.netcoin.online/settlement.html']
+      ]
+    }
   ];
 
   const q = (s, r = document) => r.querySelector(s);
@@ -105,7 +172,7 @@
     return sortedLinks().map((link) => {
       const active = isCurrent(link) ? ' class="active" aria-current="page"' : '';
       return '<a href="' + link.href + '" data-group="' + link.group + '"' + active + '>' +
-        '<span>' + link.label + '</span><small>' + link.group + ' / ' + link.detail + '</small></a>';
+        '<span>' + link.label + '</span><small>' + link.detail + '</small></a>';
     }).join('');
   }
 
@@ -119,7 +186,7 @@
       '<label for="netcoinSiteMode">Site profile</label>' +
       '<select id="netcoinSiteMode" aria-label="Site profile">' + options + '</select>' +
       '<p data-site-mode-help>' + modes[activeMode].detail + '</p>' +
-      '<p class="site-settings-note">You can also open any page with <code>?mode=' + activeMode + '</code>. Profile changes reorder the Directory only; they do not hide tools.</p>' +
+      '<p class="site-settings-note">Reorders the directory. Nothing is hidden.</p>' +
       '</div></details>';
   }
 
@@ -146,15 +213,28 @@
     if (!nav || q('.site-tools')) return;
     const tools = document.createElement('div');
     tools.className = 'site-tools';
-    tools.innerHTML = '<div class="site-context" aria-live="polite"><span>Profile</span><strong data-site-mode-label>' +
+    tools.innerHTML = '<div class="site-context" aria-live="polite"><span>View</span><strong data-site-mode-label>' +
       modes[activeMode].label + '</strong><small data-site-mode-copy>' + modes[activeMode].detail + '</small></div>' +
-      '<form class="site-search" role="search"><input type="search" aria-label="Search NetCoin" placeholder="Search address, tx, docs, invoice, node..."><button type="submit">Search</button></form>';
+      '<form class="site-search" role="search"><input type="search" aria-label="Search NetCoin" placeholder="Search tx, address, docs, market..."><button type="submit">Go</button></form>';
     nav.insertAdjacentElement('afterend', tools);
     q('.site-search', tools)?.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const term = q('input', ev.currentTarget).value.trim();
       if (term) routeSearch(term);
     });
+  }
+
+  function buildFeatureDock() {
+    const tools = q('.site-tools');
+    if (!tools || q('.feature-dock')) return;
+    const dock = document.createElement('section');
+    dock.className = 'feature-dock';
+    dock.setAttribute('aria-label', 'NetCoin feature launcher');
+    dock.innerHTML = featureGroups.map((group) => {
+      const items = group.items.map((item) => '<a href="' + item[1] + '">' + item[0] + '</a>').join('');
+      return '<div class="feature-group"><b>' + group.title + '</b><div>' + items + '</div></div>';
+    }).join('');
+    tools.insertAdjacentElement('afterend', dock);
   }
 
   function syncModeUi() {
@@ -190,12 +270,15 @@
     const l = s.toLowerCase();
     let url = 'https://explorer.netcoin.online/?q=' + encodeURIComponent(s);
     const routes = [
+      [/feature|rating|score|catalog|all tools|directory/, 'https://features.netcoin.online'],
       [/wallet|private key|seed phrase|backup|send|receive|contact/, 'https://wallet.netcoin.online'],
       [/start|basic|beginner|home|community basic|pay basic/, 'https://netcoin.online'],
       [/invoice|checkout|pay|payment|receipt/, 'https://pay.netcoin.online'],
       [/merchant|pos|webhook|api key|refund|report/, 'https://merchant.netcoin.online'],
+      [/exchange|custody|reserve|withdrawal|deposit|hot wallet|cold wallet/, 'https://exchange.netcoin.online'],
       [/faucet|test coin/, 'https://faucet.netcoin.online'],
       [/community|discuss|idea|bounty|roadmap/, 'https://community.netcoin.online'],
+      [/operator|runbook|incident|health center|ops/, 'https://operator.netcoin.online'],
       [/node|seed|peer|mining|status|network/, 'https://nodes.netcoin.online'],
       [/download|install|windows|mac|linux|learn|guide|how/, 'https://learn.netcoin.online#download'],
       [/api|developer|sdk|webhook|endpoint/, 'https://api.netcoin.online'],
@@ -216,7 +299,7 @@
     const section = document.createElement('section');
     section.className = 'github-quickstart card';
     section.dataset.githubQuickstart = '';
-    section.innerHTML = '<details><summary>Run NetCoin locally</summary>' +
+    section.innerHTML = '<details><summary>Local setup</summary>' +
       '<div class="github-quickstart-grid">' +
       '<div><h2>Install</h2><pre>git clone https://github.com/netcoin-crl/netcoin.git\ncd netcoin\npython3 -m venv .venv\nsource .venv/bin/activate\npython -m pip install -e .</pre></div>' +
       '<div><h2>Wallet and mining</h2><pre>python -m netcoin wallet-new --out my-wallet.json --mnemonic\npython -m netcoin miner --node https://api.netcoin.online/api --wallet my-wallet.json --blocks 0 --sync-after\npython tools/check_public_network.py</pre></div>' +
@@ -236,6 +319,7 @@
   window.NetCoinSite = { links, modes, routeSearch };
   normalizeNav();
   buildTools();
+  buildFeatureDock();
   syncModeUi();
   wireSettings();
   buildGithubQuickstart();

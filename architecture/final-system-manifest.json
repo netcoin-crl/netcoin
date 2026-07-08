@@ -1,0 +1,145 @@
+{
+  "version": "0.22.0",
+  "codename": "Parity Bridge",
+  "principle": "Rust for money-critical core, TypeScript for app/product surfaces, Python for ops and reference tooling.",
+  "current_status": "Python reference app remains live; executable parity vectors now validate consensus, wallet, markets, and API bridge behavior before any Rust/TypeScript promotion.",
+  "final_version_target": "v1.0 production-candidate after external audits, hostile testnet evidence, and parity tests",
+  "layers": [
+    {
+      "id": "core-rs",
+      "language": "Rust",
+      "owns": [
+        "consensus",
+        "transaction validation",
+        "block validation",
+        "mempool policy",
+        "wallet-core",
+        "market matching invariants"
+      ],
+      "status": "upgrade space added",
+      "migration_rule": "All behavior must be proven against Python reference vectors before replacing live paths."
+    },
+    {
+      "id": "node-rs",
+      "language": "Rust",
+      "owns": [
+        "P2P",
+        "sync scheduler",
+        "peer scoring",
+        "RPC bridge",
+        "metrics exporter"
+      ],
+      "status": "upgrade space added",
+      "migration_rule": "Must pass hostile multi-node sync tests before becoming default."
+    },
+    {
+      "id": "indexer-rs",
+      "language": "Rust",
+      "owns": [
+        "block ingestion",
+        "address index",
+        "mempool index",
+        "market event index",
+        "reorg rollback"
+      ],
+      "status": "upgrade space added",
+      "migration_rule": "Must produce byte-identical index snapshots to the Python indexer fixtures."
+    },
+    {
+      "id": "api",
+      "language": "TypeScript",
+      "owns": [
+        "public API",
+        "app API",
+        "auth/RBAC",
+        "community",
+        "faucet",
+        "markets API",
+        "exchange dashboard API"
+      ],
+      "status": "upgrade space added",
+      "migration_rule": "OpenAPI and SDK contract tests must pass before route migration."
+    },
+    {
+      "id": "web",
+      "language": "TypeScript/Next.js-ready",
+      "owns": [
+        "wallet",
+        "explorer",
+        "markets",
+        "community",
+        "faucet",
+        "operator",
+        "exchange",
+        "download verification"
+      ],
+      "status": "upgrade space added",
+      "migration_rule": "Static sites stay supported until Next.js pages pass browser E2E coverage."
+    },
+    {
+      "id": "desktop",
+      "language": "Rust + TypeScript/Tauri-ready",
+      "owns": [
+        "desktop wallet",
+        "offline signing",
+        "hardware signer UI",
+        "local vault"
+      ],
+      "status": "upgrade space added",
+      "migration_rule": "Must use wallet-core and never duplicate signing rules."
+    },
+    {
+      "id": "mobile",
+      "language": "TypeScript React Native placeholder; Swift/Kotlin final option",
+      "owns": [
+        "mobile wallet",
+        "QR signing",
+        "push alerts",
+        "recovery UX"
+      ],
+      "status": "upgrade space added",
+      "migration_rule": "Must share wallet-core test vectors and signed-envelope SDK logic."
+    },
+    {
+      "id": "ops/python",
+      "language": "Python",
+      "owns": [
+        "reference implementation",
+        "test vectors",
+        "release tooling",
+        "QA reports",
+        "simulations",
+        "data analysis"
+      ],
+      "status": "active",
+      "migration_rule": "Python remains the reference and operations layer after Rust/TypeScript migration."
+    }
+  ],
+  "upgrade_lanes": [
+    "core parity vectors",
+    "migration parity foundation",
+    "executable parity bridge",
+    "Rust consensus MVP",
+    "Rust P2P hostile soak",
+    "Rust indexer parity",
+    "TypeScript API contract migration",
+    "Next.js web migration",
+    "Tauri desktop wallet",
+    "mobile wallet",
+    "external audit readiness",
+    "v1.0 production candidate"
+  ],
+  "final_version_gates": [
+    "full Python reference test suite green",
+    "Rust core matches frozen consensus vectors",
+    "executable parity suite green",
+    "P2P hostile network soak passes",
+    "browser E2E passes for wallet/explorer/markets/community/faucet/operator/exchange",
+    "OpenAPI schema parity passes",
+    "release provenance and signatures verified",
+    "hardware/offline signing verified",
+    "external crypto/security audit completed",
+    "public testnet incident/runbook history exists",
+    "mainnet launch checklist approved"
+  ]
+}

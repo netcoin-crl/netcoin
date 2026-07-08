@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Operator</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'" />
+  <link rel="stylesheet" href="site-shell.css?v=20260708-v016" />
+  <link rel="stylesheet" href="operator.css?v=20260708-v016" />
+</head>
+<body data-site="operator">
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="logo">N</div><div>Operator<small>node, sync, alerts, releases</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
+    </header>
+    <main>
+      <section class="hero-card">
+        <div><p class="eyebrow">Health center</p><h1>Operate NetCoin without digging through JSON.</h1><p>Live checks for sites, API coverage, release trust, node metrics, and alerts.</p></div>
+        <button id="refresh" type="button">Refresh</button>
+      </section>
+      <section class="ops-grid" id="summaryCards" aria-live="polite"></section>
+      <section class="split">
+        <article class="panel"><h2>Active alerts</h2><div id="alerts"></div></article>
+        <article class="panel"><h2>Node metrics</h2><div id="metrics"></div></article>
+      </section>
+      <section class="split">
+        <article class="panel"><h2>Public sites</h2><div id="sites"></div></article>
+        <article class="panel"><h2>Release trust</h2><div id="release"></div></article>
+      </section>
+      <section class="panel"><h2>Live feature wiring</h2><div id="liveFeatures" class="mini-list"></div></section><section class="panel"><h2>Runbook shortcuts</h2><div class="shortcut-grid">
+        <a href="https://status.netcoin.online">Status page</a><a href="https://nodes.netcoin.online">Node map</a><a href="https://security.netcoin.online">Security</a><a href="https://features.netcoin.online">Feature catalog</a><a href="https://api.netcoin.online">API docs</a><a href="https://download.netcoin.online">Downloads</a>
+      </div></section>
+      <p class="footer">Read-only operator dashboard. Public-testnet software, not audited production infrastructure.</p>
+    </main>
+  </div>
+  <script src="site-shell.js?v=20260708-v016"></script>
+  <script src="operator.js?v=20260708-v016"></script>
+</body>
+</html>

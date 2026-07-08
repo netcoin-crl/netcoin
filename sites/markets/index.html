@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="ui-polish.css?v=20260630-wide-desktop" />
   <link rel="stylesheet" href="site-shell.css?v=20260706-shared-shell" />
   <link rel="stylesheet" href="markets.css?v=20260708-polymarket" />
+
+<style id="markets-v016-polish">.market-pro-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0 18px}.market-pro-strip a{border:1px solid var(--line);border-radius:12px;padding:12px;background:rgba(255,255,255,.04);color:inherit;text-decoration:none}.market-pro-strip a:hover{border-color:var(--accent);text-decoration:none}.market-pro-strip b{display:block}.market-pro-strip span{color:var(--mut);font-size:13px}</style>
 </head>
 <body>
   <div class="shell">
@@ -18,6 +20,12 @@
 
     <main class="mkt-wrap">
       <div class="mkt-banner"><span class="dot"></span> Play-money testnet · NET has no real value · <span id="apiStatus">connecting…</span></div>
+      <section class="market-pro-strip" id="marketProStrip">
+        <a href="#orderbook"><b>Orderbook</b><span>CLOB levels</span></a>
+        <a href="#portfolio"><b>Portfolio</b><span>Positions and PnL</span></a>
+        <a href="#disputes"><b>Disputes</b><span>Evidence and oracle review</span></a>
+        <a href="https://exchange.netcoin.online"><b>Settlement</b><span>Reconciliation and reserves</span></a>
+      </section>
 
       <!-- GRID VIEW -->
       <section id="gridView">

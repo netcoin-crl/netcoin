@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NetCoin exchange address validation response",
+  "type": "object",
+  "required": [
+    "ok",
+    "address",
+    "network",
+    "valid",
+    "warnings"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "address": {
+      "type": "string"
+    },
+    "network": {
+      "type": "string"
+    },
+    "valid": {
+      "type": "boolean"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

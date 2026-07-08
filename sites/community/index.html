@@ -5,99 +5,134 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Community</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="community.css?v=20260630-ui-polish" />
-  <link rel="stylesheet" href="ui-polish.css?v=20260630-wide-desktop" />
-    <link rel="stylesheet" href="site-shell.css?v=20260630-reward-schedule" />
+  <link rel="stylesheet" href="site-shell.css?v=20260708-sleek" />
+  <link rel="stylesheet" href="community.css?v=20260708-reddit" />
 </head>
 <body>
-  <div class="shell">
+  <div class="shell community-shell">
     <header class="topbar">
-      <div class="brand"><div class="logo">N</div><div>NetCoin Community<small>discussion, improvements, bounties, and rewards</small></div></div>
-      <nav class="site-nav" aria-label="NetCoin ecosystem"><a href="https://wallet.netcoin.online" data-modes="all">Wallet</a><a href="https://pay.netcoin.online" data-modes="simple merchant">Pay</a><a href="https://explorer.netcoin.online" data-modes="simple developer node labs">Explorer</a><a href="https://merchant.netcoin.online" data-modes="merchant">Merchant</a><a href="https://community.netcoin.online" data-modes="simple community" class="active" aria-current="page">Community</a><a href="https://learn.netcoin.online" data-modes="all">Learn</a><details class="site-more"><summary>More</summary><div class="site-more-panel"><a href="https://nodes.netcoin.online" data-modes="node developer">Network<small>nodes, seeds, status, mining</small></a><a href="https://api.netcoin.online" data-modes="developer merchant node labs">Developers<small>API, SDKs, webhooks, examples</small></a><a href="https://governance.netcoin.online" data-modes="community node developer labs">Governance<small>NIPs, votes, treasury, roadmap</small></a><a href="https://security.netcoin.online" data-modes="all">Security<small>trust center and release safety</small></a><a href="https://markets.netcoin.online" data-modes="labs">Labs<small>experimental market demos</small></a><a href="https://faucet.netcoin.online" data-modes="simple">Faucet<small>request testnet coins</small></a><a href="https://learn.netcoin.online#download" data-modes="developer node simple">Download<small>install from Learn</small></a><a href="https://api.netcoin.online" data-modes="developer merchant">API host<small>machine API endpoint</small></a></div></details></nav>
+      <div class="brand"><div class="logo">N</div><div>NetCoin Community<small>posts, ideas, bounties, leaderboards</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
     </header>
 
-    <section class="hero dashboard-hero">
-      <div class="card lead">
-        <span class="pill"><span id="communityDot" class="dot"></span><span id="communityStatus">Checking community API</span></span>
-        <h1>Community Posts</h1>
-        <p>Discussion, ideas, bounties, rewards, and gifts.</p>
-        <div class="actions"><a class="pill" href="https://netcoin.online#community">Start basics</a><a class="pill" href="#talk">Talk</a><a class="pill" href="#ideas">Improvements</a><a class="pill" href="#bounties">Bounties</a><a class="pill" href="#leaderboards">Leaderboards</a></div>
+    <section class="community-hero card">
+      <div>
+        <span class="status-chip"><span id="communityDot" class="dot"></span><span id="communityStatus">Checking API</span></span>
+        <h1>Community</h1>
+        <p>Ask questions, suggest upgrades, claim bounties, and track contributors.</p>
       </div>
-      <div class="card stats-card">
-        <h2>Community snapshot</h2>
-        <div class="stats">
-          <div class="stat"><div class="k">Posts</div><div class="v" id="postCount">—</div></div>
-          <div class="stat"><div class="k">Ideas</div><div class="v" id="ideaCount">—</div></div>
-          <div class="stat"><div class="k">Open bounties</div><div class="v" id="bountyCount">—</div></div>
+      <div class="community-stats" aria-label="Community stats">
+        <div><b id="postCount">—</b><span>Posts</span></div>
+        <div><b id="ideaCount">—</b><span>Ideas</span></div>
+        <div><b id="bountyCount">—</b><span>Bounties</span></div>
+      </div>
+    </section>
+
+    <nav class="community-tabs" aria-label="Community sections">
+      <button type="button" class="active" data-tab="posts">Posts</button>
+      <button type="button" data-tab="comments">Comments</button>
+      <button type="button" data-tab="ideas">Ideas</button>
+      <button type="button" data-tab="bounties">Bounties</button>
+      <button type="button" data-tab="leaderboards">Leaderboard</button>
+      <button type="button" data-tab="tools">Tools</button>
+      <button type="button" data-tab="mod">Mod queue</button>
+    </nav>
+
+    <main class="community-layout">
+      <section class="community-main">
+        <section class="tab-panel active" id="tab-posts">
+          <div class="compose-card card">
+            <div class="compose-top"><h2>Create post</h2><div class="sort-pills" role="group" aria-label="Sort posts"><button id="sortHot" class="secondary small active" type="button" data-sort="hot">Hot</button><button id="sortNew" class="secondary small" type="button" data-sort="new">New</button><button id="sortTop" class="secondary small" type="button" data-sort="top">Top</button><button id="refreshPosts" class="secondary small" type="button">Refresh</button></div></div>
+            <div class="compose-grid"><input id="postName" placeholder="Name" maxlength="80" /><select id="postCategory"><option>general</option><option>help</option><option>mining</option><option>wallet</option><option>merchant</option><option>ideas</option></select></div>
+            <textarea id="postMessage" placeholder="Share an update or question. Never post keys or seed phrases." maxlength="1200"></textarea>
+            <button id="postMessageBtn" type="button">Post</button><p id="postResult" class="toast"></p>
+          </div>
+          <div id="postFeed" class="reddit-feed"></div>
+        </section>
+
+        <section class="tab-panel" id="tab-comments">
+          <div class="section-card card">
+            <div class="section-head"><h2>Thread comments</h2><button id="refreshComments" class="secondary small" type="button">Refresh</button></div>
+            <input id="commentPostId" placeholder="Post ID" maxlength="160" />
+            <div id="commentList" class="comment-list"><p class="muted">Open comments from any post.</p></div>
+            <div class="comment-compose">
+              <input id="commentName" placeholder="Name" maxlength="80" />
+              <textarea id="commentMessage" placeholder="Add a comment. Never post secrets." maxlength="1200"></textarea>
+              <button id="submitComment" type="button">Comment</button>
+              <p id="commentResult" class="toast"></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-ideas">
+          <div class="compose-card card">
+            <div class="compose-top"><h2>Suggest upgrade</h2><button id="refreshIdeas" class="secondary small" type="button">Refresh</button></div>
+            <input id="ideaTitle" placeholder="Title" maxlength="140" />
+            <textarea id="ideaDetails" placeholder="What should improve?" maxlength="2000"></textarea>
+            <div class="compose-grid"><select id="ideaCategory"><option>wallet</option><option>explorer</option><option>merchant</option><option>faucet</option><option>docs</option><option>node</option><option>community</option></select><input id="ideaAuthor" placeholder="Name" maxlength="80" /></div>
+            <button id="submitIdea" type="button">Submit idea</button><p id="ideaResult" class="toast"></p>
+          </div>
+          <div id="ideaFeed" class="reddit-feed"></div>
+        </section>
+
+        <section class="tab-panel" id="tab-bounties">
+          <div class="section-card card"><div class="section-head"><h2>Open bounties</h2><button id="refreshBounties" class="secondary small" type="button">Refresh</button></div><div id="bountyFeed" class="bounty-grid"></div></div>
+        </section>
+
+        <section class="tab-panel" id="tab-leaderboards">
+          <div class="section-card card"><div class="section-head"><h2>Leaderboards</h2><button id="refreshLeaderboards" class="secondary small" type="button">Refresh</button></div><div id="leaderboardsOut" class="leaderboard-grid"></div></div>
+        </section>
+
+        <section class="tab-panel" id="tab-mod">
+          <div class="section-card card">
+            <div class="section-head"><h2>Moderation queue</h2><button id="refreshMod" class="secondary small" type="button">Refresh</button></div>
+            <div id="modQueue" class="mod-queue"><p class="muted">Reports appear here.</p></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-tools">
+          <div class="tools-grid">
+            <div class="card">
+              <h2>Report content</h2>
+              <input id="reportPostId" placeholder="Post ID or note" maxlength="160" />
+              <textarea id="reportReason" placeholder="Reason" maxlength="800"></textarea>
+              <button id="submitReport" class="secondary" type="button">Submit report</button><p id="reportResult" class="toast"></p>
+            </div>
+            <div class="card">
+              <h2>Community tools</h2>
+              <a class="tool-link" href="https://explorer.netcoin.online#/community">Gift links</a>
+              <a class="tool-link" href="https://explorer.netcoin.online#/community">Airdrops</a>
+              <a class="tool-link" href="https://explorer.netcoin.online#/community">Tip buttons</a>
+              <a class="tool-link" href="https://governance.netcoin.online">Governance</a>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="community-sidebar">
+        <div class="card sidebar-card">
+          <h2>Quick links</h2>
+          <a href="#posts" data-open-tab="posts">Posts</a>
+          <a href="#ideas" data-open-tab="ideas">Ideas</a>
+          <a href="#bounties" data-open-tab="bounties">Bounties</a>
+          <a href="#leaderboards" data-open-tab="leaderboards">Leaderboards</a>
+          <a href="#mod" data-open-tab="mod">Mod queue</a>
+          <a href="https://markets.netcoin.online">Markets Labs</a>
         </div>
-      </div>
-    </section>
+        <div class="card sidebar-card compact-safety">
+          <h2>Safety</h2>
+          <p>No private keys. No seed phrases. Testnet NET has no real-money value.</p>
+        </div>
+        <div class="card sidebar-card">
+          <h2>Top miners</h2>
+          <div id="sidebarLeaders" class="mini-leaders"><p class="muted">Loading…</p></div>
+        </div>
+      </aside>
+    </main>
 
-    <section class="split" id="talk">
-      <div class="card">
-        <h2>Community talk</h2>
-        <p class="muted">Post a public message, support request, mining note, or merchant question. Do not share private keys, seed phrases, passwords, or personal information.</p>
-        <div class="row"><div><label>Name</label><input id="postName" placeholder="Anonymous" maxlength="80" /></div><div><label>Category</label><select id="postCategory"><option>general</option><option>help</option><option>mining</option><option>wallet</option><option>merchant</option><option>ideas</option></select></div></div>
-        <label>Message</label><textarea id="postMessage" placeholder="What should the community know?" maxlength="1200"></textarea>
-        <button id="postMessageBtn">Post message</button>
-        <pre id="postResult"></pre>
-      </div>
-      <div class="card feed-card">
-        <div class="section-head"><h2>Latest messages</h2><button id="refreshPosts" class="secondary small">Refresh</button></div>
-        <div id="postFeed" class="feed"></div>
-      </div>
-    </section>
-
-    <section class="split" id="ideas">
-      <div class="card">
-        <h2>Improvement board</h2>
-        <p class="muted">Suggest improvements for the wallet, explorer, merchant tools, faucet, docs, markets, or node software.</p>
-        <label>Title</label><input id="ideaTitle" placeholder="Example: improve wallet backup flow" maxlength="140" />
-        <label>Details</label><textarea id="ideaDetails" placeholder="Describe the problem and suggested fix." maxlength="2000"></textarea>
-        <div class="row"><div><label>Category</label><select id="ideaCategory"><option>wallet</option><option>explorer</option><option>merchant</option><option>faucet</option><option>docs</option><option>node</option><option>community</option></select></div><div><label>Your name</label><input id="ideaAuthor" placeholder="optional" maxlength="80" /></div></div>
-        <button id="submitIdea">Submit idea</button>
-        <pre id="ideaResult"></pre>
-      </div>
-      <div class="card feed-card">
-        <div class="section-head"><h2>Top improvements</h2><button id="refreshIdeas" class="secondary small">Refresh</button></div>
-        <div id="ideaFeed" class="feed"></div>
-      </div>
-    </section>
-
-    <section class="grid dashboard-grid" id="bounties">
-      <div class="card">
-        <h2>Open bounties</h2>
-        <p class="muted">Bounties help coordinate public testnet work. Payouts require operator review and manual signing.</p>
-        <div id="bountyFeed" class="feed compact"></div>
-      </div>
-      <div class="card" id="leaderboards">
-        <h2>Leaderboards</h2>
-        <p class="muted">Participation stats based on public chain and community events.</p>
-        <pre id="leaderboardsOut"></pre>
-      </div>
-      
-      <div class="card" id="moderation">
-        <h2>Report a post</h2>
-        <p class="muted">Use this to flag spam, secrets, abusive content, or suspicious links. Reports go into a moderation queue.</p>
-        <label>Post ID or note</label><input id="reportPostId" placeholder="post_... or description" maxlength="160" />
-        <label>Reason</label><textarea id="reportReason" placeholder="Why should moderators review it?" maxlength="800"></textarea>
-        <button id="submitReport" class="secondary">Submit report</button>
-        <pre id="reportResult"></pre>
-      </div>
-      <div class="card">
-        <h2>Community safety</h2>
-        <ul class="checklist">
-          <li>Never post private keys or seed phrases.</li>
-          <li>Testnet NET has no real-money value.</li>
-          <li>Use Docs for setup, Wallet for funds, Explorer for verification.</li>
-          <li>Markets are isolated testnet demos.</li>
-        </ul>
-      </div>
-    </section>
-
-    <p class="footer">NetCoin Community is standalone. Explorer stays focused on blocks, transactions, and network health.</p>
+    <p class="footer">NetCoin Community is public testnet coordination.</p>
   </div>
-  <script src="community.js?v=20260630-ui-polish"></script>
-<script src="site-shell.js?v=20260630-reward-schedule"></script>
+  <script src="community.js?v=20260708-reddit"></script>
+  <script src="site-shell.js?v=20260708-sleek"></script>
 </body>
 </html>

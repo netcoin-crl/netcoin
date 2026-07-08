@@ -156,7 +156,18 @@ body{letter-spacing:-.01em}
       .wallet-section.active-section { max-width: 980px; }
     }
 
-  </style>
+  
+    /* v0.17 unified wallet workspace: Overview/Send/Receive/Activity/Contacts are one sleek scrollable workspace. */
+    .wallet-workspace-nav{position:sticky;top:0;z-index:3;display:flex;gap:8px;overflow:auto;margin:0 0 14px;padding:8px;border:1px solid var(--bd);border-radius:14px;background:rgba(12,17,25,.94);backdrop-filter:blur(12px)}
+    .wallet-workspace-nav a{flex:0 0 auto;text-decoration:none;color:var(--fg);border:1px solid var(--bd);border-radius:999px;padding:8px 11px;font-weight:750;font-size:12px;background:rgba(255,255,255,.025)}
+    .wallet-workspace-nav a:hover{border-color:var(--acc);color:var(--acc)}
+    .wallet-section[data-wallet-tab="wallet"].active-section{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(310px,1fr))!important;gap:14px!important;align-items:start!important;max-width:1400px!important}
+    .wallet-section[data-wallet-tab="wallet"].active-section.wallet-overview-card{grid-column:1/-1!important}
+    #wallet-send.active-section{grid-column:span 2!important}
+    #wallet-activity.active-section,#wallet-contacts.active-section{min-height:220px}
+    @media(max-width:860px){.wallet-section[data-wallet-tab="wallet"].active-section,#wallet-send.active-section{display:block!important;grid-column:auto!important}.wallet-workspace-nav{top:0}}
+
+</style>
   <link rel="stylesheet" href="ui-polish.css?v=20260630-wide-desktop" />
     <link rel="stylesheet" href="site-shell.css?v=20260630-reward-schedule" />
 
@@ -184,6 +195,16 @@ body{letter-spacing:-.01em}
       #btnLock { max-width:none; }
     }
   </style>
+
+<style id="wallet-v017-final">
+.wallet-workspace-nav{position:sticky!important;top:0!important;z-index:4!important;display:flex!important;gap:8px!important;overflow-x:auto!important;margin:0 0 14px!important;padding:8px!important;border:1px solid var(--bd)!important;border-radius:14px!important;background:rgba(12,17,25,.95)!important;backdrop-filter:blur(12px)!important}
+.wallet-workspace-nav a{flex:0 0 auto!important;text-decoration:none!important;color:var(--fg)!important;border:1px solid var(--bd)!important;border-radius:999px!important;padding:8px 11px!important;font-weight:750!important;font-size:12px!important;background:rgba(255,255,255,.025)!important}
+.wallet-workspace-nav a:hover{border-color:var(--acc)!important;color:var(--acc)!important}
+.wallet-section[data-wallet-tab="wallet"].active-section{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(315px,1fr))!important;gap:14px!important;align-items:start!important;max-width:1400px!important}
+.wallet-section[data-wallet-tab="wallet"].active-section.wallet-overview-card{grid-column:1/-1!important}
+#wallet-send.active-section{grid-column:span 2!important;max-width:none!important}
+@media(max-width:860px){.wallet-section[data-wallet-tab="wallet"].active-section,#wallet-send.active-section{display:block!important;grid-column:auto!important;max-width:none!important}}
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -388,10 +409,24 @@ body{letter-spacing:-.01em}
             <div class="k">Coin control</div><div class="v" id="reviewUtxos"></div>
           </div>
           <p id="reviewWarning" class="err hide"></p>
+          <div id="riskPanel" class="card soft hide">
+            <h2 style="font-size:14px;margin:0 0 8px">Risk simulator</h2>
+            <div class="kv">
+              <div class="k">Decision</div><div class="v" id="riskDecision">—</div>
+              <div class="k">Balance after</div><div class="v" id="riskBalanceAfter">—</div>
+              <div class="k">Change</div><div class="v" id="riskChange">—</div>
+              <div class="k">Inputs</div><div class="v" id="riskInputs">—</div>
+              <div class="k">Fee rate</div><div class="v" id="riskFeeRate">—</div>
+            </div>
+            <ul id="riskWarnings" class="muted"></ul>
+          </div>
           <div class="row">
             <button id="btnConfirmSend" type="button">Send now</button>
+            <button id="btnSaveDraft" class="secondary" type="button">Save draft</button>
+            <button id="btnExportUnsigned" class="secondary" type="button">Export unsigned</button>
             <button id="btnCancelSend" class="secondary" type="button">Cancel</button>
           </div>
+          <p id="walletWorkflowMsg" class="muted"></p>
         </div>
         <p id="sendMsg"></p>
       </div>
@@ -477,7 +512,7 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260707-cap500" integrity="sha384-f2rfd5w+8CoOw7hqpFx1tEJNdaahCW+OeVInr/33yCnqqJKmAfMfQ1GeU4vSIMuJ" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260708-vault" integrity="sha384-9D/ykpUTvckxexpZAL3ts/9YdS1osoozyfErz1xyVy0u4ue+LKsswGbMtl9YFjoj" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260708-v022" integrity="sha384-zoCP3xb6rTnXtxA4qC15F3xMCrxgSbnSQ7Pn+LUYYG5tKEQKKWICByQ9OgSo9TF4" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260630-reward-schedule"></script>
 </body>
 </html>

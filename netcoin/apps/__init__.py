@@ -41,6 +41,7 @@ from ..params import (
 )
 from ..script import ScriptError, script_to_p2sh_address, timelocked_redeem_script
 from ..tx import amount_to_sats, sats_to_amount
+from ..feature_catalog import feature_catalog
 
 
 class AppError(ValueError):
@@ -144,8 +145,11 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     "admin_events": [],
     "operator_announcements": [],
     "community_posts": [],
+    "community_comments": [],
+    "community_votes": {},
     "community_improvements": {},
     "community_reports": [],
+    "community_mod_actions": [],
 }
 
 
@@ -1983,7 +1987,7 @@ class AppStore:
             if not address:
                 continue
             amount = int(event.get("amount_sats", 0) or 0)
-            if event.get("type") in {"gift_claimed", "bounty_awarded"}:
+            if event.get("type") in {"gift_claimed", "bounty_awarded", "community_reward"}:
                 earners[address] = earners.get(address, 0) + amount
             else:
                 donors[address] = donors.get(address, 0) + amount
@@ -1996,12 +2000,37 @@ class AppStore:
                     miners[out.address] = miners.get(out.address, 0) + int(out.amount)
 
         def top(mapping: dict[str, int], n: int = 20) -> list[dict[str, Any]]:
-            return [
-                {"id": key, "amount_sats": value, "amount": sats_to_amount(value)}
-                for key, value in sorted(mapping.items(), key=lambda kv: kv[1], reverse=True)[:n]
-            ]
+            rows = []
+            for rank, (key, value) in enumerate(
+                sorted(mapping.items(), key=lambda kv: kv[1], reverse=True)[:n], start=1
+            ):
+                rows.append(
+                    {
+                        "rank": rank,
+                        "id": key,
+                        "amount_sats": value,
+                        "amount": sats_to_amount(value),
+                        "short_id": key[:10] + "…" + key[-6:] if len(str(key)) > 18 else key,
+                    }
+                )
+            return rows
 
-        return {"top_miners": top(miners), "top_earners": top(earners), "top_donors": top(donors)}
+        return {
+            "top_miners": top(miners),
+            "top_earners": top(earners),
+            "top_donors": top(donors),
+            "summary": {
+                "miner_count": len(miners),
+                "earner_count": len(earners),
+                "donor_count": len(donors),
+                "mined_sats": sum(miners.values()),
+                "earned_sats": sum(earners.values()),
+                "donated_sats": sum(donors.values()),
+                "mined": sats_to_amount(sum(miners.values())),
+                "earned": sats_to_amount(sum(earners.values())),
+                "donated": sats_to_amount(sum(donors.values())),
+            },
+        }
 
     def create_reward(self, payload: dict[str, Any]) -> dict[str, Any]:
         reward_id = str(payload.get("reward_id") or clean_id("rew"))
@@ -2029,10 +2058,8 @@ class AppStore:
         self.save(data)
         return record
 
-    def list_community_posts(self, limit: int = 50) -> dict[str, Any]:
-        data = self.load()
-        posts = list(data.get("community_posts", []))[-max(1, min(int(limit), 200)) :]
-        return {"posts": posts[::-1], "count": len(data.get("community_posts", []))}
+    def list_community_posts(self, limit: int = 50, sort: str = "hot") -> dict[str, Any]:
+        return self.community_feed(sort=sort, limit=limit)
 
     def create_community_post(self, payload: dict[str, Any]) -> dict[str, Any]:
         name = str(payload.get("name") or "Anonymous")[:80].strip() or "Anonymous"
@@ -2056,6 +2083,147 @@ class AppStore:
         data = self.load()
         data.setdefault("community_posts", []).append(rec)
         data["community_posts"] = data["community_posts"][-500:]
+        self.save(data)
+        return rec
+
+    def vote_community_post(self, post_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = payload or {}
+        direction_raw = str(payload.get("direction") or payload.get("vote") or "up").lower()
+        delta = -1 if direction_raw in {"down", "downvote", "-1", "negative"} else 1
+        voter = str(payload.get("voter") or payload.get("address") or payload.get("session") or "anonymous")[:160]
+        data = self.load()
+        rec = next((p for p in data.get("community_posts", []) if p.get("post_id") == post_id), None)
+        if not rec:
+            raise AppError("community post not found")
+        votes = data.setdefault("community_votes", {})
+        key = f"post:{post_id}:{voter}"
+        previous = int(votes.get(key, 0) or 0)
+        score_delta = 0 if previous == delta else delta - previous
+        if previous != delta:
+            votes[key] = delta
+        rec["score"] = int(rec.get("score", 0) or 0) + score_delta
+        rec["upvotes"] = int(rec.get("upvotes", 0) or 0) + (1 if score_delta > 0 else 0)
+        rec["downvotes"] = int(rec.get("downvotes", 0) or 0) + (1 if score_delta < 0 else 0)
+        rec["updated_at"] = now()
+        self.save(data)
+        return rec
+
+    def list_community_comments(self, post_id: str, limit: int = 100) -> dict[str, Any]:
+        data = self.load()
+        comments = [
+            c
+            for c in data.get("community_comments", [])
+            if c.get("post_id") == post_id and c.get("status", "visible") == "visible"
+        ]
+        comments = comments[-max(1, min(int(limit), 300)) :]
+        return {"post_id": post_id, "comments": comments, "count": len(comments)}
+
+    def create_community_comment(self, post_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        name = str(payload.get("name") or payload.get("author") or "Anonymous")[:80].strip() or "Anonymous"
+        message = str(payload.get("message") or payload.get("body") or "")[:1200].strip()
+        if not message:
+            raise AppError("comment is required")
+        if looks_like_sensitive_secret(message) or looks_like_sensitive_secret(name):
+            raise AppError("comments must not include private keys, seed phrases, passwords, or API secrets")
+        data = self.load()
+        if not any(p.get("post_id") == post_id for p in data.get("community_posts", [])):
+            raise AppError("community post not found")
+        rec = {
+            "comment_id": clean_id("comment"),
+            "post_id": post_id,
+            "name": name,
+            "message": message,
+            "created_at": now(),
+            "status": "visible",
+        }
+        data.setdefault("community_comments", []).append(rec)
+        data["community_comments"] = data["community_comments"][-2000:]
+        for post in data.get("community_posts", []):
+            if post.get("post_id") == post_id:
+                post["comment_count"] = int(post.get("comment_count", 0) or 0) + 1
+                post["updated_at"] = now()
+                break
+        self.save(data)
+        return rec
+
+    def community_feed(self, sort: str = "hot", limit: int = 80) -> dict[str, Any]:
+        data = self.load()
+        posts = [p for p in data.get("community_posts", []) if p.get("status", "visible") == "visible"]
+        counts: dict[str, int] = {}
+        for comment in data.get("community_comments", []):
+            if comment.get("status", "visible") == "visible":
+                pid = str(comment.get("post_id") or "")
+                counts[pid] = counts.get(pid, 0) + 1
+        enriched = []
+        current = now()
+        for post in posts:
+            item = dict(post)
+            pid = str(item.get("post_id") or "")
+            item["comment_count"] = counts.get(pid, int(item.get("comment_count", 0) or 0))
+            age_hours = max(1.0, (current - int(item.get("created_at", current) or current)) / 3600)
+            item["hot_score"] = round(
+                (int(item.get("score", 0) or 0) + item["comment_count"] * 1.5) / (age_hours**0.35), 4
+            )
+            enriched.append(item)
+        sort = (sort or "hot").lower()
+        if sort == "new":
+            enriched.sort(key=lambda x: int(x.get("created_at", 0) or 0), reverse=True)
+        elif sort == "top":
+            enriched.sort(
+                key=lambda x: (int(x.get("score", 0) or 0), int(x.get("comment_count", 0) or 0)), reverse=True
+            )
+        else:
+            enriched.sort(
+                key=lambda x: (float(x.get("hot_score", 0) or 0), int(x.get("created_at", 0) or 0)), reverse=True
+            )
+        limit = max(1, min(int(limit), 200))
+        return {"posts": enriched[:limit], "count": len(enriched), "sort": sort}
+
+    def community_moderation_queue(self, limit: int = 100) -> dict[str, Any]:
+        data = self.load()
+        reports = list(data.get("community_reports", []))[-max(1, min(int(limit), 500)) :][::-1]
+        posts = {p.get("post_id"): p for p in data.get("community_posts", [])}
+        queue = []
+        for report in reports:
+            queue.append(
+                {
+                    "report": report,
+                    "post": posts.get(report.get("post_id")),
+                    "needs_review": report.get("status", "open") == "open",
+                }
+            )
+        return {"queue": queue, "count": len(queue), "open_count": sum(1 for item in queue if item["needs_review"])}
+
+    def moderate_community_item(self, payload: dict[str, Any]) -> dict[str, Any]:
+        target = str(payload.get("post_id") or payload.get("target") or "")[:160]
+        action = str(payload.get("action") or "reviewed").lower()[:40]
+        if action not in {"reviewed", "hide", "restore", "close_report"}:
+            raise AppError("unsupported moderation action")
+        data = self.load()
+        changed = False
+        for post in data.get("community_posts", []):
+            if post.get("post_id") == target:
+                if action == "hide":
+                    post["status"] = "hidden"
+                elif action == "restore":
+                    post["status"] = "visible"
+                changed = True
+        for report in data.get("community_reports", []):
+            if report.get("post_id") == target or report.get("report_id") == target:
+                if action in {"reviewed", "close_report"}:
+                    report["status"] = "closed"
+                    changed = True
+        if not changed:
+            raise AppError("moderation target not found")
+        rec = {
+            "action_id": clean_id("mod"),
+            "target": target,
+            "action": action,
+            "note": str(payload.get("note") or "")[:500],
+            "created_at": now(),
+        }
+        data.setdefault("community_mod_actions", []).append(rec)
+        data["community_mod_actions"] = data["community_mod_actions"][-1000:]
         self.save(data)
         return rec
 
@@ -3534,13 +3702,149 @@ def route_app_get(
         if not b:
             raise AppError("bounty not found")
         return 200, b, "application/json"
+
+    # v0.18 live product wiring: rich explorer endpoints for polished pages.
+    if path.startswith("/explorer/address/") and path.endswith("/csv"):
+        from ..live_product import explorer_address_csv
+
+        address = path.split("/")[3]
+        return 200, explorer_address_csv(chain, address), "text/csv"
+    if path.startswith("/explorer/address/"):
+        from ..live_product import explorer_address_live
+
+        address = path.split("/", 3)[3]
+        return 200, explorer_address_live(chain, address, limit=int(q("limit", "100") or 100)), "application/json"
+    if path.startswith("/explorer/tx/"):
+        from ..live_product import explorer_tx_live
+
+        return 200, explorer_tx_live(chain, path.split("/", 3)[3]), "application/json"
+    if path.startswith("/explorer/block/"):
+        from ..live_product import explorer_block_live
+
+        return 200, explorer_block_live(chain, path.split("/", 3)[3]), "application/json"
+    if path == "/explorer/mempool":
+        from ..live_product import explorer_mempool_live
+
+        return 200, explorer_mempool_live(chain, limit=int(q("limit", "200") or 200)), "application/json"
+    if path == "/explorer/watchlist":
+        from ..live_product import explorer_watchlist_live
+
+        return 200, explorer_watchlist_live(store, chain, query), "application/json"
+    if path == "/wallet/workflow":
+        from ..live_product import wallet_workflow_status
+
+        return 200, wallet_workflow_status(store), "application/json"
+    if path == "/operator/live":
+        from ..live_product import operator_live_controls
+
+        return 200, operator_live_controls(chain, node=node), "application/json"
+
+    if path == "/operator/diagnostics/bundle":
+        from ..health_center import build_health_center
+        from ..live_product import operator_live_controls, digest_payload
+
+        payload = {
+            "health": build_health_center(
+                root=Path(__file__).resolve().parents[2], chain=chain, node=node, store=store
+            ),
+            "operator": operator_live_controls(chain, node=node),
+            "generated_at": now(),
+        }
+        payload["bundle_hash"] = digest_payload(payload)
+        return 200, payload, "application/json"
+    if path == "/faucet/status":
+        from ..live_product import faucet_admin_status
+
+        data = store.load()
+        state = data.get(
+            "faucet_state",
+            {"requests": [], "abuse": [], "reputation": {}, "daily_cap_sats": 0, "difficulty": 0, "paused": False},
+        )
+        return 200, faucet_admin_status(state), "application/json"
+    if path == "/exchange/live":
+        from ..live_product import exchange_live_status
+
+        return 200, exchange_live_status(store), "application/json"
+    if path == "/release/verify":
+        from ..live_product import release_verify_payload
+
+        return (
+            200,
+            release_verify_payload(
+                Path(__file__).resolve().parents[2], {"sha256": q("sha256"), "expected_sha256": q("expected_sha256")}
+            ),
+            "application/json",
+        )
+
+    if path == "/architecture":
+        from ..architecture import architecture_summary
+
+        return 200, architecture_summary(Path(__file__).resolve().parents[2]), "application/json"
+    if path == "/migration-status":
+        from ..migration_status import migration_status, parity_vectors, final_version_readiness, parity_bridge_status
+
+        root = Path(__file__).resolve().parents[2]
+        return (
+            200,
+            {
+                "status": migration_status(root),
+                "vectors": parity_vectors(root),
+                "readiness": final_version_readiness(root),
+                "parity": parity_bridge_status(root),
+            },
+            "application/json",
+        )
+    if path == "/parity-status":
+        from ..migration_status import parity_bridge_status
+
+        return 200, parity_bridge_status(Path(__file__).resolve().parents[2]), "application/json"
+    if path == "/parity-vectors":
+        from ..migration_status import parity_vectors
+
+        return 200, parity_vectors(Path(__file__).resolve().parents[2]), "application/json"
+    if path == "/migration-readiness":
+        from ..migration_status import final_version_readiness, migration_status, parity_bridge_status
+
+        root = Path(__file__).resolve().parents[2]
+        return (
+            200,
+            {
+                "migration": migration_status(root),
+                "parity": parity_bridge_status(root),
+                "readiness": final_version_readiness(root),
+            },
+            "application/json",
+        )
+    if path == "/features":
+        return 200, feature_catalog(), "application/json"
+    if path == "/feature-status":
+        from ..feature_status import live_feature_status
+
+        return 200, live_feature_status(root=Path(__file__).resolve().parents[2]), "application/json"
+    if path in ("/health-center", "/product/status"):
+        from ..health_center import build_health_center
+
+        return (
+            200,
+            build_health_center(root=Path(__file__).resolve().parents[2], chain=chain, node=node, store=store),
+            "application/json",
+        )
     if path == "/community/leaderboards":
         return 200, store.leaderboards(chain), "application/json"
     if path == "/community/posts":
         limit = int(q("limit", "50") or 50)
-        return 200, store.list_community_posts(limit=limit), "application/json"
+        return 200, store.list_community_posts(limit=limit, sort=q("sort", "hot") or "hot"), "application/json"
+    if path.startswith("/community/posts/") and path.endswith("/comments"):
+        return (
+            200,
+            store.list_community_comments(path.split("/")[3], limit=int(q("limit", "100") or 100)),
+            "application/json",
+        )
     if path == "/community/improvements":
         return 200, store.list_improvements(), "application/json"
+    if path == "/community/moderation":
+        limit = int(q("limit", "100") or 100)
+        return 200, store.community_moderation_queue(limit=limit), "application/json"
     if path == "/community/reports":
         limit = int(q("limit", "100") or 100)
         return 200, store.list_community_reports(limit=limit), "application/json"
@@ -3718,6 +4022,17 @@ def _route_app_post_uncached(
         path = path[4:] or "/"
     if path.startswith("/app"):
         path = path[4:] or "/"
+
+    # v0.18 live product write helpers.
+    if path == "/wallet/drafts":
+        from ..live_product import save_wallet_draft
+
+        return 200, save_wallet_draft(store, body)
+    if path == "/release/verify":
+        from ..live_product import release_verify_payload
+
+        return 200, release_verify_payload(Path(__file__).resolve().parents[2], body)
+
     if path in ("/payments", "/invoices", "/payment/invoices/create"):
         return 200, store.create_invoice(chain, body)
     if path == "/usernames" or path == "/profiles":
@@ -3762,6 +4077,12 @@ def _route_app_post_uncached(
         return 200, store.claim_gift(body)
     if path == "/community/posts":
         return 200, store.create_community_post(body)
+    if path.startswith("/community/posts/") and path.endswith("/vote"):
+        return 200, store.vote_community_post(path.split("/")[3], body)
+    if path.startswith("/community/posts/") and path.endswith("/comments"):
+        return 200, store.create_community_comment(path.split("/")[3], body)
+    if path == "/community/moderation":
+        return 200, store.moderate_community_item(body)
     if path == "/community/improvements":
         return 200, store.create_improvement(body)
     if path == "/community/reports":
