@@ -1,0 +1,5 @@
+{
+  "name": "bad-prevhash",
+  "description": "A non-genesis block with a previous hash that does not connect to the active tip must be rejected.",
+  "expected_error_contains": "previous hash"
+}

@@ -1,0 +1,5 @@
+{
+  "name": "bad-merkle",
+  "description": "A block whose header merkle root does not match transactions must be rejected.",
+  "expected_error_contains": "merkle root"
+}

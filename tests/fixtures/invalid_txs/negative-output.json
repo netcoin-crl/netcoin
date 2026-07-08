@@ -1,0 +1,5 @@
+{
+  "name": "negative-output",
+  "description": "A transaction output amount below zero must be rejected by transaction construction.",
+  "expected_error_contains": "cannot be negative"
+}

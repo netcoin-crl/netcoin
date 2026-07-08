@@ -1,0 +1,5 @@
+{
+  "name": "duplicate-inputs",
+  "description": "A transaction that spends the same outpoint twice must be rejected.",
+  "expected_error_contains": "duplicate input"
+}

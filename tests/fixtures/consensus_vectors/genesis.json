@@ -1,0 +1,5 @@
+{
+  "name": "genesis",
+  "description": "Deterministic genesis and initial consensus parameters are frozen by tests.",
+  "height": 0
+}
