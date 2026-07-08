@@ -2,373 +2,338 @@
 
 (() => {
   const $ = (sel) => document.querySelector(sel);
-  const state = { markets: [], selectedId: "", apiOk: false };
+  const state = { markets: [], selectedId: "", apiOk: false, view: "grid", category: "All", query: "", tab: "orderbook", tradeSide: "yes", tradeOutcomeId: "" };
   const apiBase = localStorage.getItem("netcoinApiBase") || "/api";
 
-  function esc(value) {
-    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
-  }
-
-  function fmtTime(ts) {
-    if (!ts) return "n/a";
-    const num = Number(ts);
-    if (!Number.isFinite(num)) return esc(ts);
-    return new Date(num * 1000).toLocaleString();
-  }
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  const fmtTime = (ts) => { if (!ts) return "n/a"; const n = Number(ts); return Number.isFinite(n) ? new Date(n * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : esc(ts); };
 
   function log(msg, payload) {
-    const box = $("#activityLog");
-    const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    const box = $("#activityLog"); if (!box) return;
     const extra = payload ? `\n${JSON.stringify(payload, null, 2)}` : "";
-    box.textContent = `${line}${extra}\n\n${box.textContent}`.slice(0, 9000);
+    box.textContent = `[${new Date().toLocaleTimeString()}] ${msg}${extra}\n\n${box.textContent}`.slice(0, 9000);
   }
 
   async function api(path, options = {}) {
-    const res = await fetch(`${apiBase}${path}`, {
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-      ...options
-    });
+    const res = await fetch(`${apiBase}${path}`, { headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
     const text = await res.text();
-    let payload;
-    try { payload = text ? JSON.parse(text) : {}; } catch (_) { payload = { raw: text }; }
-    if (!res.ok || payload.ok === false) {
-      throw new Error(payload.error || `HTTP ${res.status}`);
-    }
+    let payload; try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
+    if (!res.ok || payload.ok === false) throw new Error(payload.error || `HTTP ${res.status}`);
     return payload;
   }
+  const post = (path, body) => api(path, { method: "POST", body: JSON.stringify(body || {}) });
 
-  function post(path, body) {
-    return api(path, { method: "POST", body: JSON.stringify(body || {}) });
-  }
+  const selectedMarket = () => state.markets.find((m) => m.market_id === state.selectedId) || null;
+  const isBinary = (m) => (m.outcomes || []).length === 2 && (m.outcomes || []).some((o) => /^y(es)?$/i.test(o.label));
+  const yesOutcome = (m) => (m.outcomes || []).find((o) => /^y(es)?$/i.test(o.label)) || (m.outcomes || [])[0];
+  const noOutcome = (m) => (m.outcomes || []).find((o) => /^n(o)?$/i.test(o.label)) || (m.outcomes || [])[1];
 
-  function selectedMarket() {
-    return state.markets.find((m) => m.market_id === state.selectedId) || state.markets[0] || null;
-  }
-
-  function marketBadge(m) {
-    const cls = m.status === "open" ? "ok" : m.status === "resolved" ? "" : "err";
-    return `<span class="pill"><span class="dot ${cls}"></span>${esc(m.status || "unknown")}</span>`;
-  }
-
-  function renderStats(totals) {
-    const stats = totals || {};
-    $("#marketStats").innerHTML = [
-      ["Markets", stats.count ?? state.markets.length],
-      ["Open", stats.open ?? state.markets.filter((m) => m.status === "open").length],
-      ["Closed", stats.closed ?? state.markets.filter((m) => m.status === "closed").length],
-      ["Resolved", stats.resolved ?? state.markets.filter((m) => m.status === "resolved").length],
-      ["Volume", stats.volume || "0"]
-    ].map(([k, v]) => `<div class="stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("");
-  }
-
-  function renderMarketList() {
-    const list = $("#marketList");
-    if (!state.markets.length) {
-      list.innerHTML = `<p class="muted">No markets yet. Create a sample or connect to a running NetCoin API.</p>`;
-      return;
+  // probability (0..100 cents) for an outcome, from ticker -> clob -> implied stats
+  function centsFor(m, oid) {
+    const t = ((m.ticker || {}).outcomes || []).find((o) => o.outcome_id === oid);
+    if (t) {
+      if (t.price_bps != null) return Math.round(Number(t.price_bps) / 100);
+      if (t.price != null) return Math.round(Number(t.price) * 100);
     }
-    list.innerHTML = state.markets.map((m) => {
-      const stats = m.stats || {};
-      const active = m.market_id === state.selectedId ? " active" : "";
-      const outcomes = (m.outcomes || []).map((o) => `<span class="pill">${esc(o.label)} ${esc(((stats.implied_probabilities || {})[o.outcome_id] || {}).probability || "-")}</span>`).join(" ");
-      return `<button class="market-card${active}" type="button" data-market-id="${esc(m.market_id)}">
-        <span>${marketBadge(m)}</span>
-        <b>${esc(m.question)}</b>
-        <small class="mono">${esc(m.market_id)}</small>
-        <span class="market-outcomes">${outcomes}</span>
-        <span class="muted">Trades: ${esc(stats.trade_count || 0)} · Volume: ${esc(stats.volume || "0")} · Closes: ${fmtTime(m.close_time)}</span>
-      </button>`;
-    }).join("");
-    list.querySelectorAll("[data-market-id]").forEach((btn) => btn.addEventListener("click", () => {
-      state.selectedId = btn.getAttribute("data-market-id") || "";
-      renderAll();
+    const ip = ((m.stats || {}).implied_probabilities || {})[oid];
+    if (ip && ip.probability != null) { const p = Number(String(ip.probability).replace("%", "")); return p <= 1 ? Math.round(p * 100) : Math.round(p); }
+    return null;
+  }
+  function bestAskCents(m, oid) {
+    const book = ((m.clob || {}).books || {})[oid] || (m.orderbook || {})[oid];
+    if (book && book.best_ask_bps != null) return Math.round(Number(book.best_ask_bps) / 100);
+    if (book && book.best_ask != null) return Math.round(Number(book.best_ask) * 100);
+    return centsFor(m, oid);
+  }
+  // display price with binary complement (No = 100 - Yes when No has no direct quote)
+  function displayCents(m, oid) {
+    const direct = centsFor(m, oid);
+    if (direct != null) return direct;
+    if (isBinary(m)) {
+      const yo = yesOutcome(m), no = noOutcome(m);
+      if (no && oid === no.outcome_id) { const y = centsFor(m, yo.outcome_id); if (y != null) return 100 - y; }
+      if (yo && oid === yo.outcome_id) { const n = centsFor(m, no.outcome_id); if (n != null) return 100 - n; }
+    }
+    return null;
+  }
+  const fmtCents = (c) => (c == null ? "—" : `${c}¢`);
+  const fmtPct = (c) => (c == null ? "—" : `${c}%`);
+
+  /* ---------------- grid view ---------------- */
+  function categories() {
+    const set = new Set(["All"]);
+    state.markets.forEach((m) => { if (m.category) set.add(String(m.category)); });
+    return [...set];
+  }
+  function renderChips() {
+    $("#categoryChips").innerHTML = categories().map((c) =>
+      `<button class="chip${c === state.category ? " active" : ""}" type="button" data-cat="${esc(c)}">${esc(c)}</button>`).join("");
+    $("#categoryChips").querySelectorAll("[data-cat]").forEach((b) => b.addEventListener("click", () => { state.category = b.getAttribute("data-cat"); renderGrid(); renderChips(); }));
+  }
+  function renderMetrics(totals) {
+    const s = totals || {};
+    const rows = [
+      ["Markets", s.count ?? state.markets.length],
+      ["Open", s.open ?? state.markets.filter((m) => m.status === "open").length],
+      ["Resolved", s.resolved ?? state.markets.filter((m) => m.status === "resolved").length],
+      ["Volume", s.volume || "0"],
+    ];
+    $("#marketMetrics").innerHTML = rows.map(([k, v]) => `<div class="mkt-metric"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("");
+  }
+  function visibleMarkets() {
+    const q = state.query.trim().toLowerCase();
+    return state.markets.filter((m) =>
+      (state.category === "All" || String(m.category) === state.category) &&
+      (!q || String(m.question).toLowerCase().includes(q)));
+  }
+  function cardHtml(m) {
+    const avatar = esc(String(m.question || "?").trim().charAt(0).toUpperCase() || "N");
+    const vol = ((m.stats || {}).volume) || m.volume || "0";
+    const foot = `<div class="mkt-foot"><span>Vol ${esc(vol)}</span><span>${m.status === "open" ? `closes ${fmtTime(m.close_time)}` : esc(m.status)}</span></div>`;
+    const head = `<div class="mkt-card-head"><div class="mkt-avatar">${avatar}</div><div class="mkt-q">${esc(m.question)}</div></div>`;
+    if (isBinary(m)) {
+      const yo = yesOutcome(m); const c = displayCents(m, yo.outcome_id);
+      return `<div class="mkt-card" data-id="${esc(m.market_id)}">${head}
+        <div class="mkt-binary">
+          <div class="mkt-chance"><span class="pct">${fmtPct(c)}</span><span class="lbl">chance</span></div>
+          <div class="yn-btns"><button class="yn yn-yes" data-buy="yes" data-id="${esc(m.market_id)}">Yes ${fmtCents(displayCents(m, yo.outcome_id))}</button><button class="yn yn-no" data-buy="no" data-id="${esc(m.market_id)}">No ${fmtCents(displayCents(m, (noOutcome(m) || {}).outcome_id))}</button></div>
+        </div>
+        <div class="mkt-prob-bar"><span style="width:${c == null ? 0 : c}%"></span></div>${foot}</div>`;
+    }
+    const rows = (m.outcomes || []).slice(0, 4).map((o) => `<div class="mkt-outcome-row"><span class="name">${esc(o.label)}</span><span class="op">${fmtPct(displayCents(m, o.outcome_id))}</span></div>`).join("");
+    return `<div class="mkt-card" data-id="${esc(m.market_id)}">${head}<div class="mkt-outcomes">${rows}</div>${foot}</div>`;
+  }
+  function renderGrid() {
+    const grid = $("#marketGrid");
+    const list = visibleMarkets();
+    if (!state.apiOk) { grid.innerHTML = `<div class="empty-state">Could not reach the NetCoin API at ${esc(apiBase)}. Start a node/explorer server and refresh.</div>`; return; }
+    if (!list.length) { grid.innerHTML = `<div class="empty-state">No markets yet. Open Operator tools to create one.</div>`; return; }
+    grid.innerHTML = list.map(cardHtml).join("");
+    grid.querySelectorAll(".mkt-card").forEach((el) => el.addEventListener("click", (e) => {
+      if (e.target.closest("[data-buy]")) return;
+      openDetail(el.getAttribute("data-id"));
+    }));
+    grid.querySelectorAll("[data-buy]").forEach((b) => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.tradeSide = b.getAttribute("data-buy");
+      openDetail(b.getAttribute("data-id"));
     }));
   }
 
-  function renderOutcomeSelectors(m) {
-    const options = (m?.outcomes || []).map((o) => `<option value="${esc(o.outcome_id)}">${esc(o.label)} (${esc(o.outcome_id)})</option>`).join("");
-    $("#orderOutcome").innerHTML = options || `<option value="">Select market</option>`;
-    $("#resolveOutcome").innerHTML = options || `<option value="">Select market</option>`;
-  }
-
-  function renderSparkline(m) {
-    const points = (((m.analytics || {}).price_points) || []).slice(-40);
-    if (!points.length) return `<p class="muted">No trades yet. The probability chart appears after the first fill.</p>`;
-    const w = 360, h = 110, pad = 8;
+  /* ---------------- detail view ---------------- */
+  function sparkline(m) {
+    const points = (((m.analytics || {}).price_points) || []).slice(-60);
+    if (points.length < 2) return `<p class="muted" style="padding:8px 0">Price history appears here once this market has a few trades.</p>`;
+    const w = 640, h = 160, pad = 8;
     const coords = points.map((p, i) => {
       const x = pad + (i * (w - 2 * pad) / Math.max(1, points.length - 1));
       const y = h - pad - ((Number(p.price_bps || 0) / 10000) * (h - 2 * pad));
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     }).join(" ");
-    return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" role="img" aria-label="Recent price chart"><polyline points="${coords}" fill="none" stroke="currentColor" stroke-width="3"/><line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="currentColor" opacity=".2"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}" stroke="currentColor" opacity=".2"/></svg>`;
+    return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Price history"><polyline points="${coords}" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>`;
   }
-
-
-  function renderTicker(m) {
-    const rows = (((m.ticker || {}).outcomes) || []).map((o) => `<div class="stat"><div class="k">${esc(o.label)}</div><div class="v">${esc(o.price || "-")}</div><small class="muted">Bid ${esc(o.best_bid || "-")} · Ask ${esc(o.best_ask || "-")} · Spread ${esc(o.spread || "-")}</small></div>`).join("");
-    return rows ? `<div class="stats compact-stats probability-strip">${rows}</div>` : `<p class="muted">No ticker yet.</p>`;
-  }
-
-  function renderClobLevels(m) {
-    const books = ((m.clob || {}).books) || {};
-    return (m.outcomes || []).map((outcome) => {
-      const book = books[outcome.outcome_id] || { bids: [], asks: [] };
-      const maxRows = Math.max((book.bids || []).length, (book.asks || []).length, 1);
+  function bookTab(m) {
+    return (m.outcomes || []).map((o) => {
+      const book = ((m.clob || {}).books || {})[o.outcome_id] || {};
+      const ob = (m.orderbook || {})[o.outcome_id] || { buys: [], sells: [] };
+      const maxRows = Math.max((ob.buys || []).length, (ob.sells || []).length, 1);
       const rows = Array.from({ length: Math.min(maxRows, 8) }, (_, i) => {
-        const bid = (book.bids || [])[i];
-        const ask = (book.asks || [])[i];
-        return `<tr><td>${bid ? `${esc(bid.price)} / ${esc(bid.quantity)} (${esc(bid.order_count)} orders)` : ""}</td><td>${ask ? `${esc(ask.price)} / ${esc(ask.quantity)} (${esc(ask.order_count)} orders)` : ""}</td></tr>`;
+        const bid = (ob.buys || [])[i], ask = (ob.sells || [])[i];
+        return `<tr><td class="book-bid">${bid ? `${esc(bid.price)} × ${esc(bid.remaining)} <button class="mini-cancel" data-cancel="${esc(bid.order_id)}">×</button>` : ""}</td><td class="book-ask">${ask ? `${esc(ask.price)} × ${esc(ask.remaining)} <button class="mini-cancel" data-cancel="${esc(ask.order_id)}">×</button>` : ""}</td></tr>`;
       }).join("");
-      return `<div class="book"><h3>${esc(outcome.label)} aggregated book</h3><p class="muted">Mid ${esc(book.midpoint || "-")} · Bid depth ${esc(book.bid_depth_shares || 0)} · Ask depth ${esc(book.ask_depth_shares || 0)}</p><table><thead><tr><th>Bids</th><th>Asks</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      return `<h4 style="margin:12px 0 6px">${esc(o.label)} <span class="muted">mid ${esc(book.midpoint || "—")} · spread ${esc(book.spread || "—")}</span></h4><table class="book-tbl"><thead><tr><th>Bids (price × shares)</th><th>Asks (price × shares)</th></tr></thead><tbody>${rows}</tbody></table>`;
     }).join("");
   }
-
-  function renderPortfolio(m) {
-    const portfolios = (((m.portfolio || {}).portfolios) || []).slice(0, 8);
-    if (!portfolios.length) return `<p class="muted">Portfolios appear after trades.</p>`;
-    return `<table><thead><tr><th>Trader</th><th>Equity</th><th>Marked positions</th></tr></thead><tbody>${portfolios.map((p) => {
-      const pos = (p.positions || []).filter((x) => Number(x.quantity || 0) !== 0).map((x) => `${x.label}:${x.quantity} @ ${x.mark_price || "-"}`).join("<br>") || "-";
+  function tradesTab(m) {
+    const trades = (m.trades || []).slice(-15).reverse();
+    if (!trades.length) return `<p class="muted">No trades yet.</p>`;
+    return `<table class="book-tbl"><thead><tr><th>Time</th><th>Outcome</th><th>Price</th><th>Shares</th></tr></thead><tbody>${trades.map((t) => `<tr><td>${fmtTime(t.created_at)}</td><td>${esc(t.outcome_id)}</td><td>${esc(t.price || (Number(t.price_bps || 0) / 10000).toFixed(2))}</td><td>${esc(t.quantity)}</td></tr>`).join("")}</tbody></table>`;
+  }
+  function holdersTab(m) {
+    const ports = (((m.portfolio || {}).portfolios) || []).slice(0, 12);
+    if (!ports.length) return `<p class="muted">Positions appear after trades.</p>`;
+    return `<table class="book-tbl"><thead><tr><th>Trader</th><th>Equity</th><th>Positions</th></tr></thead><tbody>${ports.map((p) => {
+      const pos = (p.positions || []).filter((x) => Number(x.quantity || 0) !== 0).map((x) => `${esc(x.label)}:${esc(x.quantity)}`).join(" · ") || "—";
       return `<tr><td class="mono">${esc(p.trader_id)}</td><td>${esc(p.equity || "0")}</td><td>${pos}</td></tr>`;
     }).join("")}</tbody></table>`;
   }
-
-  function renderOrderbook(m) {
-    if (!m) return "";
-    return (m.outcomes || []).map((outcome) => {
-      const book = (m.orderbook || {})[outcome.outcome_id] || { buys: [], sells: [] };
-      const maxRows = Math.max(book.buys.length, book.sells.length, 1);
-      const rows = Array.from({ length: maxRows }, (_, i) => {
-        const bid = book.buys[i];
-        const ask = book.sells[i];
-        return `<tr>
-          <td>${bid ? `${esc(bid.price)} / ${esc(bid.remaining)}<br><button class="mini secondary" data-cancel="${esc(bid.order_id)}">Cancel</button>` : ""}</td>
-          <td>${ask ? `${esc(ask.price)} / ${esc(ask.remaining)}<br><button class="mini secondary" data-cancel="${esc(ask.order_id)}">Cancel</button>` : ""}</td>
-        </tr>`;
-      }).join("");
-      return `<div class="book"><h3>${esc(outcome.label)} <span class="muted mono">${esc(outcome.outcome_id)}</span></h3><p class="muted">Best bid ${esc(book.best_bid || "-")} · Best ask ${esc(book.best_ask || "-")} · Spread ${esc(book.spread || "-")}</p><table><thead><tr><th>Bid price / shares</th><th>Ask price / shares</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-    }).join("");
+  function rulesTab(m) {
+    const wf = m.resolution_workflow || {};
+    const evidence = (m.resolution_evidence || []).slice(-5).reverse();
+    const ev = evidence.length ? evidence.map((e) => `<li><b>${esc(e.title || e.source_type || "evidence")}</b> — ${esc(e.url || e.statement || "manual note")} <span class="muted">${fmtTime(e.created_at || e.timestamp)}</span></li>`).join("") : `<li class="muted">No evidence yet.</li>`;
+    return `<p class="muted">Status: ${esc(wf.status || "unresolved")} · Oracle: ${esc(wf.optimistic_oracle_status || "unproposed")} · Source: ${esc(m.resolution_source || wf.evidence_url || "manual operator review")}</p>
+      <p>${esc(m.rules || m.warning || "Testnet/play-money market. Resolves by manual operator review with an evidence trail.")}</p>
+      <h4 style="margin:12px 0 6px">Evidence</h4><ul>${ev}</ul>`;
   }
-
-  function renderTrades(m) {
-    const trades = (m?.trades || []).slice(-12).reverse();
-    if (!trades.length) return `<p class="muted">No trades yet.</p>`;
-    return `<table><thead><tr><th>Time</th><th>Outcome</th><th>Price</th><th>Qty</th><th>Maker/Taker</th></tr></thead><tbody>${trades.map((t) => `<tr><td>${fmtTime(t.created_at)}</td><td>${esc(t.outcome_id)}</td><td>${esc(t.price || (Number(t.price_bps || 0) / 10000).toFixed(4))}</td><td>${esc(t.quantity)}</td><td class="mono">${esc(t.maker || "")}<br>${esc(t.taker || "")}</td></tr>`).join("")}</tbody></table>`;
+  function tradePanel(m) {
+    const binary = isBinary(m);
+    let outcomeId = state.tradeOutcomeId;
+    if (binary) outcomeId = state.tradeSide === "no" ? (noOutcome(m) || {}).outcome_id : (yesOutcome(m) || {}).outcome_id;
+    else if (!outcomeId || !(m.outcomes || []).some((o) => o.outcome_id === outcomeId)) outcomeId = ((m.outcomes || [])[0] || {}).outcome_id;
+    state.tradeOutcomeId = outcomeId;
+    const priceC = bestAskCents(m, outcomeId) ?? 50;
+    const resolved = m.status !== "open";
+    const sideRow = binary
+      ? `<div class="side-toggle"><button type="button" data-side="yes" class="${state.tradeSide === "yes" ? "sel-yes" : ""}">Yes ${fmtCents(displayCents(m, (yesOutcome(m) || {}).outcome_id))}</button><button type="button" data-side="no" class="${state.tradeSide === "no" ? "sel-no" : ""}">No ${fmtCents(displayCents(m, (noOutcome(m) || {}).outcome_id))}</button></div>`
+      : `<div class="trade-field"><label>Outcome</label><select id="tradeOutcome">${(m.outcomes || []).map((o) => `<option value="${esc(o.outcome_id)}"${o.outcome_id === outcomeId ? " selected" : ""}>${esc(o.label)} · ${fmtCents(displayCents(m, o.outcome_id))}</option>`).join("")}</select></div>`;
+    const noSide = binary && state.tradeSide === "no";
+    return `<h3>${resolved ? "Market closed" : "Buy shares"}</h3>
+      ${sideRow}
+      <div class="trade-field"><label>Shares</label><input id="tradeShares" type="number" min="1" value="5" ${resolved ? "disabled" : ""} /></div>
+      <div class="trade-field"><label>Limit price (¢)</label><input id="tradePrice" type="number" min="1" max="99" value="${priceC}" ${resolved ? "disabled" : ""} /></div>
+      <div class="trade-summary">
+        <div class="row"><span>Avg price</span><b id="sumPrice">${priceC}¢</b></div>
+        <div class="row"><span>Cost</span><b id="sumCost">—</b></div>
+        <div class="row"><span>Payout if wins</span><b id="sumPayout">—</b></div>
+      </div>
+      <button class="buy-btn ${noSide ? "no" : ""}" id="tradeBuy" ${resolved ? "disabled" : ""}>${resolved ? "Resolved" : `Buy ${binary ? (noSide ? "No" : "Yes") : "shares"}`}</button>
+      <details class="trade-adv"><summary>Advanced</summary><div class="adv-body">
+        <div class="trade-field"><label>Trader id</label><input id="tradeTrader" value="demo:you" /></div>
+        <div class="trade-field"><label>Order type</label><select id="tradeType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC</option><option value="fok">FOK</option></select></div>
+      </div></details>
+      <p class="muted" style="font-size:12px">Play-money. Buys place a NET limit order on this outcome.</p>`;
   }
-
-  function renderWallets(m) {
-    const entries = Object.values(m?.wallets || {}).slice(0, 10);
-    if (!entries.length) return `<p class="muted">Demo wallets appear after orders are placed.</p>`;
-    return `<table><thead><tr><th>Trader</th><th>Balance</th><th>Reserved</th><th>Positions</th></tr></thead><tbody>${entries.map((w) => {
-      const pos = Object.entries((m.positions || {})[w.trader_id] || {}).map(([k, v]) => `${k}:${v}`).join(" ") || "-";
-      return `<tr><td class="mono">${esc(w.trader_id)}</td><td>${esc(w.balance || "0")}</td><td>${esc(w.reserved || "0")}</td><td>${esc(pos)}</td></tr>`;
-    }).join("")}</tbody></table>`;
+  function updateTradeSummary() {
+    const shares = Number(($("#tradeShares") || {}).value || 0);
+    const priceC = Number(($("#tradePrice") || {}).value || 0);
+    if ($("#sumPrice")) $("#sumPrice").textContent = `${priceC}¢`;
+    if ($("#sumCost")) $("#sumCost").textContent = `${(shares * priceC / 100).toFixed(2)} NET`;
+    if ($("#sumPayout")) $("#sumPayout").textContent = `${(shares * 1).toFixed(2)} NET`;
   }
-
-  function renderDisputePanel(m) {
-    const evidence = (m.resolution_evidence || []).slice(-8).reverse();
-    const disputes = (m.dispute_comments || []).slice(-8).reverse();
-    const evidenceRows = evidence.length ? evidence.map((e) => `<li><b>${esc(e.title || e.source_type || "evidence")}</b> <span class="mono muted">${esc(e.sha256 || e.evidence_id || "")}</span><br><span class="muted">${esc(e.url || e.statement || "manual note")} · ${fmtTime(e.created_at || e.timestamp)}</span></li>`).join("") : `<li class="muted">No evidence submitted yet.</li>`;
-    const disputeRows = disputes.length ? disputes.map((d) => `<li><b>${esc(d.commenter || "operator")}</b>: ${esc(d.comment || d.note || "")} <span class="muted">${fmtTime(d.created_at)}</span></li>`).join("") : `<li class="muted">No disputes/comments yet.</li>`;
-    return `<div class="resolution-grid"><div><h4>Evidence registry</h4><ul>${evidenceRows}</ul></div><div><h4>Dispute comments</h4><ul>${disputeRows}</ul></div></div>`;
-  }
-
   function renderDetail() {
     const m = selectedMarket();
+    if (!m) { backToGrid(); return; }
+    const avatar = esc(String(m.question || "?").trim().charAt(0).toUpperCase() || "N");
+    const yc = isBinary(m) ? displayCents(m, (yesOutcome(m) || {}).outcome_id) : null;
+    const s = m.stats || {};
+    $("#detailMain").innerHTML = `
+      <div class="detail-head"><div class="mkt-avatar">${avatar}</div><div><h1>${esc(m.question)}</h1>
+        <div class="detail-sub"><span>Vol ${esc(s.volume || "0")}</span><span>Liquidity ${esc(s.liquidity_shares || 0)}</span><span>${m.status === "open" ? `closes ${fmtTime(m.close_time)}` : esc(m.status)}</span></div></div></div>
+      <div class="detail-card">
+        <div class="chart-hero">${yc != null ? `<span class="big">${yc}%</span><span class="cap">Yes · chance</span>` : `<span class="cap">Outcome prices</span>`}</div>
+        ${sparkline(m)}
+      </div>
+      <div class="detail-card">
+        <div class="mkt-tabs">
+          <button class="mkt-tab${state.tab === "orderbook" ? " active" : ""}" data-tab="orderbook">Order book</button>
+          <button class="mkt-tab${state.tab === "trades" ? " active" : ""}" data-tab="trades">Trades</button>
+          <button class="mkt-tab${state.tab === "holders" ? " active" : ""}" data-tab="holders">Holders</button>
+          <button class="mkt-tab${state.tab === "rules" ? " active" : ""}" data-tab="rules">Rules</button>
+        </div>
+        <div class="tab-panel${state.tab === "orderbook" ? " active" : ""}" data-panel="orderbook">${bookTab(m)}</div>
+        <div class="tab-panel${state.tab === "trades" ? " active" : ""}" data-panel="trades">${tradesTab(m)}</div>
+        <div class="tab-panel${state.tab === "holders" ? " active" : ""}" data-panel="holders">${holdersTab(m)}</div>
+        <div class="tab-panel${state.tab === "rules" ? " active" : ""}" data-panel="rules">${rulesTab(m)}</div>
+      </div>`;
+    $("#tradePanel").innerHTML = tradePanel(m);
+    wireDetail(m);
     renderOutcomeSelectors(m);
-    const detail = $("#marketDetail");
-    if (!m) {
-      $("#selectedMarketStatus").textContent = "none selected";
-      detail.classList.add("empty");
-      detail.innerHTML = "Select or create a market to see the order book.";
-      return;
-    }
-    state.selectedId = m.market_id;
-    $("#selectedMarketStatus").innerHTML = marketBadge(m);
-    detail.classList.remove("empty");
-    const stats = m.stats || {};
-    const workflow = m.resolution_workflow || {};
-    detail.innerHTML = `<div class="detail-title"><div><h2>${esc(m.question)}</h2><p class="mono muted">${esc(m.market_id)}</p></div>${marketBadge(m)}</div>
-      <p class="notice warn">${esc(m.warning || "Testnet/play-money only.")}</p>
-      <div class="stats compact-stats"><div class="stat"><div class="k">Volume</div><div class="v">${esc(stats.volume || "0")}</div></div><div class="stat"><div class="k">Open interest</div><div class="v">${esc(stats.open_interest_shares || 0)}</div></div><div class="stat"><div class="k">Liquidity</div><div class="v">${esc(stats.liquidity_shares || 0)}</div></div><div class="stat"><div class="k">Trades</div><div class="v">${esc(stats.trade_count || 0)}</div></div></div>
-      <h3>Outcome ticker</h3>${renderTicker(m)}
-      <h3>Probability chart</h3>${renderSparkline(m)}
-      <h3>Aggregated CLOB levels</h3>${renderClobLevels(m)}
-      <h3>Order book</h3>${renderOrderbook(m)}
-      <h3>Recent trades</h3>${renderTrades(m)}
-      <h3>Marked portfolios</h3>${renderPortfolio(m)}
-      <h3>Demo wallets & positions</h3>${renderWallets(m)}
-      <h3>Resolution</h3><p class="muted">Workflow: ${esc(workflow.status || "unresolved")} · Oracle status: ${esc(workflow.optimistic_oracle_status || "unproposed")} · Source: ${esc(m.resolution_source || workflow.evidence_url || "manual")}</p>${renderDisputePanel(m)}`;
-    detail.querySelectorAll("[data-cancel]").forEach((btn) => btn.addEventListener("click", async () => {
-      await cancelOrder(btn.getAttribute("data-cancel") || "");
+    updateTradeSummary();
+  }
+  function wireDetail(m) {
+    $("#detailMain").querySelectorAll(".mkt-tab").forEach((b) => b.addEventListener("click", () => {
+      state.tab = b.getAttribute("data-tab");
+      $("#detailMain").querySelectorAll(".mkt-tab").forEach((x) => x.classList.toggle("active", x === b));
+      $("#detailMain").querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.getAttribute("data-panel") === state.tab));
     }));
+    $("#detailMain").querySelectorAll("[data-cancel]").forEach((b) => b.addEventListener("click", () => cancelOrder(b.getAttribute("data-cancel"))));
+    const panel = $("#tradePanel");
+    panel.querySelectorAll("[data-side]").forEach((b) => b.addEventListener("click", () => { state.tradeSide = b.getAttribute("data-side"); $("#tradePanel").innerHTML = tradePanel(m); wireDetail(m); updateTradeSummary(); }));
+    const to = $("#tradeOutcome"); if (to) to.addEventListener("change", () => { state.tradeOutcomeId = to.value; $("#tradePrice") ; $("#tradePanel").innerHTML = tradePanel(m); wireDetail(m); updateTradeSummary(); });
+    ["tradeShares", "tradePrice"].forEach((id) => { const el = $("#" + id); if (el) el.addEventListener("input", updateTradeSummary); });
+    const buy = $("#tradeBuy"); if (buy) buy.addEventListener("click", () => doTradeBuy(m));
+  }
+  async function doTradeBuy(m) {
+    try {
+      const type = ($("#tradeType") || {}).value || "limit";
+      const priceC = Number(($("#tradePrice") || {}).value || 0);
+      await placeOrder({
+        trader_address: ($("#tradeTrader") || {}).value || "demo:you",
+        outcome_id: state.tradeOutcomeId,
+        side: "buy",
+        order_type: type,
+        time_in_force: type === "ioc" ? "IOC" : type === "fok" ? "FOK" : "GTC",
+        quantity: Number(($("#tradeShares") || {}).value || 0),
+        price_bps: type === "market" ? undefined : Math.max(1, Math.min(9999, priceC * 100)),
+        allow_unverified_demo: true,
+        sandbox_short_mode: true,
+      });
+    } catch (err) { alert(`Order failed: ${err.message}`); }
   }
 
-  function renderAll(totals) {
-    renderStats(totals);
-    renderMarketList();
-    renderDetail();
+  function openDetail(id) { state.selectedId = id; state.view = "detail"; state.tab = "orderbook"; state.tradeOutcomeId = ""; $("#gridView").classList.add("hidden"); $("#detailView").classList.remove("hidden"); renderDetail(); window.scrollTo(0, 0); }
+  function backToGrid() { state.view = "grid"; $("#detailView").classList.add("hidden"); $("#gridView").classList.remove("hidden"); }
+
+  function renderOutcomeSelectors(m) {
+    const opts = (m?.outcomes || []).map((o) => `<option value="${esc(o.outcome_id)}">${esc(o.label)}</option>`).join("");
+    if ($("#orderOutcome")) $("#orderOutcome").innerHTML = opts || `<option value="">Select market</option>`;
+    if ($("#resolveOutcome")) $("#resolveOutcome").innerHTML = opts || `<option value="">Select market</option>`;
   }
 
+  function renderAll(totals) { renderMetrics(totals); renderChips(); if (state.view === "grid") renderGrid(); else renderDetail(); }
+
+  /* ---------------- API actions (unchanged wiring) ---------------- */
   async function loadMarkets() {
     try {
       const payload = await api("/markets");
       state.markets = payload.markets || [];
       if (!state.selectedId && state.markets[0]) state.selectedId = state.markets[0].market_id;
       state.apiOk = true;
-      $("#apiStatus").textContent = `Connected to ${apiBase}. ${payload.warning || ""}`;
+      $("#apiStatus").textContent = `live${payload.warning ? " · " + payload.warning : ""}`;
       renderAll(payload.totals);
     } catch (err) {
       state.apiOk = false;
-      $("#apiStatus").textContent = `API unavailable: ${err.message}`;
-      renderStats({ count: 0, open: 0, closed: 0, resolved: 0, volume: "0" });
-      $("#marketList").innerHTML = `<p class="muted">Could not load markets from ${esc(apiBase)}. Run a NetCoin node/explorer server, then refresh.</p>`;
+      $("#apiStatus").textContent = `API offline`;
+      renderMetrics({ count: 0, open: 0, resolved: 0, volume: "0" });
+      renderGrid();
       log("Market load failed", { error: err.message });
     }
   }
-
-  async function createMarket(body) {
-    const payload = await post("/markets", body);
-    log("Created market", { market_id: payload.market_id });
-    state.selectedId = payload.market_id;
-    await loadMarkets();
-  }
-
-  async function placeOrder(body) {
-    const m = selectedMarket();
-    if (!m) throw new Error("Select a market first");
-    const payload = await post(`/markets/${encodeURIComponent(m.market_id)}/order`, body);
-    log("Placed order", { market_id: payload.market_id, trades: (payload.trades || []).length });
-    await loadMarkets();
-  }
-
-  async function cancelOrder(orderId) {
-    const m = selectedMarket();
-    if (!m || !orderId) return;
-    const payload = await post(`/markets/${encodeURIComponent(m.market_id)}/orders/${encodeURIComponent(orderId)}/cancel`, { operator_override: true });
-    log("Canceled order", { market_id: payload.market_id, order_id: orderId });
-    await loadMarkets();
-  }
-
+  async function createMarket(body) { const p = await post("/markets", body); log("Created market", { market_id: p.market_id }); state.selectedId = p.market_id; await loadMarkets(); }
+  async function placeOrder(body) { const m = selectedMarket(); if (!m) throw new Error("Select a market first"); const p = await post(`/markets/${encodeURIComponent(m.market_id)}/order`, body); log("Placed order", { trades: (p.trades || []).length }); await loadMarkets(); }
+  async function cancelOrder(orderId) { const m = selectedMarket(); if (!m || !orderId) return; await post(`/markets/${encodeURIComponent(m.market_id)}/orders/${encodeURIComponent(orderId)}/cancel`, { operator_override: true }); log("Canceled order", { order_id: orderId }); await loadMarkets(); }
   async function resolveMarket(requestOnly) {
-    const m = selectedMarket();
-    if (!m) throw new Error("Select a market first");
-    const body = {
-      winning_outcome_id: $("#resolveOutcome").value,
-      evidence_url: $("#evidenceUrl").value,
-      resolution_note: $("#evidenceUrl").value,
-      payout_per_share: m.unit_payout || "1",
-      operator_approved: !requestOnly
-    };
+    const m = selectedMarket(); if (!m) throw new Error("Select a market first");
+    const body = { winning_outcome_id: $("#resolveOutcome").value, evidence_url: $("#evidenceUrl").value, resolution_note: $("#evidenceUrl").value, payout_per_share: m.unit_payout || "1", operator_approved: !requestOnly };
     const path = requestOnly ? `/markets/${encodeURIComponent(m.market_id)}/resolution-request` : `/markets/${encodeURIComponent(m.market_id)}/resolve`;
-    const payload = await post(path, body);
-    log(requestOnly ? "Requested resolution" : "Resolved market", { market_id: payload.market_id, winning_outcome_id: payload.winning_outcome_id });
-    await loadMarkets();
+    const p = await post(path, body); log(requestOnly ? "Requested resolution" : "Resolved", { market_id: p.market_id }); await loadMarkets();
   }
-
-  async function submitEvidence() {
-    const m = selectedMarket();
-    if (!m) throw new Error("Select a market first");
-    const payload = await post(`/markets/${encodeURIComponent(m.market_id)}/evidence`, {
-      oracle_id: $("#oracleId").value || "manual",
-      title: $("#evidenceTitle").value,
-      evidence_url: $("#evidenceUrl").value,
-      statement: $("#disputeComment").value,
-      source_type: "operator_note",
-      submitter: "labs-ui",
-      sandbox_short_mode: true
-    });
-    log("Submitted resolution evidence", payload);
-    await loadMarkets();
-  }
-
-  async function submitDisputeComment() {
-    const m = selectedMarket();
-    if (!m) throw new Error("Select a market first");
-    const payload = await post(`/markets/${encodeURIComponent(m.market_id)}/evidence-dispute`, {
-      commenter: $("#oracleId").value || "operator",
-      comment: $("#disputeComment").value,
-      sandbox_short_mode: true
-    });
-    log("Submitted dispute comment", payload);
-    await loadMarkets();
-  }
-
+  async function submitEvidence() { const m = selectedMarket(); if (!m) throw new Error("Select a market first"); await post(`/markets/${encodeURIComponent(m.market_id)}/evidence`, { oracle_id: $("#oracleId").value || "manual", title: $("#evidenceTitle").value, evidence_url: $("#evidenceUrl").value, statement: $("#disputeComment").value, source_type: "operator_note", submitter: "labs-ui", sandbox_short_mode: true }); log("Submitted evidence"); await loadMarkets(); }
+  async function submitDisputeComment() { const m = selectedMarket(); if (!m) throw new Error("Select a market first"); await post(`/markets/${encodeURIComponent(m.market_id)}/evidence-dispute`, { commenter: $("#oracleId").value || "operator", comment: $("#disputeComment").value, sandbox_short_mode: true }); log("Submitted dispute"); await loadMarkets(); }
   async function loadPolymarket() {
-    const box = $("#polymarketFeed");
-    box.textContent = "Loading read-only public feed...";
+    const box = $("#polymarketFeed"); box.textContent = "Loading read-only feed…";
     try {
       const payload = await api("/markets/external/polymarket?limit=8&active=true");
       if (!payload.ok) throw new Error(payload.error || "feed unavailable");
-      const rows = (payload.markets || []).map((m) => {
-        const outcomes = (m.outcomes || []).map((o) => `<span class="pill">${esc(o.label)} ${esc(o.price || "-")}</span>`).join(" ");
-        const link = m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener">Open source market</a>` : "";
-        return `<div class="external-market"><b>${esc(m.question || m.slug || m.external_id)}</b><span class="muted">Category: ${esc(m.category || "-")} · 24h volume: ${esc(m.volume_24h || "-")} · Liquidity: ${esc(m.liquidity || "-")} · End: ${esc(m.end_date || "-")}</span><span>${outcomes}</span><span class="mono muted">${esc(m.condition_id || m.external_id || "")}</span>${link}</div>`;
-      }).join("");
-      box.innerHTML = rows || `<p class="muted">No public markets returned.</p>`;
-      log("Loaded Polymarket read-only feed", { count: (payload.markets || []).length });
-    } catch (err) {
-      box.innerHTML = `<p class="muted">Could not load Polymarket feed through the NetCoin backend: ${esc(err.message)}</p>`;
-      log("Polymarket bridge failed", { error: err.message });
-    }
+      box.textContent = (payload.markets || []).map((m) => `• ${m.question || m.slug} — ${(m.outcomes || []).map((o) => `${o.label} ${o.price || "-"}`).join(" / ")}`).join("\n") || "No public markets returned.";
+      log("Loaded Polymarket feed", { count: (payload.markets || []).length });
+    } catch (err) { box.textContent = `Could not load Polymarket feed: ${err.message}`; }
   }
 
-  function wireForms() {
+  function wire() {
+    $("#backToGrid").addEventListener("click", backToGrid);
+    $("#searchInput").addEventListener("input", (e) => { state.query = e.target.value; renderGrid(); });
     $("#refreshMarkets").addEventListener("click", loadMarkets);
     $("#loadPolymarket").addEventListener("click", loadPolymarket);
-    $("#seedMarket").addEventListener("click", async () => {
-      await createMarket({
-        question: "Will NetCoin complete the Markets Labs upgrade?",
-        outcomes: ["YES", "NO"],
-        oracle: "manual operator review",
-        resolution_source: "NetCoin demo operator",
-        legal_acknowledged: true,
-        sandbox_short_mode: true
-      });
+    $("#seedMarket").addEventListener("click", () => createMarket({ question: "Will NetCoin complete the Markets Labs upgrade?", outcomes: ["YES", "NO"], oracle: "manual operator review", resolution_source: "NetCoin demo operator", legal_acknowledged: true, sandbox_short_mode: true }));
+    $("#createMarketForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const cv = $("#closeTime").value; const close = cv ? Math.floor(new Date(cv).getTime() / 1000) : undefined;
+      await createMarket({ question: $("#question").value, outcomes: $("#outcomes").value.split(",").map((x) => x.trim()).filter(Boolean), oracle: "manual", close_time: close, resolution_source: $("#resolutionSource").value, category: $("#marketCategory").value, tags: $("#marketTags").value, rules: $("#marketRules").value, legal_acknowledged: $("#legalAck").checked, sandbox_short_mode: true });
+      e.target.reset(); $("#outcomes").value = "YES,NO"; $("#legalAck").checked = true;
     });
-    $("#createMarketForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const closeValue = $("#closeTime").value;
-      const close = closeValue ? Math.floor(new Date(closeValue).getTime() / 1000) : undefined;
-      await createMarket({
-        question: $("#question").value,
-        outcomes: $("#outcomes").value.split(",").map((x) => x.trim()).filter(Boolean),
-        oracle: "manual",
-        close_time: close,
-        resolution_source: $("#resolutionSource").value,
-        category: $("#marketCategory").value,
-        tags: $("#marketTags").value,
-        rules: $("#marketRules").value,
-        legal_acknowledged: $("#legalAck").checked,
-        sandbox_short_mode: true
-      });
-      event.target.reset();
-      $("#outcomes").value = "YES,NO";
-      $("#legalAck").checked = true;
+    $("#orderForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await placeOrder({ trader_address: $("#orderTrader").value, outcome_id: $("#orderOutcome").value, side: $("#orderSide").value, order_type: $("#orderType").value, time_in_force: $("#timeInForce").value, post_only: $("#postOnly").checked, quantity: Number($("#orderQuantity").value), price_bps: $("#orderType").value === "market" ? undefined : Number($("#orderPrice").value), allow_unverified_demo: true, sandbox_short_mode: true });
+      } catch (err) { alert(`Order failed: ${err.message}`); }
     });
-    $("#orderForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      await placeOrder({
-        trader_address: $("#orderTrader").value,
-        outcome_id: $("#orderOutcome").value,
-        side: $("#orderSide").value,
-        order_type: $("#orderType").value,
-        time_in_force: $("#timeInForce").value,
-        post_only: $("#postOnly").checked,
-        quantity: Number($("#orderQuantity").value),
-        price_bps: $("#orderType").value === "market" ? undefined : Number($("#orderPrice").value),
-        allow_unverified_demo: true,
-        sandbox_short_mode: true
-      });
-    });
-    $("#requestResolution").addEventListener("click", async () => resolveMarket(true));
-    $("#submitEvidence").addEventListener("click", submitEvidence);
-    $("#submitDispute").addEventListener("click", submitDisputeComment);
-    $("#resolveForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      await resolveMarket(false);
-    });
+    $("#requestResolution").addEventListener("click", () => resolveMarket(true).catch((e) => alert(e.message)));
+    $("#submitEvidence").addEventListener("click", () => submitEvidence().catch((e) => alert(e.message)));
+    $("#submitDispute").addEventListener("click", () => submitDisputeComment().catch((e) => alert(e.message)));
+    $("#resolveForm").addEventListener("submit", (e) => { e.preventDefault(); resolveMarket(false).catch((err) => alert(err.message)); });
   }
 
-  wireForms();
+  wire();
   loadMarkets();
 })();

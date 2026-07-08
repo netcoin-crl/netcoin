@@ -3,96 +3,105 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NetCoin Markets Labs</title>
+  <title>NetCoin Markets</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="markets.css?v=20260706-markets-app" />
   <link rel="stylesheet" href="ui-polish.css?v=20260630-wide-desktop" />
   <link rel="stylesheet" href="site-shell.css?v=20260706-shared-shell" />
+  <link rel="stylesheet" href="markets.css?v=20260708-polymarket" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand"><div class="logo">N</div><div>NetCoin Markets Labs<small>play-money markets, polls, and Phase 7 demos</small></div></div>
-      <nav class="site-nav" aria-label="NetCoin ecosystem"><a href="https://wallet.netcoin.online" data-modes="all">Wallet</a><a href="https://pay.netcoin.online" data-modes="simple merchant">Pay</a><a href="https://explorer.netcoin.online" data-modes="simple developer node labs">Explorer</a><a href="https://merchant.netcoin.online" data-modes="merchant">Merchant</a><a href="https://community.netcoin.online" data-modes="simple community">Community</a><a href="https://learn.netcoin.online" data-modes="all">Learn</a><details class="site-more"><summary>More</summary><div class="site-more-panel"><a href="https://nodes.netcoin.online" data-modes="node developer">Network<small>nodes, seeds, status, mining</small></a><a href="https://api.netcoin.online" data-modes="developer merchant node labs">Developers<small>API, SDKs, webhooks, examples</small></a><a href="https://governance.netcoin.online" data-modes="community node developer labs">Governance<small>NIPs, votes, treasury, roadmap</small></a><a href="https://security.netcoin.online" data-modes="all">Security<small>trust center and release safety</small></a><a href="https://markets.netcoin.online" data-modes="labs" class="active" aria-current="page">Labs<small>experimental market demos</small></a><a href="https://faucet.netcoin.online" data-modes="simple">Faucet<small>request testnet coins</small></a><a href="https://learn.netcoin.online#download" data-modes="developer node simple">Download<small>install from Learn</small></a><a href="https://api.netcoin.online" data-modes="developer merchant">API host<small>machine API endpoint</small></a></div></details></nav>
+      <div class="brand"><div class="logo">N</div><div>NetCoin Markets<small>play-money prediction markets</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
     </header>
 
-    <section class="hero dashboard-hero markets-hero">
-      <div class="card lead">
-        <span class="pill"><span class="dot ok"></span> play-money / testnet only</span>
-        <h1>Markets Labs dashboard.</h1>
-        <p>List markets, create demo YES/NO contracts, place/cancel limit orders, view order books and trade analytics, then resolve with an operator audit trail.</p>
-        <div class="actions"><button id="refreshMarkets" type="button">Refresh markets</button><button id="loadPolymarket" class="secondary" type="button">Load Polymarket read-only feed</button></div>
-      </div>
-      <div class="card error-help">
-        <h2>Compliance guardrail</h2>
-        <p>NetCoin Markets Labs is isolated from real-money trading. Polymarket data is read-only discovery; NetCoin orders remain separate play-money records.</p>
-        <p id="apiStatus" class="muted">Waiting for API status...</p>
-      </div>
-    </section>
+    <main class="mkt-wrap">
+      <div class="mkt-banner"><span class="dot"></span> Play-money testnet · NET has no real value · <span id="apiStatus">connecting…</span></div>
 
-    <section class="stats" id="marketStats" aria-live="polite"></section>
-
-    <section class="grid market-layout">
-      <div class="card market-list-card">
-        <div class="section-head"><h2>Markets</h2><button id="seedMarket" class="secondary" type="button">Create sample</button></div>
-        <div id="marketList" class="market-list"></div>
-      </div>
-
-      <div class="card market-detail-card">
-        <div class="section-head"><h2>Market detail</h2><span id="selectedMarketStatus" class="pill">none selected</span></div>
-        <div id="marketDetail" class="market-detail empty">Select or create a market to see the order book.</div>
-      </div>
-    </section>
-
-    <section class="grid forms-grid">
-      <form class="card" id="createMarketForm">
-        <h2>Create demo market</h2>
-        <label for="question">Question</label>
-        <input id="question" name="question" required placeholder="Will NetCoin ship the markets demo this week?" />
-        <div class="row">
-          <div><label for="outcomes">Outcomes</label><input id="outcomes" name="outcomes" value="YES,NO" /></div>
-          <div><label for="closeTime">Close time</label><input id="closeTime" name="closeTime" type="datetime-local" /></div>
+      <!-- GRID VIEW -->
+      <section id="gridView">
+        <div class="mkt-subnav">
+          <div class="mkt-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="searchInput" type="search" placeholder="Search markets" autocomplete="off" />
+          </div>
+          <div class="mkt-chips" id="categoryChips"></div>
         </div>
-        <label for="resolutionSource">Resolution source / evidence URL</label>
-        <input id="resolutionSource" name="resolutionSource" placeholder="manual operator review" />
-        <div class="row"><div><label for="marketCategory">Category</label><input id="marketCategory" value="Technology" /></div><div><label for="marketTags">Tags</label><input id="marketTags" value="netcoin,labs" /></div></div>
-        <label for="marketRules">Resolution rules</label>
-        <textarea id="marketRules" rows="3" placeholder="Define what counts as YES and what source resolves the market."></textarea>
-        <label class="check"><input id="legalAck" type="checkbox" checked /> I acknowledge this is testnet/play-money only.</label>
-        <button type="submit">Create market</button>
-      </form>
 
-      <form class="card" id="orderForm">
-        <h2>Place order</h2>
-        <p class="muted">Demo trader IDs can be names like <span class="mono">demo:alice</span>. Real NetCoin addresses also work.</p>
-        <div class="row"><div><label for="orderTrader">Trader</label><input id="orderTrader" value="demo:alice" /></div><div><label for="orderSide">Side</label><select id="orderSide"><option value="buy">Buy</option><option value="sell">Sell</option></select></div></div>
-        <div class="row"><div><label for="orderOutcome">Outcome</label><select id="orderOutcome"></select></div><div><label for="orderQuantity">Shares</label><input id="orderQuantity" type="number" min="1" value="5" /></div></div>
-        <div class="row"><div><label for="orderType">Order type</label><select id="orderType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC limit</option><option value="fok">FOK limit</option></select></div><div><label for="timeInForce">Time in force</label><select id="timeInForce"><option value="GTC">GTC</option><option value="IOC">IOC</option><option value="FOK">FOK</option></select></div></div>
-        <label for="orderPrice">Limit price bps, 1 to 9999</label>
-        <input id="orderPrice" type="number" min="1" max="9999" value="5000" />
-        <label class="check"><input id="postOnly" type="checkbox" /> Post-only maker order</label>
-        <button type="submit">Place order</button>
-      </form>
+        <div class="mkt-metrics" id="marketMetrics" aria-live="polite"></div>
+        <div class="mkt-grid" id="marketGrid"></div>
+      </section>
 
-      <form class="card" id="resolveForm">
-        <h2>Resolution workflow</h2>
-        <label for="resolveOutcome">Winning outcome</label><select id="resolveOutcome"></select>
-        <label for="evidenceUrl">Evidence URL / note</label><input id="evidenceUrl" placeholder="manual operator approval" />
-        <div class="row"><div><label for="oracleId">Oracle / operator</label><input id="oracleId" value="manual" /></div><div><label for="evidenceTitle">Evidence title</label><input id="evidenceTitle" placeholder="Official result" /></div></div>
-        <label for="disputeComment">Evidence statement / dispute comment</label><textarea id="disputeComment" rows="3" placeholder="Add evidence details or explain why the proposed result is disputed."></textarea>
-        <div class="actions"><button id="submitEvidence" class="secondary" type="button">Submit evidence</button><button id="submitDispute" class="secondary" type="button">Dispute/comment</button></div>
-        <div class="actions"><button id="requestResolution" class="secondary" type="button">Request resolution</button><button type="submit">Approve & resolve</button></div>
-      </form>
-    </section>
+      <!-- DETAIL VIEW -->
+      <section id="detailView" class="hidden">
+        <button class="back-link" id="backToGrid" type="button">← All markets</button>
+        <div class="mkt-detail">
+          <div class="detail-main" id="detailMain"></div>
+          <aside class="trade-panel" id="tradePanel"></aside>
+        </div>
+      </section>
 
-    <section class="grid dashboard-grid">
-      <div class="card"><h2>Polymarket read-only bridge</h2><p class="muted">Uses the NetCoin backend as a proxy for public Gamma market discovery. This never sends NetCoin orders to Polymarket.</p><div id="polymarketFeed" class="market-list muted">Not loaded.</div></div>
-      <div class="card"><h2>Activity log</h2><pre id="activityLog">Ready.</pre></div>
-    </section>
+      <!-- OPERATOR DRAWER -->
+      <details class="operator">
+        <summary>Operator tools — create markets, raw orders, resolution</summary>
+        <div class="operator-body">
+          <form id="createMarketForm">
+            <h4>Create market</h4>
+            <label for="question">Question</label>
+            <input id="question" required placeholder="Will NetCoin ship X this week?" />
+            <div class="op-actions" style="gap:8px">
+              <div style="flex:1"><label for="outcomes">Outcomes</label><input id="outcomes" value="YES,NO" /></div>
+              <div style="flex:1"><label for="closeTime">Close</label><input id="closeTime" type="datetime-local" /></div>
+            </div>
+            <label for="marketCategory">Category</label><input id="marketCategory" value="Technology" />
+            <label for="marketTags">Tags</label><input id="marketTags" value="netcoin,labs" />
+            <label for="marketRules">Resolution rules</label>
+            <textarea id="marketRules" rows="2" placeholder="What counts as YES, and which source resolves it."></textarea>
+            <input id="resolutionSource" placeholder="manual operator review" />
+            <label class="op-actions"><input id="legalAck" type="checkbox" checked style="width:auto" /> Testnet/play-money only</label>
+            <div class="op-actions"><button type="submit" class="primary">Create</button><button id="seedMarket" type="button">Sample</button></div>
+          </form>
 
-    <p class="footer">NetCoin is public testnet/demo software. Never share private keys or seed phrases.</p>
+          <form id="orderForm">
+            <h4>Raw order</h4>
+            <label for="orderTrader">Trader</label><input id="orderTrader" value="demo:alice" />
+            <label for="orderOutcome">Outcome</label><select id="orderOutcome"></select>
+            <div class="op-actions">
+              <div style="flex:1"><label for="orderSide">Side</label><select id="orderSide"><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
+              <div style="flex:1"><label for="orderQuantity">Shares</label><input id="orderQuantity" type="number" min="1" value="5" /></div>
+            </div>
+            <div class="op-actions">
+              <div style="flex:1"><label for="orderType">Type</label><select id="orderType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC</option><option value="fok">FOK</option></select></div>
+              <div style="flex:1"><label for="timeInForce">TIF</label><select id="timeInForce"><option value="GTC">GTC</option><option value="IOC">IOC</option><option value="FOK">FOK</option></select></div>
+            </div>
+            <label for="orderPrice">Price (bps 1–9999)</label><input id="orderPrice" type="number" min="1" max="9999" value="5000" />
+            <label class="op-actions"><input id="postOnly" type="checkbox" style="width:auto" /> Post-only</label>
+            <div class="op-actions"><button type="submit" class="primary">Place order</button></div>
+          </form>
+
+          <form id="resolveForm">
+            <h4>Resolution</h4>
+            <label for="resolveOutcome">Winning outcome</label><select id="resolveOutcome"></select>
+            <label for="oracleId">Oracle / operator</label><input id="oracleId" value="manual" />
+            <label for="evidenceTitle">Evidence title</label><input id="evidenceTitle" placeholder="Official result" />
+            <label for="evidenceUrl">Evidence URL / note</label><input id="evidenceUrl" placeholder="manual operator approval" />
+            <label for="disputeComment">Statement / dispute</label><textarea id="disputeComment" rows="2"></textarea>
+            <div class="op-actions"><button id="submitEvidence" type="button">Evidence</button><button id="submitDispute" type="button">Dispute</button><button id="requestResolution" type="button">Request</button><button type="submit" class="primary">Resolve</button></div>
+          </form>
+
+          <div style="grid-column:1/-1">
+            <div class="op-actions"><button id="refreshMarkets" type="button">Refresh</button><button id="loadPolymarket" type="button">Load Polymarket feed</button></div>
+            <div id="polymarketFeed" class="op-log">Polymarket discovery feed not loaded.</div>
+            <pre id="activityLog" class="op-log">Ready.</pre>
+          </div>
+        </div>
+      </details>
+
+      <p class="footer">NetCoin is public testnet/demo software. Never share private keys or seed phrases. Polymarket data is read-only discovery; NetCoin orders stay separate play-money records.</p>
+    </main>
   </div>
-  <script src="markets.js?v=20260706-markets-app"></script>
   <script src="site-shell.js?v=20260706-shared-shell"></script>
+  <script src="markets.js?v=20260708-polymarket"></script>
 </body>
 </html>
