@@ -127,7 +127,7 @@ export function addressToScriptPubkey(address) {
 // Consolidating coin selection: cover the target largest-first, then sweep in
 // the smallest coins up to maxInputs so every send also shrinks the UTXO set.
 // utxos: [{txid,vout,amount,(script_pubkey)}].
-export function selectCoins(utxos, target, maxInputs = 200) {
+export function selectCoins(utxos, target, maxInputs = 500) {
   const desc = [...utxos].sort((a, b) => b.amount - a.amount);
   const core = [];
   let total = 0;
@@ -155,11 +155,11 @@ const DUST = 546;
 
 // Build + sign a P2WPKH->P2WPKH payment. Returns the signed tx dict for POST /tx.
 // All inputs must be P2WPKH controlled by `privHex` (single-key wallet).
-export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, changeAddress }) {
+export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, changeAddress, maxInputs = 500 }) {
   amount = Number(amount); fee = Number(fee);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error("amount must be a positive integer (sats)");
   if (!Number.isInteger(fee) || fee <= 0) throw new Error("fee must be a positive integer (sats)");
-  const { chosen, total } = selectCoins(utxos, amount + fee);
+  const { chosen, total } = selectCoins(utxos, amount + fee, maxInputs);
   const change = total - amount - fee;
 
   const outputs = [{ amount, address: toAddress }];

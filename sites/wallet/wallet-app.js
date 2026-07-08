@@ -14,7 +14,7 @@
   const UI_TAB_STORE = "ncw.walletTab.v1";
   const SITE_MODE_STORE = "nc.siteMode.v1";
   const COIN = 100000000;
-  const MAX_WALLET_SEND_INPUTS = 200;
+  const MAX_WALLET_SEND_INPUTS = 500;
   const SESSION_STORE = "ncw.unlockedSession.v2";
   const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -1475,7 +1475,7 @@
     if (forcedOutpoints.length && chosen.length !== forcedOutpoints.length) throw new Error("one or more selected UTXOs are no longer spendable");
     const utxos = chosen.map((x) => ({ txid: x.txid, vout: x.vout, amount: x.amount, address: x.address }));
     const signed = W.buildSignedPayment({
-      privHex: state.privHex, utxos, toAddress, amount: amountSats, fee: feeSats, changeAddress: state.address,
+      privHex: state.privHex, utxos, toAddress, amount: amountSats, fee: feeSats, changeAddress: state.address, maxInputs: MAX_WALLET_SEND_INPUTS,
     });
     const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signed) });
     return res.txid;
