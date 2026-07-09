@@ -312,9 +312,13 @@ body{letter-spacing:-.01em}
             </div>
           </section>
           <section class="overview-panel balance-panel">
-            <div class="muted">Spendable balance</div>
+            <div class="balance-head">
+              <div class="muted">Spendable balance</div>
+              <button id="btnLock" class="secondary" type="button">Lock wallet</button>
+            </div>
             <div class="bal"><span id="balNet">—</span> <small>NET</small></div>
             <div class="muted" id="balImmature"></div>
+            <p class="muted balance-explain">The NET you can spend right now, summed across all four address types (they all come from your one recovery phrase). This wallet is non-custodial — keys are encrypted in this browser and never uploaded. Use <b>Receive</b> to get paid, <b>Send</b> to pay someone, and <b>Lock</b> to end this session.</p>
           </section>
         </div>
         <div class="statusbar wallet-status-inline"><span class="dot" id="statusDot"></span><span id="walletStatus" class="muted">Checking node status…</span><span class="pill" id="activeProfilePill">Profile</span></div>
@@ -514,7 +518,6 @@ body{letter-spacing:-.01em}
         <input id="contactsImportFile" class="file" type="file" accept="application/json,.json" />
         <p id="backupMsg" class="muted"></p>
       </div>
-      <button id="btnLock" class="secondary">Lock</button>
     </div>
   </div>
 
@@ -603,4 +606,31 @@ body{letter-spacing:-.01em}
   .wallet-tabs{gap:6px!important}
   .wallet-tabs button{min-height:32px!important;padding:6px 11px!important;font-size:12.5px!important;font-weight:650!important}
   @media (pointer:coarse){.wallet-tabs button,#wallet-home .overview-actions button{min-height:44px!important}}
+</style>
+
+<!-- v0.40 wallet layout: balance top-left above address, lock in the balance card,
+     shorter overview, and full-width Send/Receive/Transactions. -->
+<style id="wallet-v040-layout">
+  #walletView:not(.hide){display:block!important;max-width:1080px!important;margin-left:auto!important;margin-right:auto!important}
+  #wallet-home.active-section,#wallet-receive.active-section,#wallet-send.active-section,
+  #wallet-activity.active-section,#wallet-contacts.active-section{
+    grid-column:1/-1!important;display:block!important;width:auto!important;max-width:none!important;margin:0 0 14px!important;
+  }
+  /* overview: balance card first (top), address below */
+  #wallet-home .overview-grid{display:flex!important;flex-direction:column!important;gap:12px!important}
+  #wallet-home .balance-panel{
+    order:-1!important;display:flex!important;flex-direction:column!important;width:100%!important;
+    padding:14px 18px!important;text-align:left!important;align-items:stretch!important;
+    border:1px solid rgba(61,220,151,.32)!important;border-radius:14px!important;
+    background:linear-gradient(135deg,rgba(61,220,151,.15),rgba(61,220,151,.02))!important;
+  }
+  #wallet-home .address-panel{order:0!important}
+  #wallet-home .balance-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;margin:0!important}
+  #wallet-home .balance-head .muted{font-size:12px!important;text-transform:uppercase!important;letter-spacing:.06em!important;margin:0!important}
+  #wallet-home .balance-panel .bal{font-size:clamp(28px,3vw,42px)!important;text-align:left!important;letter-spacing:-.03em!important;margin:4px 0 0!important;white-space:nowrap!important}
+  #wallet-home .balance-panel .bal small{font-size:13px!important;margin-left:6px!important}
+  #wallet-home #btnLock{margin:0!important;width:auto!important;max-width:none!important;min-width:0!important;flex:0 0 auto!important;padding:8px 14px!important;font-size:13px!important}
+  #wallet-home .balance-panel p.balance-explain{margin:9px 0 0!important;font-size:12.5px!important;line-height:1.5!important;max-width:78ch!important;text-transform:none!important;letter-spacing:0!important;color:var(--mut)!important}
+  #wallet-home .balance-panel p.balance-explain b{color:var(--fg)!important;font-weight:700!important;text-transform:none!important}
+  @media (pointer:coarse){#wallet-home #btnLock{min-height:44px!important}}
 </style>
