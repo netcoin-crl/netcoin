@@ -441,3 +441,24 @@ body{
 .card,.stat,.biglink,.notice,.warn,.statusbar,.checkout-box,.review{border-radius:18px!important;background:linear-gradient(180deg,rgba(255,255,255,.052),rgba(255,255,255,.018))!important;box-shadow:0 14px 40px rgba(0,0,0,.20)!important}.card{padding:clamp(15px,1.35vw,20px)!important}.card h2{font-size:15px!important;margin-bottom:8px!important}.hero,.dashboard-hero{gap:13px!important;margin-bottom:13px!important}.hero h1,.dashboard-hero h1,.lead h1{font-size:clamp(30px,3.6vw,48px)!important;margin:6px 0 8px!important}.hero p,.dashboard-hero p,.lead p{font-size:15px!important;line-height:1.45!important;margin-bottom:10px!important}.muted{line-height:1.45!important}.grid,.dashboard-grid,.split{gap:13px!important}.biglink{padding:15px!important}.biglink span{font-size:13px!important}.pill{border-radius:999px!important;padding:6px 10px!important}.footer{font-size:12px!important;color:var(--mut)!important}.github-quickstart{display:none!important}
 @media (max-width:1100px){.feature-dock{grid-template-columns:repeat(2,minmax(0,1fr))!important}.site-tools{grid-template-columns:1fr!important}.site-more-panel{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media (max-width:640px){.shell,.wrap{max-width:100%!important;padding:14px 12px 48px!important}.topbar{grid-template-columns:1fr!important;grid-template-areas:"brand" "nav" "tools"!important}.feature-dock{display:flex!important;overflow-x:auto!important;padding-bottom:4px!important}.feature-group{min-width:230px!important}.site-more-panel{grid-template-columns:1fr!important}.site-search{display:none!important}}
+
+/* ---- v0.38 accessibility & design-system hardening ----
+   Addresses recurring audit flaws across every surface: 37/122 contrast,
+   120/127 keyboard focus, 123 touch targets, 125 reduced motion, 128 color-only
+   status. Shared here so all sites inherit it. */
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+textarea:focus-visible,summary:focus-visible,[tabindex]:focus-visible,.pill:focus-visible{
+  outline:2px solid var(--accent)!important;outline-offset:2px!important;border-radius:6px;
+}
+::placeholder{color:var(--mut)!important;opacity:1!important}
+@media (pointer:coarse){
+  a,button,.pill,input,select,summary,[role="button"]{min-height:44px}
+  button,.pill{padding-top:11px!important;padding-bottom:11px!important}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto!important}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
+/* color-blind-safe status: pair hue with a ring, and make error dots square */
+.dot.ok,.dot.okdot{box-shadow:0 0 0 2px rgba(61,220,151,.35)}
+.dot.err,.dot.errdot{box-shadow:0 0 0 2px rgba(255,107,107,.35);border-radius:2px!important}
