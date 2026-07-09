@@ -213,9 +213,7 @@
     if (!nav || q('.site-tools')) return;
     const tools = document.createElement('div');
     tools.className = 'site-tools';
-    tools.innerHTML = '<div class="site-context" aria-live="polite"><span>View</span><strong data-site-mode-label>' +
-      modes[activeMode].label + '</strong><small data-site-mode-copy>' + modes[activeMode].detail + '</small></div>' +
-      '<form class="site-search" role="search"><input type="search" aria-label="Search NetCoin" placeholder="Search tx, address, docs, market..."><button type="submit">Go</button></form>';
+    tools.innerHTML = '<form class="site-search" role="search"><input type="search" aria-label="Search addresses, transactions, or docs" placeholder="Search address, tx, or docs…"><button type="submit" aria-label="Search">Go</button></form>';
     nav.insertAdjacentElement('afterend', tools);
     q('.site-search', tools)?.addEventListener('submit', (ev) => {
       ev.preventDefault();
@@ -319,7 +317,6 @@
   window.NetCoinSite = { links, modes, routeSearch };
   normalizeNav();
   buildTools();
-  buildFeatureDock();
   syncModeUi();
   wireSettings();
   buildGithubQuickstart();
