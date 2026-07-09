@@ -31,3 +31,7 @@ wallets/
 .idea/
 .vscode/
 *.swp
+
+# JS deps and Rust build output
+node_modules/
+target/

@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "parity": "npm run build && node dist/run-parity.js",
     "test": "node --test"
   },
   "dependencies": {
@@ -13,6 +15,7 @@
     "zod": "latest"
   },
   "devDependencies": {
-    "typescript": "latest"
+    "typescript": "latest",
+    "@types/node": "latest"
   }
 }

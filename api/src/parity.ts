@@ -1,26 +1,7 @@
-/** Executable parity status schemas for the Rust/TypeScript migration bridge. */
-import { z } from 'zod';
-
-export const ParityLaneSchema = z.object({
-  lane: z.string(),
-  status: z.enum(['green', 'red']),
-  total: z.number().int().nonnegative(),
-  passed: z.number().int().nonnegative(),
-  failed: z.number().int().nonnegative()
-});
-
-export const ParityStatusSchema = z.object({
-  ok: z.boolean(),
-  schema_version: z.number().int().positive(),
-  vector_fingerprint: z.string().length(64),
-  total: z.number().int().nonnegative(),
-  passed: z.number().int().nonnegative(),
-  failed: z.number().int().nonnegative(),
-  lanes: z.array(ParityLaneSchema)
-});
-
-export type ParityLane = z.infer<typeof ParityLaneSchema>;
-export type ParityStatus = z.infer<typeof ParityStatusSchema>;
+/** Executable parity status helpers for the Rust/TypeScript migration bridge.
+ * The Parity* schemas live in ./schemas.ts (single source of truth); this module
+ * only adds derived helpers so it can be re-exported without name clashes. */
+import type { ParityStatus } from './schemas.js';
 
 export function summarizeParity(status: ParityStatus) {
   const green = status.lanes.filter((lane) => lane.status === 'green').length;

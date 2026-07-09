@@ -136,6 +136,25 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
 
+  typescript:
+    name: TypeScript API (typecheck + parity)
+    runs-on: ubuntu-latest
+    needs: fast
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install
+        run: cd api && npm ci --no-audit --no-fund
+      - name: Typecheck (tsc --noEmit, strict)
+        run: cd api && npm run typecheck
+      - name: Parity vectors (TS must reproduce the frozen vectors)
+        run: cd api && npm run parity
+
   release-verification:
     name: Release verification
     runs-on: ubuntu-latest
