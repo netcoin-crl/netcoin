@@ -106,6 +106,10 @@ export const ParityVectorSchema = z.object({
   consensus: z.unknown(),
   wallet: z.unknown(),
   markets: z.unknown(),
+  mempool: z.unknown().optional(),
+  signer: z.unknown().optional(),
+  p2p: z.unknown().optional(),
+  indexer: z.unknown().optional(),
   api: z.unknown()
 });
 
@@ -113,3 +117,66 @@ export type ExplorerTransaction = z.infer<typeof ExplorerTransactionSchema>;
 export type WalletPreview = z.infer<typeof WalletPreviewSchema>;
 export type MarketSettlement = z.infer<typeof MarketSettlementSchema>;
 export type ParityVector = z.infer<typeof ParityVectorSchema>;
+
+
+export const SignerPolicySchema = z.object({
+  decision: z.enum(['allow', 'review', 'block']),
+  required_signers: z.number().int().positive(),
+  available_signers: z.number().int().nonnegative()
+});
+
+export const P2PSyncSummarySchema = z.object({
+  accepted: z.boolean(),
+  linked: z.boolean(),
+  checkpoint_ok: z.boolean(),
+  protocol_ok: z.boolean()
+});
+
+export const IndexerSnapshotSchema = z.object({
+  height: z.number().int().nonnegative().optional(),
+  address: z.string().optional(),
+  balance_sats: z.number().int().optional(),
+  market_id: z.string().optional(),
+  hash: z.string().optional()
+});
+
+export const OpenApiRouteSchema = z.object({
+  method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default('GET'),
+  path: z.string().min(1),
+  operation_id: z.string().optional()
+});
+
+export const OpenApiParitySchema = z.object({
+  schema_ok: z.boolean(),
+  route_ok: z.boolean(),
+  client_ok: z.boolean(),
+  codegen_ok: z.boolean()
+});
+
+export const MigrationReadinessSchema = z.object({
+  target: z.string(),
+  complete_gates: z.number().int().nonnegative(),
+  total_gates: z.number().int().nonnegative(),
+  ready: z.boolean()
+});
+
+export const OperatorDiagnosticsSchema = z.object({
+  generated_at: z.string().optional(),
+  checks: z.array(z.unknown()).default([]),
+  ok: z.boolean().optional()
+});
+
+export const ReleaseVerifySchema = z.object({
+  ok: z.boolean(),
+  checks: z.array(z.unknown()).default([]),
+  version: z.string().optional()
+});
+
+export type SignerPolicy = z.infer<typeof SignerPolicySchema>;
+export type P2PSyncSummary = z.infer<typeof P2PSyncSummarySchema>;
+export type IndexerSnapshot = z.infer<typeof IndexerSnapshotSchema>;
+export type OpenApiRoute = z.infer<typeof OpenApiRouteSchema>;
+export type OpenApiParity = z.infer<typeof OpenApiParitySchema>;
+export type MigrationReadiness = z.infer<typeof MigrationReadinessSchema>;
+export type OperatorDiagnostics = z.infer<typeof OperatorDiagnosticsSchema>;
+export type ReleaseVerify = z.infer<typeof ReleaseVerifySchema>;

@@ -32,14 +32,15 @@ def test_v017_product_pages_exist_and_reference_shell() -> None:
 
 def test_wallet_overview_send_receive_activity_contacts_are_merged() -> None:
     js = (ROOT / "sites/wallet/wallet-app.js").read_text(encoding="utf-8")
+    # Overview/Send/Receive/Activity/Contacts collapse into one "Wallet" workspace
+    # (they are no longer separate mode tabs). The v0.37.4 compact UI removed the
+    # workspace sub-nav — that structure is asserted by test_v0374_wallet_ui_compact.
     assert '{ id: "wallet", label: "Wallet"' in js
     assert '{ id: "overview", label: "Overview"' not in js
     assert '{ id: "send", label: "Send"' not in js
     assert '{ id: "receive", label: "Receive"' not in js
     assert '{ id: "activity", label: "Activity"' not in js
     assert '{ id: "contacts", label: "Contacts"' not in js
-    assert "walletWorkspaceNav" in js
-    assert "#wallet-send" in js and "#wallet-receive" in js and "#wallet-activity" in js and "#wallet-contacts" in js
 
 
 def test_feature_status_and_health_center_include_live_probes() -> None:

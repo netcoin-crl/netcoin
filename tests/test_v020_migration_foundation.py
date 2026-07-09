@@ -2,6 +2,7 @@ from pathlib import Path
 
 from netcoin.migration_status import migration_status, parity_vectors, final_version_readiness
 from netcoin.architecture import architecture_summary
+from netcoin.params import NODE_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -10,7 +11,7 @@ def test_migration_status_has_required_lanes_and_vectors():
     status = migration_status(ROOT)
     vectors = parity_vectors(ROOT)
     assert status["ok"] is True
-    assert status["version"] == "0.22.0"
+    assert status["version"] == NODE_VERSION
     assert status["current_live_runtime"] == "python-reference-app"
     assert status["target_runtime"] == "rust-core-typescript-app-python-ops"
     assert len(status["lanes"]) >= 5
@@ -23,7 +24,7 @@ def test_architecture_summary_embeds_migration_status():
     summary = architecture_summary(ROOT)
     assert "migration" in summary
     assert summary["migration"]["status"]["ok"] is True
-    assert summary["migration"]["status"]["version"] == "0.22.0"
+    assert summary["migration"]["status"]["version"] == NODE_VERSION
 
 
 def test_final_version_readiness_is_honest_not_ready_by_scaffold_alone():

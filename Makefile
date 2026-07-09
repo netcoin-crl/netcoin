@@ -1,4 +1,4 @@
-.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check full-suite-report devnet fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean
+.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check rust-consensus-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check full-suite-report devnet fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean p2p-soak-check indexer-db-check ts-api-contract-check browser-e2e-matrix-check security-audit-prep-check v033-check v034-check v035-check v036-check v037-check
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -104,8 +104,108 @@ ts-api-check:
 parity-check:
 	$(PYTHON) tools/run_parity_suite.py
 
+rust-consensus-parity-check:
+	$(PYTHON) tools/run_rust_consensus_parity.py --allow-missing-cargo
+
+rust-mempool-parity-check:
+	$(PYTHON) tools/run_rust_mempool_parity.py --allow-missing-cargo
+
+rust-wallet-parity-check:
+	$(PYTHON) tools/run_rust_wallet_parity.py --allow-missing-cargo
+
+rust-markets-parity-check:
+	$(PYTHON) tools/run_rust_markets_parity.py --allow-missing-cargo
+
+rust-signer-parity-check:
+	$(PYTHON) tools/run_rust_signer_parity.py --allow-missing-cargo
+
+rust-p2p-parity-check:
+	$(PYTHON) tools/run_rust_p2p_parity.py --allow-missing-cargo
+
+rust-indexer-parity-check:
+	$(PYTHON) tools/run_rust_indexer_parity.py --allow-missing-cargo
+
+ts-openapi-codegen-check:
+	$(PYTHON) tools/run_ts_openapi_codegen_parity.py
+
 full-suite-report:
 	$(PYTHON) tools/full_suite_report.py
 
 v022-check: parity-check rust-workspace-check ts-api-check migration-check
 	$(PYTHON) -m pytest -q tests/test_v022_rust_ts_parity_expansion.py
+
+
+v023-check: parity-check rust-workspace-check ts-api-check migration-check
+	$(PYTHON) -m pytest -q tests/test_v022_rust_ts_parity_expansion.py tests/test_v023_rust_consensus_parity.py
+
+
+v024-check: parity-check rust-workspace-check ts-api-check migration-check rust-consensus-parity-check
+	$(PYTHON) -m pytest -q tests/test_v022_rust_ts_parity_expansion.py tests/test_v023_rust_consensus_parity.py tests/test_v024_rust_executable_consensus_parity.py
+
+
+v025-check: parity-check rust-workspace-check ts-api-check migration-check rust-consensus-parity-check rust-mempool-parity-check
+	$(PYTHON) -m pytest -q tests/test_v022_rust_ts_parity_expansion.py tests/test_v023_rust_consensus_parity.py tests/test_v024_rust_executable_consensus_parity.py tests/test_v025_rust_mempool_parity.py
+
+
+v026-check: parity-check rust-workspace-check ts-api-check migration-check rust-consensus-parity-check rust-mempool-parity-check rust-wallet-parity-check
+	$(PYTHON) -m pytest -q tests/test_v022_rust_ts_parity_expansion.py tests/test_v023_rust_consensus_parity.py tests/test_v024_rust_executable_consensus_parity.py tests/test_v025_rust_mempool_parity.py tests/test_v026_rust_wallet_core_parity.py
+
+
+
+v027-check: parity-check rust-workspace-check ts-api-check migration-check rust-consensus-parity-check rust-mempool-parity-check rust-wallet-parity-check rust-markets-parity-check
+	$(PYTHON) -m pytest -q tests/test_v022_rust_ts_parity_expansion.py tests/test_v023_rust_consensus_parity.py tests/test_v024_rust_executable_consensus_parity.py tests/test_v025_rust_mempool_parity.py tests/test_v026_rust_wallet_core_parity.py tests/test_v027_rust_markets_core_parity.py
+
+
+v028-check: parity-check rust-workspace-check ts-api-check migration-check rust-consensus-parity-check rust-mempool-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check
+	$(PYTHON) -m pytest -q tests/test_v028_rust_signer_core_parity.py
+
+
+v029-check: parity-check rust-workspace-check ts-api-check migration-check rust-consensus-parity-check rust-mempool-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check
+	$(PYTHON) -m pytest -q tests/test_v029_rust_p2p_sync_parity.py
+
+
+v030-check: parity-check rust-workspace-check ts-api-check migration-check rust-consensus-parity-check rust-mempool-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check
+	$(PYTHON) -m pytest -q tests/test_v030_rust_indexer_core_parity.py
+
+
+v031-check: parity-check rust-workspace-check ts-api-check migration-check rust-consensus-parity-check rust-mempool-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check
+	$(PYTHON) -m pytest -q tests/test_v031_ts_openapi_codegen_parity.py
+
+
+p2p-soak-check:
+	$(PYTHON) tools/run_p2p_soak.py
+
+indexer-db-check:
+	$(PYTHON) tools/check_indexer_db_integration.py
+
+ts-api-contract-check:
+	$(PYTHON) tools/run_ts_api_contract_enforcement.py
+
+browser-e2e-matrix-check:
+	$(PYTHON) tools/run_browser_e2e_matrix.py
+
+security-audit-prep-check:
+	$(PYTHON) tools/run_security_audit_prep.py
+
+
+v033-check: parity-check rust-workspace-check ts-api-check migration-check p2p-soak-check
+	$(PYTHON) -m pytest -q tests/test_v033_hostile_p2p_soak.py
+
+v034-check: parity-check rust-workspace-check ts-api-check migration-check p2p-soak-check indexer-db-check
+	$(PYTHON) -m pytest -q tests/test_v033_hostile_p2p_soak.py tests/test_v034_indexer_db_integration.py
+
+v035-check: parity-check rust-workspace-check ts-api-check migration-check p2p-soak-check indexer-db-check ts-api-contract-check openapi-contract
+	$(PYTHON) -m pytest -q tests/test_v033_hostile_p2p_soak.py tests/test_v034_indexer_db_integration.py tests/test_v035_ts_api_openapi_enforcement.py
+
+v036-check: parity-check rust-workspace-check ts-api-check migration-check p2p-soak-check indexer-db-check ts-api-contract-check openapi-contract browser-e2e-matrix-check
+	$(PYTHON) -m pytest -q tests/test_v033_hostile_p2p_soak.py tests/test_v034_indexer_db_integration.py tests/test_v035_ts_api_openapi_enforcement.py tests/test_v036_browser_e2e_matrix.py
+
+v037-check: parity-check rust-workspace-check ts-api-check migration-check p2p-soak-check indexer-db-check ts-api-contract-check openapi-contract browser-e2e-matrix-check security-audit-prep-check
+	$(PYTHON) -m pytest -q tests/test_v033_hostile_p2p_soak.py tests/test_v034_indexer_db_integration.py tests/test_v035_ts_api_openapi_enforcement.py tests/test_v036_browser_e2e_matrix.py tests/test_v037_security_fuzz_audit_prep.py
+
+.PHONY: v0374-check
+v0374-check:
+	python -m compileall -q netcoin tools
+	python tools/run_parity_suite.py --no-write
+	python tools/check_product_surface.py
+	PYTHONPATH=. pytest -q tests/test_v0374_wallet_ui_compact.py

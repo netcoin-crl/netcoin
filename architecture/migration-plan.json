@@ -1,6 +1,6 @@
 {
-  "version": "0.22.0",
-  "codename": "Parity Bridge",
+  "version": "0.37.4",
+  "codename": "Hostile Soak, Indexer DB, TypeScript API, Browser E2E, and Audit Prep Hardening",
   "current_live_runtime": "python-reference-app",
   "target_runtime": "rust-core-typescript-app-python-ops",
   "upgrade_principle": "No component replaces live Python behavior until it passes frozen vector parity, API contract checks, product checks, and rollback documentation.",
@@ -8,42 +8,84 @@
     {
       "id": "rust-consensus-parity",
       "language": "Rust",
-      "status": "starter-parity-crate",
+      "status": "executable-rust-consensus-parity-runner",
       "current_owner": "core-rs/crates/consensus",
       "must_pass_before_live": [
         "consensus parity vectors",
         "invalid block corpus",
         "reorg corpus",
         "chainstate hash parity"
+      ],
+      "evidence_added_v023": [
+        "transaction shape summary vectors",
+        "block header hash vectors",
+        "basic UTXO spend validation vectors",
+        "Rust fixture coverage for every consensus vector kind"
+      ],
+      "evidence_added_v024": [
+        "Rust netcoin-consensus-parity binary reads frozen parity vectors and emits JSON case results",
+        "Python comparison wrapper runs Cargo when available and compares Rust case outputs with Python reference outputs",
+        "consensus parity vector set expanded to executable-runner edge cases",
+        "v024-check make target added for source checks plus Rust executable comparison when Cargo is available"
+      ]
+    },
+    {
+      "id": "rust-mempool-parity",
+      "language": "Rust",
+      "status": "executable-rust-mempool-policy-parity-runner",
+      "current_owner": "core-rs/crates/mempool-core",
+      "must_pass_before_live": [
+        "policy vectors",
+        "package/ancestor vectors",
+        "RBF replacement vectors",
+        "orphan and expiry vectors",
+        "fee-rate eviction vectors"
+      ],
+      "evidence_added_v025": [
+        "Frozen mempool policy vector lane added to architecture/parity-vectors.json",
+        "Rust netcoin-mempool-core crate mirrors Python reference policy decisions",
+        "Rust netcoin-mempool-parity binary reads frozen vectors and emits JSON case results",
+        "Python comparison wrapper runs Cargo when available and compares Rust mempool outputs with Python reference outputs",
+        "v025-check make target added for consensus and mempool parity gates"
       ]
     },
     {
       "id": "rust-wallet-core",
       "language": "Rust",
-      "status": "starter-domain-model",
+      "status": "executable-rust-wallet-core-policy-parity-runner",
       "current_owner": "core-rs/crates/wallet-core",
       "must_pass_before_live": [
         "address parity",
         "tx builder parity",
         "risk preview parity",
         "offline signing parity"
-      ]
+      ],
+      "evidence_added_v026": {
+        "rust_crate": "core-rs/crates/wallet-core",
+        "rust_binary": "core-rs/crates/wallet-core/src/bin/netcoin-wallet-parity.rs",
+        "python_wrapper": "tools/run_rust_wallet_parity.py",
+        "vector_set": "wallet-core-executable-vectors-v3",
+        "cases": 21
+      }
     },
     {
       "id": "rust-markets-core",
       "language": "Rust",
-      "status": "starter-invariants",
+      "status": "executable-rust-markets-core-parity-runner",
       "current_owner": "core-rs/crates/markets-core",
       "must_pass_before_live": [
         "orderbook invariant tests",
         "settlement conservation",
         "dispute lifecycle parity"
+      ],
+      "evidence_added_v027": [
+        "v0.31 combined parity expansion keeps this lane source-checked and vector-backed"
       ]
     },
     {
       "id": "typescript-api-contracts",
       "language": "TypeScript",
-      "status": "typed-schema-starter",
+      "status": "typed-api-contracts-plus-openapi-codegen-parity",
       "current_owner": "api/src",
       "must_pass_before_live": [
         "OpenAPI parity",
@@ -65,34 +107,165 @@
     {
       "id": "rust-p2p-sync",
       "language": "Rust",
-      "status": "planned-parity-lane",
+      "status": "executable-rust-p2p-header-sync-parity-runner",
       "current_owner": "core-rs/crates/node",
       "must_pass_before_live": [
         "header sync parity",
         "bad peer simulator",
         "block download retry parity",
         "hostile p2p soak"
+      ],
+      "evidence_added_v029": [
+        "v0.31 combined parity expansion keeps this lane source-checked and vector-backed"
       ]
     },
     {
       "id": "rust-indexer-core",
       "language": "Rust",
-      "status": "planned-parity-lane",
-      "current_owner": "indexer-rs",
+      "status": "executable-rust-indexer-core-parity-runner",
+      "current_owner": "core-rs/crates/indexer-core",
       "must_pass_before_live": [
         "address index parity",
         "reorg rollback parity",
         "mempool index parity"
+      ],
+      "evidence_added_v030": [
+        "v0.31 combined parity expansion keeps this lane source-checked and vector-backed"
       ]
     },
     {
       "id": "parity-reporting",
       "language": "Python",
-      "status": "active-parity-runner",
+      "status": "active-python-and-rust-consensus-mempool-wallet-comparison",
       "current_owner": "netcoin/parity_suite.py",
       "must_pass_before_live": [
         "reports/parity_suite_report.json green",
-        "all executable vectors green"
+        "all executable vectors green",
+        "reports/rust_consensus_parity_report.json green"
+      ]
+    },
+    {
+      "id": "rust-signer-core",
+      "language": "Rust",
+      "status": "executable-rust-signer-core-parity-runner",
+      "current_owner": "core-rs/crates/signer-core",
+      "must_pass_before_live": [
+        "offline signing vectors",
+        "hardware policy vectors",
+        "multisig threshold vectors",
+        "sighash safety vectors"
+      ],
+      "evidence_added_v028": [
+        "Rust netcoin-signer-parity binary",
+        "Python comparison wrapper for signer vectors",
+        "offline envelope and hardware policy vectors"
+      ]
+    },
+    {
+      "id": "typescript-openapi-codegen",
+      "language": "TypeScript",
+      "status": "source-checked-openapi-schema-client-codegen-parity",
+      "current_owner": "api",
+      "must_pass_before_live": [
+        "OpenAPI route parity",
+        "schema export parity",
+        "client method parity",
+        "generated SDK compatibility"
+      ],
+      "evidence_added_v031": [
+        "api/src/openapi-parity.ts",
+        "tools/run_ts_openapi_codegen_parity.py",
+        "expanded API vector requirements for schemas, routes, client methods, and codegen symbols"
+      ]
+    },
+    {
+      "id": "hostile-p2p-network-soak",
+      "language": "Python reference plus future Rust node soak",
+      "status": "deterministic-hostile-network-soak-gate",
+      "current_owner": "netcoin/hostile_p2p_soak.py",
+      "must_pass_before_live": [
+        "invalid header spam detection",
+        "duplicate header handling",
+        "partition heal behavior",
+        "eclipse attempt detection",
+        "ban-score escalation"
+      ],
+      "evidence_added_v033": [
+        "architecture/hostile-p2p-soak-scenarios.json",
+        "tools/run_p2p_soak.py",
+        "tests/test_v033_hostile_p2p_soak.py"
+      ]
+    },
+    {
+      "id": "indexer-db-integration",
+      "language": "Python reference now, Rust indexer later",
+      "status": "sqlite-indexer-integration-gate",
+      "current_owner": "netcoin/indexer_db.py",
+      "must_pass_before_live": [
+        "address event persistence",
+        "market event persistence",
+        "reorg rollback",
+        "integrity snapshot",
+        "schema migration plan"
+      ],
+      "evidence_added_v034": [
+        "netcoin/indexer_db.py",
+        "tools/check_indexer_db_integration.py",
+        "tests/test_v034_indexer_db_integration.py"
+      ]
+    },
+    {
+      "id": "typescript-api-openapi-enforcement",
+      "language": "TypeScript",
+      "status": "api-server-contract-shell",
+      "current_owner": "api/src/server.ts",
+      "must_pass_before_live": [
+        "OpenAPI route enforcement",
+        "signed-envelope write route checks",
+        "schema/client parity",
+        "npm build in CI"
+      ],
+      "evidence_added_v035": [
+        "api/src/server.ts",
+        "api/src/openapi-enforce.ts",
+        "tools/run_ts_api_contract_enforcement.py"
+      ]
+    },
+    {
+      "id": "browser-e2e-product-matrix",
+      "language": "Playwright/TypeScript",
+      "status": "source-checked-browser-e2e-matrix",
+      "current_owner": "sites/tests/e2e/netcoin-product-matrix.spec.ts",
+      "must_pass_before_live": [
+        "wallet E2E",
+        "explorer E2E",
+        "markets E2E",
+        "faucet E2E",
+        "operator E2E",
+        "exchange E2E"
+      ],
+      "evidence_added_v036": [
+        "architecture/browser-e2e-matrix.json",
+        "tools/run_browser_e2e_matrix.py",
+        "tests/test_v036_browser_e2e_matrix.py"
+      ]
+    },
+    {
+      "id": "security-fuzz-audit-prep",
+      "language": "Python tooling plus future fuzz/property runners",
+      "status": "audit-prep-manifest-gate",
+      "current_owner": "netcoin/security_hardening.py",
+      "must_pass_before_live": [
+        "threat model inventory",
+        "fuzz target inventory",
+        "audit gate manifest",
+        "release hardening docs",
+        "external audit before mainnet"
+      ],
+      "evidence_added_v037": [
+        "architecture/security-fuzz-audit-vectors.json",
+        "tools/run_security_audit_prep.py",
+        "tests/test_v037_security_fuzz_audit_prep.py"
       ]
     }
   ],
@@ -105,5 +278,7 @@
     "P2P hostile soak green",
     "External crypto/security audit complete",
     "Release provenance and SBOM verified"
-  ]
+  ],
+  "generated_by": "netcoin-v0.37-hardening-expansion",
+  "current_status": "Python reference app remains live; v0.37 adds v0.33 hostile P2P soak gates, v0.34 SQLite indexer integration, v0.35 TypeScript API/OpenAPI enforcement, v0.36 browser E2E matrix scaffolding, and v0.37 security/fuzz/audit-prep gates. Rust/TypeScript remain migration boundaries until local Cargo/npm/Playwright gates and production audits pass."
 }

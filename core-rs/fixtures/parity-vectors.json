@@ -1,12 +1,12 @@
 {
-  "schema_version": 3,
-  "generated_by": "netcoin-v0.22-rust-parity-expansion",
-  "purpose": "Executable cross-language parity vectors for Python reference, Rust core parity crates, and TypeScript API/client migration lanes. Replacement code must match these vectors before live promotion.",
+  "schema_version": 12,
+  "generated_by": "netcoin-v0.31-rust-ts-full-parity-expansion",
+  "purpose": "Frozen Python reference vectors for Rust markets/signer/P2P/indexer and TypeScript OpenAPI codegen parity through v0.31.",
   "consensus": {
-    "vector_set": "consensus-executable-vectors-v2",
+    "vector_set": "consensus-executable-vectors-v4",
     "reference": "python-netcoin-reference",
-    "valid_cases": 8,
-    "invalid_cases": 6,
+    "valid_cases": 16,
+    "invalid_cases": 14,
     "cases": [
       {
         "id": "hash-empty-double-sha256",
@@ -153,12 +153,347 @@
         "numerator": 9,
         "denominator": 10,
         "expected_sats": 4050000000
+      },
+      {
+        "id": "tx-parse-standard-summary",
+        "kind": "tx_parse",
+        "valid": true,
+        "tx": {
+          "version": 2,
+          "inputs": [
+            {
+              "txid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "vout": 0,
+              "sequence": 4294967294
+            }
+          ],
+          "outputs": [
+            {
+              "amount": 120000,
+              "script_pubkey": "OP_TRUE"
+            },
+            {
+              "amount": 29000,
+              "script_pubkey": "OP_TRUE"
+            }
+          ],
+          "locktime": 0
+        },
+        "expected_summary": {
+          "valid": true,
+          "version": 2,
+          "locktime": 0,
+          "input_count": 1,
+          "output_count": 2,
+          "total_output_sats": 149000,
+          "coinbase": false
+        }
+      },
+      {
+        "id": "tx-parse-coinbase-summary",
+        "kind": "tx_parse",
+        "valid": true,
+        "tx": {
+          "version": 1,
+          "inputs": [
+            {
+              "txid": "0000000000000000000000000000000000000000000000000000000000000000",
+              "vout": -1,
+              "coinbase": "NetCoin block 1"
+            }
+          ],
+          "outputs": [
+            {
+              "amount": 5000000000,
+              "script_pubkey": "OP_TRUE"
+            }
+          ],
+          "locktime": 0
+        },
+        "expected_summary": {
+          "valid": true,
+          "version": 1,
+          "locktime": 0,
+          "input_count": 1,
+          "output_count": 1,
+          "total_output_sats": 5000000000,
+          "coinbase": true
+        }
+      },
+      {
+        "id": "tx-parse-empty-inputs",
+        "kind": "tx_parse",
+        "valid": false,
+        "tx": {
+          "version": 1,
+          "inputs": [],
+          "outputs": [
+            {
+              "amount": 1,
+              "script_pubkey": "OP_TRUE"
+            }
+          ],
+          "locktime": 0
+        },
+        "expected_summary": {
+          "valid": false
+        }
+      },
+      {
+        "id": "block-header-hash-v1",
+        "kind": "block_header",
+        "valid": true,
+        "header": {
+          "version": 1,
+          "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "merkle_root": "1111111111111111111111111111111111111111111111111111111111111111",
+          "timestamp": 1700000000,
+          "bits": 520159231,
+          "nonce": 42,
+          "height": 1
+        },
+        "expected_summary": {
+          "valid": true,
+          "hash_hex": "279b8f7d7ebad9229332d7dde3e5f827ed778b57ab3189e6da297062e1727ed4",
+          "height": 1
+        }
+      },
+      {
+        "id": "block-header-invalid-prev-hash",
+        "kind": "block_header",
+        "valid": false,
+        "header": {
+          "version": 1,
+          "previous_hash": "abc",
+          "merkle_root": "1111111111111111111111111111111111111111111111111111111111111111",
+          "timestamp": 1700000000,
+          "bits": 520159231,
+          "nonce": 42,
+          "height": 1
+        },
+        "expected_summary": {
+          "valid": false
+        }
+      },
+      {
+        "id": "basic-utxo-valid-spend",
+        "kind": "basic_utxo",
+        "valid": true,
+        "spend_height": 12,
+        "coinbase_maturity": 100,
+        "inputs": [
+          {
+            "outpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0",
+            "amount_sats": 150000,
+            "height": 10,
+            "coinbase": false
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 149000
+          }
+        ],
+        "expected": true
+      },
+      {
+        "id": "basic-utxo-overspend",
+        "kind": "basic_utxo",
+        "valid": false,
+        "spend_height": 12,
+        "coinbase_maturity": 100,
+        "inputs": [
+          {
+            "outpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0",
+            "amount_sats": 150000,
+            "height": 10,
+            "coinbase": false
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 151000
+          }
+        ],
+        "expected": false
+      },
+      {
+        "id": "basic-utxo-duplicate-input",
+        "kind": "basic_utxo",
+        "valid": false,
+        "spend_height": 12,
+        "coinbase_maturity": 100,
+        "inputs": [
+          {
+            "outpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0",
+            "amount_sats": 150000,
+            "height": 10,
+            "coinbase": false
+          },
+          {
+            "outpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0",
+            "amount_sats": 150000,
+            "height": 10,
+            "coinbase": false
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 149000
+          }
+        ],
+        "expected": false
+      },
+      {
+        "id": "basic-utxo-immature-coinbase",
+        "kind": "basic_utxo",
+        "valid": false,
+        "spend_height": 30,
+        "coinbase_maturity": 100,
+        "inputs": [
+          {
+            "outpoint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:0",
+            "amount_sats": 5000000000,
+            "height": 20,
+            "coinbase": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 4999999000
+          }
+        ],
+        "expected": false
+      },
+      {
+        "id": "basic-utxo-missing-prevout",
+        "kind": "basic_utxo",
+        "valid": false,
+        "spend_height": 12,
+        "coinbase_maturity": 100,
+        "inputs": [
+          {
+            "outpoint": "",
+            "height": 10,
+            "coinbase": false
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 1
+          }
+        ],
+        "expected": false
+      },
+      {
+        "id": "merkle-root-empty-leaves",
+        "kind": "merkle_root",
+        "valid": true,
+        "leaves_hex": [],
+        "expected_hex": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"
+      },
+      {
+        "id": "subsidy-genesis-height",
+        "kind": "subsidy",
+        "valid": true,
+        "base_reward_sats": 5000000000,
+        "height": 0,
+        "interval": 265000,
+        "numerator": 9,
+        "denominator": 10,
+        "expected_sats": 5000000000
+      },
+      {
+        "id": "tx-parse-negative-output",
+        "kind": "tx_parse",
+        "valid": false,
+        "tx": {
+          "version": 1,
+          "inputs": [
+            {
+              "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "vout": 0,
+              "sequence": 4294967295
+            }
+          ],
+          "outputs": [
+            {
+              "amount": -1,
+              "script_pubkey": "OP_TRUE"
+            }
+          ],
+          "locktime": 0
+        },
+        "expected_summary": {
+          "valid": false
+        }
+      },
+      {
+        "id": "block-header-uppercase-normalized",
+        "kind": "block_header",
+        "valid": true,
+        "header": {
+          "version": 2,
+          "previous_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "merkle_root": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+          "timestamp": 1700000300,
+          "bits": 520159231,
+          "nonce": 7,
+          "height": 2
+        },
+        "expected_summary": {
+          "valid": true,
+          "hash_hex": "9544fbdcfc191ebbc2d2b6cac42cbeff428e203082eb7a6a5e4fccb7fe246951",
+          "height": 2
+        }
+      },
+      {
+        "id": "basic-utxo-mature-coinbase",
+        "kind": "basic_utxo",
+        "valid": true,
+        "spend_height": 150,
+        "coinbase_maturity": 100,
+        "inputs": [
+          {
+            "outpoint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:0",
+            "amount_sats": 5000000000,
+            "height": 20,
+            "coinbase": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 4999999000
+          }
+        ],
+        "expected": true
+      },
+      {
+        "id": "basic-utxo-negative-output",
+        "kind": "basic_utxo",
+        "valid": false,
+        "spend_height": 12,
+        "coinbase_maturity": 100,
+        "inputs": [
+          {
+            "outpoint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:0",
+            "amount_sats": 150000,
+            "height": 10,
+            "coinbase": false
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": -1
+          }
+        ],
+        "expected": false
       }
     ]
   },
   "wallet": {
-    "vector_set": "wallet-executable-vectors-v2",
-    "reference": "python-netcoin-wallet",
+    "vector_set": "wallet-core-executable-vectors-v3",
+    "reference": "python-netcoin-wallet-reference",
     "cases": [
       {
         "id": "preview-safe-send",
@@ -257,11 +592,146 @@
         "recipient_reused": true,
         "warnings": [],
         "decision": "review"
+      },
+      {
+        "id": "preview-negative-amount",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": -1,
+        "fee_sats": 500,
+        "balance_after_sats": 900000,
+        "warnings": [],
+        "decision": "block"
+      },
+      {
+        "id": "preview-negative-fee",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": -1,
+        "balance_after_sats": 900000,
+        "warnings": [],
+        "decision": "block"
+      },
+      {
+        "id": "preview-poison-warning",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 500,
+        "balance_after_sats": 900000,
+        "warnings": [
+          "address poison candidate"
+        ],
+        "decision": "block"
+      },
+      {
+        "id": "preview-borderline-fee-rate-allow",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 4900,
+        "balance_after_sats": 895100,
+        "fee_rate_sat_vb": 49,
+        "warnings": [],
+        "decision": "allow"
+      },
+      {
+        "id": "preview-fee-rate-threshold-review",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 5000,
+        "balance_after_sats": 895000,
+        "fee_rate_sat_vb": 50,
+        "warnings": [],
+        "decision": "review"
+      },
+      {
+        "id": "preview-fee-rate-threshold-block",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 25000,
+        "balance_after_sats": 875000,
+        "fee_rate_sat_vb": 250,
+        "warnings": [],
+        "decision": "block"
+      },
+      {
+        "id": "preview-dust-threshold-allow",
+        "input_count": 1,
+        "output_count": 2,
+        "amount_sats": 999000,
+        "fee_sats": 454,
+        "balance_after_sats": 546,
+        "dust_change_sats": 546,
+        "warnings": [],
+        "decision": "allow"
+      },
+      {
+        "id": "preview-zero-dust-change-allow",
+        "input_count": 1,
+        "output_count": 1,
+        "amount_sats": 999500,
+        "fee_sats": 500,
+        "balance_after_sats": 0,
+        "dust_change_sats": 0,
+        "warnings": [],
+        "decision": "allow"
+      },
+      {
+        "id": "preview-hardware-signer-warning",
+        "input_count": 2,
+        "output_count": 2,
+        "amount_sats": 250000,
+        "fee_sats": 1000,
+        "balance_after_sats": 749000,
+        "warnings": [
+          "hardware signer required"
+        ],
+        "decision": "review"
+      },
+      {
+        "id": "preview-offline-signing-warning",
+        "input_count": 3,
+        "output_count": 2,
+        "amount_sats": 500000,
+        "fee_sats": 1500,
+        "balance_after_sats": 498500,
+        "warnings": [
+          "offline signing recommended"
+        ],
+        "decision": "review"
+      },
+      {
+        "id": "preview-large-input-boundary-allow",
+        "input_count": 20,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 2000,
+        "balance_after_sats": 898000,
+        "warnings": [],
+        "decision": "allow"
+      },
+      {
+        "id": "preview-large-input-over-limit-review",
+        "input_count": 21,
+        "output_count": 2,
+        "amount_sats": 100000,
+        "fee_sats": 2000,
+        "balance_after_sats": 898000,
+        "warnings": [],
+        "decision": "review"
       }
-    ]
+    ],
+    "valid_cases": 5,
+    "review_cases": 9,
+    "blocked_cases": 7,
+    "total_cases": 21
   },
   "markets": {
-    "vector_set": "markets-executable-vectors-v2",
+    "vector_set": "markets-core-executable-vectors-v4",
     "reference": "python-netcoin-markets",
     "cases": [
       {
@@ -352,11 +822,113 @@
         "quantity": 100,
         "min_notional_sats": 5,
         "expected": false
+      },
+      {
+        "id": "price-tick-valid-50bps",
+        "kind": "price_tick",
+        "price_bps": 5250,
+        "tick_bps": 50,
+        "expected": true
+      },
+      {
+        "id": "price-tick-reject-off-grid",
+        "kind": "price_tick",
+        "price_bps": 5235,
+        "tick_bps": 50,
+        "expected": false
+      },
+      {
+        "id": "collateral-sufficient",
+        "kind": "collateral",
+        "available_collateral_sats": 250000,
+        "required_collateral_sats": 200000,
+        "expected": true
+      },
+      {
+        "id": "collateral-insufficient",
+        "kind": "collateral",
+        "available_collateral_sats": 199999,
+        "required_collateral_sats": 200000,
+        "expected": false
+      },
+      {
+        "id": "buy-crosses-best-ask",
+        "kind": "crossing",
+        "side": "buy",
+        "price_bps": 5600,
+        "best_bid_bps": 5400,
+        "best_ask_bps": 5550,
+        "expected": true
+      },
+      {
+        "id": "sell-does-not-cross-best-bid",
+        "kind": "crossing",
+        "side": "sell",
+        "price_bps": 5450,
+        "best_bid_bps": 5400,
+        "best_ask_bps": 5550,
+        "expected": false
+      },
+      {
+        "id": "open-market-allows-orders",
+        "kind": "lifecycle",
+        "state": "open",
+        "expected": true
+      },
+      {
+        "id": "resolved-market-blocks-orders",
+        "kind": "lifecycle",
+        "state": "resolved",
+        "expected": false
+      },
+      {
+        "id": "resolved-state-with-outcome",
+        "kind": "settlement_state",
+        "state": "resolved",
+        "resolved_outcome": "YES",
+        "disputed": false,
+        "expected": true
+      },
+      {
+        "id": "resolved-state-missing-outcome",
+        "kind": "settlement_state",
+        "state": "resolved",
+        "resolved_outcome": "",
+        "disputed": false,
+        "expected": false
+      },
+      {
+        "id": "portfolio-equity-conserves",
+        "kind": "portfolio",
+        "cash_sats": 100000,
+        "position_value_sats": 25000,
+        "locked_collateral_sats": 5000,
+        "equity_sats": 130000,
+        "expected": true
+      },
+      {
+        "id": "portfolio-equity-mismatch",
+        "kind": "portfolio",
+        "cash_sats": 100000,
+        "position_value_sats": 25000,
+        "locked_collateral_sats": 5000,
+        "equity_sats": 129999,
+        "expected": false
+      },
+      {
+        "id": "fee-cap-boundary-equal",
+        "kind": "fee_cap",
+        "fee_bps": 25,
+        "max_fee_bps": 25,
+        "expected": true
       }
-    ]
+    ],
+    "total_cases": 24,
+    "valid_cases": 12,
+    "invalid_cases": 12
   },
   "api": {
-    "vector_set": "api-schema-vectors-v1",
+    "vector_set": "api-openapi-codegen-vectors-v2",
     "reference": "python-openapi-and-typescript-schemas",
     "required_routes": [
       "/api/migration-status",
@@ -365,7 +937,12 @@
       "/api/wallet/drafts",
       "/api/markets/{market_id}/orderbook",
       "/api/parity-vectors",
-      "/api/migration-readiness"
+      "/api/migration-readiness",
+      "/api/explorer/tx/{txid}",
+      "/api/explorer/block/{id}",
+      "/api/explorer/mempool",
+      "/api/operator/diagnostics/bundle",
+      "/api/release/verify"
     ],
     "required_schemas": [
       "SignedEnvelopeSchema",
@@ -376,7 +953,979 @@
       "ExplorerTransactionSchema",
       "WalletPreviewSchema",
       "MarketSettlementSchema",
-      "ParityVectorSchema"
-    ]
+      "ParityVectorSchema",
+      "SignerPolicySchema",
+      "P2PSyncSummarySchema",
+      "IndexerSnapshotSchema",
+      "OpenApiRouteSchema",
+      "OpenApiParitySchema",
+      "MigrationReadinessSchema",
+      "OperatorDiagnosticsSchema",
+      "ReleaseVerifySchema"
+    ],
+    "required_client_methods": [
+      "migrationStatus",
+      "explorerAddress",
+      "parityStatus",
+      "parityVectors",
+      "migrationReadiness",
+      "explorerTransaction",
+      "explorerBlock",
+      "explorerMempool",
+      "operatorDiagnosticsBundle",
+      "releaseVerify"
+    ],
+    "required_codegen_symbols": [
+      "OpenApiParitySchema",
+      "normalizeOpenApiRoute",
+      "requiredOpenApiRoutes",
+      "requiredOpenApiSchemas",
+      "summarizeOpenApiParity",
+      "assertOpenApiParity"
+    ],
+    "expected_codegen_summary": {
+      "schema_ok": true,
+      "route_ok": true,
+      "client_ok": true,
+      "codegen_ok": true
+    }
+  },
+  "mempool": {
+    "vector_set": "mempool-policy-vectors-v1",
+    "reference": "python-netcoin-mempool-policy",
+    "cases": [
+      {
+        "id": "mempool-accept-standard-high-fee",
+        "kind": "policy",
+        "txid": "tx-standard",
+        "fee_sats": 1200,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "aa:0",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 2,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "expected_summary": {
+          "accepted": true,
+          "code": "accepted",
+          "fee_rate_sat_vb": 6
+        }
+      },
+      {
+        "id": "mempool-reject-duplicate-txid",
+        "kind": "policy",
+        "txid": "tx-dup",
+        "fee_sats": 1200,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "aa:1",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [
+          "tx-dup"
+        ],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 0,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "expected_summary": {
+          "accepted": false,
+          "code": "duplicate",
+          "fee_rate_sat_vb": 6
+        }
+      },
+      {
+        "id": "mempool-reject-orphan-missing-prevout",
+        "kind": "policy",
+        "txid": "tx-orphan",
+        "fee_sats": 1200,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "missing:0",
+            "available": false
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 0,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "expected_summary": {
+          "accepted": false,
+          "code": "orphan",
+          "fee_rate_sat_vb": 6
+        }
+      },
+      {
+        "id": "mempool-reject-low-fee-rate",
+        "kind": "policy",
+        "txid": "tx-lowfee",
+        "fee_sats": 199,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "bb:0",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 0,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "expected_summary": {
+          "accepted": false,
+          "code": "low_fee_rate",
+          "fee_rate_sat_vb": 0
+        }
+      },
+      {
+        "id": "mempool-reject-dust-output",
+        "kind": "policy",
+        "txid": "tx-dust",
+        "fee_sats": 1200,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "cc:0",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 545
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 0,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "expected_summary": {
+          "accepted": false,
+          "code": "dust",
+          "fee_rate_sat_vb": 6
+        }
+      },
+      {
+        "id": "mempool-reject-nonfinal-locktime",
+        "kind": "policy",
+        "txid": "tx-nonfinal",
+        "fee_sats": 1200,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "dd:0",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 0,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 150,
+        "current_height": 100,
+        "expected_summary": {
+          "accepted": false,
+          "code": "nonfinal",
+          "fee_rate_sat_vb": 6
+        }
+      },
+      {
+        "id": "mempool-reject-ancestor-limit",
+        "kind": "policy",
+        "txid": "tx-ancestors",
+        "fee_sats": 1200,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "ee:0",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 26,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "expected_summary": {
+          "accepted": false,
+          "code": "too_many_ancestors",
+          "fee_rate_sat_vb": 6
+        }
+      },
+      {
+        "id": "mempool-reject-descendant-limit",
+        "kind": "policy",
+        "txid": "tx-descendants",
+        "fee_sats": 1200,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "ff:0",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 0,
+        "max_ancestors": 25,
+        "descendant_count": 26,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "expected_summary": {
+          "accepted": false,
+          "code": "too_many_descendants",
+          "fee_rate_sat_vb": 6
+        }
+      },
+      {
+        "id": "mempool-reject-too-large",
+        "kind": "policy",
+        "txid": "tx-large",
+        "fee_sats": 500000,
+        "vsize": 100001,
+        "inputs": [
+          {
+            "outpoint": "gg:0",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 0,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "expected_summary": {
+          "accepted": false,
+          "code": "too_large",
+          "fee_rate_sat_vb": 4
+        }
+      },
+      {
+        "id": "mempool-reject-insufficient-rbf-bump",
+        "kind": "policy",
+        "txid": "tx-rbf",
+        "fee_sats": 1050,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "hh:0",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 0,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "replacement_for": "old-rbf",
+        "old_fee_sats": 1000,
+        "min_replacement_delta_sats": 100,
+        "expected_summary": {
+          "accepted": false,
+          "code": "insufficient_replacement_fee",
+          "fee_rate_sat_vb": 5
+        }
+      },
+      {
+        "id": "mempool-accept-sufficient-rbf-bump",
+        "kind": "policy",
+        "txid": "tx-rbf-good",
+        "fee_sats": 1200,
+        "vsize": 200,
+        "inputs": [
+          {
+            "outpoint": "ii:0",
+            "available": true
+          }
+        ],
+        "outputs": [
+          {
+            "amount_sats": 50000
+          }
+        ],
+        "current_pool_txids": [],
+        "min_relay_fee_rate_sat_vb": 2,
+        "dust_threshold_sats": 546,
+        "max_vsize": 100000,
+        "ancestor_count": 0,
+        "max_ancestors": 25,
+        "descendant_count": 0,
+        "max_descendants": 25,
+        "locktime": 0,
+        "current_height": 100,
+        "replacement_for": "old-rbf",
+        "old_fee_sats": 1000,
+        "min_replacement_delta_sats": 100,
+        "expected_summary": {
+          "accepted": true,
+          "code": "accepted",
+          "fee_rate_sat_vb": 6
+        }
+      },
+      {
+        "id": "mempool-order-by-feerate-desc",
+        "kind": "ordering",
+        "txs": [
+          {
+            "txid": "low",
+            "fee_sats": 400,
+            "vsize": 200
+          },
+          {
+            "txid": "high",
+            "fee_sats": 1500,
+            "vsize": 250
+          },
+          {
+            "txid": "tie-a",
+            "fee_sats": 600,
+            "vsize": 200
+          },
+          {
+            "txid": "tie-b",
+            "fee_sats": 900,
+            "vsize": 300
+          }
+        ],
+        "expected_summary": {
+          "ordered_txids": [
+            "high",
+            "tie-a",
+            "tie-b",
+            "low"
+          ],
+          "top_fee_rate_sat_vb": 6
+        }
+      }
+    ],
+    "valid_cases": 3,
+    "invalid_cases": 9
+  },
+  "signer": {
+    "vector_set": "signer-core-executable-vectors-v1",
+    "reference": "python-netcoin-signer-reference",
+    "cases": [
+      {
+        "id": "signer-digest-basic-transfer",
+        "kind": "digest",
+        "payload": {
+          "from": "n1",
+          "to": "n2",
+          "amount_sats": 125000,
+          "fee_sats": 500
+        },
+        "expected_hex": "8f8c0a0a2ba080a22b23cee88635b314b6884f5a82bcaade07e718bc9cfd74c9"
+      },
+      {
+        "id": "signer-digest-market-order",
+        "kind": "digest",
+        "payload": {
+          "market_id": "m1",
+          "side": "buy",
+          "outcome": "YES",
+          "price_bps": 5200,
+          "quantity": 10
+        },
+        "expected_hex": "e5edb72e456578df13ca7d8a92dea496c396ba97f7ac2e2a569837fbc9e4ec65"
+      },
+      {
+        "id": "signer-policy-single-hot-allow",
+        "kind": "policy",
+        "required_signers": 1,
+        "available_signers": 1,
+        "amount_sats": 50000,
+        "hardware": false,
+        "offline": false,
+        "hardware_limit_sats": 0,
+        "unknown_sighash": false,
+        "expected_summary": {
+          "decision": "allow",
+          "required_signers": 1,
+          "available_signers": 1
+        }
+      },
+      {
+        "id": "signer-policy-missing-threshold-block",
+        "kind": "policy",
+        "required_signers": 2,
+        "available_signers": 1,
+        "amount_sats": 50000,
+        "hardware": false,
+        "offline": false,
+        "hardware_limit_sats": 0,
+        "unknown_sighash": false,
+        "expected_summary": {
+          "decision": "block",
+          "required_signers": 2,
+          "available_signers": 1
+        }
+      },
+      {
+        "id": "signer-policy-hardware-large-review",
+        "kind": "policy",
+        "required_signers": 1,
+        "available_signers": 1,
+        "amount_sats": 1000000,
+        "hardware": true,
+        "offline": false,
+        "hardware_limit_sats": 500000,
+        "unknown_sighash": false,
+        "expected_summary": {
+          "decision": "review",
+          "required_signers": 1,
+          "available_signers": 1
+        }
+      },
+      {
+        "id": "signer-policy-offline-review",
+        "kind": "policy",
+        "required_signers": 1,
+        "available_signers": 1,
+        "amount_sats": 50000,
+        "hardware": false,
+        "offline": true,
+        "hardware_limit_sats": 0,
+        "unknown_sighash": false,
+        "expected_summary": {
+          "decision": "review",
+          "required_signers": 1,
+          "available_signers": 1
+        }
+      },
+      {
+        "id": "signer-policy-unknown-sighash-block",
+        "kind": "policy",
+        "required_signers": 1,
+        "available_signers": 1,
+        "amount_sats": 50000,
+        "hardware": false,
+        "offline": false,
+        "hardware_limit_sats": 0,
+        "unknown_sighash": true,
+        "expected_summary": {
+          "decision": "block",
+          "required_signers": 1,
+          "available_signers": 1
+        }
+      },
+      {
+        "id": "signer-policy-negative-amount-block",
+        "kind": "policy",
+        "required_signers": 1,
+        "available_signers": 1,
+        "amount_sats": -1,
+        "hardware": false,
+        "offline": false,
+        "hardware_limit_sats": 0,
+        "unknown_sighash": false,
+        "expected_summary": {
+          "decision": "block",
+          "required_signers": 1,
+          "available_signers": 1
+        }
+      },
+      {
+        "id": "signer-envelope-valid-offline",
+        "kind": "envelope",
+        "kind_label": "offline-signing-envelope",
+        "address": "n2offline",
+        "tx_digest": "abababababababababababababababababababababababababababababababab",
+        "network": "testnet",
+        "expected_summary": {
+          "valid": true,
+          "digest": "29f4a271f4ff4475051150cb81ef2e766ccfb64ce7ca6c18f7c0d478ce766fd0"
+        }
+      },
+      {
+        "id": "signer-envelope-missing-digest",
+        "kind": "envelope",
+        "kind_label": "offline-signing-envelope",
+        "address": "n2offline",
+        "tx_digest": "",
+        "network": "testnet",
+        "expected_summary": {
+          "valid": false,
+          "digest": "7d983b3ea259420bd658977ed6a60dd9a7fc85d473c7efd710b286841f92a5c8"
+        }
+      }
+    ],
+    "total_cases": 10
+  },
+  "p2p": {
+    "vector_set": "p2p-header-sync-vectors-v1",
+    "reference": "python-netcoin-p2p-reference",
+    "cases": [
+      {
+        "id": "p2p-best-peer-highest-chainwork",
+        "kind": "best_peer",
+        "peers": [
+          {
+            "address": "a",
+            "height": 100,
+            "chainwork": 1000,
+            "score": 5,
+            "banned": false
+          },
+          {
+            "address": "b",
+            "height": 98,
+            "chainwork": 1200,
+            "score": 1,
+            "banned": false
+          },
+          {
+            "address": "c",
+            "height": 200,
+            "chainwork": 2000,
+            "score": 9,
+            "banned": true
+          }
+        ],
+        "expected_summary": {
+          "best_peer": "b",
+          "height": 98,
+          "chainwork": 1200
+        }
+      },
+      {
+        "id": "p2p-best-peer-tiebreak-height",
+        "kind": "best_peer",
+        "peers": [
+          {
+            "address": "a",
+            "height": 100,
+            "chainwork": 1000,
+            "score": 5,
+            "banned": false
+          },
+          {
+            "address": "b",
+            "height": 101,
+            "chainwork": 1000,
+            "score": 1,
+            "banned": false
+          }
+        ],
+        "expected_summary": {
+          "best_peer": "b",
+          "height": 101,
+          "chainwork": 1000
+        }
+      },
+      {
+        "id": "p2p-no-eligible-peers",
+        "kind": "best_peer",
+        "peers": [
+          {
+            "address": "bad",
+            "height": 100,
+            "chainwork": 1000,
+            "score": 5,
+            "banned": true
+          }
+        ],
+        "expected_summary": {
+          "best_peer": "",
+          "height": 0,
+          "chainwork": 0
+        }
+      },
+      {
+        "id": "p2p-header-sync-accept-linked",
+        "kind": "header_sync",
+        "local_protocol": 2,
+        "peer_protocol": 2,
+        "genesis_previous": "0",
+        "checkpoints": {
+          "2": "h2"
+        },
+        "headers": [
+          {
+            "height": 0,
+            "hash": "h0",
+            "previous_hash": "0"
+          },
+          {
+            "height": 1,
+            "hash": "h1",
+            "previous_hash": "h0"
+          },
+          {
+            "height": 2,
+            "hash": "h2",
+            "previous_hash": "h1"
+          }
+        ],
+        "expected_summary": {
+          "accepted": true,
+          "linked": true,
+          "checkpoint_ok": true,
+          "protocol_ok": true
+        }
+      },
+      {
+        "id": "p2p-header-sync-reject-unlinked",
+        "kind": "header_sync",
+        "local_protocol": 2,
+        "peer_protocol": 2,
+        "genesis_previous": "0",
+        "checkpoints": {},
+        "headers": [
+          {
+            "height": 0,
+            "hash": "h0",
+            "previous_hash": "0"
+          },
+          {
+            "height": 1,
+            "hash": "h1",
+            "previous_hash": "wrong"
+          }
+        ],
+        "expected_summary": {
+          "accepted": false,
+          "linked": false,
+          "checkpoint_ok": true,
+          "protocol_ok": true
+        }
+      },
+      {
+        "id": "p2p-header-sync-reject-checkpoint",
+        "kind": "header_sync",
+        "local_protocol": 2,
+        "peer_protocol": 2,
+        "genesis_previous": "0",
+        "checkpoints": {
+          "1": "expected"
+        },
+        "headers": [
+          {
+            "height": 0,
+            "hash": "h0",
+            "previous_hash": "0"
+          },
+          {
+            "height": 1,
+            "hash": "h1",
+            "previous_hash": "h0"
+          }
+        ],
+        "expected_summary": {
+          "accepted": false,
+          "linked": true,
+          "checkpoint_ok": false,
+          "protocol_ok": true
+        }
+      },
+      {
+        "id": "p2p-header-sync-reject-protocol",
+        "kind": "header_sync",
+        "local_protocol": 2,
+        "peer_protocol": 3,
+        "genesis_previous": "0",
+        "checkpoints": {},
+        "headers": [
+          {
+            "height": 0,
+            "hash": "h0",
+            "previous_hash": "0"
+          }
+        ],
+        "expected_summary": {
+          "accepted": false,
+          "linked": true,
+          "checkpoint_ok": true,
+          "protocol_ok": false
+        }
+      },
+      {
+        "id": "p2p-ban-score-below-threshold",
+        "kind": "ban_score",
+        "score": 40,
+        "penalty": 20,
+        "ban_threshold": 100,
+        "expected_summary": {
+          "score": 60,
+          "banned": false
+        }
+      },
+      {
+        "id": "p2p-ban-score-at-threshold",
+        "kind": "ban_score",
+        "score": 80,
+        "penalty": 20,
+        "ban_threshold": 100,
+        "expected_summary": {
+          "score": 100,
+          "banned": true
+        }
+      },
+      {
+        "id": "p2p-ban-score-above-threshold",
+        "kind": "ban_score",
+        "score": 100,
+        "penalty": 5,
+        "ban_threshold": 100,
+        "expected_summary": {
+          "score": 105,
+          "banned": true
+        }
+      }
+    ],
+    "total_cases": 10
+  },
+  "indexer": {
+    "vector_set": "indexer-core-snapshot-vectors-v1",
+    "reference": "python-netcoin-indexer-reference",
+    "cases": [
+      {
+        "id": "indexer-address-simple-balance",
+        "kind": "address_summary",
+        "events": [
+          {
+            "direction": "receive",
+            "amount_sats": 100000
+          },
+          {
+            "direction": "send",
+            "amount_sats": 25000
+          },
+          {
+            "direction": "receive",
+            "amount_sats": 10000
+          }
+        ],
+        "expected_summary": {
+          "received_sats": 110000,
+          "sent_sats": 25000,
+          "balance_sats": 85000,
+          "event_count": 3
+        }
+      },
+      {
+        "id": "indexer-address-zero-events",
+        "kind": "address_summary",
+        "events": [],
+        "expected_summary": {
+          "received_sats": 0,
+          "sent_sats": 0,
+          "balance_sats": 0,
+          "event_count": 0
+        }
+      },
+      {
+        "id": "indexer-reorg-three-rollback-two-apply",
+        "kind": "reorg",
+        "old_tip_height": 105,
+        "fork_height": 102,
+        "new_tip_height": 104,
+        "expected_summary": {
+          "rollback_blocks": 3,
+          "apply_blocks": 2,
+          "new_tip_height": 104
+        }
+      },
+      {
+        "id": "indexer-reorg-no-rollback",
+        "kind": "reorg",
+        "old_tip_height": 100,
+        "fork_height": 100,
+        "new_tip_height": 102,
+        "expected_summary": {
+          "rollback_blocks": 0,
+          "apply_blocks": 2,
+          "new_tip_height": 102
+        }
+      },
+      {
+        "id": "indexer-market-event-rollup",
+        "kind": "market_events",
+        "events": [
+          {
+            "type": "trade",
+            "notional_sats": 10000
+          },
+          {
+            "type": "trade",
+            "notional_sats": 25000
+          },
+          {
+            "type": "dispute"
+          },
+          {
+            "type": "settlement"
+          }
+        ],
+        "expected_summary": {
+          "trade_volume_sats": 35000,
+          "disputes": 1,
+          "settlements": 1,
+          "event_count": 4
+        }
+      },
+      {
+        "id": "indexer-market-event-empty",
+        "kind": "market_events",
+        "events": [],
+        "expected_summary": {
+          "trade_volume_sats": 0,
+          "disputes": 0,
+          "settlements": 0,
+          "event_count": 0
+        }
+      },
+      {
+        "id": "indexer-snapshot-hash-address",
+        "kind": "snapshot_hash",
+        "snapshot": {
+          "address": "n2abc",
+          "balance_sats": 85000,
+          "height": 50
+        },
+        "expected_hex": "2ee928e43b0ea05d82be74f8b54abbfde93197dbdc3f4811c44c0d6cd649efdc"
+      },
+      {
+        "id": "indexer-snapshot-hash-market",
+        "kind": "snapshot_hash",
+        "snapshot": {
+          "market_id": "m1",
+          "volume_sats": 35000,
+          "open_interest_sats": 50000
+        },
+        "expected_hex": "4c442028bee819ad7232d38a199d3cc4511c73ae684af9f9d368e78b45fbf8f7"
+      },
+      {
+        "id": "indexer-address-negative-net",
+        "kind": "address_summary",
+        "events": [
+          {
+            "direction": "send",
+            "amount_sats": 1000
+          }
+        ],
+        "expected_summary": {
+          "received_sats": 0,
+          "sent_sats": 1000,
+          "balance_sats": -1000,
+          "event_count": 1
+        }
+      },
+      {
+        "id": "indexer-reorg-deep-fork",
+        "kind": "reorg",
+        "old_tip_height": 250,
+        "fork_height": 200,
+        "new_tip_height": 260,
+        "expected_summary": {
+          "rollback_blocks": 50,
+          "apply_blocks": 60,
+          "new_tip_height": 260
+        }
+      }
+    ],
+    "total_cases": 10
   }
 }

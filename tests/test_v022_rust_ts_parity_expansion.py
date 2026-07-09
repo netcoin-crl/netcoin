@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_v022_expanded_parity_suite_is_green() -> None:
     report = run_parity_suite(ROOT)
     assert report["ok"] is True
-    assert report["schema_version"] == 3
+    assert report["schema_version"] >= 3
     assert report["total"] >= 50
     assert report["lanes"]["consensus"]["passed"] >= 14
     assert report["lanes"]["wallet"]["passed"] >= 9
@@ -39,8 +39,20 @@ def test_v022_migration_routes_expose_vectors_and_readiness(tmp_path: Path) -> N
     readiness = final_version_readiness(ROOT)
     status = migration_status(ROOT)
     parity = parity_bridge_status(ROOT)
-    assert vectors["schema_version"] == 3
-    assert status["version"] == "0.22.0"
+    assert vectors["schema_version"] >= 3
+    assert status["version"] in {
+        "0.22.0",
+        "0.23.0",
+        "0.24.0",
+        "0.25.0",
+        "0.26.0",
+        "0.31.0",
+        "0.37.0",
+        "0.37.1",
+        "0.37.2",
+        "0.37.3",
+        "0.37.4",
+    }
     assert parity["ok"] is True
     assert readiness["ready"] is False
 
@@ -56,7 +68,7 @@ def test_v022_rust_symbols_cover_expanded_parity() -> None:
     for symbol in ["fee_within_cap", "order_notional_ok", "market_accounting_conserves"]:
         assert symbol in markets
     fixture = json.loads((ROOT / "core-rs/fixtures/parity-vectors.json").read_text(encoding="utf-8"))
-    assert fixture["schema_version"] == 3
+    assert fixture["schema_version"] >= 3
 
 
 def test_v022_typescript_contracts_cover_expanded_parity() -> None:

@@ -8,6 +8,7 @@
   const PROFILE_STORE = "ncw.profiles.v1";
   const CONTACTS_STORE = "ncw.contacts.v1";
   const LABELS_STORE = "ncw.txlabels.v1";
+  const SEND_META_STORE = "ncw.sentMeta.v1";
   const WATCH_STORE = "ncw.watch.v1";
   const UI_MODE_STORE = "ncw.walletMode.v1";
   const ADDR_TYPE_STORE = "ncw.addrType.v1";
@@ -253,19 +254,6 @@
     }
     const firstCard = wallet.querySelector(":scope > .card");
     if (firstCard) wallet.insertBefore(tabs, firstCard);
-    const workspace = document.createElement("nav");
-    workspace.id = "walletWorkspaceNav";
-    workspace.className = "wallet-workspace-nav";
-    workspace.setAttribute("aria-label", "Wallet workspace sections");
-    workspace.innerHTML = [
-      ["Overview", "#wallet-home"],
-      ["Send", "#wallet-send"],
-      ["Receive", "#wallet-receive"],
-      ["Activity", "#wallet-activity"],
-      ["Contacts", "#wallet-contacts"]
-    ].map((item) => `<a href="${item[1]}">${item[0]}</a>`).join("");
-    if (firstCard) wallet.insertBefore(workspace, firstCard);
-
     const cards = Array.from(wallet.querySelectorAll(":scope > .card"));
     for (const card of cards) {
       let tab = "wallet";
@@ -273,7 +261,7 @@
       else if (card.querySelector("#receiveOut")) { tab = "wallet"; card.id = card.id || "wallet-receive"; }
       else if (card.querySelector("#btnSend")) { tab = "wallet"; card.id = card.id || "wallet-send"; }
       else if (card.querySelector("#txHistory")) { tab = "wallet"; card.id = card.id || "wallet-activity"; }
-      else if (card.querySelector("#contactsImportFile")) { tab = "wallet"; card.id = card.id || "wallet-contacts"; }
+      else if (card.querySelector("#contactsImportFile")) { tab = "settings"; card.id = card.id || "wallet-settings-backups"; }
       else if (card.querySelector("#statementOut")) tab = "reports";
       else if (card.querySelector("#walletDescriptor")) tab = "advanced";
       else if (card.querySelector("#watchList")) tab = "watch";
@@ -314,7 +302,7 @@
       </div>`, "developer"), $("btnLock"));
 
     const settings = walletSection("Settings", `
-      <p class="muted">Choose a wallet mode. Hidden tabs are not deleted; they are only tucked away until you switch modes.</p>
+      <p class="muted">Choose wallet mode and manage backups. Hidden tool groups are tucked away until you switch modes.</p>
       <label class="hide" for="walletUiMode">Wallet mode</label>
       <select id="walletUiMode" class="hide" aria-label="Wallet mode">
         <option value="simple">Simple — recommended</option>
@@ -326,7 +314,7 @@
       <p id="walletModeHelp" class="muted compact-note"></p>
       <details class="raw-details">
         <summary>What each mode shows</summary>
-        <p class="muted">Simple: overview, send, receive, activity, contacts, settings. Merchant mode adds payments and reports. Node operator/Advanced mode adds watch-only, escrow, coin control, PSBT, and descriptors. Developer/Labs mode adds contract/debug links.</p>
+        <p class="muted">Simple: one compact wallet page with balance, send, receive, and activity. Merchant mode adds payments and reports. Advanced mode adds watch-only, escrow, coin control, PSBT, descriptors, and backups/settings tools. Developer mode adds contract/debug links.</p>
       </details>`, "settings");
     wallet.insertBefore(settings, $("btnLock"));
     const modeButtons = $("walletModeButtons");
@@ -360,8 +348,6 @@
       btn.classList.toggle("active", allowed && btn.dataset.walletTabButton === tab);
       btn.setAttribute("aria-selected", allowed && btn.dataset.walletTabButton === tab ? "true" : "false");
     });
-    const workspaceNav = $("walletWorkspaceNav");
-    if (workspaceNav) workspaceNav.classList.toggle("hide", tab !== "wallet");
     document.querySelectorAll(".wallet-section").forEach((section) => {
       const visible = section.dataset.walletTab === tab && tabAllowed(section.dataset.walletTab, mode);
       section.classList.toggle("active-section", visible);
@@ -669,6 +655,24 @@
   function saveLabels(labels) { localStorage.setItem(LABELS_STORE, JSON.stringify(labels || {})); }
   function txLabel(txid) { return String(loadLabels()[txid] || ""); }
   function setTxLabel(txid, label) { const labels = loadLabels(); if (label) labels[txid] = label; else delete labels[txid]; saveLabels(labels); }
+  function loadSendMeta() {
+    try { return JSON.parse(localStorage.getItem(SEND_META_STORE) || "{}"); } catch { return {}; }
+  }
+  function saveSendMeta(meta) { localStorage.setItem(SEND_META_STORE, JSON.stringify(meta || {})); }
+  function contactForAddress(address) { return loadContacts().find((c) => sameAddress(c.address, address)); }
+  function autoTxLabelForSend(toAddress) {
+    const contact = contactForAddress(toAddress);
+    return contact ? `Sent to ${contact.name}` : "";
+  }
+  function recordSentTxMeta(txid, toAddress, amountSats, feeSats) {
+    if (!txid) return;
+    const contact = contactForAddress(toAddress);
+    const label = contact ? `Sent to ${contact.name}` : "";
+    const meta = loadSendMeta();
+    meta[txid] = { direction: "sent", to: toAddress, contactName: contact?.name || "", amountSats, feeSats, createdAt: Date.now() };
+    saveSendMeta(meta);
+    if (label && !txLabel(txid)) setTxLabel(txid, label);
+  }
 
   // ---------- watch-only addresses ----------
   function loadWatchlist() {
@@ -1456,9 +1460,13 @@
         $("txHistory").innerHTML = '<span class="muted">No transactions yet.</span>';
         return;
       }
+      const sentMeta = loadSendMeta();
       $("txHistory").innerHTML = txids.map((txid) => {
-        const label = txLabel(txid);
-        return `<div class="review"><div class="mono">${esc(txid)}</div><div class="row"><input data-txid="${esc(txid)}" class="txLabel" placeholder="Label this transaction" value="${esc(label)}" /><button class="secondary inline btnSaveTxLabel" data-txid="${esc(txid)}" type="button">Save label</button></div></div>`;
+        const meta = sentMeta[txid] || {};
+        const autoLabel = meta.contactName ? `Sent to ${meta.contactName}` : "";
+        const label = txLabel(txid) || autoLabel;
+        const subtitle = meta.to ? `To ${meta.contactName ? esc(meta.contactName) + " · " : ""}${esc(shortAddress(meta.to))}` : "Label saved only in this browser.";
+        return `<div class="review tx-row"><div class="tx-row-head"><strong>${esc(label || "Transaction")}</strong><span class="muted">${subtitle}</span></div><div class="mono txid-line">${esc(txid)}</div><div class="row compact-row"><input data-txid="${esc(txid)}" class="txLabel" placeholder="Label this transaction" value="${esc(label)}" /><button class="secondary inline btnSaveTxLabel" data-txid="${esc(txid)}" type="button">Save</button></div></div>`;
       }).join("");
       document.querySelectorAll(".btnSaveTxLabel").forEach((btn) => {
         btn.onclick = () => {
@@ -1466,7 +1474,7 @@
           const input = document.querySelector(`.txLabel[data-txid="${txid}"]`);
           setTxLabel(txid, input.value.trim());
           btn.textContent = "Saved";
-          setTimeout(() => { btn.textContent = "Save label"; }, 900);
+          setTimeout(() => { btn.textContent = "Save"; }, 900);
         };
       });
     } catch (e) {
@@ -1784,7 +1792,7 @@
       const risk = simulateWalletRisk(to, amt, fee, selected);
       renderRiskSimulation(risk);
       await checkSpendingLimits(amt, fee);
-      const contact = loadContacts().find((c) => sameAddress(c.address, to));
+      const contact = contactForAddress(to);
       const warnings = [...risk.warnings.map((w) => "⚠ " + w)];
       // Address-poisoning check: a recipient that looks like a known address but
       // is not that address is the classic lookalike scam pattern.
@@ -1809,7 +1817,7 @@
         warnBox.textContent = warnings.join(" ");
         warnBox.classList.toggle("hide", !warnings.length);
       }
-      pendingSend = { to, amt, fee, outpoints: selected.map(outpointOf), blocked: risk.decision === "block", risk };
+      pendingSend = { to, amt, fee, outpoints: selected.map(outpointOf), blocked: risk.decision === "block", risk, contactName: contact?.name || "" };
       $("reviewTo").textContent = to;
       $("reviewContact").textContent = contact ? contact.name : "—";
       $("reviewAmount").textContent = satsToInput(amt) + " NET";
@@ -1868,9 +1876,11 @@
     if (pendingSend.blocked) { msg.className = "err"; msg.textContent = "Blocked by wallet risk simulator. Adjust amount, fee, or coins."; return; }
     msg.className = ""; msg.textContent = "Sending…";
     try {
-      const txid = await send(pendingSend.to, pendingSend.amt, pendingSend.fee, pendingSend.outpoints || []);
-      await recordSpendForLimits(pendingSend.amt, pendingSend.fee);
-      msg.className = "ok"; msg.textContent = "Sent ✓ txid " + txid.slice(0, 16) + "…";
+      const sent = pendingSend;
+      const txid = await send(sent.to, sent.amt, sent.fee, sent.outpoints || []);
+      recordSentTxMeta(txid, sent.to, sent.amt, sent.fee);
+      await recordSpendForLimits(sent.amt, sent.fee);
+      msg.className = "ok"; msg.textContent = sent.contactName ? `Sent to ${sent.contactName} ✓ txid ${txid.slice(0, 16)}…` : "Sent ✓ txid " + txid.slice(0, 16) + "…";
       pendingSend = null;
       $("sendReview").classList.add("hide");
       $("toAddr").value = ""; $("amount").value = ""; selectedOutpoints.clear(); renderUtxos(); setTimeout(refresh, 800);

@@ -3,6 +3,7 @@
 //! This crate contains stable node/sync domain structs for future Rust P2P work.
 
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PeerSnapshot {
@@ -37,4 +38,94 @@ mod tests {
         ];
         assert_eq!(best_peer(&peers).unwrap().address, "good");
     }
+}
+
+
+fn value_i64(case: &Value, key: &str, default: i64) -> i64 { case.get(key).and_then(Value::as_i64).unwrap_or(default) }
+fn value_str<'a>(case: &'a Value, key: &str, default: &'a str) -> &'a str { case.get(key).and_then(Value::as_str).unwrap_or(default) }
+
+pub fn p2p_best_peer_summary(case: &Value) -> Value {
+    let peers = case.get("peers").and_then(Value::as_array).cloned().unwrap_or_default();
+    let mut best: Option<Value> = None;
+    for peer in peers.into_iter().filter(|p| !p.get("banned").and_then(Value::as_bool).unwrap_or(false)) {
+        let key = (
+            peer.get("chainwork").and_then(Value::as_i64).unwrap_or(0),
+            peer.get("height").and_then(Value::as_i64).unwrap_or(0),
+            peer.get("score").and_then(Value::as_i64).unwrap_or(0),
+            peer.get("address").and_then(Value::as_str).unwrap_or("").to_string(),
+        );
+        let best_key = best.as_ref().map(|p| (
+            p.get("chainwork").and_then(Value::as_i64).unwrap_or(0),
+            p.get("height").and_then(Value::as_i64).unwrap_or(0),
+            p.get("score").and_then(Value::as_i64).unwrap_or(0),
+            p.get("address").and_then(Value::as_str).unwrap_or("").to_string(),
+        ));
+        if best_key.map(|bk| key > bk).unwrap_or(true) {
+            best = Some(peer);
+        }
+    }
+    match best {
+        Some(peer) => json!({"best_peer": peer.get("address").and_then(Value::as_str).unwrap_or(""), "height": peer.get("height").and_then(Value::as_i64).unwrap_or(0), "chainwork": peer.get("chainwork").and_then(Value::as_i64).unwrap_or(0)}),
+        None => json!({"best_peer":"", "height":0, "chainwork":0}),
+    }
+}
+
+pub fn p2p_headers_link(headers: &[Value], genesis_previous: &str) -> bool {
+    let mut expected = genesis_previous.to_string();
+    for (idx, header) in headers.iter().enumerate() {
+        let previous = header.get("previous_hash").or_else(|| header.get("prev_hash")).and_then(Value::as_str).unwrap_or("");
+        if idx == 0 && !expected.is_empty() && previous != expected { return false; }
+        if idx > 0 && previous != expected { return false; }
+        let hash = header.get("hash").and_then(Value::as_str).unwrap_or("");
+        if hash.is_empty() { return false; }
+        expected = hash.to_string();
+    }
+    true
+}
+
+pub fn p2p_checkpoint_ok(headers: &[Value], checkpoints: &Value) -> bool {
+    let Some(map) = checkpoints.as_object() else { return true; };
+    for header in headers {
+        let height_key = header.get("height").and_then(Value::as_i64).unwrap_or(-1).to_string();
+        if let Some(expected) = map.get(&height_key).and_then(Value::as_str) {
+            if header.get("hash").and_then(Value::as_str).unwrap_or("") != expected { return false; }
+        }
+    }
+    true
+}
+
+pub fn p2p_header_sync_summary(case: &Value) -> Value {
+    let headers = case.get("headers").and_then(Value::as_array).cloned().unwrap_or_default();
+    let linked = p2p_headers_link(&headers, value_str(case, "genesis_previous", ""));
+    let checkpoint_ok = p2p_checkpoint_ok(&headers, &case["checkpoints"]);
+    let protocol_ok = value_i64(case, "peer_protocol", 0) == value_i64(case, "local_protocol", 0);
+    json!({"accepted": linked && checkpoint_ok && protocol_ok, "linked": linked, "checkpoint_ok": checkpoint_ok, "protocol_ok": protocol_ok})
+}
+
+pub fn p2p_ban_score_summary(case: &Value) -> Value {
+    let score = value_i64(case, "score", 0) + value_i64(case, "penalty", 0);
+    let threshold = value_i64(case, "ban_threshold", 100);
+    json!({"score": score, "banned": score >= threshold})
+}
+
+pub fn p2p_actual_for_case(case: &Value) -> Value {
+    match value_str(case, "kind", "") {
+        "best_peer" => p2p_best_peer_summary(case),
+        "header_sync" => p2p_header_sync_summary(case),
+        "ban_score" => p2p_ban_score_summary(case),
+        kind => json!({"unknown_kind": kind}),
+    }
+}
+
+pub fn run_p2p_case(case: &Value) -> Value {
+    let expected = case.get("expected_summary").cloned().unwrap_or(Value::Null);
+    let actual = p2p_actual_for_case(case);
+    json!({"lane":"p2p","case_id":value_str(case,"id","unknown-p2p-case"),"passed":expected == actual,"expected":expected,"actual":actual,"detail":"rust-p2p-header-sync-parity"})
+}
+
+pub fn run_p2p_parity_vectors(vectors: &Value) -> Value {
+    let cases = vectors.get("p2p").and_then(|lane| lane.get("cases")).and_then(Value::as_array).cloned().unwrap_or_default();
+    let results: Vec<Value> = cases.iter().map(run_p2p_case).collect();
+    let failed = results.iter().filter(|item| !item.get("passed").and_then(Value::as_bool).unwrap_or(false)).count();
+    json!({"engine":"netcoin-node-rs-p2p-parity","lane":"p2p","schema_version":vectors.get("schema_version").cloned().unwrap_or(Value::Null),"vector_set":vectors.get("p2p").and_then(|lane| lane.get("vector_set")).cloned().unwrap_or(Value::Null),"total":results.len(),"passed":results.len()-failed,"failed":failed,"ok":failed==0,"results":results})
 }

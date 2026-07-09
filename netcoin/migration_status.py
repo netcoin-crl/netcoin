@@ -21,8 +21,18 @@ REQUIRED_PARITY_FILES = (
     "architecture/migration-plan.json",
     "architecture/parity-vectors.json",
     "core-rs/crates/consensus/src/lib.rs",
+    "core-rs/crates/consensus/src/bin/netcoin-consensus-parity.rs",
+    "core-rs/crates/mempool-core/src/lib.rs",
+    "core-rs/crates/mempool-core/src/bin/netcoin-mempool-parity.rs",
     "core-rs/crates/wallet-core/src/lib.rs",
+    "core-rs/crates/wallet-core/src/bin/netcoin-wallet-parity.rs",
     "core-rs/crates/markets-core/src/lib.rs",
+    "core-rs/crates/markets-core/src/bin/netcoin-markets-parity.rs",
+    "core-rs/crates/signer-core/src/lib.rs",
+    "core-rs/crates/signer-core/src/bin/netcoin-signer-parity.rs",
+    "core-rs/crates/node/src/bin/netcoin-p2p-parity.rs",
+    "core-rs/crates/indexer-core/src/lib.rs",
+    "core-rs/crates/indexer-core/src/bin/netcoin-indexer-parity.rs",
     "api/src/schemas.ts",
     "api/src/client.ts",
     "api/src/migration-status.ts",
@@ -30,6 +40,25 @@ REQUIRED_PARITY_FILES = (
     "api/src/parity-executor.ts",
     "netcoin/parity_suite.py",
     "tools/run_parity_suite.py",
+    "tools/run_rust_consensus_parity.py",
+    "tools/run_rust_mempool_parity.py",
+    "tools/run_rust_wallet_parity.py",
+    "tools/run_rust_markets_parity.py",
+    "tools/run_rust_signer_parity.py",
+    "tools/run_rust_p2p_parity.py",
+    "tools/run_rust_indexer_parity.py",
+    "tools/run_ts_openapi_codegen_parity.py",
+    "tools/run_p2p_soak.py",
+    "tools/check_indexer_db_integration.py",
+    "tools/run_ts_api_contract_enforcement.py",
+    "tools/run_browser_e2e_matrix.py",
+    "tools/run_security_audit_prep.py",
+    "netcoin/hostile_p2p_soak.py",
+    "netcoin/indexer_db.py",
+    "netcoin/security_hardening.py",
+    "api/src/server.ts",
+    "api/src/openapi-enforce.ts",
+    "sites/tests/e2e/netcoin-product-matrix.spec.ts",
 )
 
 
@@ -72,9 +101,20 @@ def migration_status(root: Path | None = None) -> dict[str, Any]:
     lanes = []
     for lane in plan.get("lanes", []):
         owner = base / str(lane.get("current_owner", ""))
+        vector_key = {
+            "rust-consensus-parity": "consensus",
+            "rust-mempool-parity": "mempool",
+            "rust-wallet-core": "wallet",
+            "rust-markets-core": "markets",
+            "rust-signer-core": "signer",
+            "rust-p2p-sync": "p2p",
+            "rust-indexer-core": "indexer",
+            "typescript-openapi-codegen": "api",
+            "typescript-api-contracts": "api",
+        }.get(str(lane.get("id")), "consensus")
         evidence = {
             "owner_exists": owner.exists(),
-            "has_vector_set": bool(vectors.get(lane["id"].split("-")[0], vectors.get("consensus"))),
+            "has_vector_set": bool(vectors.get(vector_key)),
             "replacement_live": False,
         }
         status = "ready-for-parity-work" if evidence["owner_exists"] else "missing-owner"
@@ -154,15 +194,21 @@ def rust_typescript_parity_expansion(root: Path | None = None) -> dict[str, Any]
     base = Path(root) if root is not None else ROOT
     symbols = {
         "rust_consensus": ["tx_fee_ok", "merkle_root_hex", "subsidy_at_height"],
-        "rust_wallet": ["WalletPolicyPreview", "policy_decision"],
-        "rust_markets": ["fee_within_cap", "order_notional_ok"],
-        "typescript_schemas": ["WalletPreviewSchema", "ParityVectorSchema"],
+        "rust_wallet": ["WalletPolicyPreview", "policy_decision", "run_wallet_parity_vectors"],
+        "rust_markets": ["fee_within_cap", "order_notional_ok", "run_markets_parity_vectors"],
+        "rust_signer": ["signer_policy_summary", "run_signer_parity_vectors"],
+        "rust_p2p": ["p2p_header_sync_summary", "run_p2p_parity_vectors"],
+        "rust_indexer": ["indexer_address_summary", "run_indexer_parity_vectors"],
+        "typescript_schemas": ["WalletPreviewSchema", "ParityVectorSchema", "OpenApiParitySchema"],
         "typescript_executor": ["moneyInRange", "walletDecision", "orderNotionalOk"],
     }
     files = {
         "rust_consensus": base / "core-rs/crates/consensus/src/lib.rs",
         "rust_wallet": base / "core-rs/crates/wallet-core/src/lib.rs",
         "rust_markets": base / "core-rs/crates/markets-core/src/lib.rs",
+        "rust_signer": base / "core-rs/crates/signer-core/src/lib.rs",
+        "rust_p2p": base / "core-rs/crates/node/src/lib.rs",
+        "rust_indexer": base / "core-rs/crates/indexer-core/src/lib.rs",
         "typescript_schemas": base / "api/src/schemas.ts",
         "typescript_executor": base / "api/src/parity-executor.ts",
     }

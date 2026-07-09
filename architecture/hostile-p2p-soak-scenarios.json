@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "generated_by": "netcoin-v0.37-hardening-expansion",
+  "purpose": "Deterministic hostile-network soak scenarios for NetCoin v0.33.",
+  "scenarios": [
+    {
+      "id": "checkpoint-poison-peer",
+      "duration_ticks": 120,
+      "honest_headers": 42,
+      "invalid_headers": 7,
+      "duplicate_headers": 3,
+      "partition_ticks": 0,
+      "eclipse_peer_ratio": 0.1,
+      "ban_threshold": 100,
+      "invalid_header_penalty": 20,
+      "duplicate_penalty": 5,
+      "min_final_height": 40,
+      "max_eclipse_ratio": 0.33,
+      "expected_summary": {
+        "ok": true,
+        "accepted_headers": 42,
+        "rejected_headers": 7,
+        "duplicate_headers": 3,
+        "banned_peers": 1,
+        "best_height": 42,
+        "partition_healed": true,
+        "eclipse_detected": false
+      }
+    },
+    {
+      "id": "partition-heal-reorg",
+      "duration_ticks": 240,
+      "honest_headers": 65,
+      "invalid_headers": 2,
+      "duplicate_headers": 9,
+      "partition_ticks": 37,
+      "eclipse_peer_ratio": 0.2,
+      "ban_threshold": 100,
+      "invalid_header_penalty": 20,
+      "duplicate_penalty": 5,
+      "min_final_height": 60,
+      "max_eclipse_ratio": 0.33,
+      "expected_summary": {
+        "ok": true,
+        "accepted_headers": 65,
+        "rejected_headers": 2,
+        "duplicate_headers": 9,
+        "banned_peers": 0,
+        "best_height": 65,
+        "partition_healed": true,
+        "eclipse_detected": false
+      }
+    },
+    {
+      "id": "eclipse-attempt-detected",
+      "duration_ticks": 180,
+      "honest_headers": 18,
+      "invalid_headers": 12,
+      "duplicate_headers": 30,
+      "partition_ticks": 0,
+      "eclipse_peer_ratio": 0.72,
+      "ban_threshold": 100,
+      "invalid_header_penalty": 20,
+      "duplicate_penalty": 5,
+      "min_final_height": 10,
+      "max_eclipse_ratio": 0.33,
+      "expected_summary": {
+        "ok": false,
+        "accepted_headers": 18,
+        "rejected_headers": 12,
+        "duplicate_headers": 30,
+        "banned_peers": 3,
+        "best_height": 18,
+        "partition_healed": true,
+        "eclipse_detected": true
+      }
+    }
+  ]
+}

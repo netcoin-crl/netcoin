@@ -3,6 +3,7 @@ from pathlib import Path
 from netcoin.parity_suite import run_parity_suite
 from netcoin.migration_status import migration_status, parity_bridge_status, final_version_readiness
 from netcoin.sync import HeaderSyncScheduler
+from netcoin.params import NODE_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,7 +22,7 @@ def test_migration_status_exposes_v021_parity_bridge():
     status = migration_status(ROOT)
     parity = parity_bridge_status(ROOT)
     readiness = final_version_readiness(ROOT)
-    assert status["version"] == "0.22.0"
+    assert status["version"] == NODE_VERSION
     assert any(lane["id"] == "parity-reporting" for lane in status["lanes"])
     assert parity["ok"] is True
     assert parity["total"] >= 25

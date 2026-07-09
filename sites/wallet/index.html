@@ -168,7 +168,7 @@ body{letter-spacing:-.01em}
     @media(max-width:860px){.wallet-section[data-wallet-tab="wallet"].active-section,#wallet-send.active-section{display:block!important;grid-column:auto!important}.wallet-workspace-nav{top:0}}
 
 </style>
-  <link rel="stylesheet" href="ui-polish.css?v=20260630-wide-desktop" />
+  <link rel="stylesheet" href="ui-polish.css?v=20260709-v0374" />
     <link rel="stylesheet" href="site-shell.css?v=20260630-reward-schedule" />
 
 
@@ -349,53 +349,61 @@ body{letter-spacing:-.01em}
       </div>
       <div class="card">
         <h1 style="font-size:16px">Send</h1>
-        <label>To address or netcoin: payment link</label>
-        <input id="toAddr" class="mono" placeholder="net1q... or netcoin:net1q...?amount=1" autocomplete="off" />
-        <p id="addrValidation" class="muted">Enter a NetCoin SegWit address or payment link.</p>
-        <button id="btnScanQr" class="secondary" type="button">Scan QR payment code</button>
+        <label>Recipient</label>
+        <div class="send-recipient-row">
+          <input id="toAddr" class="mono" placeholder="net1q... or netcoin:net1q...?amount=1" autocomplete="off" />
+          <button id="btnScanQr" class="secondary inline" type="button">Scan QR</button>
+        </div>
+        <p id="addrValidation" class="muted">Enter an address or paste a NetCoin payment link.</p>
         <div id="scanBox" class="hide">
           <video id="scanVideo" playsinline muted></video>
           <p id="scanMsg" class="muted">Point the camera at a NetCoin payment QR code.</p>
         </div>
-        <label>Saved contacts</label>
-        <div class="row">
-          <select id="contactSelect" aria-label="Saved contacts"></select>
-          <button id="btnUseContact" class="secondary inline" type="button">Use</button>
-        </div>
-        <div class="row">
-          <input id="contactName" placeholder="Contact name" autocomplete="off" />
-          <input id="contactGroup" placeholder="Group, e.g. Friends" value="General" autocomplete="off" />
-          <button id="btnSaveContact" class="secondary inline" type="button">Save recipient</button>
-        </div>
-        <button id="btnDeleteContact" class="secondary" type="button">Delete selected contact</button>
-        <p class="muted" id="contactMsg">Contacts are saved only in this browser.</p>
-        <p class="muted">Sends work to any NetCoin address: SegWit (net1q...), Taproot (net1p...), Legacy, or P2SH.</p>
+        <details class="send-contacts-panel">
+          <summary>Contacts</summary>
+          <div class="row compact-row">
+            <select id="contactSelect" aria-label="Saved contacts"></select>
+            <button id="btnUseContact" class="secondary inline" type="button">Use</button>
+          </div>
+          <div class="row compact-row">
+            <input id="contactName" placeholder="Contact name" autocomplete="off" />
+            <input id="contactGroup" placeholder="Group" value="General" autocomplete="off" />
+            <button id="btnSaveContact" class="secondary inline" type="button">Save</button>
+          </div>
+          <button id="btnDeleteContact" class="secondary smallbtn" type="button">Delete selected contact</button>
+          <p class="muted" id="contactMsg">Contacts are saved only in this browser.</p>
+        </details>
         <label>Amount (NET)</label>
-        <div class="row">
+        <div class="send-amount-row">
           <input id="amount" inputmode="decimal" placeholder="0.0" />
           <button id="btnMax" class="secondary" type="button">Max</button>
-          <button id="btnConsolidateSelf" class="secondary" type="button">Consolidate to self</button>
         </div>
-        <label>Network fee (NET)</label>
-        <select id="feePreset" aria-label="Fee preset">
-          <option value="slow">Slow — minimum</option>
-          <option value="normal" selected>Normal — recommended</option>
-          <option value="fast">Fast</option>
-          <option value="custom">Custom</option>
-        </select>
-        <input id="fee" inputmode="decimal" placeholder="auto" value="0.00050000" />
-        <p class="muted">Fees are auto-calculated from your transaction size. Slow = network minimum, Normal = 10× that, Fast = 100×.</p>
-        <p class="muted" id="feeHint">Amount + positive fee must be less than your spendable balance.</p>
-        <p class="muted" id="coinHealth">Coin status loads after balance refresh.</p>
-        <details>
-          <summary>Advanced coin control</summary>
-          <p class="muted">Choose exact UTXOs to spend. Leave unchecked to let the wallet pick automatically.</p>
-          <div class="row">
-            <button id="btnLoadUtxos" class="secondary inline" type="button">Refresh UTXOs</button>
-            <button id="btnClearUtxos" class="secondary inline" type="button">Clear selection</button>
-          </div>
-          <p id="utxoSummary" class="muted">UTXOs load after refresh.</p>
-          <div id="utxoList" class="utxo-list"></div>
+        <div class="send-quick-row">
+          <select id="feePreset" aria-label="Fee preset">
+            <option value="slow">Slow — minimum</option>
+            <option value="normal" selected>Normal — recommended</option>
+            <option value="fast">Fast</option>
+            <option value="custom">Custom</option>
+          </select>
+          <button id="btnConsolidateSelf" class="secondary" type="button">Consolidate self</button>
+        </div>
+        <details class="send-advanced-panel">
+          <summary>Fee &amp; coin control</summary>
+          <label>Network fee (NET)</label>
+          <input id="fee" inputmode="decimal" placeholder="auto" value="0.00050000" />
+          <p class="muted">Fees are auto-calculated from transaction size. Slow = minimum, Normal = 10×, Fast = 100×.</p>
+          <p class="muted" id="feeHint">Amount + positive fee must be less than your spendable balance.</p>
+          <p class="muted" id="coinHealth">Coin status loads after balance refresh.</p>
+          <details>
+            <summary>Advanced coin control</summary>
+            <p class="muted">Choose exact UTXOs to spend. Leave unchecked to let the wallet pick automatically.</p>
+            <div class="row compact-row">
+              <button id="btnLoadUtxos" class="secondary inline" type="button">Refresh UTXOs</button>
+              <button id="btnClearUtxos" class="secondary inline" type="button">Clear selection</button>
+            </div>
+            <p id="utxoSummary" class="muted">UTXOs load after refresh.</p>
+            <div id="utxoList" class="utxo-list"></div>
+          </details>
         </details>
         <button id="btnSend">Review &amp; send</button>
         <div id="sendReview" class="review hide">
@@ -494,8 +502,8 @@ body{letter-spacing:-.01em}
         <div id="watchList" class="watch-list"></div>
       </div>
       <div class="card">
-        <h1 style="font-size:16px">Backups</h1>
-        <p class="muted">Export or import saved contacts. Encrypted export protects the contact file with a password.</p>
+        <h1 style="font-size:16px">Settings · Backups</h1>
+        <p class="muted">Backup and restore saved contacts. Encrypted export protects the contact file with a password.</p>
         <div class="row">
           <button id="btnExportContacts" class="secondary" type="button">Export contacts</button>
           <button id="btnExportContactsEncrypted" class="secondary" type="button">Export encrypted</button>
@@ -512,7 +520,7 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260707-cap500" integrity="sha384-f2rfd5w+8CoOw7hqpFx1tEJNdaahCW+OeVInr/33yCnqqJKmAfMfQ1GeU4vSIMuJ" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260708-v022" integrity="sha384-zoCP3xb6rTnXtxA4qC15F3xMCrxgSbnSQ7Pn+LUYYG5tKEQKKWICByQ9OgSo9TF4" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260709-v0374" integrity="sha384-Hysf29zdZwmK4i8RqCxf6VzMEjUUo5wYfwE+QzKBlGNXsqCqu9Y5N5BEmKRmANVG" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260630-reward-schedule"></script>
 </body>
 </html>
@@ -551,4 +559,33 @@ body{letter-spacing:-.01em}
     .wallet-section[data-wallet-tab="wallet"].active-section{max-width:none!important;padding:16px!important}
     .wallet-workspace-nav{max-width:none}
   }
+</style>
+<style id="wallet-v0374-compact-ui">
+  #walletWorkspaceNav{display:none!important}
+  #walletTabs{display:flex!important;flex-wrap:nowrap!important;gap:6px!important;overflow-x:auto!important;max-width:100%!important;border-bottom:0!important;margin:0 0 10px!important;padding:0 0 6px!important;scrollbar-width:thin!important}
+  #walletTabs button{flex:0 1 auto!important;min-width:0!important;width:auto!important;white-space:nowrap!important;padding:7px 10px!important;min-height:32px!important;font-size:12px!important;border-radius:999px!important;line-height:1!important}
+  #walletView:not(.hide){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;align-items:start!important}
+  #walletTabs,#wallet-home.active-section,#wallet-activity.active-section,#wallet-settings-backups.active-section,.wallet-section[data-wallet-tab="settings"].active-section,#btnLock{grid-column:1/-1!important}
+  #wallet-home.active-section{display:block!important;max-width:none!important;margin:0!important;padding:14px!important}
+  #wallet-home .overview-grid{display:grid!important;grid-template-columns:minmax(0,1.35fr) minmax(320px,.85fr)!important;gap:12px!important;align-items:stretch!important}
+  #wallet-home .balance-panel{grid-column:1/-1!important;order:0!important;display:flex!important;align-items:flex-end!important;justify-content:space-between!important;gap:12px!important;min-height:0!important;margin:0!important;padding:14px 18px!important;border-radius:14px!important;border:1px solid rgba(61,220,151,.34)!important;background:linear-gradient(135deg,rgba(61,220,151,.15),rgba(61,220,151,.025))!important}
+  #wallet-home .balance-panel .muted{font-size:11px!important;text-transform:uppercase!important;letter-spacing:.07em!important;margin:0!important}
+  #wallet-home .bal{font-size:clamp(26px,3.1vw,40px)!important;line-height:1!important;letter-spacing:-.045em!important;margin:0!important;white-space:nowrap!important}
+  #wallet-home .bal small{font-size:12px!important;letter-spacing:0!important;margin-left:6px!important}
+  #wallet-home .address-panel{padding:12px!important;border-radius:12px!important;background:rgba(0,0,0,.18)!important}
+  #wallet-home .overview-address{font-size:13px!important;line-height:1.35!important;margin:6px 0 10px!important;overflow-wrap:anywhere!important}
+  #wallet-home .overview-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  #wallet-home .overview-actions button{width:100%!important;min-width:0!important;margin:0!important}
+  .wallet-status-inline{grid-column:1/-1!important;margin-top:10px!important;padding:8px 10px!important;font-size:12px!important}
+  .setup-wizard{display:none!important}
+  #wallet-receive.active-section,#wallet-send.active-section{display:block!important;max-width:none!important;margin:0!important;padding:16px!important;grid-column:auto!important}
+  #wallet-receive h1,#wallet-send h1,#wallet-activity h1{font-size:15px!important;margin-bottom:8px!important}
+  .send-recipient-row,.send-amount-row,.send-quick-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;align-items:end!important}
+  .send-recipient-row button,.send-amount-row button,.send-quick-row button{width:auto!important;min-width:96px!important;margin:0!important;white-space:nowrap!important}
+  .send-quick-row{grid-template-columns:minmax(0,1fr) minmax(150px,auto)!important;margin-top:10px!important}
+  .send-contacts-panel,.send-advanced-panel{border:1px solid var(--bd,#222a36)!important;border-radius:12px!important;padding:10px!important;margin:10px 0!important;background:rgba(0,0,0,.12)!important}
+  .send-contacts-panel summary,.send-advanced-panel summary{cursor:pointer!important;font-weight:700!important}
+  .compact-row{gap:8px!important;margin-top:8px!important}
+  #txHistory{display:grid!important;gap:10px!important}.tx-row{margin:0!important;padding:12px!important}.tx-row-head{display:flex!important;justify-content:space-between!important;gap:8px!important;align-items:baseline!important;flex-wrap:wrap!important}.txid-line{font-size:12px!important;margin:6px 0!important;opacity:.88!important}
+  @media(max-width:940px){#walletView:not(.hide){grid-template-columns:1fr!important}#wallet-home .overview-grid{grid-template-columns:1fr!important}#wallet-receive.active-section,#wallet-send.active-section{grid-column:1/-1!important}.send-recipient-row,.send-amount-row,.send-quick-row{grid-template-columns:1fr!important}.send-recipient-row button,.send-amount-row button,.send-quick-row button{width:100%!important}}
 </style>

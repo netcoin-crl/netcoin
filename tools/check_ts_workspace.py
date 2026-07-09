@@ -16,6 +16,9 @@ REQUIRED = [
     "api/src/migration-status.ts",
     "api/src/parity.ts",
     "api/src/parity-executor.ts",
+    "api/src/openapi-parity.ts",
+    "api/src/server.ts",
+    "api/src/openapi-enforce.ts",
     "web/package.json",
     "web/tsconfig.json",
 ]
@@ -27,6 +30,11 @@ REQUIRED_SYMBOLS = {
         "ParityStatusSchema",
         "WalletPreviewSchema",
         "ParityVectorSchema",
+        "SignerPolicySchema",
+        "P2PSyncSummarySchema",
+        "IndexerSnapshotSchema",
+        "OpenApiRouteSchema",
+        "OpenApiParitySchema",
     ],
     "api/src/client.ts": [
         "NetCoinClient",
@@ -35,10 +43,25 @@ REQUIRED_SYMBOLS = {
         "parityStatus",
         "parityVectors",
         "migrationReadiness",
+        "explorerTransaction",
+        "explorerBlock",
+        "explorerMempool",
+        "operatorDiagnosticsBundle",
+        "releaseVerify",
     ],
     "api/src/migration-status.ts": ["migrationLanes", "summarizeMigration"],
     "api/src/parity.ts": ["ParityStatusSchema", "summarizeParity"],
     "api/src/parity-executor.ts": ["moneyInRange", "walletDecision", "orderNotionalOk"],
+    "api/src/openapi-parity.ts": [
+        "OpenApiParitySchema",
+        "normalizeOpenApiRoute",
+        "requiredOpenApiRoutes",
+        "requiredOpenApiSchemas",
+        "summarizeOpenApiParity",
+        "assertOpenApiParity",
+    ],
+    "api/src/openapi-enforce.ts": ["requiredApiRoutes", "summarizeOpenApiContract", "assertOpenApiContract"],
+    "api/src/server.ts": ["createNetCoinApiServer", "assertOpenApiContract", "startNetCoinApiServer"],
 }
 
 

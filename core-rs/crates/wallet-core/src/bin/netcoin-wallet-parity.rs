@@ -1,0 +1,28 @@
+use netcoin_wallet_core::run_wallet_parity_vectors;
+use serde_json::Value;
+use std::{env, fs, process};
+
+fn main() {
+    let path = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "../architecture/parity-vectors.json".to_string());
+    let payload = match fs::read_to_string(&path) {
+        Ok(payload) => payload,
+        Err(err) => {
+            eprintln!("could not read {path}: {err}");
+            process::exit(2);
+        }
+    };
+    let vectors: Value = match serde_json::from_str(&payload) {
+        Ok(vectors) => vectors,
+        Err(err) => {
+            eprintln!("could not parse parity JSON: {err}");
+            process::exit(2);
+        }
+    };
+    let report = run_wallet_parity_vectors(&vectors);
+    println!("{}", serde_json::to_string_pretty(&report).expect("serialize wallet parity report"));
+    if report.get("ok").and_then(Value::as_bool) != Some(true) {
+        process::exit(1);
+    }
+}

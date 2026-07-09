@@ -3,7 +3,10 @@ members = [
   "crates/consensus",
   "crates/node",
   "crates/wallet-core",
-  "crates/markets-core"
+  "crates/markets-core",
+  "crates/mempool-core",
+  "crates/signer-core",
+  "crates/indexer-core"
 ]
 resolver = "2"
 

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "generated_by": "netcoin-v0.37-hardening-expansion",
+  "purpose": "Security hardening, fuzz, and audit-prep gates for NetCoin v0.37.",
+  "threat_model": [
+    "malformed transaction and block payloads",
+    "hostile peer header spam and eclipse attempts",
+    "wallet signing policy bypass attempts",
+    "OpenAPI write routes missing signed-envelope requirements",
+    "browser product regressions across wallet/explorer/markets/faucet/operator/exchange"
+  ],
+  "fuzz_targets": [
+    {
+      "name": "tx_binary_codec",
+      "module": "netcoin.fuzz",
+      "max_bytes": 512,
+      "min_iterations": 100
+    },
+    {
+      "name": "script_vm_stack",
+      "module": "netcoin.script",
+      "max_bytes": 256,
+      "min_iterations": 100
+    },
+    {
+      "name": "p2p_message_decoder",
+      "module": "netcoin.p2p",
+      "max_bytes": 384,
+      "min_iterations": 100
+    },
+    {
+      "name": "openapi_route_normalizer",
+      "module": "api/src/openapi-enforce.ts",
+      "max_bytes": 128,
+      "min_iterations": 50
+    }
+  ],
+  "audit_gates": [
+    "parity_suite_green",
+    "hostile_p2p_soak_green_or_detected",
+    "indexer_db_integrity_green",
+    "typescript_openapi_contract_enforced",
+    "browser_e2e_matrix_source_checked",
+    "security_audit_manifest_complete"
+  ]
+}

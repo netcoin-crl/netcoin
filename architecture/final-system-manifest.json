@@ -1,8 +1,8 @@
 {
-  "version": "0.22.0",
-  "codename": "Parity Bridge",
+  "version": "0.37.4",
+  "codename": "Full Rust Core and TypeScript OpenAPI Parity Expansion",
   "principle": "Rust for money-critical core, TypeScript for app/product surfaces, Python for ops and reference tooling.",
-  "current_status": "Python reference app remains live; executable parity vectors now validate consensus, wallet, markets, and API bridge behavior before any Rust/TypeScript promotion.",
+  "current_status": "Python reference app remains live; v0.37 adds hostile P2P soak gates, SQLite indexer DB integration, TypeScript API/OpenAPI enforcement, browser E2E matrix scaffolding, and security/fuzz/audit-prep gates on top of the v0.31 Rust/TypeScript parity expansion. These are migration boundaries, not production/mainnet claims.",
   "final_version_target": "v1.0 production-candidate after external audits, hostile testnet evidence, and parity tests",
   "layers": [
     {
@@ -14,9 +14,18 @@
         "block validation",
         "mempool policy",
         "wallet-core",
-        "market matching invariants"
+        "market matching invariants",
+        "transaction-shape parity",
+        "block-header hash parity",
+        "basic UTXO validation parity",
+        "Rust parity binary",
+        "Python-to-Rust consensus comparison report",
+        "markets-core executable parity",
+        "signer-core executable parity",
+        "P2P/header-sync parity",
+        "indexer-core snapshot parity"
       ],
-      "status": "upgrade space added",
+      "status": "v0.31 parity foundations added for consensus, mempool, wallet, markets, signer, P2P, and indexer lanes",
       "migration_rule": "All behavior must be proven against Python reference vectors before replacing live paths."
     },
     {
@@ -55,9 +64,13 @@
         "community",
         "faucet",
         "markets API",
-        "exchange dashboard API"
+        "exchange dashboard API",
+        "OpenAPI route parity",
+        "schema export parity",
+        "typed client method parity",
+        "SDK codegen parity"
       ],
-      "status": "upgrade space added",
+      "status": "v0.31 OpenAPI/schema/client codegen parity added",
       "migration_rule": "OpenAPI and SDK contract tests must pass before route migration."
     },
     {
@@ -120,6 +133,7 @@
     "migration parity foundation",
     "executable parity bridge",
     "Rust consensus MVP",
+    "Rust executable consensus parity",
     "Rust P2P hostile soak",
     "Rust indexer parity",
     "TypeScript API contract migration",
@@ -127,7 +141,11 @@
     "Tauri desktop wallet",
     "mobile wallet",
     "external audit readiness",
-    "v1.0 production candidate"
+    "v1.0 production candidate",
+    "rust-signer-core",
+    "rust-p2p-sync",
+    "rust-indexer-core",
+    "typescript-openapi-codegen"
   ],
   "final_version_gates": [
     "full Python reference test suite green",
@@ -141,5 +159,13 @@
     "external crypto/security audit completed",
     "public testnet incident/runbook history exists",
     "mainnet launch checklist approved"
+  ],
+  "generated_by": "netcoin-v0.37-hardening-expansion",
+  "hardening_gates_v037": [
+    "hostile P2P/network soak tests",
+    "real SQLite indexer integration smoke",
+    "TypeScript API server + OpenAPI contract enforcement",
+    "browser E2E matrix for wallet/explorer/markets/faucet/operator/exchange",
+    "security/fuzz/audit-prep manifest gate"
   ]
 }

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "generated_by": "netcoin-v0.37-hardening-expansion",
+  "surfaces": [
+    {
+      "surface": "wallet",
+      "path": "sites/wallet/index.html",
+      "required_checks": [
+        "overview",
+        "send",
+        "receive",
+        "activity"
+      ]
+    },
+    {
+      "surface": "explorer",
+      "path": "sites/explorer/index.html",
+      "required_checks": [
+        "address",
+        "tx",
+        "block",
+        "mempool"
+      ]
+    },
+    {
+      "surface": "markets",
+      "path": "sites/markets/index.html",
+      "required_checks": [
+        "orderbook",
+        "portfolio",
+        "trades",
+        "settlement"
+      ]
+    },
+    {
+      "surface": "faucet",
+      "path": "sites/faucet/index.html",
+      "required_checks": [
+        "challenge",
+        "claim",
+        "status",
+        "admin"
+      ]
+    },
+    {
+      "surface": "operator",
+      "path": "sites/operator/index.html",
+      "required_checks": [
+        "health",
+        "diagnostics",
+        "bundle",
+        "alerts"
+      ]
+    },
+    {
+      "surface": "exchange",
+      "path": "sites/exchange/index.html",
+      "required_checks": [
+        "deposits",
+        "withdrawals",
+        "custody",
+        "reserves"
+      ]
+    }
+  ]
+}

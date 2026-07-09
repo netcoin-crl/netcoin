@@ -1,13 +1,16 @@
 {
   "name": "@netcoin/api",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.37.4",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "parity": "npm run build && node dist/run-parity.js",
-    "test": "node --test"
+    "test": "node --test",
+    "start": "node dist/server.js",
+    "contract": "npm run build && node -e \"import('./dist/openapi-enforce.js').then(m=>console.log(JSON.stringify(m.assertOpenApiContract(), null, 2)))\"",
+    "ci:api": "npm run build && npm run contract && npm run parity"
   },
   "dependencies": {
     "@fastify/cors": "latest",

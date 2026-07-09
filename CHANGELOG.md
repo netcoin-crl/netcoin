@@ -1,4 +1,60 @@
+## v0.37.4 - Compact Wallet UI Polish
+
+- Removed the Overview/Send/Receive/Activity/Contacts sub-tab bar from the wallet surface.
+- Made the balance panel wider, shorter, and more compact on desktop.
+- Placed Send and Receive side by side on wider screens while stacking cleanly on mobile.
+- Simplified the Send form with compact recipient, amount, contacts, fee, and coin-control groups.
+- Moved contacts backup/import/export into the Settings tab.
+- Auto-labels locally-sent transactions as `Sent to <contact>` when the recipient matches a saved contact.
+
+
+## v0.37.3 - Local npm CI TypeScript Fix
+
+- Excluded restricted-sandbox runtime shims from the real npm TypeScript build.
+- Enabled skipLibCheck for dependency declaration compatibility across local Node/npm versions.
+- Kept source-level API contract checks available when node_modules is absent.
+
+## v0.37.1 - Bugfix hardening for API contracts and indexer idempotency
+
+- Fixed TypeScript API server/client route drift by registering canonical `/api/*` routes used by the client while preserving local compatibility aliases.
+- Fixed the zero-argument `summarizeOpenApiParity()` server call by adding `summarizeBundledOpenApiParity()`.
+- Strengthened `tools/run_ts_api_contract_enforcement.py` so source checks compare required routes, the implemented route manifest, actual Fastify registrations, client routes, and OpenAPI docs.
+- Fixed SQLite indexer market-event replay inflation by scoping market events to block hash plus event key.
+- Fixed same-height fork accounting by filtering address and market summaries to the active chain only.
+- Added regression tests for route coverage, API parity invocation, market-event idempotency, and active-chain fork filtering.
+
+## v0.37.0 - Hostile Soak, Indexer DB, API, E2E, and Audit Prep Hardening
+
+- Added v0.33 deterministic hostile P2P/network soak scenarios and gate.
+- Added v0.34 SQLite-backed indexer DB integration smoke with address, market, reorg, and integrity checks.
+- Added v0.35 TypeScript API server shell plus OpenAPI contract enforcement source gate.
+- Added v0.36 browser E2E product matrix for wallet, explorer, markets, faucet, operator, and exchange.
+- Added v0.37 security/fuzz/audit-prep manifest and gate.
+- Added make targets `v033-check` through `v037-check`.
+
+# v0.26.0 - Rust wallet-core executable parity lane
+
+- Added an executable Rust wallet-core parity binary for frozen wallet policy/risk vectors.
+- Added `tools/run_rust_wallet_parity.py` for Python-reference vs Rust-output comparison when Cargo is available.
+- Expanded wallet vectors to cover negative amount/fee, poison/frozen warnings, fee-rate thresholds, dust-change thresholds, hardware/offline signing review warnings, and large-input boundaries.
+- Expanded the parity suite to 90 checks and added `make v026-check`.
+
+# v0.25.0 - Rust mempool parity lane
+
+- Added a dedicated `core-rs/crates/mempool-core` Rust crate for mempool policy parity.
+- Added `netcoin-mempool-parity` executable parity binary and `tools/run_rust_mempool_parity.py` comparison wrapper.
+- Added frozen mempool policy vectors for duplicate txid rejection, orphan detection, min relay fee rate, dust output policy, nonfinal locktime, package ancestor/descendant limits, max vsize, RBF bump policy, and fee-rate ordering.
+- Expanded the executable parity suite from 66 to 78 checks.
+- Added `make v025-check` as the release gate for consensus plus mempool parity evidence.
+
 # Changelog
+
+## v0.37.2 - Final release hardening pass
+
+- Added deterministic TypeScript no-emit source checking to the API contract enforcement gate.
+- Added restricted-sandbox TypeScript ambient declarations so API route/schema drift is caught even without node_modules.
+- Fixed TypeScript server response-shape stubs for migration, parity, parity-vector, and migration-readiness routes so they align with the exported client schemas.
+- Verified the v0.37 API contract gate now catches TypeScript compile-time mismatches instead of relying only on string-based route checks.
 
 All notable changes to NetCoin are documented in this file.
 
@@ -706,3 +762,11 @@ First public 3-seed testnet release.
 [0.4.0]: https://github.com/netcoin-crl/netcoin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/netcoin-crl/netcoin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/netcoin-crl/netcoin/releases/tag/v0.2.0
+
+## v0.24.0 - Rust Executable Consensus Parity
+
+- Added the `netcoin-consensus-parity` Rust binary for executing frozen consensus parity vectors.
+- Added `tools/run_rust_consensus_parity.py` to compare Rust consensus output with the Python reference implementation.
+- Expanded parity vectors to schema version 5 / `consensus-executable-vectors-v4`.
+- Added `make v024-check` and v0.24 regression tests.
+- Kept Python as the live reference runtime; Rust remains gated by parity and final readiness checks.

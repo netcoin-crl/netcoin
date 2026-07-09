@@ -36,4 +36,20 @@ Only after external audit, public hostile testnet evidence, and signed release/p
 
 v0.22 expands frozen parity vectors and adds wider Rust/TypeScript parity symbols. This is a migration milestone, not a live runtime replacement.
 
-Next recommended milestone: v0.23 should add generated bindings and a real Rust parity test runner once Cargo is available in CI.
+Completed next milestone: v0.24 adds a real Rust consensus parity binary and a Python comparison wrapper; the next recommended milestone is v0.25 mempool policy parity.
+
+
+## v0.23 Rust consensus parity implementation
+
+v0.23 expands the Rust consensus lane from helper parity into frozen vectors for transaction-shape summaries, block-header hashing, and basic UTXO spend validation. Python remains the live reference runtime; Rust still cannot replace consensus until the full final gates pass.
+
+Validation target:
+
+```bash
+make v023-check
+cd core-rs && cargo test --workspace
+```
+
+## v0.24 Rust executable consensus parity
+
+v0.24 adds the first Rust consensus executable parity runner. The Rust `netcoin-consensus-parity` binary reads the canonical JSON vectors and emits per-case JSON results. The Python wrapper `tools/run_rust_consensus_parity.py` runs Cargo when available and compares Rust outputs against Python reference outputs. This is the next bridge toward Rust-owned consensus, but Python remains the live reference until final gates pass.

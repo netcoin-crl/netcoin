@@ -4,7 +4,7 @@ NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in 
 
 NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should not be used as real money software. Public-testnet NET has no real-money value.
 
-> Current release: **v0.22.0** · 3 public seeds · deterministic emission (50 NET −10% / 265k blocks) · 5-minute blocks from height 5,010 · app-layer tokens + developer API keys + Polymarket-style Labs CLOB · wallet vault + risk simulator · operator/exchange/health dashboards · Reddit-style Community · feature catalog · Rust core + TypeScript API migration lanes with a 50-check executable parity suite (Python remains the live reference implementation)
+> Current release: **v0.37.4** · 3 public seeds · deterministic emission (50 NET −10% / 265k blocks) · 5-minute blocks from height 5,010 · app-layer tokens + developer API keys + Polymarket-style Labs CLOB · wallet vault + risk simulator · operator/exchange/health dashboards · Reddit-style Community · feature catalog · Rust executable/source-checked consensus, mempool, wallet-core, markets-core, signer-core, P2P/header-sync, and indexer parity lanes plus TypeScript OpenAPI codegen parity with a 163-check parity suite, hostile P2P soak gates, SQLite indexer integration gates, TypeScript API/OpenAPI enforcement, browser E2E matrix coverage, and security/fuzz/audit-prep gates (Python remains the live reference implementation)
 
 ## Start here
 

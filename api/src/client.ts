@@ -1,13 +1,23 @@
 /** Minimal typed client helpers for the future TypeScript API layer. */
 import {
   ExplorerAddressSchema,
+  ExplorerTransactionSchema,
+  IndexerSnapshotSchema,
+  MigrationReadinessSchema,
   MigrationStatusSchema,
   ParityStatusSchema,
   ParityVectorSchema,
+  OperatorDiagnosticsSchema,
+  ReleaseVerifySchema,
   type ExplorerAddress,
+  type ExplorerTransaction,
+  type IndexerSnapshot,
+  type MigrationReadiness,
+  type OperatorDiagnostics,
   type MigrationStatus,
   type ParityStatus,
-  type ParityVector
+  type ParityVector,
+  type ReleaseVerify
 } from './schemas.js';
 
 export interface NetCoinClientOptions {
@@ -44,8 +54,33 @@ export class NetCoinClient {
     return ParityVectorSchema.parse(data);
   }
 
-  async migrationReadiness(): Promise<unknown> {
-    return this.getJson('/api/migration-readiness');
+  async migrationReadiness(): Promise<MigrationReadiness> {
+    const data = await this.getJson('/api/migration-readiness');
+    return MigrationReadinessSchema.parse(data);
+  }
+
+  async explorerTransaction(txid: string): Promise<ExplorerTransaction> {
+    const data = await this.getJson(`/api/explorer/tx/${encodeURIComponent(txid)}`);
+    return ExplorerTransactionSchema.parse(data);
+  }
+
+  async explorerBlock(id: string): Promise<IndexerSnapshot> {
+    const data = await this.getJson(`/api/explorer/block/${encodeURIComponent(id)}`);
+    return IndexerSnapshotSchema.parse(data);
+  }
+
+  async explorerMempool(): Promise<unknown> {
+    return this.getJson('/api/explorer/mempool');
+  }
+
+  async operatorDiagnosticsBundle(): Promise<OperatorDiagnostics> {
+    const data = await this.getJson('/api/operator/diagnostics/bundle');
+    return OperatorDiagnosticsSchema.parse(data);
+  }
+
+  async releaseVerify(): Promise<ReleaseVerify> {
+    const data = await this.getJson('/api/release/verify');
+    return ReleaseVerifySchema.parse(data);
   }
 
   private async getJson(path: string): Promise<unknown> {
