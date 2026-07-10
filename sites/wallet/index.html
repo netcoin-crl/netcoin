@@ -611,12 +611,10 @@ body{letter-spacing:-.01em}
 <!-- v0.40 wallet layout: balance top-left above address, lock in the balance card,
      shorter overview, and full-width Send/Receive/Transactions. -->
 <style id="wallet-v040-layout">
-  #walletView:not(.hide){display:block!important;max-width:1080px!important;margin-left:auto!important;margin-right:auto!important}
+  /* Full-width sections (Send/Receive/Activity/Contacts span end-to-end) */
   #wallet-home.active-section,#wallet-receive.active-section,#wallet-send.active-section,
-  #wallet-activity.active-section,#wallet-contacts.active-section{
-    grid-column:1/-1!important;display:block!important;width:auto!important;max-width:none!important;margin:0 0 14px!important;
-  }
-  /* overview: balance card first (top), address below */
+  #wallet-activity.active-section,#wallet-contacts.active-section{grid-column:1/-1!important}
+  /* Balance card: first (top), horizontal, address below */
   #wallet-home .overview-grid{display:flex!important;flex-direction:column!important;gap:12px!important}
   #wallet-home .balance-panel{
     order:-1!important;display:flex!important;flex-direction:column!important;width:100%!important;
