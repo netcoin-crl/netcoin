@@ -168,7 +168,7 @@ body{letter-spacing:-.01em}
     @media(max-width:860px){.wallet-section[data-wallet-tab="wallet"].active-section,#wallet-send.active-section{display:block!important;grid-column:auto!important}.wallet-workspace-nav{top:0}}
 
 </style>
-  <link rel="stylesheet" href="ui-polish.css?v=20260709-v0374" />
+  <link rel="stylesheet" href="ui-polish.css?v=20260710-v0377" />
     <link rel="stylesheet" href="site-shell.css?v=20260709-minimal" />
 
 
@@ -523,7 +523,7 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260707-cap500" integrity="sha384-f2rfd5w+8CoOw7hqpFx1tEJNdaahCW+OeVInr/33yCnqqJKmAfMfQ1GeU4vSIMuJ" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260709-v0374" integrity="sha384-Hysf29zdZwmK4i8RqCxf6VzMEjUUo5wYfwE+QzKBlGNXsqCqu9Y5N5BEmKRmANVG" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260710-v0377" integrity="sha384-wGm5y53CMKs96lZCHSVP9ueV+hzIaEcGuperREoMp/BxSFNlt7tGyzLBgoCgOzye" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260709-minimal"></script>
 </body>
 </html>
@@ -631,4 +631,24 @@ body{letter-spacing:-.01em}
   #wallet-home .balance-panel p.balance-explain{margin:9px 0 0!important;font-size:12.5px!important;line-height:1.5!important;max-width:78ch!important;text-transform:none!important;letter-spacing:0!important;color:var(--mut)!important}
   #wallet-home .balance-panel p.balance-explain b{color:var(--fg)!important;font-weight:700!important;text-transform:none!important}
   @media (pointer:coarse){#wallet-home #btnLock{min-height:44px!important}}
+</style>
+
+<!-- v0.37.7 wallet layout: 1800px shell cap, single-column wallet tab (every card edge-to-edge). -->
+<style id="wallet-v0377-widen">
+  .wrap{max-width:min(1800px,calc(100vw - 32px))!important;padding-left:clamp(20px,2.4vw,44px)!important;padding-right:clamp(20px,2.4vw,44px)!important}
+  #walletView:not(.hide){max-width:none!important;grid-template-columns:1fr!important}
+  #walletTabs{max-width:none!important;grid-column:1/-1!important}
+  .wallet-section.active-section,
+  .wallet-section[data-wallet-tab="wallet"].active-section,
+  .wallet-section[data-wallet-tab="overview"].active-section,
+  .wallet-section[data-wallet-tab="reports"].active-section,
+  .wallet-section[data-wallet-tab="advanced"].active-section,
+  .wallet-section[data-wallet-tab="settings"].active-section,
+  .wallet-section[data-wallet-tab="send"].active-section,
+  .wallet-section[data-wallet-tab="receive"].active-section{grid-template-columns:1fr!important;max-width:none!important}
+  .wallet-section > .card,#walletView > .card,#wallet-home > .card{max-width:none!important;width:100%!important}
+  /* Page header: match the tab-strip / card-header type scale (not a landing hero) */
+  .wrap > h1{font-size:22px!important;line-height:1.2!important;letter-spacing:-.02em!important;font-weight:800!important;margin:0 0 4px!important}
+  .wrap > p.sub{font-size:13px!important;line-height:1.4!important;margin:0 0 16px!important;color:var(--mut,#9aa7b5)!important;max-width:none!important}
+  @media(max-width:940px){.wrap{padding-left:16px!important;padding-right:16px!important}.wrap > h1{font-size:20px!important}}
 </style>

@@ -40,7 +40,7 @@
       try {
         const b = await api("/balance/" + encodeURIComponent(addrs[type]));
         const total = (b.total_sats ?? 0) / COIN;
-        opt.textContent = labels[type] + (total > 0 ? ` · ${total.toLocaleString(undefined, { maximumFractionDigits: 8 })} NET` : "");
+        opt.textContent = labels[type] + (total > 0 ? " · has balance" : "");
       } catch { /* offline: keep plain labels */ }
     }
   }
@@ -49,7 +49,7 @@
     if (state) {
       const w = W.walletFromPrivateKey(state.privHex, walletAddressType());
       state.address = w.address;
-      $("addr").textContent = w.address;
+      setAddressDisplay(w.address);
       if ($("addrTypeSel")) $("addrTypeSel").value = walletAddressType();
       makePaymentRequest();
       refresh();
@@ -78,7 +78,10 @@
     if (sats > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("amount too large");
     return Number(sats);
   }
-  const satsToNet = (s) => (s / COIN).toLocaleString(undefined, { maximumFractionDigits: 8 });
+  const satsToNet = (s) => (s / COIN).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const satsToNetFull = (s) => (s / COIN).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+  const truncAddr = (a) => (a && a.length > 22) ? `${a.slice(0, 10)}…${a.slice(-6)}` : a;
+  const setAddressDisplay = (a) => { const el = $("addr"); if (!el) return; el.textContent = truncAddr(a); el.title = a || ""; };
   const esc = (value) => String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   function satsToInput(sats) {
     const n = BigInt(Math.max(0, Number(sats)));
@@ -1028,7 +1031,7 @@
     const clean = normalizePrivateKeyHex(privHex);
     const w = W.walletFromPrivateKey(clean, walletAddressType());
     state = { secretType: "privateKey", privHex: clean, address: w.address, profile };
-    $("addr").textContent = w.address;
+    setAddressDisplay(w.address);
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · private key · session unlocked`;
     if (remember) rememberUnlocked("privateKey", clean, profile, true);
     show("walletView");
@@ -1125,7 +1128,7 @@
     const privHex = W.privateKeyFromSeedPhrase(seed, 0);
     const w = W.walletFromPrivateKey(privHex, walletAddressType());
     state = { secretType: "seed", seed, privHex, address: w.address, profile };
-    $("addr").textContent = w.address;
+    setAddressDisplay(w.address);
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · seed phrase · session unlocked`;
     if (remember) rememberUnlocked("seed", seed, profile, true);
     show("walletView");
@@ -1338,6 +1341,7 @@
       const b = await api("/balance/" + encodeURIComponent(state.address));
       lastSpendableSats = b.spendable_sats ?? b.spendable ?? 0;
       $("balNet").textContent = satsToNet(lastSpendableSats);
+      $("balNet").title = satsToNetFull(lastSpendableSats) + " NET";
       const imm = b.immature_sats ?? 0;
       let maturing = "";
       if (imm > 0) {

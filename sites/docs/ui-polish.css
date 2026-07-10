@@ -8,3 +8,26 @@ html{scroll-behavior:smooth}body{letter-spacing:-.01em}body,.shell,.wrap{min-wid
 /* Wider desktop pass */
 @media (min-width:1440px){.shell,.wrap{max-width:min(1560px,calc(100vw - 80px))!important}.hero,.dashboard-hero{grid-template-columns:minmax(0,1fr) 420px!important}.split{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}.grid,.dashboard-grid{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))!important}.wallet-section.active-section{max-width:1440px!important}}
 @media (max-width:860px){.shell,.wrap{max-width:100%!important;padding:16px 14px 56px!important}.hero,.dashboard-hero,.split{grid-template-columns:1fr!important}.brand{margin-bottom:10px!important}.card{padding:15px!important}.grid,.dashboard-grid{grid-template-columns:1fr!important}.site-nav{margin-bottom:14px!important}.row{display:block!important}.row>*{margin-bottom:8px!important}.actions a,.actions button{width:auto!important;min-width:0!important}.section-head{align-items:flex-start!important}.wallet-section.active-section,.wallet-section[data-wallet-tab="receive"].active-section,.wallet-section[data-wallet-tab="send"].active-section{grid-template-columns:1fr!important;max-width:none!important}.kv{grid-template-columns:1fr!important}.kv .k{margin-top:6px!important}.mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+
+/* v0.37.7 shell widen to 1800px cap */
+.shell,
+.wrap{
+  max-width:min(1800px,calc(100vw - 32px))!important;
+  padding-left:clamp(20px,2.4vw,44px)!important;
+  padding-right:clamp(20px,2.4vw,44px)!important;
+}
+main,
+.site-main,
+.page,
+.page-shell{
+  max-width:none!important;
+  width:100%!important;
+}
+@media(max-width:940px){
+  .shell,
+  .wrap{
+    padding-left:16px!important;
+    padding-right:16px!important;
+  }
+}
