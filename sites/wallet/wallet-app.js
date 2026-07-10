@@ -239,6 +239,8 @@
     const wallet = $("walletView");
     if (!wallet || $("walletTabs")) return;
 
+    function addWalletSection(section) { wallet.appendChild(section); }
+
     const tabs = document.createElement("div");
     tabs.id = "walletTabs";
     tabs.className = "wallet-tabs";
@@ -269,13 +271,13 @@
       card.dataset.walletTab = tab;
     }
 
-    wallet.insertBefore(walletSection("Payments", `
+    addWalletSection(walletSection("Payments", `
       <p class="muted">Business payment tools live on the separated payment and merchant pages so the wallet stays clean.</p>
       <div class="section-links">
         <a href="https://pay.netcoin.online/"><b>Payment hub</b><br><span class="muted">Checkout, receipts, tips, donations, and profiles.</span></a>
         <a href="https://merchant.netcoin.online/"><b>Merchant dashboard</b><br><span class="muted">Invoices, POS, refunds, API keys, webhooks, and exports.</span></a>
-      </div>`, "payments"), $("btnLock"));
-    wallet.insertBefore(walletSection("Mining", `
+      </div>`, "payments"));
+    addWalletSection(walletSection("Mining", `
       <p class="muted">Mine NetCoin on your own computer and get the block reward paid to this wallet. No pools, no signup.</p>
       <p id="miningStats" class="muted">Checking chain status…</p>
       <p class="muted">1. Install NetCoin once (see the Learn site). 2. Activate your virtualenv. 3. Run the browser-address command below, or use the auto-harvest command if you mine with a local wallet file.</p>
@@ -283,23 +285,23 @@
       <pre id="harvestMineCommand" class="mono">python -m netcoin miner --node http://18.220.89.128:28444 --wallet miner.json --blocks 0 --auto-harvest --harvest-every 25 --harvest-min-utxos 50</pre>
       <button id="btnCopyMineCommand" class="secondary" type="button">Copy mining command</button>
       <p class="muted">Mining rewards show under your balance as "maturing" and unlock after 100 blocks. If the netcoin.online domain is blocked on your network, the command above already uses the raw seed IP.</p>
-      <div class="section-links"><a href="https://learn.netcoin.online/"><b>Full mining guide</b><br><span class="muted">Install steps, Windows/macOS/Linux notes, troubleshooting.</span></a></div>`, "mining"), $("btnLock"));
-    wallet.insertBefore(walletSection("Tokens", `
+      <div class="section-links"><a href="https://learn.netcoin.online/"><b>Full mining guide</b><br><span class="muted">Install steps, Windows/macOS/Linux notes, troubleshooting.</span></a></div>`, "mining"));
+    addWalletSection(walletSection("Tokens", `
       <p class="muted">App-layer NET-20 tokens tracked by this node. Read-only here: token writes support wallet-signed app actions plus developer keys, but this browser wallet does not move app-layer tokens yet.</p>
       <button id="btnRefreshTokens" class="secondary" type="button">Refresh token balances</button>
       <div id="tokenList" class="watch-list"><span class="muted">Unlock the wallet, then refresh to load tokens.</span></div>
-      <p class="muted">Create and manage tokens via the API — see <a href="https://api.netcoin.online/openapi.yaml" target="_blank" rel="noreferrer">the OpenAPI spec</a> or the SDKs.</p>`, "tokens"), $("btnLock"));
-    wallet.insertBefore(walletSection("Escrow", `
+      <p class="muted">Create and manage tokens via the API — see <a href="https://api.netcoin.online/openapi.yaml" target="_blank" rel="noreferrer">the OpenAPI spec</a> or the SDKs.</p>`, "tokens"));
+    addWalletSection(walletSection("Escrow", `
       <p class="muted">Escrow is an advanced app-layer workflow. Create and monitor 2-of-3 escrow deals from the separated markets/contract page.</p>
-      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"), $("btnLock"));
-    wallet.insertBefore(walletSection("Contracts", `
+      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"));
+    addWalletSection(walletSection("Contracts", `
       <p class="muted">Developer-mode contract tools are intentionally separated from normal wallet use.</p>
-      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open Phase 7 contracts</b><br><span class="muted">Timelock, vesting, multisig, recurring, polls, and prediction-market demos.</span></a></div>`, "contracts"), $("btnLock"));
-    wallet.insertBefore(walletSection("Developer", `
+      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open Phase 7 contracts</b><br><span class="muted">Timelock, vesting, multisig, recurring, polls, and prediction-market demos.</span></a></div>`, "contracts"));
+    addWalletSection(walletSection("Developer", `
       <p class="muted">Developer tools expose raw/debug views and are intended for local/testnet use.</p>
       <div class="section-links">
         <a href="https://api.netcoin.online/"><b>API docs</b><br><span class="muted">Explorer/backend API reference and SDK links.</span></a>
-      </div>`, "developer"), $("btnLock"));
+      </div>`, "developer"));
 
     const settings = walletSection("Settings", `
       <p class="muted">Choose wallet mode and manage backups. Hidden tool groups are tucked away until you switch modes.</p>
@@ -316,7 +318,7 @@
         <summary>What each mode shows</summary>
         <p class="muted">Simple: one compact wallet page with balance, send, receive, and activity. Merchant mode adds payments and reports. Advanced mode adds watch-only, escrow, coin control, PSBT, descriptors, and backups/settings tools. Developer mode adds contract/debug links.</p>
       </details>`, "settings");
-    wallet.insertBefore(settings, $("btnLock"));
+    addWalletSection(settings);
     const modeButtons = $("walletModeButtons");
     if (modeButtons) {
       for (const [mode, text] of Object.entries(MODE_INFO)) {
