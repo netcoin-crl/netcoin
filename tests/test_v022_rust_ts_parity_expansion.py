@@ -52,6 +52,8 @@ def test_v022_migration_routes_expose_vectors_and_readiness(tmp_path: Path) -> N
         "0.37.2",
         "0.37.3",
         "0.37.4",
+        "0.38.0",
+        "0.38.1", "0.38.2", "0.38.3",
     }
     assert parity["ok"] is True
     assert readiness["ready"] is False

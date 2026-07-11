@@ -1,0 +1,10 @@
+$ python tools/check_rust_workspace.py
+status=pass returncode=0
+
+--- stdout tail ---
+{
+  "ok": true,
+  "checked_files": 20,
+  "issues": []
+}
+

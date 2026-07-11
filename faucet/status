@@ -1,0 +1,7 @@
+{
+  "ok": true,
+  "status": "source-fallback",
+  "funding_state": "testnet-fallback",
+  "captcha_provider": "configure NETCOIN_CAPTCHA_PROVIDER and NETCOIN_CAPTCHA_SECRET for production",
+  "abuse_protection": "pow-plus-provider-gated"
+}

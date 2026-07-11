@@ -87,7 +87,7 @@ def test_v026_source_only_rust_wallet_comparison_gate_passes_without_cargo() -> 
 def test_v026_migration_status_reports_wallet_lane() -> None:
     status = migration_status(ROOT)
     assert status["ok"] is True
-    assert status["version"] in {"0.26.0", "0.31.0", "0.37.0", "0.37.1", "0.37.2", "0.37.3", "0.37.4"}
+    assert status["version"] in {"0.26.0", "0.31.0", "0.37.0", "0.37.1", "0.37.2", "0.37.3", "0.37.4", "0.38.0", "0.38.1", "0.38.2", "0.38.3"}
     wallet_lane = next(lane for lane in status["lanes"] if lane["id"] == "rust-wallet-core")
     assert wallet_lane["status"] == "executable-rust-wallet-core-policy-parity-runner"
     assert wallet_lane["evidence"]["owner_exists"] is True

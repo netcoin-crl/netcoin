@@ -1,5 +1,5 @@
 {
-  "version": "0.37.4",
+  "version": "0.40.0",
   "codename": "Hostile Soak, Indexer DB, TypeScript API, Browser E2E, and Audit Prep Hardening",
   "current_live_runtime": "python-reference-app",
   "target_runtime": "rust-core-typescript-app-python-ops",
@@ -280,5 +280,10 @@
     "Release provenance and SBOM verified"
   ],
   "generated_by": "netcoin-v0.37-hardening-expansion",
-  "current_status": "Python reference app remains live; v0.37 adds v0.33 hostile P2P soak gates, v0.34 SQLite indexer integration, v0.35 TypeScript API/OpenAPI enforcement, v0.36 browser E2E matrix scaffolding, and v0.37 security/fuzz/audit-prep gates. Rust/TypeScript remain migration boundaries until local Cargo/npm/Playwright gates and production audits pass."
+  "current_status": "Python reference app remains live; v0.37 adds v0.33 hostile P2P soak gates, v0.34 SQLite indexer integration, v0.35 TypeScript API/OpenAPI enforcement, v0.36 browser E2E matrix scaffolding, and v0.37 security/fuzz/audit-prep gates. Rust/TypeScript remain migration boundaries until local Cargo/npm/Playwright gates and production audits pass.",
+  "phase0_completion": {
+    "status": "complete",
+    "artifact": "architecture/phase0-completion.json",
+    "next_phase": "Phase 1 - Proof Hardening"
+  }
 }

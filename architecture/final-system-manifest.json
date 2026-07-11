@@ -1,8 +1,8 @@
 {
-  "version": "0.37.4",
-  "codename": "Full Rust Core and TypeScript OpenAPI Parity Expansion",
+  "version": "0.42.0",
+  "codename": "Website UI Clarity and Copy-Reduction Pass",
   "principle": "Rust for money-critical core, TypeScript for app/product surfaces, Python for ops and reference tooling.",
-  "current_status": "Python reference app remains live; v0.37 adds hostile P2P soak gates, SQLite indexer DB integration, TypeScript API/OpenAPI enforcement, browser E2E matrix scaffolding, and security/fuzz/audit-prep gates on top of the v0.31 Rust/TypeScript parity expansion. These are migration boundaries, not production/mainnet claims.",
+  "current_status": "v0.42.0 audits website design flaws, collapses noisy navigation, shortens product-completion copy, adds compact shared UI polish, and keeps strict proof gates available without claiming production readiness.",
   "final_version_target": "v1.0 production-candidate after external audits, hostile testnet evidence, and parity tests",
   "layers": [
     {
@@ -167,5 +167,7 @@
     "TypeScript API server + OpenAPI contract enforcement",
     "browser E2E matrix for wallet/explorer/markets/faucet/operator/exchange",
     "security/fuzz/audit-prep manifest gate"
-  ]
+  ],
+  "phase_0_current_focus": "product coherence, no-dead-end workflows, and mode/lens ownership",
+  "mainnet_readiness_gates": "architecture/mainnet-readiness-gates.json"
 }

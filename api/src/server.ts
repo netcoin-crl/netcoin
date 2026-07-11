@@ -35,7 +35,7 @@ export function createNetCoinApiServer(options: NetCoinApiServerOptions = {}): F
 
   const migrationStatusHandler = async () => ({
     ok: true,
-    version: '0.37.4',
+    version: '0.38.1',
     current_live_runtime: 'python-reference-app',
     target_runtime: 'rust-core-typescript-app',
     vector_fingerprint: '39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c',
@@ -51,11 +51,11 @@ export function createNetCoinApiServer(options: NetCoinApiServerOptions = {}): F
     lanes: [{ lane: 'typescript-api', status: 'green', total: 1, passed: 1, failed: 0 }],
     openapi: summarizeBundledOpenApiParity()
   });
-  const parityVectorsHandler = async () => ({ schema_version: 9, generated_by: 'netcoin-v0.37.4', consensus: {}, wallet: {}, markets: {}, mempool: {}, signer: {}, p2p: {}, indexer: {}, api: {} });
+  const parityVectorsHandler = async () => ({ schema_version: 9, generated_by: 'netcoin-v0.38.1', consensus: {}, wallet: {}, markets: {}, mempool: {}, signer: {}, p2p: {}, indexer: {}, api: {} });
   const migrationReadinessHandler = async () => ({ target: 'rust-core-typescript-app', complete_gates: 7, total_gates: 11, ready: false });
   const marketsListHandler = async () => ({ ok: true, markets: [], warning: 'testnet/play-money only' });
   const marketWriteHandler = async () => ({ ok: true, requires: 'signed-envelope' });
-  const releaseVerifyHandler = async () => ({ ok: true, version: '0.37.4', checks: ['openapi', 'parity', 'release-metadata'] });
+  const releaseVerifyHandler = async () => ({ ok: true, version: '0.38.1', checks: ['openapi', 'parity', 'release-metadata'] });
   const operatorBundleHandler = async () => ({ ok: true, bundle: 'diagnostics-placeholder', checks: [] });
 
   app.get('/health-center', async () => ({ ok: true, service: 'netcoin-api', mode: 'typescript-contract-shell' }));

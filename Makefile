@@ -1,6 +1,6 @@
-.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check rust-consensus-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check full-suite-report devnet fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean p2p-soak-check indexer-db-check ts-api-contract-check browser-e2e-matrix-check security-audit-prep-check v033-check v034-check v035-check v036-check v037-check
+.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check rust-consensus-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check full-suite-report devnet fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean p2p-soak-check indexer-db-check ts-api-contract-check browser-e2e-matrix-check security-audit-prep-check product-architecture-check design-system-check product-simplification-check trust-interaction-check product-coherence-check v033-check v034-check v035-check v036-check v037-check v038-check v0381-check v0382-check v0383-check v0384-check
 
-PYTHON ?= python
+PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
 
 install-dev:
@@ -187,6 +187,24 @@ browser-e2e-matrix-check:
 security-audit-prep-check:
 	$(PYTHON) tools/run_security_audit_prep.py
 
+product-architecture-check:
+	$(PYTHON) tools/check_product_architecture.py
+
+design-system-check:
+	$(PYTHON) tools/check_design_system.py
+
+product-simplification-check:
+	$(PYTHON) tools/check_product_simplification.py
+
+trust-interaction-check:
+	$(PYTHON) tools/check_trust_interaction.py
+
+product-coherence-check:
+	$(PYTHON) tools/check_product_coherence.py
+
+phase0-complete-check:
+	$(PYTHON) tools/check_phase0_complete.py
+
 
 v033-check: parity-check rust-workspace-check ts-api-check migration-check p2p-soak-check
 	$(PYTHON) -m pytest -q tests/test_v033_hostile_p2p_soak.py
@@ -209,3 +227,152 @@ v0374-check:
 	python tools/run_parity_suite.py --no-write
 	python tools/check_product_surface.py
 	PYTHONPATH=. pytest -q tests/test_v0374_wallet_ui_compact.py
+
+.PHONY: v038-check
+v038-check: product-architecture-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	PYTHONPATH=. pytest -q tests/test_v038_phase0_product_architecture.py
+
+.PHONY: v0381-check
+v0381-check: product-architecture-check design-system-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	PYTHONPATH=. pytest -q tests/test_v038_phase0_product_architecture.py tests/test_v0381_phase0_design_system.py
+
+.PHONY: v0382-check
+v0382-check: product-architecture-check design-system-check product-simplification-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	PYTHONPATH=. pytest -q tests/test_v038_phase0_product_architecture.py tests/test_v0381_phase0_design_system.py tests/test_v0382_phase0_product_simplification.py
+
+.PHONY: v0383-check
+v0383-check: product-architecture-check design-system-check product-simplification-check trust-interaction-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	PYTHONPATH=. pytest -q tests/test_v038_phase0_product_architecture.py tests/test_v0381_phase0_design_system.py tests/test_v0382_phase0_product_simplification.py tests/test_v0383_phase0_trust_interaction.py
+
+.PHONY: v0384-check
+v0384-check: product-architecture-check design-system-check product-simplification-check trust-interaction-check product-coherence-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	PYTHONPATH=. pytest -q tests/test_v038_phase0_product_architecture.py tests/test_v0381_phase0_design_system.py tests/test_v0382_phase0_product_simplification.py tests/test_v0383_phase0_trust_interaction.py tests/test_v0384_phase0_product_coherence.py
+
+
+.PHONY: v0385-check
+v0385-check: product-architecture-check design-system-check product-simplification-check trust-interaction-check product-coherence-check phase0-complete-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	PYTHONPATH=. pytest -q tests/test_v038_phase0_product_architecture.py tests/test_v0381_phase0_design_system.py tests/test_v0382_phase0_product_simplification.py tests/test_v0383_phase0_trust_interaction.py tests/test_v0384_phase0_product_coherence.py tests/test_v0385_phase0_completion.py
+
+.PHONY: proof-hardening-check all-rust-parity-check accessibility-matrix-check release-readiness-check v039-check
+proof-hardening-check:
+	$(PYTHON) tools/check_proof_hardening.py
+
+all-rust-parity-check:
+	$(PYTHON) tools/run_all_rust_parity.py --allow-missing-cargo --no-write
+
+accessibility-matrix-check:
+	$(PYTHON) tools/run_accessibility_matrix.py --source-only
+
+release-readiness-check:
+	$(PYTHON) tools/run_release_readiness.py --timeout 60
+
+v039-check: proof-hardening-check release-readiness-check
+	$(PYTHON) tools/check_phase0_complete.py
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	PYTHONPATH=. $(PYTHON) -m pytest -q tests/test_v039_phase1_proof_hardening.py
+
+
+.PHONY: strict-proof-execution-check strict-proof-plan v0391-check
+strict-proof-execution-check:
+	$(PYTHON) tools/check_strict_proof_execution.py
+
+strict-proof-plan:
+	$(PYTHON) tools/print_strict_proof_plan.py --profile sandbox
+
+v0391-check:
+	$(PYTHON) tools/check_strict_proof_execution.py
+	PYTHONPATH=. $(PYTHON) -m pytest -q tests/test_v0391_phase1_strict_proof_execution.py
+
+.PHONY: proof-evidence-check proof-evidence-collect v0392-check
+proof-evidence-check:
+	$(PYTHON) tools/check_proof_evidence.py
+
+proof-evidence-collect:
+	$(PYTHON) tools/collect_proof_evidence.py --mode sandbox
+
+v0392-check:
+	$(PYTHON) tools/run_v0392_check.py
+
+.PHONY: local-proof-runner-check local-proof-run v0393-check
+local-proof-runner-check:
+	$(PYTHON) tools/check_local_proof_runner.py
+
+local-proof-run:
+	$(PYTHON) tools/run_local_proof.py --profile sandbox --timeout 120
+
+v0393-check:
+	$(PYTHON) tools/run_v0393_check.py
+
+.PHONY: proof-triage-check proof-triage-run v0394-check
+proof-triage-check:
+	$(PYTHON) tools/check_proof_triage.py
+
+proof-triage-run:
+	$(PYTHON) tools/run_proof_triage.py
+
+v0394-check:
+	$(PYTHON) tools/run_v0394_check.py
+
+
+.PHONY: product-completion-check v040-check
+product-completion-check:
+	$(PYTHON) tools/check_product_completion.py
+
+v040-check: product-completion-check phase0-complete-check proof-triage-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	$(PYTHON) tools/check_ts_workspace.py
+	$(PYTHON) tools/run_ts_api_contract_enforcement.py
+	PYTHONPATH=. $(PYTHON) -m pytest -q tests/test_v040_product_completion.py
+
+
+.PHONY: v0401-check
+v0401-check: product-completion-check phase0-complete-check proof-triage-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_browser_e2e_matrix.py
+	$(PYTHON) tools/run_accessibility_matrix.py --source-only
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	$(PYTHON) tools/check_ts_workspace.py
+	$(PYTHON) tools/run_ts_api_contract_enforcement.py
+	PYTHONPATH=. $(PYTHON) -m pytest -q tests/test_v040_product_completion.py tests/test_v0401_browser_strict_fixes.py
+
+.PHONY: mainnet-readiness-check mainnet-readiness-source v041-check
+mainnet-readiness-check:
+	$(PYTHON) tools/check_mainnet_readiness_gates.py
+
+mainnet-readiness-source:
+	$(PYTHON) tools/run_mainnet_readiness.py --quiet --out reports/mainnet_readiness_source_report.json
+
+v041-check: mainnet-readiness-check product-completion-check phase0-complete-check proof-triage-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_mainnet_readiness.py --quiet --out reports/mainnet_readiness_source_report.json
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	$(PYTHON) tools/check_ts_workspace.py
+	$(PYTHON) tools/run_ts_api_contract_enforcement.py
+	PYTHONPATH=. $(PYTHON) -m pytest -q tests/test_v041_mainnet_readiness.py
+
+.PHONY: site-ui-polish-check v042-check
+site-ui-polish-check:
+	$(PYTHON) tools/check_site_ui_polish.py
+
+v042-check: site-ui-polish-check product-completion-check mainnet-readiness-check product-check site-audit
+	$(PYTHON) -m compileall -q netcoin tools
+	$(PYTHON) tools/run_browser_e2e_matrix.py
+	$(PYTHON) tools/run_accessibility_matrix.py --source-only
+	$(PYTHON) tools/run_parity_suite.py --no-write
+	$(PYTHON) tools/check_ts_workspace.py
+	$(PYTHON) tools/run_ts_api_contract_enforcement.py
+	PYTHONPATH=. $(PYTHON) -m pytest -q tests/test_v040_product_completion.py tests/test_v0401_browser_strict_fixes.py tests/test_v042_site_ui_polish.py

@@ -1,3 +1,92 @@
+## v0.42.0 - Website UI Clarity and Copy-Reduction Pass
+
+- Audited public website surfaces for visual clutter, duplicated navigation, verbose helper text, overloaded cards, and inconsistent scan paths.
+- Collapsed the always-visible feature directory into a compact Directory control and shortened shared shell mode/search copy.
+- Rewrote the product-completion panels with tighter action-first language while preserving browser/accessibility proof tokens.
+- Added shared v0.42 UI polish CSS for clearer cards, shorter panels, tighter spacing, better mobile behavior, and reduced dead space.
+- Added site UI polish manifest, checker, documentation, report, and regression tests.
+
+## v0.41.0 - Mainnet Readiness Evidence Gates
+
+- Added explicit hard gates for the remaining production blockers: hardware wallet device tests, real CAPTCHA provider integration, production custody, external crypto/security audit, public P2P soak, full long-running Python suite confidence, mainnet checklist approval, and public-testnet incident history.
+- Added source-checkable implementations and strict evidence validators without faking real-world proof.
+- Added tools/check_mainnet_readiness_gates.py and tools/run_mainnet_readiness.py as the aggregate source/strict gates.
+- Added provider/custody/audit/P2P/incident/mainnet approval runners and v0.41 regression tests.
+
+## v0.40.1 - Browser Strict Proof Bugfix
+
+- Fixed local Playwright/product matrix surface detection by deriving the surface from `body[data-site]` or `/sites/<surface>/...` paths instead of localhost hostnames.
+- Added current v0.40 wallet/markets/operator completion tokens so strict browser E2E validates the real product-completion panels.
+- Added a root Playwright package manifest with pinned `@playwright/test` and `playwright` dependencies plus proof scripts.
+- Updated browser/accessibility runners to prefer the local Playwright binary before falling back to `npx`.
+- Added static local JSON fallbacks for GET endpoints used during static browser E2E.
+
+## v0.40.0 - Product Completion Implementation Pass
+- Applied Phase 0/1 rules to real shared UI assets with command palette, local notifications, local notes, trust panels, timelines, status badges, mobile cards, and surface-specific completion panels.
+- Added wallet, explorer, markets, faucet, community, exchange/custody, operator, security/audit, and global completion layers.
+- Added architecture/product-completion.json, product completion validator, docs, tests, and make v040-check.
+- Keeps strict honesty boundaries for Cargo, real Playwright, hardware signer devices, real CAPTCHA credentials, live custody, and external audit.
+
+## v0.39.3 - Phase 1 Local Proof Runner
+
+- Added local proof runner manifest, command runner, per-gate JSON/log capture, and sandbox/strict profiles.
+- Added tools/check_local_proof_runner.py, tools/run_local_proof.py, tests, docs, and make v0393-check.
+- Connected local proof evidence into the Phase 1 proof-evidence bundle path.
+
+## v0.39.2 - Phase 1 Proof Evidence Bundle
+
+- Added proof evidence manifest and collector for Phase 1.
+- Added hashed artifact bundle output at reports/proof_evidence_bundle.json.
+- Added remediation guidance for each proof gate.
+- Added v0.39.2 validator, tests, docs, and make gate.
+
+## v0.39.0 Phase 1 Proof Hardening
+
+- Added `architecture/proof-hardening.json` as the canonical Phase 1 proof manifest.
+- Added release-readiness scorecard generation with sandbox and strict modes.
+- Added one combined Rust parity runner across consensus, mempool, wallet, markets, signer, P2P, and indexer lanes.
+- Added accessibility source/strict matrix scaffold.
+- Added `make v039-check` as the Phase 1 source-checked release gate.
+
+## v0.38.5 - Phase 0 Completion and Phase 1 Handoff
+
+- Completed Phase 0 product architecture by adding a final completion manifest and handoff contract.
+- Added `architecture/phase0-completion.json`, `netcoin/phase0_completion.py`, and `tools/check_phase0_complete.py`.
+- Added `docs/PHASE_0_COMPLETION_HANDOFF.md` and `tests/test_v0385_phase0_completion.py`.
+- Added `make v0385-check` as the all-in-one Phase 0 completion gate.
+- Locked the post-Phase-0 roadmap around proof hardening, wallet UX, explorer trust, market risk, faucet/community hardening, custody safety, and audit readiness.
+
+## v0.38.4 - Phase 0 Product Coherence and No-Dead-End Workflows
+
+- Added `architecture/product-coherence.json` as the canonical product-lens, user-job, surface-ownership, workflow-evidence, and no-dead-end specification.
+- Added `netcoin/product_coherence.py` and `tools/check_product_coherence.py` to validate that every major surface has an owner job, one primary action, a trust signal, a next step, and an advanced destination.
+- Added `docs/PHASE_0_PRODUCT_COHERENCE.md` and `tests/test_v0384_phase0_product_coherence.py`.
+- Extended the shared design-system CSS with product-lens, owner-job, primary-action, next-step, and no-dead-end helper classes.
+- Added `make v0384-check` so future UI work cannot pass without Phase 0 product coherence validation.
+
+## v0.38.2 - Phase 0 Product Simplification and Progressive Disclosure
+
+- Added `architecture/product-simplification.json` as the canonical anti-sprawl, mode-visibility, page-consolidation, and progressive-disclosure specification.
+- Added `netcoin/product_simplification.py` and `tools/check_product_simplification.py` to validate Phase 0.3 rules.
+- Added `docs/PHASE_0_PRODUCT_SIMPLIFICATION.md` and `tests/test_v0382_phase0_product_simplification.py`.
+- Added `make v0382-check` so future releases keep top-level navigation small and require new UI surfaces to prove workflow ownership, trust signals, and component reuse.
+
+## v0.38.1 - Phase 0 Design System and Workflow Architecture
+
+- Added canonical design-system tokens, component taxonomy, status vocabulary, density rules, page templates, and reusable UX state rules.
+- Added workflow architecture for receive, send, market trade, explorer search, faucet claim, exchange withdrawal, operator incident, developer integration, release verification, and audit readiness.
+- Added validators and tests so future UI work follows the same anti-sprawl design system instead of inventing new patterns.
+- Added a shared Phase 0 design-system CSS foundation for future site consolidation.
+
+## v0.38.1 - Phase 0 Product Identity and UX Architecture
+
+- Started Phase 0 anti-sprawl work: NetCoin is now defined as a wallet-first public testnet ecosystem with Wallet, Explorer, and Markets as the primary top-level product surfaces.
+- Added `architecture/product-ux-architecture.json` as the canonical information-architecture and design-system ruleset.
+- Added `docs/PHASE_0_PRODUCT_IDENTITY_UX_ARCHITECTURE.md` to document jobs, modes, navigation, page templates, component rules, complementary features, and features to avoid.
+- Added `netcoin/product_architecture.py`, `tools/check_product_architecture.py`, and `tests/test_v038_phase0_product_architecture.py` so future releases can detect navigation/product sprawl.
+- Simplified the shared public site shell to primary navigation `Wallet | Explorer | Markets | More`, with grouped Network, Community, and Developers tools.
+- Refocused the public homepage around Wallet, Explorer, Markets, and grouped secondary areas instead of listing every capability as equally important.
+
 ## v0.37.4 - Compact Wallet UI Polish
 
 - Removed the Overview/Send/Receive/Activity/Contacts sub-tab bar from the wallet surface.
@@ -770,3 +859,21 @@ First public 3-seed testnet release.
 - Expanded parity vectors to schema version 5 / `consensus-executable-vectors-v4`.
 - Added `make v024-check` and v0.24 regression tests.
 - Kept Python as the live reference runtime; Rust remains gated by parity and final readiness checks.
+
+## v0.38.3 - Phase 0 Trust Layer and Interaction Standards
+
+- Added canonical Phase 0.4 trust/interaction specification in `architecture/trust-interaction.json`.
+- Added `netcoin/trust_interaction.py` and `tools/check_trust_interaction.py`.
+- Added trust-layer documentation in `docs/PHASE_0_TRUST_INTERACTION_STANDARDS.md`.
+- Added shared CSS helpers for trust bars, trust chips, review panels, reassurance states, and error states.
+- Added regression tests for trust signals, review requirements, reassurance messages, and error/confirmation templates.
+- Added `make v0383-check`.
+
+
+## v0.39.1 - Phase 1 Strict Proof Execution
+
+- Added `architecture/strict-proof-execution.json` as the local/CI strict proof playbook.
+- Added `tools/check_strict_proof_execution.py` and `tools/print_strict_proof_plan.py`.
+- Added `.github/workflows/proof-hardening.yml` to separate Python, Rust, TypeScript, browser/accessibility, and release-readiness evidence jobs.
+- Added tests and `make v0391-check`.
+- No new product surfaces; this release only tightens Phase 1 proof execution.

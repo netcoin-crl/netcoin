@@ -13,6 +13,13 @@ MATRIX_PATH = ROOT / "architecture" / "browser-e2e-matrix.json"
 SPEC_PATH = ROOT / "sites" / "tests" / "e2e" / "netcoin-product-matrix.spec.ts"
 
 
+def playwright_cmd() -> list[str]:
+    local = ROOT / "node_modules" / ".bin" / ("playwright.cmd" if __import__("os").name == "nt" else "playwright")
+    if local.exists():
+        return [str(local)]
+    return ["npx", "playwright"]
+
+
 def source_check() -> dict[str, object]:
     issues: list[str] = []
     matrix = json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
@@ -41,7 +48,7 @@ def main() -> int:
     if args.run_playwright and result["ok"]:
         try:
             proc = subprocess.run(
-                ["npx", "playwright", "test", str(SPEC_PATH)], cwd=ROOT, text=True, capture_output=True, check=False
+                playwright_cmd() + ["test", str(SPEC_PATH)], cwd=ROOT, text=True, capture_output=True, check=False
             )
             result["mode"] = "playwright"
             result["playwright_returncode"] = proc.returncode
