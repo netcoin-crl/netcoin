@@ -1,0 +1,69 @@
+{
+  "version": "0.39.3",
+  "phase": "Phase 1 - Local Proof Runner",
+  "inherits_from": "architecture/proof-evidence-bundle.json",
+  "purpose": "Execute proof gates with per-gate logs and structured reports so local strict failures are debuggable and evidence collection has a stable input.",
+  "profiles": {
+    "sandbox": {
+      "description": "Runs sandbox-safe commands, marks external-tool gates as source_only, and writes local proof evidence without claiming professional readiness.",
+      "claim_level": "source-checked-testnet"
+    },
+    "strict": {
+      "description": "Runs strict proof commands, blocks when required tools are unavailable, and can only pass when every gate is real-execution proof.",
+      "claim_level": "strict-local-candidate"
+    }
+  },
+  "outputs": {
+    "summary_report": "reports/local_proof_run_report.json",
+    "run_directory": "reports/proof_runs",
+    "per_gate_json": "reports/proof_runs/<run_id>/<gate_id>.json",
+    "per_gate_log": "reports/proof_runs/<run_id>/<gate_id>.log",
+    "evidence_bundle": "reports/proof_evidence_bundle.json"
+  },
+  "required_gate_ids": [
+    "python-reference",
+    "rust-workspace",
+    "rust-parity",
+    "typescript-api",
+    "browser-e2e",
+    "accessibility",
+    "security-release",
+    "phase0-guardrails"
+  ],
+  "source_only_gates": [
+    "rust-parity",
+    "browser-e2e",
+    "accessibility"
+  ],
+  "tool_preflight": {
+    "cargo": [
+      "cargo test",
+      "run_all_rust_parity.py --strict"
+    ],
+    "npm": [
+      "npm ci",
+      "npm run ci:api",
+      "npx playwright"
+    ],
+    "npx": [
+      "npx playwright"
+    ],
+    "python": [
+      "python tools"
+    ]
+  },
+  "runner_rules": [
+    "Every gate writes stdout and stderr tails into JSON and full output into a log file.",
+    "Sandbox source_only gates are allowed only for source-checked-testnet claims.",
+    "Strict profile treats missing external tools as blocked, not pass.",
+    "A failed gate keeps its remediation text from the proof manifest visible in the report.",
+    "The runner never hides command failures behind aggregate success."
+  ],
+  "phase1_3_exit_criteria": [
+    "Local proof runner manifest validates.",
+    "Sandbox local proof can run and write reports/local_proof_run_report.json.",
+    "Per-gate JSON/log paths are present in the report.",
+    "Strict blockers are classed as blocked/fail/source_only with remediation guidance.",
+    "make v0393-check passes in sandbox/source mode."
+  ]
+}

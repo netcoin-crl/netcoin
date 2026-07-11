@@ -1,0 +1,215 @@
+{
+  "version": "0.38.5",
+  "phase": "phase-0-design-system-foundation",
+  "purpose": "Give every NetCoin surface one reusable visual and interaction language so future work reduces sprawl instead of creating new one-off UI patterns.",
+  "principles": [
+    "Wallet-first: normal users should understand Wallet, Explorer, and Markets before secondary tools.",
+    "One primary action per page or panel.",
+    "Progressive disclosure: advanced controls are hidden until relevant.",
+    "Trust is visible: every critical surface shows freshness, source, and status.",
+    "Reuse before invention: prefer existing cards, badges, tables, drawers, timelines, and toasts.",
+    "Errors are recoverable: explain what happened, why it matters, and what to do next."
+  ],
+  "tokens": {
+    "color_roles": {
+      "background": "neutral page background",
+      "surface": "cards and panels",
+      "surface_subtle": "secondary panels",
+      "line": "borders and separators",
+      "text": "primary text",
+      "muted": "secondary text",
+      "primary": "main action and selected state",
+      "success": "completed or healthy state",
+      "warning": "recoverable issue or attention state",
+      "danger": "destructive or unsafe action",
+      "maintenance": "planned maintenance or informational system state"
+    },
+    "spacing_px": [
+      4,
+      8,
+      12,
+      16,
+      24,
+      32,
+      48
+    ],
+    "radius_px": {
+      "small": 8,
+      "medium": 12,
+      "large": 16,
+      "pill": 999
+    },
+    "typography_px": {
+      "display": 32,
+      "page": 24,
+      "section": 20,
+      "card": 18,
+      "body": 15,
+      "caption": 13
+    },
+    "breakpoints_px": {
+      "mobile": 390,
+      "tablet": 768,
+      "laptop": 1280,
+      "desktop": 1600
+    }
+  },
+  "status_vocabulary": {
+    "Healthy": "The system is working normally and data is fresh.",
+    "Warning": "The system works, but attention is needed or data may be stale.",
+    "Offline": "The system cannot complete the requested operation right now.",
+    "Maintenance": "The system is intentionally limited, paused, or being upgraded."
+  },
+  "density_by_surface": {
+    "wallet": "open",
+    "faucet": "open",
+    "community": "medium",
+    "explorer": "medium",
+    "markets": "dense",
+    "exchange": "dense",
+    "operator": "very-dense",
+    "docs": "medium",
+    "api": "medium",
+    "architecture": "medium"
+  },
+  "page_template": [
+    {
+      "slot": "breadcrumb_or_context",
+      "required": true,
+      "rule": "Show where the user is and which product mode or job the page belongs to."
+    },
+    {
+      "slot": "title",
+      "required": true,
+      "rule": "Use one clear noun phrase, not marketing copy."
+    },
+    {
+      "slot": "plain_language_description",
+      "required": true,
+      "rule": "Explain the page in one sentence."
+    },
+    {
+      "slot": "one_primary_action",
+      "required": true,
+      "rule": "Only one action receives primary styling. Secondary actions are quiet."
+    },
+    {
+      "slot": "summary_cards",
+      "required": false,
+      "rule": "Use two to four cards max; do not turn summaries into dashboards."
+    },
+    {
+      "slot": "main_content",
+      "required": true,
+      "rule": "The main workflow belongs here."
+    },
+    {
+      "slot": "secondary_content",
+      "required": false,
+      "rule": "Helpful context, recent items, explanations, or linked tools."
+    },
+    {
+      "slot": "advanced_details",
+      "required": false,
+      "rule": "Raw JSON, diagnostics, coin control, orderbook internals, or audit detail must be collapsed by default."
+    }
+  ],
+  "components": {
+    "cards": [
+      "primary",
+      "summary",
+      "status",
+      "warning",
+      "action",
+      "table",
+      "timeline",
+      "advanced"
+    ],
+    "buttons": [
+      "primary",
+      "secondary",
+      "danger",
+      "ghost"
+    ],
+    "badges": [
+      "status",
+      "mode",
+      "risk",
+      "freshness",
+      "local-only"
+    ],
+    "forms": [
+      "field",
+      "select",
+      "amount",
+      "address_or_contact",
+      "fee",
+      "review"
+    ],
+    "tables": [
+      "compact",
+      "financial",
+      "event-log",
+      "explorer-history"
+    ],
+    "overlays": [
+      "drawer",
+      "modal",
+      "popover",
+      "toast"
+    ],
+    "states": [
+      "empty",
+      "loading",
+      "success",
+      "warning",
+      "error",
+      "offline"
+    ]
+  },
+  "interaction_rules": [
+    "Irreversible actions require review, confirmation, result, and recovery states.",
+    "Danger buttons require explicit destructive wording, never vague labels like Continue.",
+    "Copy actions must confirm what was copied.",
+    "Search fields should accept addresses, txids, blocks, markets, docs, and feature names where relevant.",
+    "Local-only labels and notes must be marked local-only.",
+    "Every important page should answer: Where am I? What can I do? What should I do next?"
+  ],
+  "content_rules": {
+    "avoid_jargon_first": [
+      "UTXO",
+      "Taproot",
+      "SegWit",
+      "coin control",
+      "parity",
+      "provenance",
+      "oracle",
+      "custody ceremony"
+    ],
+    "preferred_plain_terms": {
+      "Architecture": "System Design",
+      "Feature Catalog": "Capabilities",
+      "Professional Upgrade": "Release Notes",
+      "Parity": "Cross-language checks",
+      "Provenance": "Release proof"
+    },
+    "error_template": "What happened. Why it matters. What to do next.",
+    "success_template": "What completed. What changed. Where to verify it."
+  },
+  "accessibility_baseline": [
+    "All controls are keyboard reachable.",
+    "Focus rings are visible on dark backgrounds.",
+    "Icon-only buttons have labels.",
+    "QR codes have text alternatives and copy fallback.",
+    "Tables provide mobile card alternatives or safe horizontal scroll.",
+    "Status color is never the only indicator."
+  ],
+  "phase_0_3_reference": "Product simplification rules live in architecture/product-simplification.json and must be applied before creating new UI surfaces.",
+  "accessibility_matrix": {
+    "keyboard_navigation": "All primary and secondary controls must be reachable and operable by keyboard.",
+    "screen_reader_labels": "Icon-only buttons, QR codes, status chips, and charts must expose readable labels.",
+    "focus_visible": "Interactive controls must have visible focus states using the shared focus token.",
+    "contrast": "Text, placeholders, status chips, and disabled states must meet the chosen contrast baseline.",
+    "touch_targets": "Mobile/touch controls should use minimum practical target sizing and spacing."
+  }
+}

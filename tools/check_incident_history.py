@@ -41,7 +41,9 @@ def main() -> int:
             for key in REQUIRED:
                 if key not in payload and key != "incidents_or_no_incident_attestation":
                     issues.append(f"missing required evidence field: {key}")
-            if "incidents_or_no_incident_attestation" not in payload and not (payload.get("incidents") or payload.get("no_incident_attestation")):
+            if "incidents_or_no_incident_attestation" not in payload and not (
+                payload.get("incidents") or payload.get("no_incident_attestation")
+            ):
                 issues.append("missing required evidence field: incidents_or_no_incident_attestation")
             body = {k: v for k, v in payload.items() if k != "evidence_hash"}
             if payload.get("evidence_hash") != stable_hash_json(body):

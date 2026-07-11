@@ -1,0 +1,38 @@
+{
+  "version": "0.42.0",
+  "phase": "Website UI clarity and copy-reduction pass",
+  "goal": "Make public NetCoin sites easier to scan by reducing visible copy, collapsing secondary navigation, and preserving proof/accessibility tokens.",
+  "audited_surfaces": ["wallet", "explorer", "markets", "faucet", "community", "exchange", "operator", "security", "docs", "api", "download", "www"],
+  "design_flaws_found": [
+    {"id": "always-open-directory", "severity": "P0", "finding": "The feature directory was always visible, competing with the primary page job.", "fix": "Changed it into a collapsed Directory control."},
+    {"id": "wordy-completion-panels", "severity": "P0", "finding": "Injected product-completion panels repeated long explanations and diluted the main action.", "fix": "Rewrote panels into short title, short intro, compact cards, and one next step."},
+    {"id": "verbose-local-notes", "severity": "P1", "finding": "Local notes explained the same privacy idea too many times.", "fix": "Reduced to one short sentence and a shorter Save action."},
+    {"id": "long-mode-descriptions", "severity": "P1", "finding": "Mode/profile descriptions used full lists in a cramped toolbar.", "fix": "Compressed mode descriptions to the current task set."},
+    {"id": "navigation-detail-noise", "severity": "P1", "finding": "Directory link subtitles were too long for small screens.", "fix": "Shortened link detail copy."},
+    {"id": "oversized-cards", "severity": "P1", "finding": "Completion cards had too much padding and too much paragraph copy.", "fix": "Added v0.42 compact card density and shorter copy."},
+    {"id": "repeated-proof-jargon", "severity": "P2", "finding": "Several pages used internal project language before user-facing tasks.", "fix": "Replaced generic Phase 0/1 prose with action-first labels."},
+    {"id": "scan-path-breaks", "severity": "P2", "finding": "Users had to read several paragraphs before finding status or next steps.", "fix": "Moved status badges and next-step language into compact visual blocks."}
+  ],
+  "copy_rules": {
+    "panel_intro_max_chars": 140,
+    "card_copy_max_chars": 90,
+    "directory_collapsed_by_default": true,
+    "local_notes_one_sentence": true,
+    "preserve_e2e_tokens": ["overview", "send", "receive", "activity", "address", "tx", "block", "mempool", "orderbook", "trades", "portfolio", "settlement", "challenge", "claim", "status", "admin", "health", "diagnostics", "bundle", "alerts", "deposits", "withdrawals", "custody", "reserves"]
+  },
+  "implemented_changes": [
+    "collapsed feature directory",
+    "shortened mode/profile copy",
+    "shortened command palette copy",
+    "shortened notification copy",
+    "rewrote surface completion panels",
+    "added v0.42 compact CSS density layer",
+    "synced shared shell assets to every site",
+    "added UI polish checker and tests"
+  ],
+  "non_goals": [
+    "No new product surfaces",
+    "No fake production claims",
+    "No removal of strict proof or accessibility tokens"
+  ]
+}

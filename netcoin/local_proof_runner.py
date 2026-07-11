@@ -103,7 +103,6 @@ def _run_id() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-
 def _normalize_command(command: str) -> str:
     """Use the current Python interpreter for proof commands.
 
@@ -114,8 +113,9 @@ def _normalize_command(command: str) -> str:
     if stripped == "python":
         return f'"{sys.executable}"'
     if stripped.startswith("python "):
-        return f'"{sys.executable}" ' + stripped[len("python "):]
+        return f'"{sys.executable}" ' + stripped[len("python ") :]
     return command
+
 
 def _tool_blocker(command: str, *, profile: str) -> str | None:
     """Return a human-readable blocker if a strict external tool is missing."""
@@ -139,7 +139,9 @@ def _run_command(command: str, *, profile: str, timeout: int) -> CommandResult:
     if blocker:
         return CommandResult(command=command, returncode=None, status="blocked", blocked_reason=blocker)
     try:
-        proc = subprocess.run(command, cwd=ROOT, shell=True, text=True, capture_output=True, timeout=timeout, check=False)
+        proc = subprocess.run(
+            command, cwd=ROOT, shell=True, text=True, capture_output=True, timeout=timeout, check=False
+        )
     except subprocess.TimeoutExpired as exc:
         return CommandResult(
             command=command,
@@ -165,7 +167,9 @@ def _gate_commands(gate: dict[str, Any], *, profile: str) -> list[str]:
     return [str(command) for command in commands]
 
 
-def _status_for_gate(gate_id: str, results: Iterable[CommandResult], *, profile: str, source_only_gates: set[str]) -> str:
+def _status_for_gate(
+    gate_id: str, results: Iterable[CommandResult], *, profile: str, source_only_gates: set[str]
+) -> str:
     result_list = list(results)
     if not result_list:
         return "not_run"
@@ -251,7 +255,11 @@ def run_local_proof(
     status_counts = {status: 0 for status in sorted(ALLOWED_STATUSES)}
     for gate in gate_reports:
         status_counts[str(gate.get("status"))] += 1
-    blockers = [gate for gate in gate_reports if gate.get("status") in {"fail", "blocked"} or (profile == "strict" and gate.get("status") == "source_only")]
+    blockers = [
+        gate
+        for gate in gate_reports
+        if gate.get("status") in {"fail", "blocked"} or (profile == "strict" and gate.get("status") == "source_only")
+    ]
     ok = not blockers if profile == "strict" else not any(gate.get("status") == "fail" for gate in gate_reports)
     summary = {
         "version": local_manifest.get("version"),
@@ -269,7 +277,11 @@ def run_local_proof(
         "blockers": blockers,
         "gates": gate_reports,
         "run_directory": str(run_dir.relative_to(ROOT)) if write else None,
-        "caveat": None if profile == "strict" else "Sandbox local proof may include source_only gates and is not professional readiness evidence.",
+        "caveat": (
+            None
+            if profile == "strict"
+            else "Sandbox local proof may include source_only gates and is not professional readiness evidence."
+        ),
     }
     if write:
         out_path = ROOT / out

@@ -48,7 +48,11 @@ def main() -> int:
     parser.add_argument("--evidence", default="reports/mainnet_evidence/mainnet_launch_approval.json")
     parser.add_argument("--out", default="")
     args = parser.parse_args()
-    result = strict_evidence_gate("mainnet-launch-checklist-approval", ROOT / args.evidence, REQUIRED).to_dict() if args.strict else source_result()
+    result = (
+        strict_evidence_gate("mainnet-launch-checklist-approval", ROOT / args.evidence, REQUIRED).to_dict()
+        if args.strict
+        else source_result()
+    )
     text = json.dumps(result, indent=2, sort_keys=True)
     print(text)
     if args.out:

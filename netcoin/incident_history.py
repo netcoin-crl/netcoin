@@ -1,4 +1,5 @@
 """Public testnet incident/runbook history validation."""
+
 from __future__ import annotations
 
 import json

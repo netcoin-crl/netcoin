@@ -1,0 +1,299 @@
+{
+  "version": "0.38.5",
+  "phase": "phase-0-product-identity-ux-architecture",
+  "product_statement": "NetCoin is a wallet-first public testnet cryptocurrency ecosystem: manage NET, understand the chain, participate in markets/community, operate infrastructure, and build on the protocol.",
+  "north_star": "A first-time user should understand Wallet -> Explorer -> Markets -> everything else in under 30 seconds.",
+  "primary_product": "NetCoin Wallet",
+  "primary_navigation": [
+    "Wallet",
+    "Explorer",
+    "Markets"
+  ],
+  "more_navigation_groups": [
+    "Network",
+    "Community",
+    "Developers"
+  ],
+  "jobs": [
+    {
+      "id": "manage-money",
+      "label": "Manage money",
+      "description": "Create a wallet, receive NET, send NET, label activity, back up and recover safely.",
+      "primary_surfaces": [
+        "wallet",
+        "pay",
+        "merchant"
+      ],
+      "hidden_until_needed": [
+        "coin-control",
+        "offline-signing",
+        "hardware-signer",
+        "raw-transaction-export"
+      ]
+    },
+    {
+      "id": "understand-chain",
+      "label": "Understand the blockchain",
+      "description": "Search addresses, transactions, blocks, mempool state, network status and finality.",
+      "primary_surfaces": [
+        "explorer",
+        "network",
+        "nodes",
+        "status"
+      ],
+      "hidden_until_needed": [
+        "raw-json",
+        "chainstate-hash",
+        "index-integrity"
+      ]
+    },
+    {
+      "id": "participate",
+      "label": "Participate",
+      "description": "Use testnet faucet, markets, community discussions, bounties, ideas, governance and treasury.",
+      "primary_surfaces": [
+        "markets",
+        "faucet",
+        "community",
+        "governance",
+        "treasury"
+      ],
+      "hidden_until_needed": [
+        "market-maker-tools",
+        "dispute-evidence",
+        "moderation-queue"
+      ]
+    },
+    {
+      "id": "operate-infrastructure",
+      "label": "Operate infrastructure",
+      "description": "Run nodes, monitor health, operate exchange/custody, diagnose incidents and verify releases.",
+      "primary_surfaces": [
+        "operator",
+        "exchange",
+        "security",
+        "download"
+      ],
+      "hidden_until_needed": [
+        "diagnostics-bundle",
+        "release-provenance",
+        "custody-ceremony",
+        "runbooks"
+      ]
+    },
+    {
+      "id": "build",
+      "label": "Build",
+      "description": "Use docs, APIs, SDKs, architecture, examples and migration/parity status to build on NetCoin.",
+      "primary_surfaces": [
+        "docs",
+        "api",
+        "developers",
+        "architecture",
+        "features",
+        "learn"
+      ],
+      "hidden_until_needed": [
+        "feature-catalog",
+        "openapi-contracts",
+        "migration-lanes",
+        "parity-vectors"
+      ]
+    }
+  ],
+  "user_modes": {
+    "user": {
+      "label": "User",
+      "default": true,
+      "goal": "Manage NET and verify activity with minimal complexity.",
+      "top_surfaces": [
+        "wallet",
+        "explorer",
+        "markets"
+      ],
+      "secondary_surfaces": [
+        "faucet",
+        "pay",
+        "learn",
+        "community"
+      ]
+    },
+    "trader": {
+      "label": "Trader",
+      "goal": "Trade prediction markets while keeping wallet and portfolio context visible.",
+      "top_surfaces": [
+        "markets",
+        "wallet",
+        "explorer"
+      ],
+      "secondary_surfaces": [
+        "portfolio",
+        "orders",
+        "disputes",
+        "settlement"
+      ]
+    },
+    "operator": {
+      "label": "Operator",
+      "goal": "Monitor nodes, health, releases, exchange/custody and incident response.",
+      "top_surfaces": [
+        "operator",
+        "status",
+        "nodes"
+      ],
+      "secondary_surfaces": [
+        "exchange",
+        "security",
+        "download",
+        "architecture"
+      ]
+    },
+    "developer": {
+      "label": "Developer",
+      "goal": "Build integrations and inspect architecture, OpenAPI, SDKs and parity/migration status.",
+      "top_surfaces": [
+        "docs",
+        "api",
+        "architecture"
+      ],
+      "secondary_surfaces": [
+        "download",
+        "features",
+        "security",
+        "operator"
+      ]
+    }
+  },
+  "surface_ownership": {
+    "wallet": "manage-money",
+    "pay": "manage-money",
+    "merchant": "manage-money",
+    "explorer": "understand-chain",
+    "network": "understand-chain",
+    "nodes": "understand-chain",
+    "status": "understand-chain",
+    "markets": "participate",
+    "faucet": "participate",
+    "community": "participate",
+    "governance": "participate",
+    "treasury": "participate",
+    "operator": "operate-infrastructure",
+    "exchange": "operate-infrastructure",
+    "security": "operate-infrastructure",
+    "download": "operate-infrastructure",
+    "docs": "build",
+    "api": "build",
+    "developers": "build",
+    "architecture": "build",
+    "features": "build",
+    "learn": "build"
+  },
+  "page_template": [
+    "breadcrumb_or_context",
+    "title",
+    "plain_language_description",
+    "one_primary_action",
+    "summary_cards",
+    "main_content",
+    "secondary_content",
+    "advanced_details"
+  ],
+  "component_rules": {
+    "allowed_card_types": [
+      "primary",
+      "summary",
+      "status",
+      "warning",
+      "action",
+      "table",
+      "timeline",
+      "advanced"
+    ],
+    "button_types": [
+      "primary",
+      "secondary",
+      "danger",
+      "ghost"
+    ],
+    "status_terms": [
+      "Healthy",
+      "Warning",
+      "Offline",
+      "Maintenance"
+    ],
+    "spacing_scale_px": [
+      4,
+      8,
+      12,
+      16,
+      24,
+      32,
+      48
+    ],
+    "typography_scale_px": {
+      "display": 32,
+      "page": 24,
+      "section": 20,
+      "card": 18,
+      "body": 15,
+      "caption": 13
+    },
+    "density_by_surface": {
+      "wallet": "open",
+      "explorer": "medium",
+      "markets": "dense",
+      "operator": "very-dense",
+      "docs": "medium"
+    }
+  },
+  "product_rules": [
+    "Every page has exactly one visually dominant primary action.",
+    "Advanced controls are hidden until they are relevant.",
+    "Never create a new page when a panel or drawer is enough.",
+    "Never create a new component when an existing product component can be reused.",
+    "Every error explains what happened, why it matters, and what to do next.",
+    "Every irreversible workflow has review, confirmation, result, and recovery states.",
+    "Every feature must improve an existing workflow, remove a hard ceiling, increase trust/safety/clarity, or reduce complexity."
+  ],
+  "approved_complementary_features": [
+    "release-readiness-scorecard",
+    "wallet-security-center",
+    "global-command-search",
+    "unified-notification-center",
+    "guided-testnet-onboarding",
+    "local-labels-and-notes",
+    "market-order-preview",
+    "custody-risk-dashboard",
+    "e2e-screenshot-dashboard",
+    "audit-bundle-generator"
+  ],
+  "avoid_until_after_audit_candidate": [
+    "nfts",
+    "cross-chain-bridges",
+    "full-dao-governance",
+    "more-market-types",
+    "mobile-app-rewrite",
+    "advanced-trading-bots",
+    "multi-chain-wallet",
+    "smart-contract-expansion",
+    "mainnet-marketing-page",
+    "complex-exchange-products"
+  ],
+  "phase0_acceptance_criteria": [
+    "Primary top navigation is limited to Wallet, Explorer, and Markets plus grouped More.",
+    "Every public surface is assigned to one of the five user jobs.",
+    "The design system defines one page template, card taxonomy, button taxonomy, status vocabulary, spacing scale and typography scale.",
+    "The homepage explains Wallet, Explorer, Markets, Network, Community and Developers without listing every capability.",
+    "A checker exists to prevent future navigation and information-architecture sprawl.",
+    "Canonical design-system tokens and workflow architecture are validated by tools/check_design_system.py.",
+    "Every canonical workflow has a primary action, trust signals, and advanced controls hidden until needed."
+  ],
+  "phase0_2_design_system": {
+    "design_system_spec": "architecture/design-system.json",
+    "workflow_spec": "architecture/product-workflows.json",
+    "shared_css": "sites/shared/design-system.css",
+    "checker": "tools/check_design_system.py",
+    "release_gate": "make v0381-check"
+  },
+  "phase_0_3_reference": "architecture/product-simplification.json"
+}

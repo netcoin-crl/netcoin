@@ -22,7 +22,9 @@ def main() -> int:
     parser.add_argument("--out", default="")
     args = parser.parse_args()
     if args.strict:
-        result = strict_custody_evidence(ROOT / args.evidence if not Path(args.evidence).is_absolute() else args.evidence)
+        result = strict_custody_evidence(
+            ROOT / args.evidence if not Path(args.evidence).is_absolute() else args.evidence
+        )
     else:
         with tempfile.TemporaryDirectory() as tmp:
             result = source_custody_smoke(Path(tmp) / "custody-smoke.sqlite")

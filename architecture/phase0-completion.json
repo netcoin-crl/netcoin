@@ -1,0 +1,236 @@
+{
+  "version": "0.38.5",
+  "phase": "phase-0-complete",
+  "name": "Phase 0 Product Coherence Completion and Phase 1 Handoff",
+  "purpose": "Freeze NetCoin product identity, information architecture, design-system rules, simplification gates, trust/interaction standards, and no-dead-end workflow rules before proof hardening begins.",
+  "north_star": "A first-time user understands Wallet -> Explorer -> Markets -> everything else in under 30 seconds, while advanced tools remain available through modes, progressive disclosure, and Studio/Network lenses.",
+  "completion_status": "complete",
+  "completed_layers": [
+    {
+      "id": "product-identity",
+      "artifact": "architecture/product-ux-architecture.json",
+      "checker": "python tools/check_product_architecture.py",
+      "locked_decision": "Wallet, Explorer, and Markets are the public top-level product surfaces; secondary systems move under More, Network, Community, or Developers."
+    },
+    {
+      "id": "design-system",
+      "artifact": "architecture/design-system.json",
+      "checker": "python tools/check_design_system.py",
+      "locked_decision": "NetCoin uses one page template, one component taxonomy, one status vocabulary, one density system, and one accessibility baseline."
+    },
+    {
+      "id": "workflow-architecture",
+      "artifact": "architecture/product-workflows.json",
+      "checker": "python tools/check_design_system.py",
+      "locked_decision": "Critical user journeys must follow start -> input -> review -> confirm -> execute -> success -> verify -> recover where appropriate."
+    },
+    {
+      "id": "product-simplification",
+      "artifact": "architecture/product-simplification.json",
+      "checker": "python tools/check_product_simplification.py",
+      "locked_decision": "New pages are disallowed unless a panel, drawer, settings section, or existing page cannot safely support the workflow."
+    },
+    {
+      "id": "trust-interaction",
+      "artifact": "architecture/trust-interaction.json",
+      "checker": "python tools/check_trust_interaction.py",
+      "locked_decision": "Every irreversible or high-risk action needs review, trust signals, success reassurance, and failure recovery copy."
+    },
+    {
+      "id": "product-coherence",
+      "artifact": "architecture/product-coherence.json",
+      "checker": "python tools/check_product_coherence.py",
+      "locked_decision": "Every major surface must have one owner lens, one user job, one primary action, one trust signal, one next step, and one advanced destination."
+    }
+  ],
+  "locked_product_decisions": {
+    "primary_navigation": [
+      "Wallet",
+      "Explorer",
+      "Markets",
+      "More"
+    ],
+    "product_lenses": [
+      "NetCoin",
+      "NetCoin Network",
+      "NetCoin Studio"
+    ],
+    "user_jobs": [
+      "Manage money",
+      "Understand the blockchain",
+      "Participate",
+      "Operate infrastructure",
+      "Build"
+    ],
+    "user_modes": [
+      "User",
+      "Trader",
+      "Operator",
+      "Developer"
+    ],
+    "status_vocabulary": [
+      "Healthy",
+      "Warning",
+      "Offline",
+      "Maintenance"
+    ],
+    "trust_vocabulary": [
+      "Fresh",
+      "Stale",
+      "Verified",
+      "Unverified",
+      "Risk"
+    ],
+    "page_rule": "One page, one owner job, one primary action, one trust signal, one next step, one advanced destination.",
+    "anti_sprawl_rule": "A new feature must improve an existing workflow, remove a hard ceiling, increase trust/safety/clarity, or reduce complexity.",
+    "new_surface_rule": "Do not create a new top-level surface during Phase 1-5 unless the phase0-complete gate is updated with explicit justification."
+  },
+  "phase0_quality_gates": [
+    "python tools/check_product_architecture.py",
+    "python tools/check_design_system.py",
+    "python tools/check_product_simplification.py",
+    "python tools/check_trust_interaction.py",
+    "python tools/check_product_coherence.py",
+    "python tools/check_phase0_complete.py",
+    "python tools/check_product_surface.py",
+    "python tools/audit_site_ui.py",
+    "python -m compileall -q netcoin tools",
+    "python tools/run_parity_suite.py --no-write",
+    "make v0385-check"
+  ],
+  "phase0_acceptance_criteria": [
+    "The homepage and top navigation prioritize Wallet, Explorer, and Markets.",
+    "Every secondary surface is grouped under Network, Community, or Developers/Studio.",
+    "Every major surface maps to exactly one owner job.",
+    "Every major surface defines a primary action, trust signal, next step, and advanced destination.",
+    "Every critical workflow has a success reassurance and failure recovery path.",
+    "The project has a canonical design-system JSON and shared CSS foundation.",
+    "The project has a canonical simplification policy that discourages new pages.",
+    "The project has a canonical trust/interaction policy for risky actions.",
+    "The project has a canonical product coherence policy for no-dead-end pages.",
+    "Future features are filtered through anti-sprawl rules before implementation.",
+    "Phase 1 can focus on proof hardening instead of product-identity decisions.",
+    "Phase 0 validators are wired into a single completion gate."
+  ],
+  "approved_next_roadmap": [
+    {
+      "phase": "v0.39 / Phase 1",
+      "name": "Proof Hardening",
+      "goal": "Prove Python, Rust, TypeScript, API, and browser gates together.",
+      "must_not_add": [
+        "new consumer surfaces",
+        "new market types",
+        "NFTs",
+        "bridges"
+      ],
+      "primary_gates": [
+        "full Python suite",
+        "cargo test --workspace",
+        "all Rust parity binaries",
+        "npm ci && npm run ci:api",
+        "real Playwright E2E"
+      ]
+    },
+    {
+      "phase": "v0.40 / Phase 2",
+      "name": "Wallet Professional UX",
+      "goal": "Make the wallet the calm home base: security center, review flow, local labels, backup verification, simple/advanced mode.",
+      "must_not_add": [
+        "multi-chain wallet",
+        "complex social features"
+      ]
+    },
+    {
+      "phase": "v0.41 / Phase 3",
+      "name": "Explorer and Indexer Trust",
+      "goal": "Make chain data trustworthy through active-chain, reorg, pagination, fee-band, and CSV schema improvements.",
+      "must_not_add": [
+        "unrelated explorer widgets"
+      ]
+    },
+    {
+      "phase": "v0.42 / Phase 4",
+      "name": "Markets Risk and Settlement",
+      "goal": "Make existing markets safer through order preview, max loss, PnL split, dispute timeline, and settlement explanation.",
+      "must_not_add": [
+        "new market categories before replay and settlement proof"
+      ]
+    },
+    {
+      "phase": "v0.43 / Phase 5",
+      "name": "Faucet and Community Hardening",
+      "goal": "Add real provider abuse controls, admin audit logs, profile basics, and moderation/bounty lifecycle clarity.",
+      "must_not_add": [
+        "new social mechanics before moderation proof"
+      ]
+    },
+    {
+      "phase": "v0.44 / Phase 6",
+      "name": "Exchange and Custody Safety",
+      "goal": "Improve existing custody flows with timelines, approvals, reserve explanations, and ledger invariants.",
+      "must_not_add": [
+        "new exchange products before custody proof"
+      ]
+    },
+    {
+      "phase": "v0.45 / Phase 7",
+      "name": "Accessibility, Security, and Audit Candidate",
+      "goal": "Unify accessibility, fuzz/property tests, signed provenance, and external audit bundle generation.",
+      "must_not_add": [
+        "mainnet launch claims before audit evidence"
+      ]
+    }
+  ],
+  "approved_complementary_features": [
+    "Release Readiness Scorecard",
+    "Wallet Security Center",
+    "Global command/search palette",
+    "Unified notification center",
+    "Guided testnet onboarding",
+    "Local labels and notes",
+    "Market order preview",
+    "Custody risk dashboard",
+    "E2E screenshot dashboard",
+    "Audit bundle generator"
+  ],
+  "forbidden_until_after_audit_candidate": [
+    "NFTs",
+    "cross-chain bridges",
+    "full DAO governance",
+    "new market types",
+    "mobile app rewrite",
+    "advanced trading bots",
+    "multi-chain wallet",
+    "smart contract expansion",
+    "mainnet launch marketing page",
+    "complex exchange products"
+  ],
+  "phase1_handoff": {
+    "next_phase": "Phase 1 - Proof Hardening",
+    "starting_question": "Can this version be trusted across Python reference, Rust parity, TypeScript API, browser UI, and release/security gates?",
+    "required_evidence": [
+      "full Python test-suite report",
+      "cargo test --workspace report",
+      "all Rust parity binary reports",
+      "npm ci && npm run ci:api report",
+      "real Playwright E2E report",
+      "accessibility report",
+      "release readiness scorecard"
+    ],
+    "blocked_claims_until_complete": [
+      "production ready",
+      "mainnet ready",
+      "externally audited",
+      "real custody ready",
+      "hardware wallet ready"
+    ]
+  },
+  "definition_of_done": [
+    "All Phase 0 validators pass.",
+    "Phase 0 tests pass.",
+    "Product identity and navigation are locked.",
+    "Design-system, simplification, trust, and coherence contracts exist.",
+    "A single Phase 0 completion checker passes.",
+    "Phase 1 proof-hardening handoff is explicit."
+  ]
+}

@@ -1,0 +1,347 @@
+{
+  "version": "0.38.5",
+  "phase": "0.5",
+  "name": "Product Coherence and No-Dead-End Workflow Architecture",
+  "purpose": "Keep NetCoin from feeling like disconnected mini-apps by assigning every surface to a product lens, a user job, a primary workflow, and a next action.",
+  "north_star": "Every NetCoin screen answers: where am I, what job am I doing, what is the one primary action, can I trust this state, and what happens next?",
+  "product_lenses": [
+    {
+      "id": "netcoin",
+      "label": "NetCoin",
+      "audience": "public users",
+      "promise": "Manage NET, understand chain activity, and participate safely.",
+      "primary_surfaces": [
+        "wallet",
+        "explorer",
+        "markets"
+      ],
+      "secondary_surfaces": [
+        "faucet",
+        "community",
+        "learn"
+      ],
+      "default_mode": "user"
+    },
+    {
+      "id": "netcoin-network",
+      "label": "NetCoin Network",
+      "audience": "advanced users and operators",
+      "promise": "Operate, observe, and recover network infrastructure.",
+      "primary_surfaces": [
+        "network",
+        "nodes",
+        "status",
+        "operator"
+      ],
+      "secondary_surfaces": [
+        "faucet",
+        "merchant",
+        "exchange"
+      ],
+      "default_mode": "operator"
+    },
+    {
+      "id": "netcoin-studio",
+      "label": "NetCoin Studio",
+      "audience": "developers, auditors, and release operators",
+      "promise": "Build, verify, document, and audit NetCoin releases.",
+      "primary_surfaces": [
+        "docs",
+        "api",
+        "downloads",
+        "architecture"
+      ],
+      "secondary_surfaces": [
+        "features",
+        "security",
+        "release-verify",
+        "operator"
+      ],
+      "default_mode": "developer"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "manage-money",
+      "plain_language": "Manage money",
+      "surfaces": [
+        "wallet"
+      ],
+      "primary_workflows": [
+        "receive-net",
+        "send-net",
+        "review-activity",
+        "secure-wallet"
+      ]
+    },
+    {
+      "id": "understand-chain",
+      "plain_language": "Understand the blockchain",
+      "surfaces": [
+        "explorer",
+        "network",
+        "status"
+      ],
+      "primary_workflows": [
+        "search-chain",
+        "inspect-transaction",
+        "inspect-block",
+        "check-network-health"
+      ]
+    },
+    {
+      "id": "participate",
+      "plain_language": "Participate",
+      "surfaces": [
+        "markets",
+        "community",
+        "faucet",
+        "treasury",
+        "governance"
+      ],
+      "primary_workflows": [
+        "trade-market",
+        "claim-faucet-net",
+        "post-community",
+        "submit-bounty"
+      ]
+    },
+    {
+      "id": "operate-infrastructure",
+      "plain_language": "Operate infrastructure",
+      "surfaces": [
+        "operator",
+        "exchange",
+        "nodes",
+        "status"
+      ],
+      "primary_workflows": [
+        "handle-operator-incident",
+        "withdraw-custody-funds",
+        "verify-health",
+        "reconcile-ledger"
+      ]
+    },
+    {
+      "id": "build",
+      "plain_language": "Build",
+      "surfaces": [
+        "docs",
+        "api",
+        "architecture",
+        "downloads",
+        "features"
+      ],
+      "primary_workflows": [
+        "integrate-api",
+        "verify-release",
+        "review-architecture",
+        "prepare-audit"
+      ]
+    }
+  ],
+  "surface_ownership": [
+    {
+      "surface": "wallet",
+      "lens": "netcoin",
+      "job": "manage-money",
+      "mode": "user",
+      "primary_action": "Send or receive NET",
+      "trust_signal": "wallet lock state and last balance refresh",
+      "next_step": "View transaction in Explorer",
+      "advanced_destination": "Settings"
+    },
+    {
+      "surface": "explorer",
+      "lens": "netcoin",
+      "job": "understand-chain",
+      "mode": "user",
+      "primary_action": "Search address, transaction, or block",
+      "trust_signal": "active-chain and last index update",
+      "next_step": "Open related wallet, tx, block, address, or market context",
+      "advanced_destination": "Raw details"
+    },
+    {
+      "surface": "markets",
+      "lens": "netcoin",
+      "job": "participate",
+      "mode": "trader",
+      "primary_action": "Preview order",
+      "trust_signal": "market lifecycle, max loss, fee, and settlement source",
+      "next_step": "Track position or settlement",
+      "advanced_destination": "Advanced order controls"
+    },
+    {
+      "surface": "faucet",
+      "lens": "netcoin",
+      "job": "participate",
+      "mode": "user",
+      "primary_action": "Claim testnet NET",
+      "trust_signal": "funding status, cooldown, and service health",
+      "next_step": "Open Wallet or Explorer",
+      "advanced_destination": "Faucet admin"
+    },
+    {
+      "surface": "community",
+      "lens": "netcoin",
+      "job": "participate",
+      "mode": "user",
+      "primary_action": "Join discussion",
+      "trust_signal": "moderation status and local identity state",
+      "next_step": "Read replies, ideas, or bounties",
+      "advanced_destination": "Moderation queue"
+    },
+    {
+      "surface": "exchange",
+      "lens": "netcoin-network",
+      "job": "operate-infrastructure",
+      "mode": "operator",
+      "primary_action": "Review custody action",
+      "trust_signal": "approval threshold, limits, ledger reconciliation, and reserve status",
+      "next_step": "Approve, sign, broadcast, or reconcile",
+      "advanced_destination": "Custody runbook"
+    },
+    {
+      "surface": "operator",
+      "lens": "netcoin-network",
+      "job": "operate-infrastructure",
+      "mode": "operator",
+      "primary_action": "Resolve highest-severity issue",
+      "trust_signal": "health severity, freshness, and runbook link",
+      "next_step": "Open diagnostics or runbook",
+      "advanced_destination": "Diagnostics bundle"
+    },
+    {
+      "surface": "docs",
+      "lens": "netcoin-studio",
+      "job": "build",
+      "mode": "developer",
+      "primary_action": "Start integration",
+      "trust_signal": "version, API compatibility, and release status",
+      "next_step": "Open API, SDK, examples, or release verification",
+      "advanced_destination": "Architecture"
+    },
+    {
+      "surface": "api",
+      "lens": "netcoin-studio",
+      "job": "build",
+      "mode": "developer",
+      "primary_action": "Copy request example",
+      "trust_signal": "OpenAPI contract and TypeScript parity status",
+      "next_step": "Run SDK example or contract check",
+      "advanced_destination": "Generated schemas"
+    },
+    {
+      "surface": "downloads",
+      "lens": "netcoin-studio",
+      "job": "build",
+      "mode": "developer",
+      "primary_action": "Verify release",
+      "trust_signal": "signature, checksum, SBOM, and provenance status",
+      "next_step": "Install only after verification passes",
+      "advanced_destination": "Release artifacts"
+    }
+  ],
+  "workflow_evidence": [
+    {
+      "workflow": "receive-net",
+      "starts_at": "wallet",
+      "ends_at": "explorer",
+      "success_reassurance": "Payment request created. Incoming transactions can be verified in Explorer.",
+      "failure_recovery": "The address was not changed. Retry receive or open Wallet settings.",
+      "must_not_dead_end": true
+    },
+    {
+      "workflow": "send-net",
+      "starts_at": "wallet",
+      "ends_at": "explorer",
+      "success_reassurance": "Transaction sent. Explorer opened with the broadcast transaction.",
+      "failure_recovery": "Nothing was broadcast. Review recipient, balance, fee, and node status.",
+      "must_not_dead_end": true
+    },
+    {
+      "workflow": "search-chain",
+      "starts_at": "explorer",
+      "ends_at": "wallet-or-raw-details",
+      "success_reassurance": "Result verified against the active indexed chain.",
+      "failure_recovery": "No chain data changed. Search another hash, address, or block.",
+      "must_not_dead_end": true
+    },
+    {
+      "workflow": "trade-market",
+      "starts_at": "markets",
+      "ends_at": "portfolio-or-settlement",
+      "success_reassurance": "Order submitted. Position and settlement rules are visible.",
+      "failure_recovery": "No order was placed. Review liquidity, fee, lifecycle state, and max loss.",
+      "must_not_dead_end": true
+    },
+    {
+      "workflow": "claim-faucet-net",
+      "starts_at": "faucet",
+      "ends_at": "wallet-or-explorer",
+      "success_reassurance": "Claim submitted. Wallet and Explorer can track the transaction.",
+      "failure_recovery": "No claim was sent. Check cooldown, funding, and abuse challenge state.",
+      "must_not_dead_end": true
+    },
+    {
+      "workflow": "withdraw-custody-funds",
+      "starts_at": "exchange",
+      "ends_at": "ledger-or-explorer",
+      "success_reassurance": "Withdrawal moved to the next custody state and remains auditable.",
+      "failure_recovery": "Funds were not broadcast. Review approval, limits, signer, and ledger reconciliation.",
+      "must_not_dead_end": true
+    },
+    {
+      "workflow": "handle-operator-incident",
+      "starts_at": "operator",
+      "ends_at": "runbook-or-diagnostics",
+      "success_reassurance": "Incident state changed and the next runbook step is visible.",
+      "failure_recovery": "No operator state was changed. Export diagnostics or open the linked runbook.",
+      "must_not_dead_end": true
+    },
+    {
+      "workflow": "verify-release",
+      "starts_at": "downloads",
+      "ends_at": "install-or-blocked",
+      "success_reassurance": "Release verified. It is safe to continue with installation for this testnet package.",
+      "failure_recovery": "Do not install. Re-download, compare signatures, or inspect provenance.",
+      "must_not_dead_end": true
+    }
+  ],
+  "no_dead_end_rules": [
+    "Every page must define one owner job and one primary action.",
+    "Every empty state must offer one next action.",
+    "Every error state must offer a recovery action and a reassurance sentence.",
+    "Every success state must offer a verification link or next workflow step.",
+    "Every advanced-only area must link back to the simple workflow it supports.",
+    "Every operator/developer surface must be reachable from a lens, not primary public navigation.",
+    "Every workflow must end in Explorer, Wallet, Portfolio, Ledger, Runbook, Install, or Blocked state.",
+    "Every new page must prove why a panel, drawer, section, or existing surface cannot handle the job."
+  ],
+  "page_exit_contract": {
+    "required_fields": [
+      "surface",
+      "lens",
+      "job",
+      "primary_action",
+      "trust_signal",
+      "next_step",
+      "advanced_destination"
+    ],
+    "forbidden_exit_labels": [
+      "Done",
+      "Back",
+      "Close",
+      "Submit"
+    ],
+    "minimum_reassurance_words": 4
+  },
+  "success_criteria": [
+    "A first-time user can identify Wallet, Explorer, and Markets as the main public product in under 30 seconds.",
+    "No page can pass validation without one owner job, one primary action, one trust signal, and one next step.",
+    "Operator and developer tools are organized under NetCoin Network or NetCoin Studio instead of competing with public navigation.",
+    "Every irreversible or trust-critical workflow has a success reassurance and failure recovery message.",
+    "Every major workflow avoids dead ends by ending in a verification, recovery, or next-workflow state.",
+    "Future features must improve an existing workflow, remove a ceiling, increase trust/safety/clarity, or reduce complexity."
+  ]
+}

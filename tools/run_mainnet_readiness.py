@@ -18,7 +18,9 @@ from netcoin.mainnet_readiness import aggregate_results, load_manifest, manifest
 def run_command(command: str, timeout: int) -> dict[str, Any]:
     command = command.replace("python ", f"{sys.executable} ")
     try:
-        proc = subprocess.run(command, cwd=ROOT, shell=True, text=True, capture_output=True, timeout=timeout, check=False)
+        proc = subprocess.run(
+            command, cwd=ROOT, shell=True, text=True, capture_output=True, timeout=timeout, check=False
+        )
         parsed: dict[str, Any] = {}
         stdout = proc.stdout.strip()
         if stdout:
@@ -40,7 +42,14 @@ def run_command(command: str, timeout: int) -> dict[str, Any]:
             "parsed": parsed,
         }
     except subprocess.TimeoutExpired as exc:
-        return {"command": command, "returncode": 124, "stdout_tail": str(exc.stdout or "")[-2000:], "stderr_tail": str(exc.stderr or "")[-2000:], "timeout": True, "parsed": {}}
+        return {
+            "command": command,
+            "returncode": 124,
+            "stdout_tail": str(exc.stdout or "")[-2000:],
+            "stderr_tail": str(exc.stderr or "")[-2000:],
+            "timeout": True,
+            "parsed": {},
+        }
 
 
 def result_from_run(gate_id: str, mode: str, run: dict[str, Any]) -> GateResult:
@@ -87,7 +96,10 @@ def main() -> int:
         result["runs"] = runs
     text = json.dumps(result, indent=2, sort_keys=True)
     if args.quiet:
-        compact = {k: result.get(k) for k in ["ok", "mode", "claim_level", "gate_count", "pass_count", "blocker_count", "version"]}
+        compact = {
+            k: result.get(k)
+            for k in ["ok", "mode", "claim_level", "gate_count", "pass_count", "blocker_count", "version"]
+        }
         print(json.dumps(compact, indent=2, sort_keys=True))
     else:
         print(text)

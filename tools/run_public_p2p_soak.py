@@ -15,7 +15,14 @@ if str(ROOT) not in sys.path:
 from netcoin.hostile_p2p_soak import run_hostile_p2p_soak
 from netcoin.mainnet_readiness import strict_evidence_gate
 
-REQUIRED_EVIDENCE = ["seed_nodes", "duration_hours", "peer_count_minimum", "reorgs_observed", "uptime_percent", "incident_links"]
+REQUIRED_EVIDENCE = [
+    "seed_nodes",
+    "duration_hours",
+    "peer_count_minimum",
+    "reorgs_observed",
+    "uptime_percent",
+    "incident_links",
+]
 
 
 def _probe_seed(seed: str, timeout: float) -> dict[str, object]:

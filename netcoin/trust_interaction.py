@@ -114,7 +114,9 @@ def validate_trust_interaction(spec: dict[str, Any] | None = None) -> TrustInter
     confirmations = data.get("confirmation_templates", {})
     if not isinstance(confirmations, dict) or len(confirmations) < 5:
         issues.append("confirmation_templates must define at least five templates")
-    elif not any("Transaction sent" in str(item.get("title", "")) for item in confirmations.values() if isinstance(item, dict)):
+    elif not any(
+        "Transaction sent" in str(item.get("title", "")) for item in confirmations.values() if isinstance(item, dict)
+    ):
         issues.append("confirmation templates must include a wallet send success message")
     if isinstance(confirmations, dict):
         _validate_template_fields("confirmation", confirmations, REQUIRED_CONFIRMATION_FIELDS, issues)
@@ -125,10 +127,15 @@ def validate_trust_interaction(spec: dict[str, Any] | None = None) -> TrustInter
     if isinstance(errors, dict):
         _validate_template_fields("error", errors, REQUIRED_ERROR_FIELDS, issues)
         for key, template in errors.items():
-            if isinstance(template, dict) and "nothing" in str(template.get("reassurance", "")).lower() and key not in {
-                "send_validation_failed",
-                "market_order_rejected",
-            }:
+            if (
+                isinstance(template, dict)
+                and "nothing" in str(template.get("reassurance", "")).lower()
+                and key
+                not in {
+                    "send_validation_failed",
+                    "market_order_rejected",
+                }
+            ):
                 # This is not invalid by itself, but it protects against generic false reassurance.
                 pass
 
@@ -158,7 +165,10 @@ def validate_trust_interaction(spec: dict[str, Any] | None = None) -> TrustInter
         for field in ("success_reassurance", "failure_reassurance"):
             if not str(item.get(field, "")).strip():
                 issues.append(f"workflow {workflow} missing {field}")
-        if workflow in {"send-net", "trade-market", "withdraw-custody-funds"} and item.get("review_required") is not True:
+        if (
+            workflow in {"send-net", "trade-market", "withdraw-custody-funds"}
+            and item.get("review_required") is not True
+        ):
             issues.append(f"workflow {workflow} must require review")
 
     microcopy = data.get("microcopy_rules", [])

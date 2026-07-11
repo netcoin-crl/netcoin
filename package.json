@@ -1,0 +1,15 @@
+{
+  "name": "netcoin-root-proof-runner",
+  "private": true,
+  "version": "0.42.0",
+  "type": "module",
+  "scripts": {
+    "playwright:install": "playwright install",
+    "proof:browser": "playwright test sites/tests/e2e/netcoin-product-matrix.spec.ts --reporter=line",
+    "proof:e2e": "playwright test --reporter=line"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "playwright": "1.61.1"
+  }
+}

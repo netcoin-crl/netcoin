@@ -1,0 +1,157 @@
+{
+  "version": "0.39.3",
+  "phase": "Phase 1 - Proof Evidence Bundle",
+  "inherits_from": "architecture/strict-proof-execution.json",
+  "purpose": "Collect local, CI, and sandbox proof outputs into one debuggable evidence bundle so strict proof failures are actionable instead of scattered across terminal logs.",
+  "bundle": {
+    "default_path": "reports/proof_evidence_bundle.json",
+    "default_directory": "reports/proof_evidence",
+    "hash_algorithm": "sha256",
+    "claim_levels": [
+      "source-checked-testnet",
+      "strict-local-candidate",
+      "ci-proven-candidate",
+      "audit-candidate"
+    ]
+  },
+  "required_metadata": [
+    "version",
+    "phase",
+    "mode",
+    "created_at_utc",
+    "claim_level",
+    "gate_count",
+    "artifact_count",
+    "blockers",
+    "remediation"
+  ],
+  "gate_artifacts": [
+    {
+      "gate_id": "python-reference",
+      "label": "Python reference and parity suite",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "paths": [
+        "reports/parity_suite_report.json"
+      ],
+      "remediation": "Run python -m compileall -q netcoin tools, python tools/run_parity_suite.py --no-write, and the full pytest suite until all failures are resolved."
+    },
+    {
+      "gate_id": "rust-workspace",
+      "label": "Rust workspace compilation and tests",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "paths": [
+        "reports/rust_workspace_report.json"
+      ],
+      "remediation": "Install Rust/Cargo, run cd core-rs && cargo test --workspace, then capture the output as reports/rust_workspace_report.json."
+    },
+    {
+      "gate_id": "rust-parity",
+      "label": "Executed Rust parity binaries",
+      "required_for_strict": true,
+      "source_only_allowed": true,
+      "paths": [
+        "reports/all_rust_parity_report.json",
+        "reports/rust_consensus_parity_report.json",
+        "reports/rust_mempool_parity_report.json",
+        "reports/rust_wallet_parity_report.json",
+        "reports/rust_markets_parity_report.json",
+        "reports/rust_signer_parity_report.json",
+        "reports/rust_p2p_parity_report.json",
+        "reports/rust_indexer_parity_report.json"
+      ],
+      "remediation": "Run python tools/run_all_rust_parity.py --strict after cargo test --workspace succeeds. Source-only reports are acceptable only in sandbox mode."
+    },
+    {
+      "gate_id": "typescript-api",
+      "label": "TypeScript API, OpenAPI contract, and parity",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "paths": [
+        "reports/ts_api_contract_report.json",
+        "reports/ts_openapi_codegen_parity_report.json"
+      ],
+      "remediation": "Run cd api && npm ci && npm run ci:api, then python tools/run_ts_api_contract_enforcement.py --run-npm --out reports/ts_api_contract_report.json."
+    },
+    {
+      "gate_id": "browser-e2e",
+      "label": "Real browser E2E matrix",
+      "required_for_strict": true,
+      "source_only_allowed": true,
+      "paths": [
+        "reports/browser_e2e_matrix_source_report.json",
+        "reports/browser_e2e_matrix_report.json"
+      ],
+      "remediation": "Install Playwright browsers and run python tools/run_browser_e2e_matrix.py --run-playwright --out reports/browser_e2e_matrix_report.json."
+    },
+    {
+      "gate_id": "accessibility",
+      "label": "Accessibility matrix",
+      "required_for_strict": true,
+      "source_only_allowed": true,
+      "paths": [
+        "reports/accessibility_source_report.json",
+        "reports/accessibility_matrix_report.json"
+      ],
+      "remediation": "Run the strict accessibility matrix with browser tooling and resolve keyboard, screen-reader, contrast, focus, and touch-target failures."
+    },
+    {
+      "gate_id": "security-release",
+      "label": "Security and release evidence",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "paths": [
+        "reports/security_audit_prep_report.json",
+        "reports/release_readiness_scorecard.json",
+        "reports/local_proof_run_report.json"
+      ],
+      "remediation": "Run python tools/run_security_audit_prep.py and python tools/run_release_readiness.py --strict, then resolve any blocker statuses. Use python tools/run_local_proof.py --profile strict to capture per-gate logs before collecting evidence."
+    },
+    {
+      "gate_id": "phase0-guardrails",
+      "label": "Phase 0 product and anti-sprawl guardrails",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "paths": [
+        "architecture/phase0-completion.json",
+        "architecture/product-ux-architecture.json",
+        "architecture/design-system.json",
+        "architecture/product-simplification.json",
+        "architecture/trust-interaction.json",
+        "architecture/product-coherence.json"
+      ],
+      "remediation": "Run python tools/check_phase0_complete.py plus all Phase 0 validators and fix any product architecture drift before adding new surfaces."
+    }
+  ],
+  "blocker_classes": [
+    {
+      "id": "missing-artifact",
+      "meaning": "A required report or source artifact was not produced.",
+      "default_status": "blocked"
+    },
+    {
+      "id": "source-only-artifact",
+      "meaning": "A report proves source structure but not real external execution.",
+      "default_status": "source_only"
+    },
+    {
+      "id": "failed-artifact",
+      "meaning": "A proof command or report explicitly failed.",
+      "default_status": "fail"
+    },
+    {
+      "id": "stale-artifact",
+      "meaning": "The artifact exists but does not match the current release version or expected gate.",
+      "default_status": "blocked"
+    }
+  ],
+  "phase1_2_exit_criteria": [
+    "tools/collect_proof_evidence.py can create reports/proof_evidence_bundle.json",
+    "Every proof gate has remediation text",
+    "The evidence bundle lists hashes and sizes for every discovered artifact",
+    "Strict blockers are grouped by gate and class",
+    "make v0392-check passes in sandbox/source mode",
+    "tools/run_local_proof.py can execute sandbox profile, capture per-gate logs, and write reports/local_proof_run_report.json"
+  ]
+}

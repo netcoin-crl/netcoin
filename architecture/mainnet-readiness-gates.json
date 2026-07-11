@@ -1,0 +1,141 @@
+{
+  "version": "0.41.0",
+  "phase": "Phase 3 - Mainnet Readiness Evidence Gates",
+  "status": "evidence-gated",
+  "inherits_from": "architecture/product-completion.json",
+  "purpose": "Convert the remaining not-production-complete items into explicit strict gates with source-checkable implementations and non-forgeable evidence requirements.",
+  "honesty_policy": "Do not mark a real-world gate done unless the required evidence artifact exists and validates. Hardware, CAPTCHA providers, third-party audits, public network soaks, and incident history cannot be fabricated in source code.",
+  "gates": [
+    {
+      "id": "hardware-wallet-device-testing",
+      "label": "Real hardware wallet device testing",
+      "owner": "Wallet/security",
+      "source_command": "python tools/run_hardware_wallet_device_tests.py --source-only --out reports/hardware_wallet_source_report.json",
+      "strict_command": "python tools/run_hardware_wallet_device_tests.py --strict --evidence reports/mainnet_evidence/hardware_wallet_device_evidence.json --out reports/hardware_wallet_device_report.json",
+      "required_evidence": [
+        "device_model",
+        "firmware_version",
+        "transport",
+        "address_reviewed_on_device",
+        "tx_reviewed_on_device",
+        "challenge_signature_verified",
+        "operator_attestation"
+      ],
+      "production_done_when": "At least one supported hardware signer produces a verified address/challenge/transaction-review transcript from a physical device."
+    },
+    {
+      "id": "captcha-provider-integration",
+      "label": "Real CAPTCHA/Turnstile/hCaptcha backend integration",
+      "owner": "Faucet/security",
+      "source_command": "python tools/check_captcha_provider.py --source-only --out reports/captcha_provider_source_report.json",
+      "strict_command": "python tools/check_captcha_provider.py --strict --out reports/captcha_provider_report.json",
+      "required_evidence": [
+        "NETCOIN_CAPTCHA_PROVIDER",
+        "provider_secret",
+        "siteverify_response_success",
+        "invalid_token_rejected"
+      ],
+      "production_done_when": "A real provider secret is configured and both valid and invalid token verification paths are tested against the provider or signed provider evidence."
+    },
+    {
+      "id": "production-exchange-custody",
+      "label": "True production exchange custody",
+      "owner": "Exchange/custody",
+      "source_command": "python tools/check_production_custody.py --source-only --out reports/production_custody_source_report.json",
+      "strict_command": "python tools/check_production_custody.py --strict --evidence reports/mainnet_evidence/production_custody_evidence.json --out reports/production_custody_report.json",
+      "required_evidence": [
+        "balanced_double_entry_ledger",
+        "segregated_hot_cold_accounts",
+        "withdrawal_approval_transcript",
+        "reserve_attestation",
+        "cold_signing_ceremony",
+        "stuck_withdrawal_recovery_drill"
+      ],
+      "production_done_when": "Ledger, approvals, reserves, and cold-signing evidence pass strict custody validation."
+    },
+    {
+      "id": "external-crypto-security-audit",
+      "label": "External crypto/security audit",
+      "owner": "Security/release ops",
+      "source_command": "python tools/generate_external_audit_package.py --out reports/external_audit_package.json",
+      "strict_command": "python tools/generate_external_audit_package.py --strict --evidence reports/mainnet_evidence/external_audit_evidence.json --out reports/external_audit_report.json",
+      "required_evidence": [
+        "auditor_name",
+        "auditor_independence_statement",
+        "scope_hash",
+        "report_date",
+        "critical_findings_zero_or_remediated",
+        "report_artifact_hash"
+      ],
+      "production_done_when": "An independent auditor signs off on the protocol/wallet/custody/API/release scope or all critical findings are remediated and re-reviewed."
+    },
+    {
+      "id": "public-production-p2p-soak",
+      "label": "Public production P2P network soak",
+      "owner": "P2P/network ops",
+      "source_command": "python tools/run_public_p2p_soak.py --source-only --out reports/public_p2p_soak_source_report.json",
+      "strict_command": "python tools/run_public_p2p_soak.py --strict --evidence reports/mainnet_evidence/public_p2p_soak_evidence.json --out reports/public_p2p_soak_report.json",
+      "required_evidence": [
+        "seed_nodes",
+        "duration_hours",
+        "peer_count_minimum",
+        "reorgs_observed",
+        "uptime_percent",
+        "incident_links"
+      ],
+      "production_done_when": "Public testnet/production-like peers run for the required duration with acceptable uptime, peer diversity, and incident history."
+    },
+    {
+      "id": "long-python-suite-confidence",
+      "label": "Full long-running Python suite confidence",
+      "owner": "Python reference/QA",
+      "source_command": "python tools/run_long_python_confidence.py --source-only --out reports/long_python_suite_source_report.json",
+      "strict_command": "python tools/run_long_python_confidence.py --strict --timeout 240 --out reports/long_python_suite_report.json",
+      "required_evidence": [
+        "all_test_files_passed",
+        "zero_timeouts",
+        "slowest_files_recorded",
+        "parity_fingerprint_recorded"
+      ],
+      "production_done_when": "The by-file Python suite passes end-to-end with a stored report and no untriaged failures/timeouts."
+    },
+    {
+      "id": "mainnet-launch-checklist-approval",
+      "label": "Mainnet launch checklist approval",
+      "owner": "Release governance",
+      "source_command": "python tools/check_mainnet_launch_approval.py --source-only --out reports/mainnet_launch_source_report.json",
+      "strict_command": "python tools/check_mainnet_launch_approval.py --strict --evidence reports/mainnet_evidence/mainnet_launch_approval.json --out reports/mainnet_launch_approval_report.json",
+      "required_evidence": [
+        "release_manager_approval",
+        "security_approval",
+        "ops_approval",
+        "wallet_approval",
+        "custody_approval",
+        "rollback_plan",
+        "genesis_or_upgrade_hash"
+      ],
+      "production_done_when": "Named owners approve the checklist and release artifact hashes with a rollback plan."
+    },
+    {
+      "id": "public-testnet-incident-history",
+      "label": "Incident/runbook history from a real public testnet",
+      "owner": "Operations/SRE",
+      "source_command": "python tools/check_incident_history.py --source-only --out reports/incident_history_source_report.json",
+      "strict_command": "python tools/check_incident_history.py --strict --evidence reports/mainnet_evidence/public_testnet_incidents.json --out reports/incident_history_report.json",
+      "required_evidence": [
+        "public_testnet_start",
+        "incidents_or_no_incident_attestation",
+        "runbook_links",
+        "postmortem_links",
+        "time_to_detect_minutes",
+        "time_to_mitigate_minutes"
+      ],
+      "production_done_when": "A public testnet has run long enough to produce incident/no-incident evidence with runbooks and postmortems."
+    }
+  ],
+  "aggregate_gate": {
+    "source_command": "python tools/check_mainnet_readiness_gates.py",
+    "strict_command": "python tools/run_mainnet_readiness.py --strict --out reports/mainnet_readiness_report.json",
+    "production_claim_allowed_only_when": "all gates return ok=true in strict mode"
+  }
+}

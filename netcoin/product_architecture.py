@@ -126,7 +126,9 @@ def validate_product_architecture(spec: dict[str, Any] | None = None) -> Product
 
     approved = data.get("approved_complementary_features", [])
     if "release-readiness-scorecard" not in approved or "wallet-security-center" not in approved:
-        issues.append("approved complementary features must include release-readiness-scorecard and wallet-security-center")
+        issues.append(
+            "approved complementary features must include release-readiness-scorecard and wallet-security-center"
+        )
 
     return ProductArchitectureReport(
         ok=not issues,

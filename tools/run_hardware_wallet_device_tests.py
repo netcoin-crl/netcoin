@@ -6,6 +6,7 @@ validator. Strict mode validates an operator-supplied transcript from a physical
 device. It does not pretend that a physical Ledger/Trezor/Coldcard exists in a
 sandbox.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,7 +41,11 @@ def main() -> int:
     args = parser.parse_args()
     if args.strict:
         if not args.evidence:
-            result = strict_evidence_gate("hardware-wallet-device-testing", "reports/mainnet_evidence/hardware_wallet_device_evidence.json", REQUIRED).to_dict()
+            result = strict_evidence_gate(
+                "hardware-wallet-device-testing",
+                "reports/mainnet_evidence/hardware_wallet_device_evidence.json",
+                REQUIRED,
+            ).to_dict()
         else:
             result = strict_evidence_gate("hardware-wallet-device-testing", args.evidence, REQUIRED).to_dict()
     else:

@@ -1,0 +1,277 @@
+{
+  "version": "0.38.5",
+  "phase": "phase-0-workflow-architecture",
+  "purpose": "Describe the canonical workflows NetCoin should optimize before adding new broad features.",
+  "state_model": [
+    "start",
+    "input",
+    "review",
+    "confirm",
+    "execute",
+    "success",
+    "verify",
+    "recover"
+  ],
+  "workflows": [
+    {
+      "id": "receive-net",
+      "job": "manage-money",
+      "surface": "wallet",
+      "primary_action": "Receive NET",
+      "steps": [
+        "Open Wallet",
+        "Choose Receive",
+        "Show address or payment request",
+        "Copy/share QR",
+        "Verify incoming tx in Explorer"
+      ],
+      "trust_signals": [
+        "wallet unlocked state",
+        "address source",
+        "local-only label",
+        "last balance refresh"
+      ],
+      "advanced_hidden_until_needed": [
+        "address type",
+        "request metadata",
+        "raw URI"
+      ]
+    },
+    {
+      "id": "send-net",
+      "job": "manage-money",
+      "surface": "wallet",
+      "primary_action": "Review transaction",
+      "steps": [
+        "Enter contact or address",
+        "Enter amount",
+        "Select fee",
+        "Review recipient/fee/risk",
+        "Sign",
+        "Broadcast",
+        "Verify in Explorer"
+      ],
+      "trust_signals": [
+        "known contact chip",
+        "address warning",
+        "fee estimate",
+        "risk simulator",
+        "node freshness"
+      ],
+      "advanced_hidden_until_needed": [
+        "coin control",
+        "manual fee",
+        "raw transaction",
+        "offline signing"
+      ]
+    },
+    {
+      "id": "search-chain",
+      "job": "understand-chain",
+      "surface": "explorer",
+      "primary_action": "Search",
+      "steps": [
+        "Paste address/tx/block",
+        "Show summary",
+        "Show confirmations/finality",
+        "Show history/details",
+        "Offer CSV or raw details"
+      ],
+      "trust_signals": [
+        "active-chain badge",
+        "confirmation count",
+        "last index update",
+        "reorg/orphan warnings"
+      ],
+      "advanced_hidden_until_needed": [
+        "raw JSON",
+        "script details",
+        "index proof"
+      ]
+    },
+    {
+      "id": "claim-faucet-net",
+      "job": "participate",
+      "surface": "faucet",
+      "primary_action": "Claim testnet NET",
+      "steps": [
+        "Enter wallet address",
+        "Pass abuse check",
+        "Submit claim",
+        "Show cooldown/funding status",
+        "Open Wallet or Explorer"
+      ],
+      "trust_signals": [
+        "faucet funded",
+        "cooldown",
+        "claim txid",
+        "service status"
+      ],
+      "advanced_hidden_until_needed": [
+        "proof-of-work details",
+        "reputation score detail",
+        "admin controls"
+      ]
+    },
+    {
+      "id": "trade-market",
+      "job": "participate",
+      "surface": "markets",
+      "primary_action": "Preview order",
+      "steps": [
+        "Choose market",
+        "Choose side",
+        "Enter amount",
+        "Preview max loss/fees/payout",
+        "Submit order",
+        "Track position",
+        "Review settlement"
+      ],
+      "trust_signals": [
+        "market lifecycle",
+        "liquidity",
+        "fee",
+        "max loss",
+        "settlement source",
+        "dispute state"
+      ],
+      "advanced_hidden_until_needed": [
+        "IOC/FOK",
+        "raw orderbook",
+        "market-maker tools",
+        "surveillance detail"
+      ]
+    },
+    {
+      "id": "withdraw-custody-funds",
+      "job": "operate-infrastructure",
+      "surface": "exchange",
+      "primary_action": "Review withdrawal",
+      "steps": [
+        "Create request",
+        "Check limits",
+        "Collect approvals",
+        "Sign",
+        "Broadcast",
+        "Confirm",
+        "Reconcile ledger"
+      ],
+      "trust_signals": [
+        "approval threshold",
+        "daily limit",
+        "hot wallet exposure",
+        "ledger invariant",
+        "broadcast txid"
+      ],
+      "advanced_hidden_until_needed": [
+        "cold ceremony",
+        "manual override",
+        "raw ledger entries"
+      ]
+    },
+    {
+      "id": "handle-operator-incident",
+      "job": "operate-infrastructure",
+      "surface": "operator",
+      "primary_action": "Open runbook",
+      "steps": [
+        "See alert",
+        "Inspect severity",
+        "Open runbook",
+        "Run diagnostic",
+        "Apply fix",
+        "Mark recovered",
+        "Export bundle"
+      ],
+      "trust_signals": [
+        "severity",
+        "freshness",
+        "affected service",
+        "last healthy time",
+        "diagnostic bundle preview"
+      ],
+      "advanced_hidden_until_needed": [
+        "raw logs",
+        "bundle export",
+        "manual remediation"
+      ]
+    },
+    {
+      "id": "build-integration",
+      "job": "build",
+      "surface": "docs",
+      "primary_action": "Start integration",
+      "steps": [
+        "Read quickstart",
+        "Choose API/SDK",
+        "Run example",
+        "Check OpenAPI",
+        "Verify contract",
+        "Ship integration"
+      ],
+      "trust_signals": [
+        "API version",
+        "schema status",
+        "example freshness",
+        "contract result"
+      ],
+      "advanced_hidden_until_needed": [
+        "architecture lanes",
+        "parity vectors",
+        "release provenance"
+      ]
+    },
+    {
+      "id": "verify-release",
+      "job": "operate-infrastructure",
+      "surface": "download",
+      "primary_action": "Verify release",
+      "steps": [
+        "Choose artifact",
+        "Check hash",
+        "Check signature",
+        "Check provenance/SBOM",
+        "Show pass/fail",
+        "Explain next step"
+      ],
+      "trust_signals": [
+        "signature status",
+        "checksum match",
+        "SBOM",
+        "provenance",
+        "known blockers"
+      ],
+      "advanced_hidden_until_needed": [
+        "raw manifest",
+        "signing key detail",
+        "reproducibility logs"
+      ]
+    },
+    {
+      "id": "prepare-audit",
+      "job": "operate-infrastructure",
+      "surface": "security",
+      "primary_action": "Generate audit bundle",
+      "steps": [
+        "Collect specs",
+        "Collect threat model",
+        "Collect test reports",
+        "Collect parity reports",
+        "Collect known limitations",
+        "Export bundle"
+      ],
+      "trust_signals": [
+        "full test status",
+        "Rust parity status",
+        "dependency status",
+        "known limitation count"
+      ],
+      "advanced_hidden_until_needed": [
+        "raw fuzz corpus",
+        "dependency graph",
+        "internal notes"
+      ]
+    }
+  ],
+  "phase_0_3_reference": "Workflow steps should use progressive disclosure levels from architecture/product-simplification.json."
+}

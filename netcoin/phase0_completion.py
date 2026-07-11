@@ -111,7 +111,9 @@ def _check_child_validators(issues: list[str]) -> None:
             issues.append(f"{name} validator failed: {report.issues}")
 
 
-def validate_phase0_completion(spec: dict[str, Any] | None = None, *, run_child_validators: bool = True) -> Phase0CompletionReport:
+def validate_phase0_completion(
+    spec: dict[str, Any] | None = None, *, run_child_validators: bool = True
+) -> Phase0CompletionReport:
     """Validate the final Phase 0 completion and handoff contract."""
 
     data = spec or load_phase0_completion()
@@ -174,7 +176,13 @@ def validate_phase0_completion(spec: dict[str, Any] | None = None, *, run_child_
     if not isinstance(roadmap, list) or len(roadmap) < 7:
         issues.append("approved_next_roadmap must include at least seven phases")
     roadmap_names = [str(item.get("name", "")) for item in roadmap if isinstance(item, dict)]
-    for required in ["Proof Hardening", "Wallet Professional UX", "Explorer and Indexer Trust", "Markets Risk and Settlement", "Exchange and Custody Safety"]:
+    for required in [
+        "Proof Hardening",
+        "Wallet Professional UX",
+        "Explorer and Indexer Trust",
+        "Markets Risk and Settlement",
+        "Exchange and Custody Safety",
+    ]:
         if required not in roadmap_names:
             issues.append(f"approved_next_roadmap missing {required}")
     if roadmap and isinstance(roadmap[0], dict) and roadmap[0].get("name") != "Proof Hardening":

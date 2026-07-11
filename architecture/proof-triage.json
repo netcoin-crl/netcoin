@@ -1,0 +1,121 @@
+{
+  "version": "0.39.4",
+  "phase": "Phase 1 - Proof Triage and CI Alignment",
+  "inherits_from": "architecture/local-proof-runner.json",
+  "purpose": "Turn local proof and CI proof output into a clear triage report that classifies failures, maps each blocker to an owner, gives the next command to run, and keeps sandbox/source-only claims separate from strict professional-candidate proof.",
+  "inputs": {
+    "local_proof_report": "reports/local_proof_run_report.json",
+    "evidence_bundle": "reports/proof_evidence_bundle.json",
+    "release_readiness_scorecard": "reports/release_readiness_scorecard.json",
+    "proof_hardening_manifest": "architecture/proof-hardening.json",
+    "strict_proof_manifest": "architecture/strict-proof-execution.json"
+  },
+  "outputs": {
+    "triage_report": "reports/proof_triage_report.json",
+    "human_summary": "reports/proof_triage_summary.md"
+  },
+  "classification_rules": [
+    {
+      "class": "missing-tool",
+      "matches": [
+        "required tool unavailable",
+        "cargo",
+        "npm",
+        "npx",
+        "playwright"
+      ],
+      "severity": "P0",
+      "meaning": "The gate did not run because a required local or CI tool is missing.",
+      "default_next_action": "Install the missing toolchain and rerun the strict proof gate."
+    },
+    {
+      "class": "command-failure",
+      "matches": [
+        "returncode",
+        "failed",
+        "error",
+        "traceback"
+      ],
+      "severity": "P0",
+      "meaning": "The gate executed but returned a failure.",
+      "default_next_action": "Open the per-gate log, fix the failing command, and rerun the same gate."
+    },
+    {
+      "class": "source-only-evidence",
+      "matches": [
+        "source_only",
+        "source-checked"
+      ],
+      "severity": "P1",
+      "meaning": "The gate is useful for sandbox confidence but not strict professional proof.",
+      "default_next_action": "Rerun the equivalent strict command with real external tools."
+    },
+    {
+      "class": "missing-artifact",
+      "matches": [
+        "missing-artifact",
+        "missing_paths"
+      ],
+      "severity": "P1",
+      "meaning": "A proof report expected by the evidence bundle is missing.",
+      "default_next_action": "Run the gate that produces the missing report and recollect evidence."
+    },
+    {
+      "class": "timeout",
+      "matches": [
+        "timeout",
+        "timed_out"
+      ],
+      "severity": "P1",
+      "meaning": "The gate exceeded the configured timeout before completing.",
+      "default_next_action": "Increase timeout or run the gate directly to see where it hangs."
+    },
+    {
+      "class": "not-run",
+      "matches": [
+        "not_run"
+      ],
+      "severity": "P2",
+      "meaning": "The gate was skipped or filtered out of the run.",
+      "default_next_action": "Run the omitted gate or remove the filter."
+    }
+  ],
+  "gate_owners": {
+    "python-reference": "Python ops/reference",
+    "rust-workspace": "Rust core",
+    "rust-parity": "Rust core + Python parity reference",
+    "typescript-api": "TypeScript API/app",
+    "browser-e2e": "Product UI",
+    "accessibility": "Product UI/accessibility",
+    "security-release": "Security/release ops",
+    "phase0-guardrails": "Product architecture"
+  },
+  "next_command_map": {
+    "python-reference": "python tools/run_test_suite_by_file.py --timeout 180",
+    "rust-workspace": "cd core-rs && cargo test --workspace",
+    "rust-parity": "python tools/run_all_rust_parity.py --strict --no-write",
+    "typescript-api": "cd api && npm ci && npm run ci:api",
+    "browser-e2e": "python tools/run_browser_e2e_matrix.py --run-playwright --out reports/browser_e2e_matrix_report.json",
+    "accessibility": "python tools/run_accessibility_matrix.py --strict --out reports/accessibility_report.json",
+    "security-release": "python tools/run_security_audit_prep.py && make provenance-check",
+    "phase0-guardrails": "make v0385-check"
+  },
+  "ci_alignment": {
+    "workflow": ".github/workflows/proof-hardening.yml",
+    "required_jobs": [
+      "python-source-proof",
+      "rust-strict-proof",
+      "typescript-api-proof",
+      "browser-accessibility-proof",
+      "release-readiness-scorecard"
+    ],
+    "local_to_ci_rule": "Every strict local gate must have a matching CI command or a documented source-only CI fallback with a professional-readiness caveat."
+  },
+  "phase1_4_exit_criteria": [
+    "Proof triage manifest validates.",
+    "Triage report can be generated from local proof and evidence reports.",
+    "Every blocker has a class, severity, owner, next command, and remediation message.",
+    "CI alignment checks verify the proof-hardening workflow exists and names required proof jobs.",
+    "make v0394-check passes in sandbox/source mode without claiming professional readiness."
+  ]
+}

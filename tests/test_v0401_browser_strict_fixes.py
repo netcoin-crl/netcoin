@@ -10,7 +10,12 @@ def test_site_shell_detects_localhost_surface_from_path() -> None:
     js = (ROOT / "sites" / "shared" / "site-shell.js").read_text(encoding="utf-8")
     assert "match(/\/sites\/([^\/]+)/)" in js
     assert "body.getAttribute('data-site')" in js
-    for token in ["Overview, Send, Receive, and Activity", "orderbook depth, trades, portfolio impact", "Health alerts", "diagnostics bundle"]:
+    for token in [
+        "Overview, Send, Receive, and Activity",
+        "orderbook depth, trades, portfolio impact",
+        "Health alerts",
+        "diagnostics bundle",
+    ]:
         assert token in js
 
 

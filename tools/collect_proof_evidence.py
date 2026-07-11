@@ -29,7 +29,13 @@ def run_refresh(timeout: int) -> None:
     commands = [
         [sys.executable, "tools/run_release_readiness.py", "--timeout", str(timeout)],
         [sys.executable, "tools/run_ts_api_contract_enforcement.py", "--out", "reports/ts_api_contract_report.json"],
-        [sys.executable, "tools/run_accessibility_matrix.py", "--source-only", "--out", "reports/accessibility_source_report.json"],
+        [
+            sys.executable,
+            "tools/run_accessibility_matrix.py",
+            "--source-only",
+            "--out",
+            "reports/accessibility_source_report.json",
+        ],
         [sys.executable, "tools/run_browser_e2e_matrix.py", "--out", "reports/browser_e2e_matrix_source_report.json"],
     ]
     for command in commands:

@@ -88,7 +88,16 @@ def validate_proof_manifest(manifest: dict[str, Any]) -> list[str]:
             value = gate.get(field)
             if not isinstance(value, list) or not value or not all(isinstance(item, str) and item for item in value):
                 issues.append(f"gate {gate_id or idx} {field} must contain commands")
-    required = {"python-reference", "rust-workspace", "rust-parity", "typescript-api", "browser-e2e", "accessibility", "security-release", "phase0-guardrails"}
+    required = {
+        "python-reference",
+        "rust-workspace",
+        "rust-parity",
+        "typescript-api",
+        "browser-e2e",
+        "accessibility",
+        "security-release",
+        "phase0-guardrails",
+    }
     missing_required = sorted(required - gate_ids)
     if missing_required:
         issues.append(f"missing required proof gates: {', '.join(missing_required)}")
@@ -129,7 +138,9 @@ def scorecard_from_results(
         "blocker_count": len(blockers),
         "blockers": blockers,
         "results": result_list,
-        "caveat": None
-        if mode == "strict"
-        else "Sandbox/source-only evidence is not enough for professional or mainnet readiness.",
+        "caveat": (
+            None
+            if mode == "strict"
+            else "Sandbox/source-only evidence is not enough for professional or mainnet readiness."
+        ),
     }

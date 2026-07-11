@@ -1,4 +1,5 @@
 """CAPTCHA provider verification helpers for faucet abuse protection."""
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,9 @@ def source_validation() -> dict[str, Any]:
     }
 
 
-def verify_token(token: str, *, remote_ip: str = "", config: CaptchaConfig | None = None, timeout: int = 10) -> dict[str, Any]:
+def verify_token(
+    token: str, *, remote_ip: str = "", config: CaptchaConfig | None = None, timeout: int = 10
+) -> dict[str, Any]:
     cfg = config or load_captcha_config()
     if cfg.provider not in PROVIDERS:
         return {"ok": False, "error": "unsupported CAPTCHA provider", "provider": cfg.provider}

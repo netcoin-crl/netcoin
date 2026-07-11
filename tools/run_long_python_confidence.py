@@ -60,7 +60,9 @@ def main() -> int:
         # Prefer executing the full by-file suite. If the caller supplies a strict evidence file instead,
         # they can use tools/run_mainnet_readiness.py to validate that transcript separately.
         parity = run_cmd([sys.executable, "tools/run_parity_suite.py", "--no-write"], args.timeout)
-        suite = run_cmd([sys.executable, "tools/run_test_suite_by_file.py", "--timeout", str(args.suite_timeout)], args.timeout)
+        suite = run_cmd(
+            [sys.executable, "tools/run_test_suite_by_file.py", "--timeout", str(args.suite_timeout)], args.timeout
+        )
         issues = []
         if parity["returncode"] != 0:
             issues.append("parity suite failed")

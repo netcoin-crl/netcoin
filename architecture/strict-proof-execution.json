@@ -1,0 +1,195 @@
+{
+  "version": "0.39.3",
+  "phase": "Phase 1 - Strict Proof Execution",
+  "status": "strict-proof-bridge",
+  "inherits_from": "architecture/proof-hardening.json",
+  "purpose": "Turn the Phase 1 scorecard into a repeatable local and CI execution playbook with explicit tool requirements, evidence artifacts, and blocker handling.",
+  "principles": [
+    "Do not add product breadth while proof gates are incomplete.",
+    "Every strict claim must be backed by a report artifact and the exact command that produced it.",
+    "Source-only checks are allowed for restricted sandboxes but must stay visibly non-professional claims.",
+    "CI must run Python, Rust, TypeScript, browser, accessibility, and release-readiness lanes separately so blockers are easy to isolate.",
+    "A strict pass requires zero fail, blocked, not_run, or source_only gates."
+  ],
+  "tool_requirements": [
+    {
+      "id": "python",
+      "label": "Python 3.11+",
+      "required_for": [
+        "python-reference",
+        "phase0-guardrails",
+        "security-release",
+        "release-readiness"
+      ],
+      "verify_command": "python --version"
+    },
+    {
+      "id": "cargo",
+      "label": "Rust stable + Cargo",
+      "required_for": [
+        "rust-workspace",
+        "rust-parity"
+      ],
+      "verify_command": "cargo --version"
+    },
+    {
+      "id": "node-npm",
+      "label": "Node 20+ and npm",
+      "required_for": [
+        "typescript-api",
+        "browser-e2e"
+      ],
+      "verify_command": "node -v && npm -v"
+    },
+    {
+      "id": "playwright",
+      "label": "Playwright browser runtime",
+      "required_for": [
+        "browser-e2e",
+        "accessibility"
+      ],
+      "verify_command": "npx playwright --version"
+    }
+  ],
+  "local_profiles": {
+    "macos": {
+      "setup_commands": [
+        "brew install rust node python@3.12 || true",
+        "python -m pip install -r requirements-dev.lock || python -m pip install -r requirements.lock",
+        "cd api && npm ci",
+        "npx playwright install chromium"
+      ],
+      "strict_command": "python tools/run_release_readiness.py --strict --timeout 300"
+    },
+    "linux": {
+      "setup_commands": [
+        "rustup toolchain install stable",
+        "python -m pip install -r requirements-dev.lock || python -m pip install -r requirements.lock",
+        "cd api && npm ci",
+        "npx playwright install --with-deps chromium"
+      ],
+      "strict_command": "python tools/run_release_readiness.py --strict --timeout 300"
+    },
+    "sandbox": {
+      "setup_commands": [],
+      "strict_command": "python tools/run_release_readiness.py --timeout 60",
+      "claim": "source-checked-testnet only"
+    }
+  },
+  "strict_command_groups": [
+    {
+      "id": "python-reference",
+      "commands": [
+        "python -m compileall -q netcoin tools",
+        "python tools/run_parity_suite.py --no-write",
+        "python tools/run_test_suite_by_file.py --timeout 180"
+      ],
+      "evidence": [
+        "reports/parity_suite_report.json",
+        "reports/test_suite_by_file_report.json"
+      ]
+    },
+    {
+      "id": "rust-workspace",
+      "commands": [
+        "cd core-rs && cargo test --workspace"
+      ],
+      "evidence": [
+        "target/test-output",
+        "reports/all_rust_parity_report.json"
+      ]
+    },
+    {
+      "id": "rust-parity",
+      "commands": [
+        "python tools/run_all_rust_parity.py --strict --out reports/all_rust_parity_report.json"
+      ],
+      "evidence": [
+        "reports/all_rust_parity_report.json"
+      ]
+    },
+    {
+      "id": "typescript-api",
+      "commands": [
+        "cd api && npm ci && npm run ci:api"
+      ],
+      "evidence": [
+        "api/dist",
+        "reports/ts_openapi_codegen_parity_report.json"
+      ]
+    },
+    {
+      "id": "browser-e2e",
+      "commands": [
+        "python tools/run_browser_e2e_matrix.py --run-playwright --out reports/browser_e2e_matrix_report.json"
+      ],
+      "evidence": [
+        "reports/browser_e2e_matrix_report.json"
+      ]
+    },
+    {
+      "id": "accessibility",
+      "commands": [
+        "python tools/run_accessibility_matrix.py --strict --out reports/accessibility_report.json"
+      ],
+      "evidence": [
+        "reports/accessibility_report.json"
+      ]
+    },
+    {
+      "id": "security-release",
+      "commands": [
+        "python tools/run_security_audit_prep.py",
+        "python tools/generate_sbom.py --out reports/netcoin-sbom.json"
+      ],
+      "evidence": [
+        "reports/security_audit_prep_report.json",
+        "reports/netcoin-sbom.json"
+      ]
+    },
+    {
+      "id": "release-readiness",
+      "commands": [
+        "python tools/run_release_readiness.py --strict --timeout 300 --out reports/release_readiness_scorecard.json"
+      ],
+      "evidence": [
+        "reports/release_readiness_scorecard.json"
+      ]
+    }
+  ],
+  "ci_workflows": [
+    {
+      "path": ".github/workflows/proof-hardening.yml",
+      "required_jobs": [
+        "python-source-proof",
+        "rust-strict-proof",
+        "typescript-api-proof",
+        "browser-accessibility-proof",
+        "release-readiness-scorecard"
+      ]
+    }
+  ],
+  "blocker_classes": [
+    {
+      "id": "missing-tool",
+      "meaning": "Cargo, npm, Playwright, or Python dependency is absent; this blocks strict proof but not source-only sandbox checks."
+    },
+    {
+      "id": "source-only",
+      "meaning": "A lane passed source validation but did not execute the real external runtime."
+    },
+    {
+      "id": "test-failure",
+      "meaning": "A strict proof command ran and failed."
+    },
+    {
+      "id": "timeout",
+      "meaning": "A proof command exceeded its allowed runtime and must be split or optimized."
+    },
+    {
+      "id": "contract-drift",
+      "meaning": "Server, client, OpenAPI, schema, or route manifest diverged."
+    }
+  ],
+  "phase1_next_exit_target": "v0.39.x should move every source_only gate in reports/release_readiness_scorecard.json to pass under strict mode before Phase 2 begins."
+}

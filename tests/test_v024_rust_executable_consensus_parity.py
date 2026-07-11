@@ -72,7 +72,9 @@ def test_v024_migration_status_reports_executable_lane() -> None:
         "0.37.3",
         "0.37.4",
         "0.38.0",
-        "0.38.1", "0.38.2", "0.38.3",
+        "0.38.1",
+        "0.38.2",
+        "0.38.3",
     }
     consensus_lane = next(lane for lane in status["lanes"] if lane["id"] == "rust-consensus-parity")
     assert consensus_lane["status"] == "executable-rust-consensus-parity-runner"

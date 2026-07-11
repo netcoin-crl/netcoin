@@ -63,7 +63,9 @@ def _run_lane(lane: str, script: str, *, allow_missing_cargo: bool, timeout: int
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run all NetCoin Rust parity lanes")
-    parser.add_argument("--allow-missing-cargo", action="store_true", help="allow source-only parity checks when Cargo is missing")
+    parser.add_argument(
+        "--allow-missing-cargo", action="store_true", help="allow source-only parity checks when Cargo is missing"
+    )
     parser.add_argument("--strict", action="store_true", help="fail if any lane is source-only")
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--out", default="reports/all_rust_parity_report.json")
@@ -89,7 +91,9 @@ def main() -> int:
         out = ROOT / args.out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({k: report[k] for k in ["ok", "mode", "lane_count", "failed_lanes", "source_only_lanes"]}, indent=2))
+    print(
+        json.dumps({k: report[k] for k in ["ok", "mode", "lane_count", "failed_lanes", "source_only_lanes"]}, indent=2)
+    )
     return 0 if ok else 1
 
 

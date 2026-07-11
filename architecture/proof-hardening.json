@@ -1,0 +1,184 @@
+{
+  "version": "0.39.4",
+  "phase": "Phase 1 - Proof Hardening",
+  "status": "started",
+  "purpose": "Turn NetCoin from architecture-complete into evidence-driven: every core lane must have an explicit proof gate, a strict local command, and a sandbox-safe source-check fallback.",
+  "inherits_from": "architecture/phase0-completion.json",
+  "principles": [
+    "No broad new product surfaces in Phase 1.",
+    "Every readiness claim must name the command that proves it.",
+    "Sandbox/source-only validation is useful but cannot be marketed as production proof.",
+    "Strict mode requires real Python, Cargo, npm, Playwright, and security/audit gates where applicable.",
+    "Reports should be written to reports/ so regressions can be compared release-to-release."
+  ],
+  "modes": {
+    "sandbox": {
+      "description": "Runs deterministic Python/source checks when external tools such as Cargo, npm installs, or Playwright are missing.",
+      "allowed_for_release_claim": "testnet/source-checked only"
+    },
+    "strict": {
+      "description": "Runs the real external execution gates that must pass before any professional/mainnet candidate claim.",
+      "allowed_for_release_claim": "professional candidate after all gates pass"
+    }
+  },
+  "gate_status_terms": [
+    "pass",
+    "fail",
+    "blocked",
+    "not_run",
+    "source_only"
+  ],
+  "gate_groups": [
+    {
+      "id": "python-reference",
+      "label": "Python Reference Proof",
+      "owner": "Python ops/reference",
+      "strict_commands": [
+        "python -m compileall -q netcoin tools",
+        "python tools/run_parity_suite.py --no-write",
+        "python tools/run_test_suite_by_file.py --timeout 180"
+      ],
+      "sandbox_commands": [
+        "python -m compileall -q netcoin tools",
+        "python tools/run_parity_suite.py --no-write",
+        "make test-fast"
+      ],
+      "hard_ceiling_removed": "Python remains the canonical reference only if the full suite can pass consistently."
+    },
+    {
+      "id": "rust-workspace",
+      "label": "Rust Workspace Build Proof",
+      "owner": "Rust core",
+      "strict_commands": [
+        "cd core-rs && cargo test --workspace"
+      ],
+      "sandbox_commands": [
+        "python tools/check_rust_workspace.py"
+      ],
+      "hard_ceiling_removed": "Rust migration stops being structural-only and becomes compiled/tested."
+    },
+    {
+      "id": "rust-parity",
+      "label": "All Rust Executable Parity",
+      "owner": "Rust core + Python parity reference",
+      "strict_commands": [
+        "python tools/run_all_rust_parity.py --strict --no-write"
+      ],
+      "sandbox_commands": [
+        "python tools/run_all_rust_parity.py --allow-missing-cargo --no-write"
+      ],
+      "required_lanes": [
+        "consensus",
+        "mempool",
+        "wallet",
+        "markets",
+        "signer",
+        "p2p",
+        "indexer"
+      ],
+      "hard_ceiling_removed": "Every Rust lane must execute against frozen Python vectors, not just exist in source form."
+    },
+    {
+      "id": "typescript-api",
+      "label": "TypeScript API Contract Proof",
+      "owner": "TypeScript API/app",
+      "strict_commands": [
+        "cd api && npm ci && npm run ci:api"
+      ],
+      "sandbox_commands": [
+        "python tools/run_ts_api_contract_enforcement.py",
+        "python tools/run_ts_openapi_codegen_parity.py --no-write"
+      ],
+      "hard_ceiling_removed": "The server, client, schemas, and OpenAPI contract stay synchronized."
+    },
+    {
+      "id": "browser-e2e",
+      "label": "Browser Product E2E Proof",
+      "owner": "Product UI",
+      "strict_commands": [
+        "python tools/run_browser_e2e_matrix.py --run-playwright --out reports/browser_e2e_matrix_report.json"
+      ],
+      "sandbox_commands": [
+        "python tools/run_browser_e2e_matrix.py --out reports/browser_e2e_matrix_source_report.json"
+      ],
+      "surfaces": [
+        "wallet",
+        "explorer",
+        "markets",
+        "faucet",
+        "operator",
+        "exchange",
+        "release-verify"
+      ],
+      "hard_ceiling_removed": "UI flows are proven in a browser instead of only source-checked."
+    },
+    {
+      "id": "accessibility",
+      "label": "Accessibility Proof",
+      "owner": "Product UI",
+      "strict_commands": [
+        "python tools/run_accessibility_matrix.py --strict --out reports/accessibility_report.json"
+      ],
+      "sandbox_commands": [
+        "python tools/run_accessibility_matrix.py --source-only --out reports/accessibility_source_report.json"
+      ],
+      "hard_ceiling_removed": "The UI can be considered professional only after keyboard, labels, contrast, and breakpoint checks are tracked."
+    },
+    {
+      "id": "security-release",
+      "label": "Security and Release Proof",
+      "owner": "Security/release ops",
+      "strict_commands": [
+        "python tools/run_security_audit_prep.py",
+        "make provenance-check",
+        "python tools/generate_sbom.py --out reports/netcoin-sbom.json"
+      ],
+      "sandbox_commands": [
+        "python tools/run_security_audit_prep.py"
+      ],
+      "hard_ceiling_removed": "Release artifacts become auditable and reproducible enough for external review."
+    },
+    {
+      "id": "phase0-guardrails",
+      "label": "Phase 0 Product Guardrails",
+      "owner": "Product architecture",
+      "strict_commands": [
+        "python tools/check_phase0_complete.py",
+        "python tools/check_product_architecture.py",
+        "python tools/check_design_system.py",
+        "python tools/check_product_simplification.py",
+        "python tools/check_trust_interaction.py",
+        "python tools/check_product_coherence.py"
+      ],
+      "sandbox_commands": [
+        "make v0385-check"
+      ],
+      "hard_ceiling_removed": "Proof hardening does not regress the product architecture completed in Phase 0."
+    }
+  ],
+  "release_readiness_scorecard": {
+    "path": "reports/release_readiness_scorecard.json",
+    "minimum_for_phase1_source_checked": "all sandbox-required gates pass or produce source_only with explicit caveat",
+    "minimum_for_professional_candidate": "all strict gates pass with no source_only, blocked, fail, or not_run statuses",
+    "blocking_statuses": [
+      "fail",
+      "blocked",
+      "not_run",
+      "source_only"
+    ]
+  },
+  "phase1_exit_criteria": [
+    "Strict Cargo workspace test passes.",
+    "All Rust parity binaries execute successfully without --allow-missing-cargo.",
+    "Full Python test suite report is green or every remaining failure has a tracked blocker.",
+    "npm ci && npm run ci:api passes from a clean api/ directory.",
+    "Playwright product matrix runs against wallet, explorer, markets, faucet, operator, exchange, and release verify.",
+    "Accessibility source matrix exists and strict accessibility execution is planned or green.",
+    "Release readiness scorecard is generated for every release."
+  ],
+  "non_goals": [
+    "No new app surfaces.",
+    "No new markets/products/custody features unless they directly support proof gates.",
+    "No claiming mainnet/professional readiness from sandbox-only evidence."
+  ]
+}

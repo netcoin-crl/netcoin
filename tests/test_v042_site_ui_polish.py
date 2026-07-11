@@ -32,19 +32,43 @@ def test_directory_is_collapsed_and_copy_is_shorter() -> None:
 def test_browser_e2e_tokens_survive_copy_reduction() -> None:
     js = (ROOT / "sites" / "shared" / "site-shell.js").read_text(encoding="utf-8").lower()
     for token in [
-        "overview", "send", "receive", "activity", "address", "tx", "block", "mempool",
-        "orderbook", "portfolio", "trades", "settlement", "challenge", "claim", "status",
-        "admin", "health", "diagnostics", "bundle", "alerts", "deposits", "withdrawals",
-        "custody", "reserves",
+        "overview",
+        "send",
+        "receive",
+        "activity",
+        "address",
+        "tx",
+        "block",
+        "mempool",
+        "orderbook",
+        "portfolio",
+        "trades",
+        "settlement",
+        "challenge",
+        "claim",
+        "status",
+        "admin",
+        "health",
+        "diagnostics",
+        "bundle",
+        "alerts",
+        "deposits",
+        "withdrawals",
+        "custody",
+        "reserves",
     ]:
         assert token in js
 
 
 def test_v042_tool_and_javascript_parse() -> None:
-    result = subprocess.run([sys.executable, "tools/check_site_ui_polish.py"], cwd=ROOT, text=True, capture_output=True, timeout=30)
+    result = subprocess.run(
+        [sys.executable, "tools/check_site_ui_polish.py"], cwd=ROOT, text=True, capture_output=True, timeout=30
+    )
     assert result.returncode == 0, result.stdout + result.stderr
     try:
-        node = subprocess.run(["node", "--check", "sites/shared/site-shell.js"], cwd=ROOT, text=True, capture_output=True, timeout=20)
+        node = subprocess.run(
+            ["node", "--check", "sites/shared/site-shell.js"], cwd=ROOT, text=True, capture_output=True, timeout=20
+        )
     except FileNotFoundError:
         return
     assert node.returncode == 0, node.stderr

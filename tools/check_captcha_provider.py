@@ -14,7 +14,12 @@ if str(ROOT) not in sys.path:
 from netcoin.captcha_provider import load_captcha_config, source_validation, verify_token
 from netcoin.mainnet_readiness import strict_evidence_gate
 
-REQUIRED_EVIDENCE = ["NETCOIN_CAPTCHA_PROVIDER", "provider_secret", "siteverify_response_success", "invalid_token_rejected"]
+REQUIRED_EVIDENCE = [
+    "NETCOIN_CAPTCHA_PROVIDER",
+    "provider_secret",
+    "siteverify_response_success",
+    "invalid_token_rejected",
+]
 
 
 def main() -> int:
@@ -34,8 +39,16 @@ def main() -> int:
             issues = []
             if not cfg.configured:
                 issues.append("NETCOIN_CAPTCHA_PROVIDER and NETCOIN_CAPTCHA_SECRET must be configured")
-            valid = verify_token(args.token, config=cfg) if cfg.configured and args.token else {"ok": False, "error": "no valid test token supplied"}
-            invalid = verify_token(args.invalid_token, config=cfg) if cfg.configured else {"ok": False, "error": "provider not configured"}
+            valid = (
+                verify_token(args.token, config=cfg)
+                if cfg.configured and args.token
+                else {"ok": False, "error": "no valid test token supplied"}
+            )
+            invalid = (
+                verify_token(args.invalid_token, config=cfg)
+                if cfg.configured
+                else {"ok": False, "error": "provider not configured"}
+            )
             if valid.get("ok") is not True:
                 issues.append("valid provider token was not accepted")
             if invalid.get("ok") is not False:

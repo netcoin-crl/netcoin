@@ -210,11 +210,16 @@ def _item_from_gate(gate: dict[str, Any], *, manifest: dict[str, Any], source: s
     # their remediation mentions npm/cargo. Blocked gates still use the full
     # text so explicit missing-tool reasons win.
     if status == "fail":
-        rule = next((item for item in manifest.get("classification_rules", []) if item.get("class") == "command-failure"), _rule_for(text, manifest))
+        rule = next(
+            (item for item in manifest.get("classification_rules", []) if item.get("class") == "command-failure"),
+            _rule_for(text, manifest),
+        )
     else:
         rule = _rule_for(text, manifest)
     owner = str(manifest.get("gate_owners", {}).get(gate_id, "Unassigned"))
-    next_command = str(manifest.get("next_command_map", {}).get(gate_id, rule.get("default_next_action", "rerun the gate")))
+    next_command = str(
+        manifest.get("next_command_map", {}).get(gate_id, rule.get("default_next_action", "rerun the gate"))
+    )
     remediation = str(gate.get("remediation") or rule.get("default_next_action") or "rerun the gate")
     return TriageItem(
         gate_id=gate_id,
@@ -247,7 +252,12 @@ def _items_from_evidence_bundle(bundle: dict[str, Any], *, manifest: dict[str, A
     for blocker in bundle.get("blockers", []):
         if isinstance(blocker, dict):
             gate_id = str(blocker.get("gate_id", "unknown"))
-            gate = {"gate_id": gate_id, "status": blocker.get("class", "blocked"), "class": blocker.get("class"), "missing_paths": blocker.get("paths", [])}
+            gate = {
+                "gate_id": gate_id,
+                "status": blocker.get("class", "blocked"),
+                "class": blocker.get("class"),
+                "missing_paths": blocker.get("paths", []),
+            }
             items.append(_item_from_gate(gate, manifest=manifest, source="evidence_bundle"))
     for gate in bundle.get("gates", []):
         status = str(gate.get("status"))
@@ -264,7 +274,9 @@ def _dedupe_items(items: list[TriageItem]) -> list[TriageItem]:
         current = best.get(key)
         if current is None or severity_rank.get(item.severity, 9) < severity_rank.get(current.severity, 9):
             best[key] = item
-    return sorted(best.values(), key=lambda item: (severity_rank.get(item.severity, 9), item.gate_id, item.blocker_class))
+    return sorted(
+        best.values(), key=lambda item: (severity_rank.get(item.severity, 9), item.gate_id, item.blocker_class)
+    )
 
 
 def check_ci_alignment(manifest: dict[str, Any], *, root: Path = ROOT) -> dict[str, Any]:
@@ -306,11 +318,15 @@ def build_proof_triage_report(
     items: list[TriageItem] = []
     source_notes: list[str] = []
     if local is None:
-        source_notes.append(f"missing local proof report: {local_path.relative_to(root) if local_path.is_absolute() and root in local_path.parents else local_path}")
+        source_notes.append(
+            f"missing local proof report: {local_path.relative_to(root) if local_path.is_absolute() and root in local_path.parents else local_path}"
+        )
     else:
         items.extend(_items_from_local_report(local, manifest=manifest))
     if evidence is None:
-        source_notes.append(f"missing evidence bundle: {evidence_path.relative_to(root) if evidence_path.is_absolute() and root in evidence_path.parents else evidence_path}")
+        source_notes.append(
+            f"missing evidence bundle: {evidence_path.relative_to(root) if evidence_path.is_absolute() and root in evidence_path.parents else evidence_path}"
+        )
     else:
         items.extend(_items_from_evidence_bundle(evidence, manifest=manifest))
 
@@ -392,7 +408,9 @@ def render_triage_markdown(report: dict[str, Any]) -> str:
         lines.append("No triage items. Strict proof appears ready from available evidence.")
     else:
         for item in items:
-            lines.append(f"- **{item['severity']}** `{item['gate_id']}` ({item['owner']}) - {item['class']}: {item['meaning']}")
+            lines.append(
+                f"- **{item['severity']}** `{item['gate_id']}` ({item['owner']}) - {item['class']}: {item['meaning']}"
+            )
             lines.append(f"  - Next: `{item['next_command']}`")
     lines.append("")
     return "\n".join(lines)

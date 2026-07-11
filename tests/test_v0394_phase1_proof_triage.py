@@ -84,7 +84,12 @@ def test_triage_markdown_names_next_priority(tmp_path: Path) -> None:
     evidence_path = tmp_path / "evidence.json"
     local_path.write_text(json.dumps(local_report), encoding="utf-8")
     evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
-    report = build_proof_triage_report(load_proof_triage_manifest(), root=ROOT, local_report_path=str(local_path), evidence_bundle_path=str(evidence_path))
+    report = build_proof_triage_report(
+        load_proof_triage_manifest(),
+        root=ROOT,
+        local_report_path=str(local_path),
+        evidence_bundle_path=str(evidence_path),
+    )
     markdown = render_triage_markdown(report)
     assert "NetCoin Proof Triage Summary" in markdown
     assert "rust-workspace" in markdown

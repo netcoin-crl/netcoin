@@ -50,7 +50,17 @@ REQUIRED_EXIT_FIELDS = {
     "next_step",
     "advanced_destination",
 }
-REQUIRED_END_STATES = {"explorer", "wallet", "portfolio", "settlement", "ledger", "runbook", "diagnostics", "install", "blocked"}
+REQUIRED_END_STATES = {
+    "explorer",
+    "wallet",
+    "portfolio",
+    "settlement",
+    "ledger",
+    "runbook",
+    "diagnostics",
+    "install",
+    "blocked",
+}
 
 
 @dataclass(frozen=True)

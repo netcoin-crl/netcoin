@@ -56,7 +56,16 @@ def test_phase0_surface_ownership_prevents_dead_pages():
 def test_phase0_workflow_evidence_has_success_and_failure_paths():
     spec = load_product_coherence()
     workflows = {item["workflow"]: item for item in spec["workflow_evidence"]}
-    for workflow in ["receive-net", "send-net", "search-chain", "trade-market", "claim-faucet-net", "withdraw-custody-funds", "handle-operator-incident", "verify-release"]:
+    for workflow in [
+        "receive-net",
+        "send-net",
+        "search-chain",
+        "trade-market",
+        "claim-faucet-net",
+        "withdraw-custody-funds",
+        "handle-operator-incident",
+        "verify-release",
+    ]:
         item = workflows[workflow]
         assert item["must_not_dead_end"] is True
         assert len(item["success_reassurance"].split()) >= 4

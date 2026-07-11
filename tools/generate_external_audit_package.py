@@ -61,7 +61,9 @@ def main() -> int:
     parser.add_argument("--out", default="reports/external_audit_package.json")
     args = parser.parse_args()
     if args.strict:
-        result = strict_evidence_gate("external-crypto-security-audit", ROOT / args.evidence, REQUIRED_EVIDENCE).to_dict()
+        result = strict_evidence_gate(
+            "external-crypto-security-audit", ROOT / args.evidence, REQUIRED_EVIDENCE
+        ).to_dict()
         result["audit_package"] = build_package()
     else:
         result = build_package()

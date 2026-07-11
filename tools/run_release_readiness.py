@@ -38,7 +38,9 @@ SANDBOX_COMMAND_OVERRIDES: dict[str, list[str]] = {
         "python tools/run_ts_openapi_codegen_parity.py --no-write",
     ],
     "browser-e2e": ["python tools/run_browser_e2e_matrix.py --out reports/browser_e2e_matrix_source_report.json"],
-    "accessibility": ["python tools/run_accessibility_matrix.py --source-only --out reports/accessibility_source_report.json"],
+    "accessibility": [
+        "python tools/run_accessibility_matrix.py --source-only --out reports/accessibility_source_report.json"
+    ],
     "security-release": ["python tools/run_security_audit_prep.py"],
     "phase0-guardrails": [
         "python tools/check_product_architecture.py",
@@ -64,7 +66,11 @@ def _run_command(command: str, timeout: int) -> dict[str, Any]:
 
 def _run_gate(gate: dict[str, Any], *, mode: str, timeout: int) -> ProofGateResult:
     gate_id = str(gate["id"])
-    commands = gate.get("strict_commands", []) if mode == "strict" else SANDBOX_COMMAND_OVERRIDES.get(gate_id, gate.get("sandbox_commands", []))
+    commands = (
+        gate.get("strict_commands", [])
+        if mode == "strict"
+        else SANDBOX_COMMAND_OVERRIDES.get(gate_id, gate.get("sandbox_commands", []))
+    )
     command_results: list[dict[str, Any]] = []
     issues: list[str] = []
     for command in commands:
@@ -85,7 +91,9 @@ def _run_gate(gate: dict[str, Any], *, mode: str, timeout: int) -> ProofGateResu
         status = "pass"
     rich_issues = list(issues)
     if status == "source_only":
-        rich_issues.append("source-only proof; rerun Phase 1 readiness in --strict mode for professional release evidence")
+        rich_issues.append(
+            "source-only proof; rerun Phase 1 readiness in --strict mode for professional release evidence"
+        )
     return ProofGateResult(
         gate_id=gate_id,
         label=str(gate.get("label", gate_id)),
@@ -120,15 +128,21 @@ def main() -> int:
         out = ROOT / args.out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(scorecard, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({
-        "ok": scorecard.get("ok"),
-        "mode": scorecard.get("mode"),
-        "claim_level": scorecard.get("claim_level"),
-        "gate_count": scorecard.get("gate_count"),
-        "status_counts": scorecard.get("status_counts"),
-        "blocker_count": scorecard.get("blocker_count"),
-        "caveat": scorecard.get("caveat"),
-    }, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "ok": scorecard.get("ok"),
+                "mode": scorecard.get("mode"),
+                "claim_level": scorecard.get("claim_level"),
+                "gate_count": scorecard.get("gate_count"),
+                "status_counts": scorecard.get("status_counts"),
+                "blocker_count": scorecard.get("blocker_count"),
+                "caveat": scorecard.get("caveat"),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0 if scorecard.get("ok") else 1
 
 

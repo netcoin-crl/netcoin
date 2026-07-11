@@ -1,0 +1,354 @@
+{
+  "version": "0.38.5",
+  "phase": "phase-0-product-simplification-progressive-disclosure",
+  "purpose": "Turn NetCoin from a broad collection of surfaces into a focused wallet-first product with user-mode visibility, page consolidation rules, and progressive disclosure for advanced controls.",
+  "north_star": "A normal user should see Wallet, Explorer, and Markets first; everything else should support a workflow, remove a ceiling, increase trust, or stay hidden until needed.",
+  "visibility_model": {
+    "primary_nav": [
+      "Wallet",
+      "Explorer",
+      "Markets"
+    ],
+    "more_groups": [
+      "Network",
+      "Community",
+      "Developers"
+    ],
+    "mode_defaults": {
+      "user": {
+        "show": [
+          "wallet",
+          "explorer",
+          "markets",
+          "faucet",
+          "pay",
+          "merchant",
+          "community",
+          "learn",
+          "status"
+        ],
+        "deemphasize": [
+          "governance",
+          "treasury",
+          "nodes"
+        ],
+        "hide_until_needed": [
+          "operator",
+          "exchange",
+          "security",
+          "api",
+          "architecture",
+          "features",
+          "download",
+          "docs"
+        ]
+      },
+      "trader": {
+        "show": [
+          "wallet",
+          "explorer",
+          "markets",
+          "community",
+          "status",
+          "faucet"
+        ],
+        "deemphasize": [
+          "governance",
+          "treasury",
+          "learn",
+          "pay",
+          "merchant"
+        ],
+        "hide_until_needed": [
+          "operator",
+          "exchange",
+          "security",
+          "api",
+          "architecture",
+          "features",
+          "download",
+          "docs"
+        ]
+      },
+      "operator": {
+        "show": [
+          "operator",
+          "status",
+          "nodes",
+          "exchange",
+          "security",
+          "download",
+          "wallet",
+          "explorer"
+        ],
+        "deemphasize": [
+          "markets",
+          "community",
+          "governance",
+          "treasury"
+        ],
+        "hide_until_needed": [
+          "features",
+          "architecture",
+          "api",
+          "docs",
+          "learn"
+        ]
+      },
+      "developer": {
+        "show": [
+          "docs",
+          "api",
+          "architecture",
+          "features",
+          "download",
+          "security",
+          "status",
+          "explorer",
+          "wallet"
+        ],
+        "deemphasize": [
+          "markets",
+          "community",
+          "faucet",
+          "nodes"
+        ],
+        "hide_until_needed": [
+          "operator",
+          "exchange",
+          "treasury",
+          "governance",
+          "merchant",
+          "pay"
+        ]
+      }
+    }
+  },
+  "page_consolidation_rules": [
+    "Never create a new top-level page when a panel, drawer, details section, or existing workflow step is enough.",
+    "Backups, contacts, coin control, raw transaction export, and hardware/offline signing belong inside Wallet settings/security unless promoted by a completed workflow review.",
+    "Release verification, architecture, feature catalog, API, SDKs, and downloads belong under Developers instead of top navigation.",
+    "Exchange/custody and operator tools must stay behind Operator mode unless a public status summary is needed.",
+    "Raw JSON, parity details, provenance, runbooks, and diagnostics bundles are advanced details, not primary content.",
+    "A new page must declare one owner job, one primary action, one workflow, one mode visibility rule, and why a panel is insufficient.",
+    "A duplicated activity/history/table component must reuse the shared transaction, status, timeline, or table pattern instead of inventing a one-off view."
+  ],
+  "progressive_disclosure_levels": {
+    "beginner": {
+      "label": "Beginner",
+      "show": [
+        "balance",
+        "send",
+        "receive",
+        "history",
+        "claim faucet",
+        "search explorer",
+        "browse markets"
+      ],
+      "hide": [
+        "raw tx",
+        "coin control",
+        "address type",
+        "oracle evidence internals",
+        "custody ceremony",
+        "parity reports"
+      ]
+    },
+    "intermediate": {
+      "label": "Intermediate",
+      "show": [
+        "contacts",
+        "labels",
+        "fee estimates",
+        "payment requests",
+        "portfolio",
+        "watchlists"
+      ],
+      "hide": [
+        "manual UTXO selection",
+        "raw JSON",
+        "signed release internals",
+        "operator diagnostics"
+      ]
+    },
+    "advanced": {
+      "label": "Advanced",
+      "show": [
+        "coin control",
+        "manual fee",
+        "offline signing",
+        "hardware signing",
+        "raw transaction export",
+        "CSV exports",
+        "script details"
+      ],
+      "hide": [
+        "operator custody actions",
+        "release signing keys",
+        "dangerous diagnostics by default"
+      ]
+    },
+    "operator": {
+      "label": "Operator",
+      "show": [
+        "health center",
+        "exchange custody",
+        "release readiness",
+        "diagnostics",
+        "runbooks",
+        "P2P soak",
+        "indexer consistency"
+      ],
+      "hide": [
+        "developer architecture internals unless requested"
+      ]
+    },
+    "developer": {
+      "label": "Developer",
+      "show": [
+        "API",
+        "SDK",
+        "OpenAPI",
+        "architecture",
+        "migration lanes",
+        "feature catalog",
+        "parity vectors"
+      ],
+      "hide": [
+        "end-user wallet clutter unless linking to examples"
+      ]
+    }
+  },
+  "approved_complementary_features": [
+    {
+      "id": "release-readiness-scorecard",
+      "why": "Collapses test, Rust, TypeScript, E2E, security, SBOM, and audit readiness into one trusted answer."
+    },
+    {
+      "id": "wallet-security-center",
+      "why": "Makes backup, lock state, signer mode, recovery verification, and risk warnings understandable without adding another wallet surface."
+    },
+    {
+      "id": "global-command-search",
+      "why": "Reduces navigation friction across many existing surfaces without adding a new product area."
+    },
+    {
+      "id": "unified-notification-center",
+      "why": "Connects existing wallet, faucet, market, operator, and release feedback into one coherent system."
+    },
+    {
+      "id": "guided-testnet-onboarding",
+      "why": "Turns wallet, faucet, send, and explorer into one first-run path."
+    },
+    {
+      "id": "local-labels-notes",
+      "why": "Makes wallet and explorer history human-readable while keeping labels local-only."
+    },
+    {
+      "id": "market-order-preview",
+      "why": "Makes existing markets safer by showing max loss, fees, payout, and settlement status before submit."
+    },
+    {
+      "id": "custody-risk-dashboard",
+      "why": "Makes existing exchange/custody state machines operationally understandable."
+    },
+    {
+      "id": "e2e-screenshot-dashboard",
+      "why": "Turns existing Playwright/browser checks into visible UI-quality evidence."
+    },
+    {
+      "id": "audit-bundle-generator",
+      "why": "Packages existing protocol, threat model, vectors, tests, provenance, and known limitations for external review."
+    }
+  ],
+  "avoid_until_after_audit_candidate": [
+    "NFTs",
+    "cross-chain-bridges",
+    "multi-chain-wallet",
+    "mobile-app-rewrite",
+    "smart-contract-platform-expansion",
+    "advanced-trading-bots",
+    "full-dao-governance",
+    "more-market-types",
+    "mainnet-launch-marketing-page",
+    "complex-exchange-products"
+  ],
+  "workflow_to_surface_rules": [
+    {
+      "workflow": "receive-net",
+      "surface": "wallet",
+      "secondary_surfaces": [
+        "faucet",
+        "explorer"
+      ],
+      "primary_action": "Receive NET"
+    },
+    {
+      "workflow": "send-net",
+      "surface": "wallet",
+      "secondary_surfaces": [
+        "explorer"
+      ],
+      "primary_action": "Review transaction"
+    },
+    {
+      "workflow": "search-chain",
+      "surface": "explorer",
+      "secondary_surfaces": [
+        "wallet",
+        "status"
+      ],
+      "primary_action": "Search"
+    },
+    {
+      "workflow": "trade-market",
+      "surface": "markets",
+      "secondary_surfaces": [
+        "wallet",
+        "explorer"
+      ],
+      "primary_action": "Preview order"
+    },
+    {
+      "workflow": "withdraw-custody-funds",
+      "surface": "exchange",
+      "secondary_surfaces": [
+        "operator",
+        "security"
+      ],
+      "primary_action": "Review withdrawal"
+    },
+    {
+      "workflow": "verify-release",
+      "surface": "download",
+      "secondary_surfaces": [
+        "security",
+        "developers"
+      ],
+      "primary_action": "Verify release"
+    }
+  ],
+  "new_page_gate": {
+    "required_fields": [
+      "owner_job",
+      "primary_action",
+      "workflow",
+      "target_mode",
+      "panel_rejected_reason",
+      "trust_signal",
+      "empty_state",
+      "loading_state",
+      "error_state"
+    ],
+    "maximum_primary_actions": 1,
+    "must_reference_existing_component": true,
+    "must_define_progressive_disclosure_level": true
+  },
+  "success_criteria": [
+    "Top navigation remains Wallet, Explorer, Markets only.",
+    "Normal users can complete receive, send, faucet, and explorer search without seeing operator/developer controls.",
+    "Every secondary surface belongs to a job, mode, and workflow.",
+    "Advanced crypto/operator/developer controls are hidden behind settings, details, drawers, or mode selection.",
+    "New UI proposals fail validation unless they improve a workflow, remove a ceiling, increase trust/safety/clarity, or reduce complexity."
+  ]
+}

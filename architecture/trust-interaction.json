@@ -1,0 +1,280 @@
+{
+  "version": "0.38.5",
+  "phase": "0.4",
+  "name": "Trust Layer and Interaction Standards",
+  "purpose": "Make every NetCoin workflow feel safe, explainable, and recoverable before additional feature work resumes.",
+  "north_star": "Every screen answers what is happening, whether it can be trusted, what happens next, and how to recover if something fails.",
+  "trust_signal_contract": [
+    "freshness",
+    "source",
+    "verification",
+    "risk",
+    "next_action"
+  ],
+  "trust_states": {
+    "Fresh": "Data was recently updated from the expected source.",
+    "Stale": "Data is safe to view but may be out of date.",
+    "Verified": "The result was checked against the expected chain, signature, route, or invariant.",
+    "Unverified": "The result is available but has not yet been independently checked.",
+    "Risk": "The user should review because funds, identity, custody, settlement, or release trust may be affected."
+  },
+  "canonical_status_terms": [
+    "Healthy",
+    "Warning",
+    "Offline",
+    "Maintenance"
+  ],
+  "interaction_rules": [
+    "Every page has exactly one primary action.",
+    "Every irreversible action requires a review step before execution.",
+    "Every advanced control is hidden behind progressive disclosure until relevant.",
+    "Every workflow ends with a reassurance state, a verification link, and one next action.",
+    "Every error explains what happened, why it matters, and how to recover.",
+    "Every success confirmation is specific to the completed action.",
+    "Every trust-critical surface shows freshness, source, and verification status.",
+    "Every status color has a text label and must not rely on color alone.",
+    "Every copy, export, import, sign, send, withdraw, settle, and verify action gives immediate feedback.",
+    "Every new feature must reduce complexity, improve an existing workflow, remove a ceiling, or increase trust/safety/clarity."
+  ],
+  "action_lifecycle": [
+    "start",
+    "input",
+    "review",
+    "confirm",
+    "execute",
+    "success",
+    "verify",
+    "recover"
+  ],
+  "confirmation_templates": {
+    "wallet_send_success": {
+      "title": "Transaction sent.",
+      "body": "Your transaction was broadcast and your wallet balance is refreshing.",
+      "next_action": "View in Explorer"
+    },
+    "contact_saved": {
+      "title": "Contact saved.",
+      "body": "Future sends to this address can use the contact name as a local label.",
+      "next_action": "Send to contact"
+    },
+    "backup_created": {
+      "title": "Backup created.",
+      "body": "Keep it somewhere safe. NetCoin cannot recover it for you.",
+      "next_action": "Verify backup"
+    },
+    "market_order_placed": {
+      "title": "Order placed.",
+      "body": "Your position and order status are updating from the market engine.",
+      "next_action": "View portfolio"
+    },
+    "faucet_claim_sent": {
+      "title": "Faucet claim sent.",
+      "body": "Testnet NET was sent to your wallet address.",
+      "next_action": "Open wallet"
+    },
+    "release_verified": {
+      "title": "Release verified.",
+      "body": "The downloaded artifact matched the expected signature and manifest.",
+      "next_action": "View provenance"
+    }
+  },
+  "error_templates": {
+    "node_unreachable": {
+      "title": "Unable to reach node.",
+      "why_it_matters": "Balances and confirmations may be stale until the node reconnects.",
+      "reassurance": "Your wallet keys are local and were not changed.",
+      "primary_recovery": "Retry connection",
+      "secondary_recovery": "View network status"
+    },
+    "send_validation_failed": {
+      "title": "Transaction needs review.",
+      "why_it_matters": "The recipient, amount, fee, or policy check did not pass.",
+      "reassurance": "Nothing was broadcast.",
+      "primary_recovery": "Review transaction",
+      "secondary_recovery": "Edit send details"
+    },
+    "market_order_rejected": {
+      "title": "Order was not placed.",
+      "why_it_matters": "The market, balance, price, or risk rule blocked the order.",
+      "reassurance": "No funds were committed.",
+      "primary_recovery": "Review order preview",
+      "secondary_recovery": "Open market rules"
+    },
+    "release_verification_failed": {
+      "title": "Release could not be verified.",
+      "why_it_matters": "The artifact may be corrupted, outdated, or not from the expected signer.",
+      "reassurance": "Do not install or run this artifact until it verifies.",
+      "primary_recovery": "Download again",
+      "secondary_recovery": "View verification details"
+    },
+    "withdrawal_requires_approval": {
+      "title": "Withdrawal is waiting for approval.",
+      "why_it_matters": "Custody policy requires additional review before signing.",
+      "reassurance": "The request is recorded and has not been broadcast yet.",
+      "primary_recovery": "View approval timeline",
+      "secondary_recovery": "Open custody dashboard"
+    }
+  },
+  "surface_trust_requirements": [
+    {
+      "surface": "wallet",
+      "must_show": [
+        "freshness",
+        "node source",
+        "wallet lock state",
+        "backup state",
+        "last successful sync"
+      ],
+      "reassurance_examples": [
+        "Your keys are local.",
+        "Nothing was broadcast.",
+        "Balance refreshed."
+      ]
+    },
+    {
+      "surface": "explorer",
+      "must_show": [
+        "active chain",
+        "confirmation count",
+        "reorg risk",
+        "data freshness",
+        "source node"
+      ],
+      "reassurance_examples": [
+        "Block is on the active chain.",
+        "Transaction is confirmed."
+      ]
+    },
+    {
+      "surface": "markets",
+      "must_show": [
+        "market state",
+        "max loss",
+        "fee",
+        "settlement source",
+        "dispute status"
+      ],
+      "reassurance_examples": [
+        "Order was not placed.",
+        "Position updated.",
+        "Settlement rules shown."
+      ]
+    },
+    {
+      "surface": "faucet",
+      "must_show": [
+        "funding status",
+        "claim eligibility",
+        "cooldown",
+        "abuse check state",
+        "destination wallet"
+      ],
+      "reassurance_examples": [
+        "Claim sent to your wallet.",
+        "You can try again after cooldown."
+      ]
+    },
+    {
+      "surface": "exchange",
+      "must_show": [
+        "custody tier",
+        "approval state",
+        "daily limit usage",
+        "broadcast state",
+        "proof-of-reserves status"
+      ],
+      "reassurance_examples": [
+        "Withdrawal is not signed yet.",
+        "Request is recorded."
+      ]
+    },
+    {
+      "surface": "operator",
+      "must_show": [
+        "severity",
+        "affected system",
+        "last checked",
+        "runbook link",
+        "next action"
+      ],
+      "reassurance_examples": [
+        "No funds affected.",
+        "Diagnostics bundle has not been exported."
+      ]
+    },
+    {
+      "surface": "download",
+      "must_show": [
+        "version",
+        "signature",
+        "manifest",
+        "provenance",
+        "SBOM status"
+      ],
+      "reassurance_examples": [
+        "Artifact verified.",
+        "Do not run unverified artifacts."
+      ]
+    }
+  ],
+  "workflow_reassurance_rules": [
+    {
+      "workflow": "send-net",
+      "review_required": true,
+      "success_reassurance": "Transaction sent. Explorer updated. Balance refreshed.",
+      "failure_reassurance": "Nothing was broadcast. Your wallet keys are safe."
+    },
+    {
+      "workflow": "receive-net",
+      "review_required": false,
+      "success_reassurance": "Address copied. Incoming payments will appear after confirmation.",
+      "failure_reassurance": "No funds were moved. Try copying the address again."
+    },
+    {
+      "workflow": "trade-market",
+      "review_required": true,
+      "success_reassurance": "Order placed. Position updated. Settlement rules shown.",
+      "failure_reassurance": "No order was placed and no funds were committed."
+    },
+    {
+      "workflow": "claim-faucet-net",
+      "review_required": false,
+      "success_reassurance": "Faucet claim sent. Wallet will update when confirmed.",
+      "failure_reassurance": "No wallet funds were affected. You can retry after the shown cooldown."
+    },
+    {
+      "workflow": "withdraw-custody-funds",
+      "review_required": true,
+      "success_reassurance": "Withdrawal submitted. Approval and signing status are tracked.",
+      "failure_reassurance": "No withdrawal was signed or broadcast. The request can be reviewed."
+    },
+    {
+      "workflow": "verify-release",
+      "review_required": false,
+      "success_reassurance": "Release verified. Signature, manifest, and provenance matched.",
+      "failure_reassurance": "Do not run this artifact. Download again or inspect verification details."
+    },
+    {
+      "workflow": "handle-operator-incident",
+      "review_required": true,
+      "success_reassurance": "Incident action recorded. Health status will refresh.",
+      "failure_reassurance": "No operator action was applied. Check the runbook before retrying."
+    }
+  ],
+  "microcopy_rules": [
+    "Prefer plain verbs: Send, Receive, Verify, Review, Export, Retry.",
+    "Avoid exposing raw protocol terms before the user asks for advanced details.",
+    "Use local-only language for labels, contacts, and notes.",
+    "Use exact object names in confirmations: transaction, contact, backup, order, release.",
+    "Use reassurance only when it is true and backed by state.",
+    "Never imply chain finality before confirmations or active-chain checks exist."
+  ],
+  "success_criteria": [
+    "Every trust-critical surface exposes at least three trust signals.",
+    "Every irreversible workflow has a review step before execution.",
+    "Every workflow defines a success and failure reassurance message.",
+    "Every error template includes what happened, why it matters, reassurance, and recovery action.",
+    "Every status term is drawn from Healthy, Warning, Offline, Maintenance.",
+    "Every UI change can be checked by python tools/check_trust_interaction.py."
+  ]
+}

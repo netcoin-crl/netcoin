@@ -13,7 +13,19 @@ ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
 COMMANDS: list[list[str]] = [
     [PY, "tools/check_local_proof_runner.py"],
-    [PY, "tools/run_local_proof.py", "--profile", "sandbox", "--timeout", "120", "--no-write", "--gate", "rust-workspace", "--gate", "accessibility"],
+    [
+        PY,
+        "tools/run_local_proof.py",
+        "--profile",
+        "sandbox",
+        "--timeout",
+        "120",
+        "--no-write",
+        "--gate",
+        "rust-workspace",
+        "--gate",
+        "accessibility",
+    ],
     [PY, "-m", "pytest", "-q", "tests/test_v0393_phase1_local_proof_runner.py"],
 ]
 

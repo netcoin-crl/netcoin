@@ -1,0 +1,184 @@
+{
+  "version": "0.40.1",
+  "phase": "Phase 2 - Product Completion Implementation Pass",
+  "inherits_from": [
+    "architecture/phase0-completion.json",
+    "architecture/proof-triage.json"
+  ],
+  "claim_level": "functional-source-checked-testnet-ui",
+  "honesty_note": "This manifest implements functional local/static product upgrades and source-verifiable gates. It does not claim external audits, live custody integration, real CAPTCHA credentials, hardware signer device coverage, Cargo execution, or real Playwright browser execution inside restricted sandboxes.",
+  "shared_assets": {
+    "css": "sites/shared/site-shell.css",
+    "js": "sites/shared/site-shell.js",
+    "required_css_markers": [
+      "nc-command-palette",
+      "nc-notification-center",
+      "nc-upgrade-panel",
+      "nc-timeline",
+      "nc-status-badge",
+      "nc-mobile-table"
+    ],
+    "required_js_markers": [
+      "NetCoinProductCompletion",
+      "buildCommandPalette",
+      "buildNotificationCenter",
+      "mountSurfaceCompletion",
+      "recordLocalNote"
+    ]
+  },
+  "implemented_surfaces": [
+    {
+      "surface": "wallet",
+      "features": [
+        "wallet security center",
+        "backup verification",
+        "recovery drill",
+        "simple advanced mode selector",
+        "transaction review guidance",
+        "editable local note entry",
+        "contact/label privacy copy",
+        "offline signing round-trip checklist",
+        "hardware signer readiness card"
+      ]
+    },
+    {
+      "surface": "explorer",
+      "features": [
+        "trust summary cards",
+        "confirmation/reorg badges",
+        "active-chain warning",
+        "pagination/date filter controls",
+        "mempool fee bands",
+        "CSV schema note",
+        "transaction graph clustering note",
+        "local label/note entry"
+      ]
+    },
+    {
+      "surface": "markets",
+      "features": [
+        "simple advanced mode switch",
+        "order preview calculator",
+        "max-loss/fee-before-submit display",
+        "realized/unrealized PnL card",
+        "lifecycle banner",
+        "dispute timeline",
+        "settlement explanation",
+        "order cancellation confirmation copy",
+        "accounting invariant dashboard link"
+      ]
+    },
+    {
+      "surface": "faucet",
+      "features": [
+        "claim timeline",
+        "funding status",
+        "provider integration status",
+        "false-positive recovery copy",
+        "PoW explanation",
+        "admin audit-log prompt"
+      ]
+    },
+    {
+      "surface": "community",
+      "features": [
+        "profile basics card",
+        "badge placeholders",
+        "moderation audit trail",
+        "anti-spam limits explanation",
+        "bounty lifecycle",
+        "reputation explanation"
+      ]
+    },
+    {
+      "surface": "exchange",
+      "features": [
+        "deposit timeline",
+        "withdrawal timeline",
+        "custody risk dashboard",
+        "approval audit trail",
+        "cold-signing ceremony checklist",
+        "stuck withdrawal recovery",
+        "double-entry invariant summary",
+        "proof-of-reserves explainer"
+      ]
+    },
+    {
+      "surface": "operator",
+      "features": [
+        "severity grouped dashboard",
+        "incident-runbook links",
+        "diagnostics bundle preview",
+        "release blocker list",
+        "migration blocker view",
+        "proof evidence dashboard",
+        "uptime/degraded-state placeholder"
+      ]
+    },
+    {
+      "surface": "security",
+      "features": [
+        "audit bundle generator UI",
+        "known limitations panel",
+        "dependency policy status",
+        "fuzz/property target matrix",
+        "signed SBOM/provenance requirement"
+      ]
+    },
+    {
+      "surface": "global",
+      "features": [
+        "command palette",
+        "unified notification center",
+        "guided testnet onboarding",
+        "local notes/labels",
+        "one status vocabulary",
+        "no-dead-end next steps",
+        "mode/lens UI"
+      ]
+    }
+  ],
+  "strict_external_gates": [
+    {
+      "gate": "cargo test --workspace",
+      "status": "requires-local-tooling",
+      "cannot_fake": true
+    },
+    {
+      "gate": "all Rust parity binaries",
+      "status": "requires-local-tooling",
+      "cannot_fake": true
+    },
+    {
+      "gate": "real Playwright E2E",
+      "status": "requires-local-browser-runtime",
+      "cannot_fake": true
+    },
+    {
+      "gate": "real CAPTCHA provider",
+      "status": "requires-provider-credentials",
+      "cannot_fake": true
+    },
+    {
+      "gate": "hardware signer device tests",
+      "status": "requires-device-hardware",
+      "cannot_fake": true
+    },
+    {
+      "gate": "external security audit",
+      "status": "requires-independent-auditor",
+      "cannot_fake": true
+    }
+  ],
+  "validation_commands": [
+    "python tools/check_product_completion.py",
+    "python tools/check_phase0_complete.py",
+    "python tools/run_release_readiness.py --timeout 60 --no-write",
+    "python -m compileall -q netcoin tools",
+    "python tools/run_parity_suite.py --no-write",
+    "python tools/check_ts_workspace.py",
+    "python tools/run_ts_api_contract_enforcement.py",
+    "python tools/audit_site_ui.py",
+    "make v040-check"
+  ]
+}

@@ -5,6 +5,7 @@ completion. A gate can be source-complete while still requiring strict evidence
 from hardware devices, live providers, independent auditors, or public network
 operations.
 """
+
 from __future__ import annotations
 
 import hashlib

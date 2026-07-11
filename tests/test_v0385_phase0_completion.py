@@ -25,7 +25,13 @@ def test_phase0_completion_locks_product_model():
     locked = spec["locked_product_decisions"]
     assert locked["primary_navigation"] == ["Wallet", "Explorer", "Markets", "More"]
     assert locked["product_lenses"] == ["NetCoin", "NetCoin Network", "NetCoin Studio"]
-    assert locked["user_jobs"] == ["Manage money", "Understand the blockchain", "Participate", "Operate infrastructure", "Build"]
+    assert locked["user_jobs"] == [
+        "Manage money",
+        "Understand the blockchain",
+        "Participate",
+        "Operate infrastructure",
+        "Build",
+    ]
     assert locked["status_vocabulary"] == ["Healthy", "Warning", "Offline", "Maintenance"]
     assert locked["trust_vocabulary"] == ["Fresh", "Stale", "Verified", "Unverified", "Risk"]
     assert "improve an existing workflow" in locked["anti_sprawl_rule"]

@@ -4,6 +4,7 @@ This module validates that the user-facing completion layer is implemented as
 real shared UI assets and that the implementation stays honest about external
 proof gates that cannot be faked in a sandbox.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,10 +14,41 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "architecture" / "product-completion.json"
-REQUIRED_SURFACES = {"wallet", "explorer", "markets", "faucet", "community", "exchange", "operator", "security", "global"}
-REQUIRED_JS = {"NetCoinProductCompletion", "buildCommandPalette", "buildNotificationCenter", "mountSurfaceCompletion", "recordLocalNote"}
-REQUIRED_CSS = {"nc-command-palette", "nc-notification-center", "nc-upgrade-panel", "nc-timeline", "nc-status-badge", "nc-mobile-table"}
-EXTERNAL_GATES = {"cargo test --workspace", "all Rust parity binaries", "real Playwright E2E", "real CAPTCHA provider", "hardware signer device tests", "external security audit"}
+REQUIRED_SURFACES = {
+    "wallet",
+    "explorer",
+    "markets",
+    "faucet",
+    "community",
+    "exchange",
+    "operator",
+    "security",
+    "global",
+}
+REQUIRED_JS = {
+    "NetCoinProductCompletion",
+    "buildCommandPalette",
+    "buildNotificationCenter",
+    "mountSurfaceCompletion",
+    "recordLocalNote",
+}
+REQUIRED_CSS = {
+    "nc-command-palette",
+    "nc-notification-center",
+    "nc-upgrade-panel",
+    "nc-timeline",
+    "nc-status-badge",
+    "nc-mobile-table",
+}
+EXTERNAL_GATES = {
+    "cargo test --workspace",
+    "all Rust parity binaries",
+    "real Playwright E2E",
+    "real CAPTCHA provider",
+    "hardware signer device tests",
+    "external security audit",
+}
+
 
 @dataclass(frozen=True)
 class CompletionSummary:
@@ -102,7 +134,10 @@ def validate_product_completion(manifest: dict[str, Any], *, root: Path = ROOT) 
             issues.append(f"{site.name}: missing site-shell.css reference")
         if "site-shell.js" not in html:
             issues.append(f"{site.name}: missing site-shell.js reference")
-        if not (site / "site-shell.css").exists() or (site / "site-shell.css").read_text(encoding="utf-8") != shared_css:
+        if (
+            not (site / "site-shell.css").exists()
+            or (site / "site-shell.css").read_text(encoding="utf-8") != shared_css
+        ):
             issues.append(f"{site.name}: site-shell.css is not synced with shared")
         if not (site / "site-shell.js").exists() or (site / "site-shell.js").read_text(encoding="utf-8") != shared_js:
             issues.append(f"{site.name}: site-shell.js is not synced with shared")

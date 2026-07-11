@@ -65,7 +65,18 @@ def test_v031_typescript_files_symbols_and_source_gate() -> None:
 
 def test_v031_migration_status_reports_ts_codegen_lane() -> None:
     status = migration_status(ROOT)
-    assert status["version"] in {"0.31.0", "0.37.0", "0.37.1", "0.37.2", "0.37.3", "0.37.4", "0.38.0", "0.38.1", "0.38.2", "0.38.3"}
+    assert status["version"] in {
+        "0.31.0",
+        "0.37.0",
+        "0.37.1",
+        "0.37.2",
+        "0.37.3",
+        "0.37.4",
+        "0.38.0",
+        "0.38.1",
+        "0.38.2",
+        "0.38.3",
+    }
     lane = next(lane for lane in status["lanes"] if lane["id"] == "typescript-openapi-codegen")
     assert lane["status"] == "source-checked-openapi-schema-client-codegen-parity"
     assert lane["evidence"]["owner_exists"] is True

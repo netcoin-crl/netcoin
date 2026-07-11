@@ -39,7 +39,19 @@ def test_local_proof_runner_sandbox_no_write_summary() -> None:
 def test_local_proof_checker_and_runner_cli() -> None:
     commands = [
         [sys.executable, "tools/check_local_proof_runner.py"],
-        [sys.executable, "tools/run_local_proof.py", "--profile", "sandbox", "--timeout", "120", "--no-write", "--gate", "rust-workspace", "--gate", "accessibility"],
+        [
+            sys.executable,
+            "tools/run_local_proof.py",
+            "--profile",
+            "sandbox",
+            "--timeout",
+            "120",
+            "--no-write",
+            "--gate",
+            "rust-workspace",
+            "--gate",
+            "accessibility",
+        ],
     ]
     for command in commands:
         proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, check=False, timeout=180)

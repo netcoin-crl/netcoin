@@ -145,7 +145,9 @@ def validate_product_simplification(spec: dict[str, Any] | None = None) -> Produ
         issues.append("avoid list must include cross-chain bridges, multi-chain wallet, and mobile app rewrite")
 
     workflow_rules = data.get("workflow_to_surface_rules", [])
-    mapping = {str(item.get("workflow", "")): str(item.get("surface", "")) for item in workflow_rules if isinstance(item, dict)}
+    mapping = {
+        str(item.get("workflow", "")): str(item.get("surface", "")) for item in workflow_rules if isinstance(item, dict)
+    }
     for workflow, surface in REQUIRED_WORKFLOW_SURFACES.items():
         if mapping.get(workflow) != surface:
             issues.append(f"workflow {workflow} must be owned by surface {surface}")

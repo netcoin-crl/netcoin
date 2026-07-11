@@ -188,7 +188,9 @@ def build_evidence_bundle(
         existing = [record for record in records if record["exists"]]
         existing_artifact_count += len(existing)
         missing = [record["path"] for record in records if not record["exists"]]
-        source_only = any("source" in str(record.get("mode_field", "")).lower() or "source" in record["path"] for record in existing)
+        source_only = any(
+            "source" in str(record.get("mode_field", "")).lower() or "source" in record["path"] for record in existing
+        )
         if source_only:
             source_only_count += 1
         failed = [record for record in existing if record.get("ok_field") is False or record.get("json_ok") is False]
@@ -196,18 +198,24 @@ def build_evidence_bundle(
         status = "pass"
         if failed:
             status = "fail"
-            blockers.append({"gate_id": gate_id, "class": "failed-artifact", "paths": [item["path"] for item in failed]})
+            blockers.append(
+                {"gate_id": gate_id, "class": "failed-artifact", "paths": [item["path"] for item in failed]}
+            )
         elif mode == "strict" and missing and gate.get("required_for_strict"):
             status = "blocked"
             blockers.append({"gate_id": gate_id, "class": "missing-artifact", "paths": missing})
         elif source_only and mode == "strict" and gate.get("source_only_allowed"):
             status = "source_only"
-            blockers.append({"gate_id": gate_id, "class": "source-only-artifact", "paths": [item["path"] for item in existing]})
+            blockers.append(
+                {"gate_id": gate_id, "class": "source-only-artifact", "paths": [item["path"] for item in existing]}
+            )
         elif missing:
             status = "partial"
 
         if status != "pass":
-            remediation.append({"gate_id": gate_id, "action": str(gate.get("remediation", "rerun the gate and capture evidence"))})
+            remediation.append(
+                {"gate_id": gate_id, "action": str(gate.get("remediation", "rerun the gate and capture evidence"))}
+            )
 
         gates.append(
             {
@@ -222,7 +230,9 @@ def build_evidence_bundle(
             }
         )
 
-    ok = not blockers if mode == "strict" else not any(blocker.get("class") == "failed-artifact" for blocker in blockers)
+    ok = (
+        not blockers if mode == "strict" else not any(blocker.get("class") == "failed-artifact" for blocker in blockers)
+    )
     claim_level = "strict-local-candidate" if mode == "strict" and ok else "source-checked-testnet"
     return {
         "version": manifest.get("version"),
@@ -238,7 +248,11 @@ def build_evidence_bundle(
         "blockers": blockers,
         "remediation": remediation,
         "gates": gates,
-        "caveat": None if mode == "strict" else "Sandbox evidence bundle may include partial or source-only artifacts; strict mode is required for professional-candidate claims.",
+        "caveat": (
+            None
+            if mode == "strict"
+            else "Sandbox evidence bundle may include partial or source-only artifacts; strict mode is required for professional-candidate claims."
+        ),
     }
 
 
