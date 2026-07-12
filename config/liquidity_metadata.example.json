@@ -1,0 +1,15 @@
+{
+  "schema": "netcoin-liquidity-market-metadata-v1",
+  "coingecko_id": "netcoin",
+  "max_supply_sats": 1000000000000000,
+  "circulating_supply_sats": 0,
+  "lockups": [],
+  "venues": [
+    {"name": "venue-required-after-mainnet", "type": "cex-or-dex", "status": "not-listed"}
+  ],
+  "links": {
+    "homepage": "https://netcoin.online",
+    "blockchain_site": ["https://explorer.netcoin.online"],
+    "official_forum_url": "https://community.netcoin.online"
+  }
+}

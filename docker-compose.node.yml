@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  netcoin-node:
+    build: .
+    command: >
+      python -m netcoin --data /data node --host 0.0.0.0 --port 28444
+      --advertise ${NETCOIN_ADVERTISE:-YOUR_PUBLIC_IP_OR_DNS:28444}
+    ports:
+      - "28444:28444"
+    environment:
+      NETCOIN_BANDWIDTH_MODE: ${NETCOIN_BANDWIDTH_MODE:-home}
+      NETCOIN_APP_REQUIRE_API_KEY: "1"
+    volumes:
+      - netcoin-node-data:/data
+    restart: unless-stopped
+volumes:
+  netcoin-node-data:

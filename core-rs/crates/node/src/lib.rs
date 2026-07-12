@@ -129,3 +129,87 @@ pub fn run_p2p_parity_vectors(vectors: &Value) -> Value {
     let failed = results.iter().filter(|item| !item.get("passed").and_then(Value::as_bool).unwrap_or(false)).count();
     json!({"engine":"netcoin-node-rs-p2p-parity","lane":"p2p","schema_version":vectors.get("schema_version").cloned().unwrap_or(Value::Null),"vector_set":vectors.get("p2p").and_then(|lane| lane.get("vector_set")).cloned().unwrap_or(Value::Null),"total":results.len(),"passed":results.len()-failed,"failed":failed,"ok":failed==0,"results":results})
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AddrV2Snapshot {
+    pub host: String,
+    pub port: u16,
+    pub network_id: String,
+    pub services: Vec<String>,
+    pub best_height: u64,
+    pub operator: String,
+    pub region: String,
+}
+
+pub fn addrv2_network_id(host: &str) -> &'static str {
+    let text = host.trim().trim_matches(|c| c == '[' || c == ']').to_ascii_lowercase();
+    if text.ends_with(".onion") {
+        return "torv3";
+    }
+    if text.parse::<std::net::Ipv4Addr>().is_ok() {
+        return "ipv4";
+    }
+    if text.parse::<std::net::Ipv6Addr>().is_ok() {
+        return "ipv6";
+    }
+    "dns"
+}
+
+pub fn addrv2_snapshot(host: &str, port: u16) -> AddrV2Snapshot {
+    AddrV2Snapshot {
+        host: host.trim().trim_matches(|c| c == '[' || c == ']').to_ascii_lowercase(),
+        port,
+        network_id: addrv2_network_id(host).to_string(),
+        services: vec![
+            "NODE_NETWORK".to_string(),
+            "NETCOIN_PEX".to_string(),
+            "NETCOIN_COMPACT_BLOCKS".to_string(),
+        ],
+        best_height: 0,
+        operator: String::new(),
+        region: String::new(),
+    }
+}
+
+pub fn pex_select_addrs(peers: &[AddrV2Snapshot], max_records: usize) -> Vec<AddrV2Snapshot> {
+    let mut out = Vec::new();
+    for peer in peers.iter() {
+        if peer.services.iter().any(|svc| svc == "NETCOIN_PEX") {
+            out.push(peer.clone());
+        }
+        if out.len() >= max_records {
+            break;
+        }
+    }
+    out
+}
+
+pub fn compact_block_shortid(txid: &str) -> String {
+    txid.chars().take(12).collect()
+}
+
+#[cfg(test)]
+mod m3_tests {
+    use super::*;
+
+    #[test]
+    fn addrv2_classifies_hosts() {
+        assert_eq!(addrv2_network_id("18.220.89.128"), "ipv4");
+        assert_eq!(addrv2_network_id("2001:db8::1"), "ipv6");
+        assert_eq!(addrv2_network_id("seed.netcoin.online"), "dns");
+    }
+
+    #[test]
+    fn pex_selects_advertising_peers() {
+        let a = addrv2_snapshot("18.220.89.128", 28444);
+        let mut b = addrv2_snapshot("18.220.197.20", 28444);
+        b.services.clear();
+        let selected = pex_select_addrs(&[a.clone(), b], 8);
+        assert_eq!(selected, vec![a]);
+    }
+
+    #[test]
+    fn compact_shortid_is_stable_prefix() {
+        assert_eq!(compact_block_shortid("abcdef1234567890"), "abcdef123456");
+    }
+}

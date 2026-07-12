@@ -1,0 +1,153 @@
+{
+  "blocker_count": 7,
+  "blockers": [
+    {
+      "id": "ledger-physical-transcript",
+      "missing_evidence": "reports/post_m5_evidence/ledger_physical_transcript.json",
+      "ok": false
+    },
+    {
+      "id": "trezor-physical-transcript",
+      "missing_evidence": "reports/post_m5_evidence/trezor_physical_transcript.json",
+      "ok": false
+    },
+    {
+      "id": "public-p2p-independent-operators",
+      "missing_evidence": "reports/post_m5_evidence/public_p2p_independent_operator_set.json",
+      "ok": false
+    },
+    {
+      "id": "versionbits-nip-signoff",
+      "missing_evidence": "reports/post_m5_evidence/versionbits_nip_signoff.json",
+      "ok": false
+    },
+    {
+      "id": "genesis-nip-approval",
+      "missing_evidence": "reports/post_m5_evidence/genesis_nip_approval.json",
+      "ok": false
+    },
+    {
+      "id": "liquidity-venue-evidence",
+      "missing_evidence": "reports/post_m5_evidence/liquidity_venue_evidence.json",
+      "ok": false
+    },
+    {
+      "id": "ecosystem-usage-report",
+      "missing_evidence": "reports/post_m5_evidence/ecosystem_usage_report.json",
+      "ok": false
+    }
+  ],
+  "checks": [
+    {
+      "id": "production-psbt-offline-signing",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "hardware-wallet-webusb-webhid",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "public-p2p-hardening",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "versionbits-softfork-rehearsal",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "genesis-manifest-validation",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "m6-liquidity-market-metadata",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "m7-ecosystem-utility",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "psbt-export-rejects-invalid-payload",
+      "ok": true
+    },
+    {
+      "id": "hardware-web-session-contract",
+      "ok": true
+    },
+    {
+      "id": "public-p2p-hardening-plan",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "versionbits-rehearsal-model",
+      "ok": true,
+      "state": "started"
+    },
+    {
+      "id": "genesis-manifest-draft-validation",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "liquidity-metadata-validation",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "ecosystem-utility-validation",
+      "issues": [],
+      "ok": true
+    }
+  ],
+  "claim_level": "post-m5-source-complete-evidence-required",
+  "does_not_activate_consensus_or_genesis": true,
+  "does_not_claim_liquidity_or_utility_without_evidence": true,
+  "evidence": [
+    {
+      "id": "ledger-physical-transcript",
+      "ok": false,
+      "path": "reports/post_m5_evidence/ledger_physical_transcript.json"
+    },
+    {
+      "id": "trezor-physical-transcript",
+      "ok": false,
+      "path": "reports/post_m5_evidence/trezor_physical_transcript.json"
+    },
+    {
+      "id": "public-p2p-independent-operators",
+      "ok": false,
+      "path": "reports/post_m5_evidence/public_p2p_independent_operator_set.json"
+    },
+    {
+      "id": "versionbits-nip-signoff",
+      "ok": false,
+      "path": "reports/post_m5_evidence/versionbits_nip_signoff.json"
+    },
+    {
+      "id": "genesis-nip-approval",
+      "ok": false,
+      "path": "reports/post_m5_evidence/genesis_nip_approval.json"
+    },
+    {
+      "id": "liquidity-venue-evidence",
+      "ok": false,
+      "path": "reports/post_m5_evidence/liquidity_venue_evidence.json"
+    },
+    {
+      "id": "ecosystem-usage-report",
+      "ok": false,
+      "path": "reports/post_m5_evidence/ecosystem_usage_report.json"
+    }
+  ],
+  "ok": false,
+  "schema": "netcoin-post-m5-engineering-readiness-v1",
+  "strict": true
+}

@@ -1,0 +1,9 @@
+{
+  "schema": "netcoin-offline-signing-workflow-config-v1",
+  "network": "testnet",
+  "export_formats": ["file", "text", "qr-ready"],
+  "import_formats": ["netpsbt"],
+  "broadcast_endpoint": "/api/tx/broadcast",
+  "requires_review_before_broadcast": true,
+  "private_key_material_allowed": false
+}

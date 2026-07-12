@@ -1,0 +1,46 @@
+{
+  "does_not_mine_genesis": true,
+  "halt_conditions": [
+    "M4 strict evidence missing",
+    "external audit critical/high unresolved",
+    "genesis distribution approval missing",
+    "legal posture missing",
+    "less than 10 independent node operators ready",
+    "less than 5 independent miners acknowledged",
+    "release signing verification fails",
+    "third-party genesis review missing or negative",
+    "incident owner/on-call rotation missing"
+  ],
+  "launch_window": {
+    "t_minus_1_week": "signed binaries, pool notifications, testnet freeze",
+    "t_minus_2_weeks": "third-party genesis config review",
+    "t_minus_3_weeks": "public launch announcement and genesis config disclosure",
+    "t_minus_4_weeks": "feature freeze and final testnet soak",
+    "t_plus_1_day": "100+ blocks and 5+ independent miners evidence",
+    "t_plus_30_days": "no unplanned hard fork required",
+    "t_plus_7_days": "independent state confirmation",
+    "t_zero": "genesis ceremony only after strict evidence and explicit approval"
+  },
+  "network": "mainnet-candidate",
+  "notes": "This file is a launch-plan template only. It is not an authorization to launch mainnet.",
+  "public_artifacts": [
+    "final genesis config hash",
+    "signed release checksums",
+    "risk disclosures",
+    "launch announcement",
+    "operator runbook",
+    "incident log URL"
+  ],
+  "required_operator_approvals": [
+    "release_manager",
+    "security",
+    "ops",
+    "wallet",
+    "custody",
+    "legal_or_posture_owner"
+  ],
+  "requires_m4_strict_completion": true,
+  "requires_public_approval": true,
+  "schema": "netcoin-mainnet-launch-plan-draft-v1",
+  "status": "draft-only-not-approved-launch"
+}

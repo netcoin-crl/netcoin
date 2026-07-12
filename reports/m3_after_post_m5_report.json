@@ -1,0 +1,64 @@
+{
+  "blocker_count": 0,
+  "cannot_claim_operational_m3_without_strict_evidence": true,
+  "claim_level": "m3-source-complete-evidence-required",
+  "deliverable_count": 10,
+  "issues": [],
+  "manifest_version": "netcoin-milestone-manifest-v1",
+  "milestone": "M3",
+  "mode": "source",
+  "ok": true,
+  "pass_count": 10,
+  "results": [
+    {
+      "id": "one-command-node-installer",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "multi-domain-dns-seeds",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "pex-addrv2-python-rust",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "compact-block-relay",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "home-node-bandwidth-mode",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "public-node-map",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "node-grants-program",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "thirty-day-soak-report",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "testnet-soft-fork-rehearsal",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "mining-pool-reference",
+      "issues": [],
+      "ok": true
+    }
+  ]
+}

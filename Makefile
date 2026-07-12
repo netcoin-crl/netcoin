@@ -403,3 +403,60 @@ m2-rc-check: m2-readiness-check
 
 m2-rc-strict: m2-readiness-check
 	$(PYTHON) tools/run_m2_release_candidate.py --profile strict --timeout 300 --out reports/m2_release_candidate_report.json
+
+.PHONY: m3-readiness-check m3-rc-check m3-rc-strict m3-node-map
+
+m3-readiness-check:
+	$(PYTHON) tools/check_m3_readiness.py --out reports/m3_readiness_source_report.json
+
+m3-node-map:
+	$(PYTHON) tools/export_node_map.py --input api/nodes/map --out reports/m3_node_map_source_report.json
+
+m3-rc-check: m3-readiness-check m3-node-map
+	$(PYTHON) tools/run_m3_release_candidate.py --profile source --out reports/m3_release_candidate_report.json
+
+m3-rc-strict: m3-readiness-check
+	$(PYTHON) tools/run_m3_release_candidate.py --profile strict --timeout 300 --out reports/m3_release_candidate_report.json
+
+.PHONY: m4-readiness-check m4-distribution-check m4-rc-check m4-rc-strict
+
+m4-readiness-check:
+	$(PYTHON) tools/check_m4_readiness.py --out reports/m4_readiness_source_report.json
+
+m4-distribution-check:
+	$(PYTHON) tools/validate_mainnet_distribution.py --out reports/m4_mainnet_distribution_source_report.json
+
+m4-rc-check: m4-readiness-check m4-distribution-check
+	$(PYTHON) tools/run_m4_release_candidate.py --profile source --out reports/m4_release_candidate_report.json
+
+m4-rc-strict: m4-readiness-check m4-distribution-check
+	$(PYTHON) tools/run_m4_release_candidate.py --profile strict --timeout 300 --out reports/m4_release_candidate_report.json
+
+
+.PHONY: m5-readiness-check m5-launch-plan-check m5-rc-check m5-rc-strict
+
+m5-readiness-check:
+	$(PYTHON) tools/check_m5_readiness.py --out reports/m5_readiness_source_report.json
+
+m5-launch-plan-check:
+	$(PYTHON) tools/validate_m5_launch_plan.py --out reports/m5_mainnet_launch_plan_source_report.json
+
+m5-rc-check: m5-readiness-check m5-launch-plan-check
+	$(PYTHON) tools/run_m5_release_candidate.py --profile source --out reports/m5_release_candidate_report.json
+
+m5-rc-strict: m5-readiness-check m5-launch-plan-check
+	$(PYTHON) tools/run_m5_release_candidate.py --profile strict --timeout 300 --out reports/m5_release_candidate_report.json
+
+.PHONY: post-m5-engineering-check post-m5-engineering-strict post-m5-rc-check post-m5-rc-strict
+
+post-m5-engineering-check:
+	$(PYTHON) tools/check_post_m5_engineering.py --out reports/post_m5_engineering_source_report.json
+
+post-m5-engineering-strict:
+	$(PYTHON) tools/check_post_m5_engineering.py --strict --out reports/post_m5_engineering_strict_report.json
+
+post-m5-rc-check: post-m5-engineering-check
+	$(PYTHON) tools/run_post_m5_release_candidate.py --profile source --out reports/post_m5_release_candidate_report.json
+
+post-m5-rc-strict: post-m5-engineering-check
+	$(PYTHON) tools/run_post_m5_release_candidate.py --profile strict --timeout 300 --out reports/post_m5_release_candidate_report.json

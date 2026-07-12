@@ -1,0 +1,68 @@
+{
+  "claim_policy": "M4 source work can be complete, but operational mainnet-ready status cannot be claimed until strict evidence validates. External audit, legal posture, governance approvals, independent operators, physical custody procedures, and consensus/governance signoffs cannot be fabricated in source code.",
+  "deliverables": [
+    {
+      "id": "external-audit-register",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "formal-spec-freeze",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "version-bits-checkpoint-signoff",
+      "status": "blocked-by-consensus-signoff"
+    },
+    {
+      "id": "genesis-distribution-manifest",
+      "status": "draft-only-evidence-required"
+    },
+    {
+      "id": "testnet-migration-plan",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "cold-storage-multisig-runbook",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "performance-targets",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "nip-process-governance",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "legal-risk-posture",
+      "status": "source-ready-counsel-required"
+    },
+    {
+      "id": "monetary-policy-publication",
+      "status": "source-ready-evidence-required"
+    }
+  ],
+  "hard_rules": [
+    "No consensus, emission, address-format, or genesis-economics code change is included in this M4 source package.",
+    "Version-bits, checkpointing, and genesis activation require explicit same-session signoff plus NIP approval before implementation.",
+    "Legal and MSB posture require qualified counsel review before public claims."
+  ],
+  "inherits_from": [
+    "architecture/m3-decentralized-testnet.json",
+    "architecture/mainnet-readiness-gates.json"
+  ],
+  "milestone": "M4",
+  "schema": "netcoin-m4-mainnet-ready-v1",
+  "status": "source-complete-evidence-gated",
+  "strict_evidence": {
+    "consensus_signoff": "reports/m4_evidence/consensus_change_signoff.json",
+    "custody": "reports/m4_evidence/cold_storage_ceremony.json",
+    "external_audit": "reports/m4_evidence/external_audit_completion.json",
+    "foundation_entity": "reports/m4_evidence/foundation_or_entity.json",
+    "genesis_distribution": "reports/m4_evidence/genesis_distribution_approval.json",
+    "legal_posture": "reports/m4_evidence/legal_posture_counsel_review.json",
+    "performance": "reports/m4_evidence/performance_benchmark_report.json",
+    "spec_freeze": "reports/m4_evidence/protocol_spec_freeze.json",
+    "trademark": "reports/m4_evidence/trademark_status.json"
+  }
+}

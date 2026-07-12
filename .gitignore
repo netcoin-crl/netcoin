@@ -44,7 +44,3 @@ local-*.json
 # JS deps and Rust build output
 node_modules/
 target/
-
-# Generated artifacts (never commit)
-graphify-out/
-test-results/

@@ -1,0 +1,13 @@
+{
+  "schema": "netcoin-post-m5-engineering-backlog-v1",
+  "claim_level": "source-complete-evidence-required",
+  "deliverables": [
+    {"id": "production-psbt-offline-signing", "source": ["netcoin/offline_signing.py", "config/psbt_offline_workflow.example.json"], "evidence_required": true},
+    {"id": "hardware-wallet-webusb-webhid", "source": ["netcoin/hardware_bridge.py", "netcoin/hardware_wallet.py", "config/hardware_wallet_devices.example.json"], "evidence_required": true},
+    {"id": "public-p2p-hardening", "source": ["netcoin/p2p_public_hardening.py", "config/public_p2p_hardening.example.json"], "evidence_required": true},
+    {"id": "versionbits-softfork-rehearsal", "source": ["netcoin/versionbits.py", "config/versionbits_rehearsal.example.json"], "evidence_required": true, "consensus_integrated": false},
+    {"id": "genesis-manifest-validation", "source": ["netcoin/genesis_manifest.py", "config/genesis_manifest.example.json"], "evidence_required": true, "does_not_mine_genesis": true},
+    {"id": "m6-liquidity-market-metadata", "source": ["netcoin/liquidity.py", "config/liquidity_metadata.example.json"], "evidence_required": true},
+    {"id": "m7-ecosystem-utility", "source": ["netcoin/ecosystem.py", "config/ecosystem_utility.example.json"], "evidence_required": true}
+  ]
+}

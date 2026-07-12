@@ -1,0 +1,56 @@
+{
+  "diversity_group_count": 3,
+  "groups": {
+    "18.220.197.0/24": 1,
+    "18.220.89.0/24": 1,
+    "18.226.74.0/24": 1
+  },
+  "node_count": 3,
+  "nodes": [
+    {
+      "best_height": 0,
+      "diversity_key": "18.220.89.0/24",
+      "endpoint": "18.220.89.128:28444",
+      "network_id": "ipv4",
+      "operator": "netcoin-core",
+      "region": "us-east-2",
+      "services": [
+        "NETCOIN_COMPACT_BLOCKS",
+        "NETCOIN_PEX",
+        "NODE_NETWORK"
+      ]
+    },
+    {
+      "best_height": 0,
+      "diversity_key": "18.220.197.0/24",
+      "endpoint": "18.220.197.20:28444",
+      "network_id": "ipv4",
+      "operator": "netcoin-core",
+      "region": "us-east-2",
+      "services": [
+        "NETCOIN_COMPACT_BLOCKS",
+        "NETCOIN_PEX",
+        "NODE_NETWORK"
+      ]
+    },
+    {
+      "best_height": 0,
+      "diversity_key": "18.226.74.0/24",
+      "endpoint": "18.226.74.252:28444",
+      "network_id": "ipv4",
+      "operator": "netcoin-core",
+      "region": "us-east-2",
+      "services": [
+        "NETCOIN_COMPACT_BLOCKS",
+        "NETCOIN_PEX",
+        "NODE_NETWORK"
+      ]
+    }
+  ],
+  "operator_count": 1,
+  "operators": {
+    "netcoin-core": 3
+  },
+  "schema": "netcoin-public-node-map-v1",
+  "source": "static-export"
+}

@@ -1,0 +1,81 @@
+{
+  "blocker_count": 0,
+  "blockers": [],
+  "checks": [
+    {
+      "id": "production-psbt-offline-signing",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "hardware-wallet-webusb-webhid",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "public-p2p-hardening",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "versionbits-softfork-rehearsal",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "genesis-manifest-validation",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "m6-liquidity-market-metadata",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "m7-ecosystem-utility",
+      "missing": [],
+      "ok": true
+    },
+    {
+      "id": "psbt-export-rejects-invalid-payload",
+      "ok": true
+    },
+    {
+      "id": "hardware-web-session-contract",
+      "ok": true
+    },
+    {
+      "id": "public-p2p-hardening-plan",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "versionbits-rehearsal-model",
+      "ok": true,
+      "state": "started"
+    },
+    {
+      "id": "genesis-manifest-draft-validation",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "liquidity-metadata-validation",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "ecosystem-utility-validation",
+      "issues": [],
+      "ok": true
+    }
+  ],
+  "claim_level": "post-m5-source-complete-evidence-required",
+  "does_not_activate_consensus_or_genesis": true,
+  "does_not_claim_liquidity_or_utility_without_evidence": true,
+  "evidence": [],
+  "ok": true,
+  "schema": "netcoin-post-m5-engineering-readiness-v1",
+  "strict": false
+}

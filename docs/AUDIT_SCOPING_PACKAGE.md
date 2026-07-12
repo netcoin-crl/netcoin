@@ -34,3 +34,9 @@ This package is for scoping calls, not an audit claim.
 - Can you review both Python and Rust implementations?
 - What findings format and retest process do you use?
 - What timeline and staffing do you recommend for a Bitcoin-family derivative?
+
+## M4 audit scope marker
+
+For M4 readiness, this package is treated as the audit scope seed. The final
+scope must be agreed with the external auditor and recorded in
+`reports/m4_evidence/external_audit_completion.json`.

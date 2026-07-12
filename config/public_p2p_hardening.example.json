@@ -1,0 +1,26 @@
+{
+  "schema": "netcoin-public-p2p-hardening-v1",
+  "dns_seed_plan": {
+    "domains": [
+      {"domain": "seed.netcoin.online", "operator": "netcoin-core", "status": "existing"},
+      {"domain": "seed2.netcoin.example", "operator": "independent-operator-required", "status": "planned"}
+    ]
+  },
+  "operator_manifests": [
+    {
+      "operator": "netcoin-core",
+      "contact": "ops@example.invalid",
+      "node_endpoint": "18.220.89.128:28444",
+      "region": "us-east-2",
+      "cloud_or_hardware": "aws",
+      "version": "source-rc",
+      "public_key": "replace-with-operator-pubkey",
+      "bandwidth_mode": "home",
+      "relay_kbps_limit": 500
+    }
+  ],
+  "compact_blocks_enabled": true,
+  "pex_enabled": true,
+  "addrv2_enabled": true,
+  "home_bandwidth_kbps": 500
+}

@@ -1,0 +1,17 @@
+{
+  "claim_level": "draft-only-not-approved-launch",
+  "does_not_generate_or_mine_genesis": true,
+  "issues": [],
+  "ok": true,
+  "required_launch_windows": [
+    "t_minus_1_week",
+    "t_minus_2_weeks",
+    "t_minus_3_weeks",
+    "t_minus_4_weeks",
+    "t_plus_1_day",
+    "t_plus_30_days",
+    "t_plus_7_days",
+    "t_zero"
+  ],
+  "requires_m4_strict_completion": true
+}

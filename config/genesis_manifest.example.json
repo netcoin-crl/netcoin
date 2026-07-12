@@ -1,0 +1,17 @@
+{
+  "schema": "netcoin-genesis-manifest-v1",
+  "status": "draft",
+  "network": "mainnet-dry-run",
+  "allocations": [
+    {"name": "miners-over-time", "category": "emission", "basis_points": 7000},
+    {"name": "community-airdrops-and-grants", "category": "community", "basis_points": 1500},
+    {"name": "transparent-treasury", "category": "treasury", "basis_points": 1000, "multisig": "required-before-approval"},
+    {"name": "team-vested", "category": "team", "basis_points": 500, "vesting": "4y-with-1y-cliff-required-before-approval"}
+  ],
+  "governance": {
+    "nip_id": "draft-required",
+    "public_vote_url": "",
+    "approval_txid": "",
+    "legal_review_id": ""
+  }
+}

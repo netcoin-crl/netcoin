@@ -1,0 +1,8 @@
+{
+  "claim_level": "draft-only-not-approved-genesis",
+  "does_not_generate_genesis": true,
+  "input": "config/mainnet_distribution.example.json",
+  "issues": [],
+  "mode": "source",
+  "ok": true
+}

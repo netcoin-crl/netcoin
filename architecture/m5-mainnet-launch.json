@@ -1,0 +1,74 @@
+{
+  "claim_policy": "M5 source work can prepare a launch, but mainnet launch cannot be claimed until real strict evidence proves feature freeze, third-party genesis review, signed binaries, independent launch witnesses, block production, miner diversity, and thirty-day stability. Mainnet activation cannot be fabricated in source code.",
+  "deliverables": [
+    {
+      "id": "t-minus-four-feature-freeze",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "t-minus-three-public-announcement",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "t-minus-two-third-party-genesis-review",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "t-minus-one-signed-binaries-and-pools",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "t-zero-genesis-ceremony",
+      "status": "blocked-until-m4-strict"
+    },
+    {
+      "id": "t-plus-one-hundred-blocks-miner-diversity",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "t-plus-seven-independent-state-confirmation",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "t-plus-thirty-no-emergency-hardfork",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "launch-oncall-incident-log",
+      "status": "source-ready-evidence-required"
+    },
+    {
+      "id": "launch-rollback-and-halt-policy",
+      "status": "source-ready-evidence-required"
+    }
+  ],
+  "hard_rules": [
+    "No genesis block is mined or activated by this M5 source package.",
+    "No consensus, emission, address-format, or genesis-economics code change is included in this M5 source package.",
+    "No seed deployment, systemctl action, or production DNS cutover is performed by this package.",
+    "Mainnet launch requires M4 strict evidence first plus explicit same-session user approval and public NIP/signoff artifacts."
+  ],
+  "inherits_from": [
+    "architecture/m4-mainnet-ready.json",
+    "architecture/mainnet-readiness-gates.json"
+  ],
+  "milestone": "M5",
+  "schema": "netcoin-m5-mainnet-launch-v1",
+  "status": "source-complete-evidence-gated",
+  "strict_evidence": {
+    "feature_freeze": "reports/m5_evidence/feature_freeze.json",
+    "first_100_blocks": "reports/m5_evidence/first_100_blocks.json",
+    "five_independent_miners": "reports/m5_evidence/five_independent_miners.json",
+    "genesis_ceremony": "reports/m5_evidence/genesis_ceremony.json",
+    "incident_log": "reports/m5_evidence/incident_log.json",
+    "independent_witnesses": "reports/m5_evidence/independent_witnesses.json",
+    "m4_strict_completion": "reports/m4_evidence/m4_strict_completion.json",
+    "mining_pool_acknowledgements": "reports/m5_evidence/mining_pool_acknowledgements.json",
+    "oncall_rotation": "reports/m5_evidence/oncall_rotation.json",
+    "public_announcement": "reports/m5_evidence/public_announcement.json",
+    "signed_binaries": "reports/m5_evidence/signed_binaries.json",
+    "t_plus_30_stability": "reports/m5_evidence/t_plus_30_stability.json",
+    "t_plus_7_state_confirmation": "reports/m5_evidence/t_plus_7_state_confirmation.json",
+    "third_party_genesis_review": "reports/m5_evidence/third_party_genesis_review.json"
+  }
+}

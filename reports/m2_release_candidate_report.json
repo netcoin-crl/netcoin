@@ -7,7 +7,7 @@
   "runs": [
     {
       "command": "python3 tools/check_m2_readiness.py --out reports/m2_readiness_source_report.json",
-      "elapsed_seconds": 0.039,
+      "elapsed_seconds": 1.162,
       "returncode": 0,
       "status": "pass",
       "stderr_tail": "",
@@ -15,31 +15,31 @@
     },
     {
       "command": "python3 -m pytest tests/test_m2_trust_hardening.py tests/test_m2_fee_bump.py -q",
-      "elapsed_seconds": 11.5,
+      "elapsed_seconds": 10.708,
       "returncode": 0,
       "status": "pass",
       "stderr_tail": "",
-      "stdout_tail": "........                                                                 [100%]\n8 passed in 11.36s\n"
+      "stdout_tail": "........                                                                 [100%]\n8 passed in 8.75s\n"
     },
     {
       "command": "python3 tools/verify_reproducible_build.py --out reports/reproducible_build_source_report.json",
-      "elapsed_seconds": 8.574,
+      "elapsed_seconds": 1.813,
       "returncode": 0,
       "status": "pass",
       "stderr_tail": "",
-      "stdout_tail": "{\n  \"archive\": \"dist/netcoin-source-repro.tar.gz\",\n  \"independent_builder_required_for_strict_m2\": true,\n  \"ok\": true,\n  \"schema\": \"netcoin-reproducible-build-source-v1\",\n  \"second_sha256\": \"6fd69404ad27ee276f8117b5484a8b961b07620c66819f6961d4fdc62aae9739\",\n  \"sha256\": \"6fd69404ad27ee276f8117b5484a8b961b07620c66819f6961d4fdc62aae9739\"\n}\n"
+      "stdout_tail": "{\n  \"archive\": \"dist/netcoin-source-repro.tar.gz\",\n  \"independent_builder_required_for_strict_m2\": true,\n  \"ok\": true,\n  \"schema\": \"netcoin-reproducible-build-source-v1\",\n  \"second_sha256\": \"cf8275867f0576c975b03d70504b23e167426bb54dbc988fee0f431acad4dc5b\",\n  \"sha256\": \"cf8275867f0576c975b03d70504b23e167426bb54dbc988fee0f431acad4dc5b\"\n}\n"
     },
     {
       "command": "python3 tools/generate_sbom.py --out dist/netcoin-sbom.json",
-      "elapsed_seconds": 0.097,
+      "elapsed_seconds": 1.191,
       "returncode": 0,
       "status": "pass",
       "stderr_tail": "",
-      "stdout_tail": "{\"file_count\": 579, \"out\": \"/Users/adoniyasnegash/Documents/Playground/netcoin/dist/netcoin-sbom.json\", \"version\": \"0.42.0\"}\n"
+      "stdout_tail": "{\"file_count\": 571, \"out\": \"/mnt/data/netcoin_m2_final_work/dist/netcoin-sbom.json\", \"version\": \"0.42.0\"}\n"
     },
     {
       "command": "python3 tools/generate_slsa_provenance.py --subject dist/netcoin-sbom.json --out dist/netcoin-slsa-provenance.json",
-      "elapsed_seconds": 0.035,
+      "elapsed_seconds": 1.023,
       "returncode": 0,
       "status": "pass",
       "stderr_tail": "",

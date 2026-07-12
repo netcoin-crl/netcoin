@@ -1,0 +1,18 @@
+{
+  "schema": "netcoin-milestone-manifest-v1",
+  "milestone": "M3",
+  "name": "Decentralized public testnet",
+  "claim_policy": "Source-complete M3 may be claimed when this manifest and source gates pass. Operational M3 requires strict evidence: at least 10 independent operators, 30-day unattended soak, one non-founder mined block, DNS seed rotation, node diversity metrics, and a testnet upgrade rehearsal. Do not claim operational M3 without evidence.",
+  "deliverables": [
+    {"id": "one-command-node-installer", "status": "source-complete", "evidence": "tools/install_public_node.sh and docker-compose.node.yml"},
+    {"id": "multi-domain-dns-seeds", "status": "source-complete-evidence-required", "evidence": "config/dns_seeds.json and reports/m3_evidence/dns_seed_delegation.json"},
+    {"id": "pex-addrv2-python-rust", "status": "source-complete", "evidence": "netcoin/addrv2.py, netcoin/pex.py, netcoin/p2p.py, core-rs/crates/node/src/lib.rs"},
+    {"id": "compact-block-relay", "status": "source-complete", "evidence": "netcoin/compact.py and P2P cmpctblock/getblocktxn/blocktxn message helpers"},
+    {"id": "home-node-bandwidth-mode", "status": "source-complete", "evidence": "netcoin/bandwidth.py and docs/M3_HOME_NODE_BANDWIDTH.md"},
+    {"id": "public-node-map", "status": "source-complete", "evidence": "sites/nodes/index.html, sites/nodes/nodes.js, api/nodes/map"},
+    {"id": "node-grants-program", "status": "draft", "evidence": "docs/M3_NODE_GRANTS_PROGRAM.md"},
+    {"id": "thirty-day-soak-report", "status": "source-complete-evidence-required", "evidence": "docs/M3_30_DAY_SOAK_REPORT.md and reports/m3_evidence/soak_30_day_report.json"},
+    {"id": "testnet-soft-fork-rehearsal", "status": "plan-only-consensus-signoff-required", "evidence": "docs/M3_TESTNET_SOFT_FORK_REHEARSAL.md"},
+    {"id": "mining-pool-reference", "status": "source-complete", "evidence": "docs/M3_MINING_POOL_REFERENCE.md"}
+  ]
+}

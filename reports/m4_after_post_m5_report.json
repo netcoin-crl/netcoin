@@ -1,0 +1,65 @@
+{
+  "blocker_count": 0,
+  "cannot_claim_mainnet_ready_without_strict_evidence": true,
+  "claim_level": "m4-source-complete-evidence-required",
+  "deliverable_count": 10,
+  "issues": [],
+  "manifest_schema": "netcoin-m4-mainnet-ready-v1",
+  "milestone": "M4",
+  "mode": "source",
+  "no_consensus_or_genesis_code_changed_by_this_gate": true,
+  "ok": true,
+  "pass_count": 10,
+  "results": [
+    {
+      "id": "external-audit-register",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "formal-spec-freeze",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "version-bits-checkpoint-signoff",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "genesis-distribution-manifest",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "testnet-migration-plan",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "cold-storage-multisig-runbook",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "performance-targets",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "nip-process-governance",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "legal-risk-posture",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "monetary-policy-publication",
+      "issues": [],
+      "ok": true
+    }
+  ]
+}

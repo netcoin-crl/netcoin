@@ -1,0 +1,30 @@
+{
+  "does_not_deploy_mine_or_activate": true,
+  "ok": true,
+  "profile": "source",
+  "run_count": 3,
+  "runs": [
+    {
+      "command": "/Users/adoniyasnegash/Documents/Playground/netcoin/.venv/bin/python tools/check_post_m5_engineering.py --out reports/post_m5_engineering_source_report.json",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"blocker_count\": 0,\n  \"blockers\": [],\n  \"checks\": [\n    {\n      \"id\": \"production-psbt-offline-signing\",\n      \"missing\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"hardware-wallet-webusb-webhid\",\n      \"missing\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"public-p2p-hardening\",\n      \"missing\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"versionbits-softfork-rehearsal\",\n      \"missing\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"genesis-manifest-validation\",\n      \"missing\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"m6-liquidity-market-metadata\",\n      \"missing\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"m7-ecosystem-utility\",\n      \"missing\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"psbt-export-rejects-invalid-payload\",\n      \"ok\": true\n    },\n    {\n      \"id\": \"hardware-web-session-contract\",\n      \"ok\": true\n    },\n    {\n      \"id\": \"public-p2p-hardening-plan\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"versionbits-rehearsal-model\",\n      \"ok\": true,\n      \"state\": \"started\"\n    },\n    {\n      \"id\": \"genesis-manifest-draft-validation\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"liquidity-metadata-validation\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"ecosystem-utility-validation\",\n      \"issues\": [],\n      \"ok\": true\n    }\n  ],\n  \"claim_level\": \"post-m5-source-complete-evidence-required\",\n  \"does_not_activate_consensus_or_genesis\": true,\n  \"does_not_claim_liquidity_or_utility_without_evidence\": true,\n  \"evidence\": [],\n  \"ok\": true,\n  \"schema\": \"netcoin-post-m5-engineering-readiness-v1\",\n  \"strict\": false\n}\n"
+    },
+    {
+      "command": "/Users/adoniyasnegash/Documents/Playground/netcoin/.venv/bin/python -m py_compile netcoin/offline_signing.py netcoin/hardware_bridge.py netcoin/p2p_public_hardening.py netcoin/versionbits.py netcoin/genesis_manifest.py netcoin/liquidity.py netcoin/ecosystem.py tools/check_post_m5_engineering.py",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "command": "/Users/adoniyasnegash/Documents/Playground/netcoin/.venv/bin/python -m compileall -q netcoin tools tests",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ],
+  "schema": "netcoin-post-m5-release-candidate-run-v1"
+}

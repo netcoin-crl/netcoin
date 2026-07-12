@@ -1,0 +1,22 @@
+{
+  "schema": "netcoin-hardware-wallet-devices-v1",
+  "network": "testnet",
+  "devices": [
+    {
+      "family": "ledger",
+      "model": "Ledger Nano S Plus",
+      "preferred_transport": "webhid",
+      "fallback_transport": "webusb",
+      "physical_test_status": "evidence-required"
+    },
+    {
+      "family": "trezor",
+      "model": "Trezor Model T or Safe 3",
+      "preferred_transport": "webusb",
+      "fallback_transport": "webhid",
+      "physical_test_status": "evidence-required"
+    }
+  ],
+  "transcript_required": true,
+  "private_key_material_allowed": false
+}

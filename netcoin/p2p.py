@@ -15,6 +15,9 @@ from socketserver import BaseRequestHandler, ThreadingTCPServer
 from typing import Any
 
 from .crypto import double_sha256
+from .addrv2 import addr_payload, parse_addr_payload
+from .pex import build_pex_response, ingest_pex_records
+from .compact import compact_missing_payload, make_compact_block
 from .params import DEFAULT_P2P_PORT, MAX_REQUEST_BODY_BYTES, NETWORK_NAME, NODE_VERSION, P2P_MAGIC, PROTOCOL_VERSION
 from .serialization import block_from_binary, block_to_binary, tx_from_binary, tx_to_binary
 
@@ -144,6 +147,30 @@ def headers_message(headers: list[dict[str, Any]]) -> Message:
     return Message("headers", json_payload({"headers": headers}))
 
 
+def getaddr_message() -> Message:
+    return Message("getaddr", b"")
+
+
+def addr_message(records: list[dict[str, Any]]) -> Message:
+    return Message("addr", addr_payload(records))
+
+
+def pex_message(records: list[dict[str, Any]]) -> Message:
+    return Message("pex", json_payload({"schema": "netcoin-pex-v1", "addresses": records}))
+
+
+def cmpctblock_message(block: Any) -> Message:
+    return Message("cmpctblock", json_payload(make_compact_block(block).to_dict()))
+
+
+def getblocktxn_message(block_hash: str, have_shortids: list[str]) -> Message:
+    return Message("getblocktxn", json_payload({"block_hash": block_hash, "have_shortids": list(have_shortids)}))
+
+
+def blocktxn_message(block_hash: str, missing: list[dict[str, Any]]) -> Message:
+    return Message("blocktxn", json_payload({"block_hash": block_hash, "missing": list(missing)}))
+
+
 def block_message(block: Any) -> Message:
     return Message("block", block_to_binary(block))
 
@@ -194,6 +221,32 @@ def handle_message(message: Message, chain: Any | None = None) -> Message | None
                 if found is not None:
                     return tx_message(found[0])
         return None
+    if command == "getaddr":
+        peer_db = getattr(chain, "peer_database", None) if chain is not None else None
+        if peer_db is None:
+            return addr_message([])
+        return addr_message(build_pex_response(peer_db).get("addresses", []))
+    if command in {"addr", "pex"}:
+        peer_db = getattr(chain, "peer_database", None) if chain is not None else None
+        if peer_db is None:
+            return None
+        payload = (
+            _json(message)
+            if command == "pex"
+            else {"addresses": [r.to_dict() for r in parse_addr_payload(message.payload)]}
+        )
+        ingest_pex_records(peer_db, payload.get("addresses", []), source=command)
+        return None
+    if command == "getblocktxn":
+        if chain is None:
+            return None
+        payload = _json(message)
+        block_hash = str(payload.get("block_hash") or "")
+        block = chain.get_block_by_hash(block_hash)
+        if block is None:
+            return None
+        missing = compact_missing_payload(block, payload.get("have_shortids", [])).get("missing", [])
+        return blocktxn_message(block_hash, missing)
     if command == "block":
         if chain is None:
             return None

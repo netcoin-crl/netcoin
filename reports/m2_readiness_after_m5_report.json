@@ -1,0 +1,59 @@
+{
+  "blocker_count": 0,
+  "cannot_claim_operational_m2_without_strict_evidence": true,
+  "claim_level": "m2-source-complete-evidence-required",
+  "deliverable_count": 9,
+  "issues": [],
+  "manifest_version": "netcoin-milestone-readiness-v1",
+  "milestone": "M2",
+  "mode": "source",
+  "ok": true,
+  "pass_count": 9,
+  "results": [
+    {
+      "id": "hardware-wallet-contract",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "psbt-round-trip",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "fee-bumping",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "watch-only-xpub-descriptors",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "reproducible-builds",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "signed-releases-sbom-provenance",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "fuzz-corpus",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "bug-bounty-and-audit",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "threat-model-cve-review",
+      "issues": [],
+      "ok": true
+    }
+  ]
+}

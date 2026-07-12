@@ -1,0 +1,46 @@
+{
+  "command_count": 4,
+  "does_not_deploy_or_mine_genesis": true,
+  "dry_run": false,
+  "ok": true,
+  "profile": "source",
+  "run_count": 4,
+  "runs": [
+    {
+      "command": "python3 tools/check_m5_readiness.py --out reports/m5_readiness_source_report.json",
+      "elapsed_seconds": 2.805,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "ue\n    },\n    {\n      \"id\": \"t-minus-one-signed-binaries-and-pools\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"t-zero-genesis-ceremony\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"t-plus-one-hundred-blocks-miner-diversity\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"t-plus-seven-independent-state-confirmation\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"t-plus-thirty-no-emergency-hardfork\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"launch-oncall-incident-log\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"launch-rollback-and-halt-policy\",\n      \"issues\": [],\n      \"ok\": true\n    }\n  ],\n  \"strict_evidence\": {\n    \"feature_freeze\": \"reports/m5_evidence/feature_freeze.json\",\n    \"first_100_blocks\": \"reports/m5_evidence/first_100_blocks.json\",\n    \"five_independent_miners\": \"reports/m5_evidence/five_independent_miners.json\",\n    \"genesis_ceremony\": \"reports/m5_evidence/genesis_ceremony.json\",\n    \"incident_log\": \"reports/m5_evidence/incident_log.json\",\n    \"independent_witnesses\": \"reports/m5_evidence/independent_witnesses.json\",\n    \"m4_strict_completion\": \"reports/m4_evidence/m4_strict_completion.json\",\n    \"mining_pool_acknowledgements\": \"reports/m5_evidence/mining_pool_acknowledgements.json\",\n    \"oncall_rotation\": \"reports/m5_evidence/oncall_rotation.json\",\n    \"public_announcement\": \"reports/m5_evidence/public_announcement.json\",\n    \"signed_binaries\": \"reports/m5_evidence/signed_binaries.json\",\n    \"t_plus_30_stability\": \"reports/m5_evidence/t_plus_30_stability.json\",\n    \"t_plus_7_state_confirmation\": \"reports/m5_evidence/t_plus_7_state_confirmation.json\",\n    \"third_party_genesis_review\": \"reports/m5_evidence/third_party_genesis_review.json\"\n  }\n}\n"
+    },
+    {
+      "command": "python3 tools/validate_m5_launch_plan.py --out reports/m5_mainnet_launch_plan_source_report.json",
+      "elapsed_seconds": 2.885,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"claim_level\": \"draft-only-not-approved-launch\",\n  \"does_not_generate_or_mine_genesis\": true,\n  \"issues\": [],\n  \"ok\": true,\n  \"required_launch_windows\": [\n    \"t_minus_1_week\",\n    \"t_minus_2_weeks\",\n    \"t_minus_3_weeks\",\n    \"t_minus_4_weeks\",\n    \"t_plus_1_day\",\n    \"t_plus_30_days\",\n    \"t_plus_7_days\",\n    \"t_zero\"\n  ],\n  \"requires_m4_strict_completion\": true\n}\n"
+    },
+    {
+      "command": "python3 -m pytest tests/test_m5_mainnet_launch.py -q",
+      "elapsed_seconds": 17.3,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "......                                                                   [100%]\n6 passed in 11.79s\n"
+    },
+    {
+      "command": "python3 -m py_compile tools/check_m5_readiness.py tools/run_m5_release_candidate.py tools/validate_m5_launch_plan.py tests/test_m5_mainnet_launch.py",
+      "elapsed_seconds": 2.841,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ],
+  "status_counts": {
+    "pass": 4
+  },
+  "strict_evidence_required_for_operational_m5": false
+}

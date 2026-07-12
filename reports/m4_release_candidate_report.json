@@ -1,0 +1,45 @@
+{
+  "command_count": 4,
+  "dry_run": false,
+  "ok": true,
+  "profile": "source",
+  "run_count": 4,
+  "runs": [
+    {
+      "command": "python3 tools/check_m4_readiness.py --out reports/m4_readiness_source_report.json",
+      "elapsed_seconds": 2.877,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"blocker_count\": 0,\n  \"cannot_claim_mainnet_ready_without_strict_evidence\": true,\n  \"claim_level\": \"m4-source-complete-evidence-required\",\n  \"deliverable_count\": 10,\n  \"issues\": [],\n  \"manifest_schema\": \"netcoin-m4-mainnet-ready-v1\",\n  \"milestone\": \"M4\",\n  \"mode\": \"source\",\n  \"no_consensus_or_genesis_code_changed_by_this_gate\": true,\n  \"ok\": true,\n  \"pass_count\": 10,\n  \"results\": [\n    {\n      \"id\": \"external-audit-register\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"formal-spec-freeze\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"version-bits-checkpoint-signoff\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"genesis-distribution-manifest\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"testnet-migration-plan\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"cold-storage-multisig-runbook\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"performance-targets\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"nip-process-governance\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"legal-risk-posture\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"monetary-policy-publication\",\n      \"issues\": [],\n      \"ok\": true\n    }\n  ]\n}\n"
+    },
+    {
+      "command": "python3 tools/validate_mainnet_distribution.py --out reports/m4_mainnet_distribution_source_report.json",
+      "elapsed_seconds": 2.952,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"claim_level\": \"draft-only-not-approved-genesis\",\n  \"does_not_generate_genesis\": true,\n  \"input\": \"config/mainnet_distribution.example.json\",\n  \"issues\": [],\n  \"mode\": \"source\",\n  \"ok\": true\n}\n"
+    },
+    {
+      "command": "python3 -m pytest tests/test_m4_mainnet_ready.py -q",
+      "elapsed_seconds": 17.547,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "......                                                                   [100%]\n6 passed in 11.97s\n"
+    },
+    {
+      "command": "python3 -m py_compile tools/check_m4_readiness.py tools/run_m4_release_candidate.py tools/validate_mainnet_distribution.py tests/test_m4_mainnet_ready.py",
+      "elapsed_seconds": 2.923,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ],
+  "status_counts": {
+    "pass": 4
+  },
+  "strict_evidence_required_for_operational_m4": false
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "netcoin-dns-seeds-v1",
+  "network": "testnet",
+  "claim_policy": "These are source-level seed definitions. Operational M3 requires proof that independent domains are owned/delegated and returning live peer records.",
+  "seeds": [
+    {"domain": "seed.netcoin.online", "status": "current", "operator": "netcoin-core", "notes": "Existing NetCoin domain; not sufficient for independent M3 by itself."},
+    {"domain": "seed.netcoin-seeds.net", "status": "candidate-buy-or-delegate", "operator": "independent-operator-required", "notes": "Use for non-AWS/operator diversity once domain is owned."},
+    {"domain": "seed.netcoin.io", "status": "candidate-buy-or-delegate", "operator": "independent-operator-required", "notes": "Use for independent DNS rotation only after ownership is confirmed."}
+  ],
+  "minimum_operational_m3": {
+    "independent_dns_domains": 2,
+    "independent_seed_operators": 2,
+    "aws_account_limit": "no more than half of seed records should resolve only to founder AWS nodes"
+  }
+}

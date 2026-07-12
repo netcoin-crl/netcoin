@@ -1,0 +1,13 @@
+{
+  "schema": "netcoin-versionbits-rehearsal-v1",
+  "deployment": {
+    "name": "testnet-rehearsal-only",
+    "bit": 1,
+    "start_height": 20000,
+    "timeout_height": 50000,
+    "period": 144,
+    "threshold": 108
+  },
+  "consensus_integrated": false,
+  "requires_nip_before_activation": true
+}

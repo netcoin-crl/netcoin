@@ -1,0 +1,15 @@
+{
+  "schema": "netcoin-public-node-map-v1",
+  "source": "static-fallback",
+  "claim_policy": "Fallback data is for local browser tests only. Operational M3 requires live independent operator evidence.",
+  "node_count": 3,
+  "diversity_group_count": 1,
+  "operator_count": 1,
+  "operators": {"netcoin-core": 3},
+  "groups": {"aws-us-east-2-founder": 3},
+  "nodes": [
+    {"endpoint": "18.220.89.128:28444", "operator": "netcoin-core", "region": "us-east-2", "network_id": "ipv4", "services": ["NODE_NETWORK", "NETCOIN_PEX", "NETCOIN_COMPACT_BLOCKS"], "best_height": 0, "diversity_key": "aws-us-east-2-founder"},
+    {"endpoint": "18.220.197.20:28444", "operator": "netcoin-core", "region": "us-east-2", "network_id": "ipv4", "services": ["NODE_NETWORK", "NETCOIN_PEX", "NETCOIN_COMPACT_BLOCKS"], "best_height": 0, "diversity_key": "aws-us-east-2-founder"},
+    {"endpoint": "18.226.74.252:28444", "operator": "netcoin-core", "region": "us-east-2", "network_id": "ipv4", "services": ["NODE_NETWORK", "NETCOIN_PEX", "NETCOIN_COMPACT_BLOCKS"], "best_height": 0, "diversity_key": "aws-us-east-2-founder"}
+  ]
+}

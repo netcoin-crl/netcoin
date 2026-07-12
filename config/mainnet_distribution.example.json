@@ -1,0 +1,30 @@
+{
+  "buckets": [
+    {
+      "id": "team_vested",
+      "range_percent": "10-20",
+      "vesting": "4 years, 1 year cliff, on-chain or auditable lock required"
+    },
+    {
+      "control": "public multisig with spend reporting",
+      "id": "treasury_multisig",
+      "range_percent": "5-15"
+    },
+    {
+      "control": "published eligibility and anti-sybil rules",
+      "id": "community_grants_airdrops",
+      "range_percent": "5-20"
+    },
+    {
+      "control": "protocol emission curve",
+      "id": "miner_emission",
+      "range_percent": "remaining"
+    }
+  ],
+  "claim_policy": "This file is a discussion draft only. It is not an approved genesis allocation and must not be used to launch mainnet.",
+  "network": "mainnet-candidate",
+  "requires_nip": true,
+  "requires_public_approval": true,
+  "schema": "netcoin-mainnet-distribution-draft-v1",
+  "status": "draft-not-approved"
+}

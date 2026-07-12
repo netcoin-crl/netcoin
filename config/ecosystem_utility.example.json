@@ -1,0 +1,14 @@
+{
+  "schema": "netcoin-ecosystem-utility-v1",
+  "utility_focus": "dev-first-bitcoin-family-sandbox",
+  "sdks": [
+    {"language": "typescript", "package": "@netcoin/sdk", "registry": "npm", "status": "source-ready-not-published"},
+    {"language": "python", "package": "netcoin-sdk", "registry": "pypi", "status": "source-ready-not-published"},
+    {"language": "rust", "package": "netcoin", "registry": "crates.io", "status": "planned"}
+  ],
+  "grants": {
+    "public_tracker": "sites/community/grants.html",
+    "status": "draft"
+  },
+  "metrics": ["weekly_active_addresses", "non_airdrop_tx_count", "developer_apps"]
+}
