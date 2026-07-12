@@ -78,6 +78,11 @@ def test_v023_migration_status_reports_new_version() -> None:
         "0.38.1",
         "0.38.2",
         "0.38.3",
+        "0.39.0",
+        "0.40.0",
+        "0.40.1",
+        "0.41.0",
+        "0.42.0",
     }
     consensus_lane = next(lane for lane in status["lanes"] if lane["id"] == "rust-consensus-parity")
     assert consensus_lane["status"] in {

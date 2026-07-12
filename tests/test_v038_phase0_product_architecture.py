@@ -35,9 +35,9 @@ def test_shared_site_shell_uses_phase0_primary_nav_and_modes():
     assert "label: 'Trader'" in shell
     assert "label: 'Operator'" in shell
     assert "label: 'Developer'" in shell
-    assert "label: 'Wallet', detail: 'manage NET', group: 'Core', primary: true" in shell
-    assert "label: 'Explorer', detail: 'verify chain activity', group: 'Core', primary: true" in shell
-    assert "label: 'Markets', detail: 'prediction markets', group: 'Core', primary: true" in shell
+    assert "label: 'Wallet', detail: 'send and receive', group: 'Core', primary: true" in shell
+    assert "label: 'Explorer', detail: 'verify activity', group: 'Core', primary: true" in shell
+    assert "label: 'Markets', detail: 'trade test markets', group: 'Core', primary: true" in shell
     assert "<summary>More</summary>" in shell
     assert "const primary = links.filter((link) => link.primary);" in shell
     assert "label: 'Features'," not in shell
