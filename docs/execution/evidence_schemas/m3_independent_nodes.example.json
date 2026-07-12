@@ -1,0 +1,13 @@
+{
+  "milestone": "M3",
+  "evidence_type": "independent_nodes",
+  "date": "YYYY-MM-DD",
+  "minimums": {
+    "node_count": 10,
+    "operator_count": 4,
+    "non_aws_count": 2
+  },
+  "nodes": [],
+  "overall_ok": false,
+  "limitations": []
+}

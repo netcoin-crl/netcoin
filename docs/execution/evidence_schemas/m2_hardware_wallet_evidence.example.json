@@ -1,0 +1,19 @@
+{
+  "milestone": "M2",
+  "evidence_type": "hardware_wallet_device",
+  "device": "Ledger Nano S Plus",
+  "firmware_version": "",
+  "browser": "",
+  "os": "",
+  "wallet_build": "",
+  "flows": {
+    "detect_device": false,
+    "confirm_address": false,
+    "sign_psbt": false,
+    "import_signed_psbt": false,
+    "broadcast_or_validate": false
+  },
+  "transcript_sha256": "",
+  "reviewer": "",
+  "overall_ok": false
+}

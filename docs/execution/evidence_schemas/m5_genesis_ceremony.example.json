@@ -1,0 +1,10 @@
+{
+  "milestone": "M5",
+  "evidence_type": "genesis_ceremony",
+  "date": "YYYY-MM-DD",
+  "genesis_hash": "",
+  "witnesses": [],
+  "signed_binaries": [],
+  "stream_or_public_log": "",
+  "overall_ok": false
+}

@@ -1,0 +1,29 @@
+{
+  "milestone": "M1",
+  "evidence_type": "live_smoke",
+  "date": "YYYY-MM-DD",
+  "surfaces": {
+    "wallet": {
+      "ok": false,
+      "url": "",
+      "notes": ""
+    },
+    "faucet": {
+      "ok": false,
+      "url": "",
+      "notes": ""
+    },
+    "explorer": {
+      "ok": false,
+      "url": "",
+      "notes": ""
+    },
+    "status": {
+      "ok": false,
+      "url": "",
+      "notes": ""
+    }
+  },
+  "overall_ok": false,
+  "limitations": []
+}

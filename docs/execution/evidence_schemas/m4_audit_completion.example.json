@@ -1,0 +1,11 @@
+{
+  "milestone": "M4",
+  "evidence_type": "external_audit_completion",
+  "firm": "",
+  "report_url_or_path": "",
+  "critical_findings_open": 0,
+  "high_findings_open": 0,
+  "medium_findings_open": 0,
+  "waivers": [],
+  "overall_ok": false
+}
