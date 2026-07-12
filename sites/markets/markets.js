@@ -2,8 +2,9 @@
 
 (() => {
   const $ = (sel) => document.querySelector(sel);
-  const state = { markets: [], selectedId: "", apiOk: false, view: "grid", category: "All", query: "", tab: "orderbook", tradeSide: "yes", tradeOutcomeId: "" };
+  const state = { markets: [], selectedId: "", apiOk: false, usingLocalMarkets: false, view: "grid", category: "All", query: "", tab: "orderbook", tradeSide: "yes", tradeOutcomeId: "" };
   const apiBase = localStorage.getItem("netcoinApiBase") || "/api";
+  const localMarketsKey = "nc.markets.local.v1";
 
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
   const fmtTime = (ts) => { if (!ts) return "n/a"; const n = Number(ts); return Number.isFinite(n) ? new Date(n * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : esc(ts); };
@@ -12,6 +13,59 @@
     const box = $("#activityLog"); if (!box) return;
     const extra = payload ? `\n${JSON.stringify(payload, null, 2)}` : "";
     box.textContent = `[${new Date().toLocaleTimeString()}] ${msg}${extra}\n\n${box.textContent}`.slice(0, 9000);
+  }
+
+  function localMarkets() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(localMarketsKey) || "[]");
+      return Array.isArray(raw) ? raw.filter((m) => m && m.market_id && m.question) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveLocalMarkets(markets) {
+    try { localStorage.setItem(localMarketsKey, JSON.stringify(markets.slice(0, 50))); } catch { /* private mode */ }
+  }
+
+  function mergeLocalMarkets(markets) {
+    const seen = new Set((markets || []).map((m) => String(m.market_id)));
+    return [...localMarkets().filter((m) => !seen.has(String(m.market_id))), ...(markets || [])];
+  }
+
+  function localMarketFromPayload(body, reason) {
+    const id = `local_${Date.now().toString(36)}`;
+    const labels = (body.outcomes || ["YES", "NO"]).map((x) => String(x).trim().toUpperCase()).filter(Boolean).slice(0, 8);
+    const outcomes = (labels.length >= 2 ? labels : ["YES", "NO"]).map((label, i) => ({ outcome_id: `out${i + 1}`, label, asset_id: `${id}:out${i + 1}` }));
+    return {
+      market_id: id,
+      question: String(body.question || "Untitled local market").slice(0, 240),
+      category: String(body.category || "Local").slice(0, 80),
+      tags: Array.isArray(body.tags) ? body.tags : String(body.tags || "local,draft").split(",").map((x) => x.trim()).filter(Boolean),
+      outcomes,
+      status: "open",
+      mode: "local_browser_draft",
+      close_time: body.close_time || Math.floor(Date.now() / 1000) + 604800,
+      rules: body.rules || body.resolution_criteria || "Local browser draft. Sync with a live NetCoin API before treating it as shared.",
+      resolution_source: body.resolution_source || "local browser draft",
+      stats: { volume: "0", liquidity_shares: 0 },
+      warning: reason ? `Saved locally because the API write failed: ${reason}` : "Saved as a local browser draft.",
+      created_at: Math.floor(Date.now() / 1000),
+      local_only: true,
+    };
+  }
+
+  function saveLocalMarket(body, reason) {
+    const market = localMarketFromPayload(body, reason);
+    saveLocalMarkets([market, ...localMarkets()]);
+    return market;
+  }
+
+  function openCreateMarket() {
+    const drawer = $("#operatorTools") || $("details.operator");
+    if (drawer) drawer.open = true;
+    const q = $("#question");
+    if (q) { q.focus(); q.scrollIntoView({ block: "center", behavior: "smooth" }); }
   }
 
   async function api(path, options = {}) {
@@ -106,7 +160,7 @@
   function renderGrid() {
     const grid = $("#marketGrid");
     const list = visibleMarkets();
-    if (!state.apiOk) { grid.innerHTML = `<div class="empty-state">Could not reach the NetCoin API at ${esc(apiBase)}. Start a node/explorer server and refresh.</div>`; return; }
+    if (!state.apiOk && !list.length) { grid.innerHTML = `<div class="empty-state">Could not reach the NetCoin API at ${esc(apiBase)}. Use New market to create a local browser draft, or start a node/explorer server and refresh.</div>`; return; }
     if (!list.length) { grid.innerHTML = `<div class="empty-state">No markets yet. Open Operator tools to create one.</div>`; return; }
     grid.innerHTML = list.map(cardHtml).join("");
     grid.querySelectorAll(".mkt-card").forEach((el) => el.addEventListener("click", (e) => {
@@ -276,20 +330,39 @@
   async function loadMarkets() {
     try {
       const payload = await api("/markets");
-      state.markets = payload.markets || [];
+      state.markets = mergeLocalMarkets(payload.markets || []);
+      state.usingLocalMarkets = localMarkets().length > 0;
       if (!state.selectedId && state.markets[0]) state.selectedId = state.markets[0].market_id;
       state.apiOk = true;
-      $("#apiStatus").textContent = `live${payload.warning ? " · " + payload.warning : ""}`;
+      $("#apiStatus").textContent = `live${state.usingLocalMarkets ? " · local drafts" : ""}${payload.warning ? " · " + payload.warning : ""}`;
       renderAll(payload.totals);
     } catch (err) {
+      const locals = localMarkets();
+      state.markets = locals;
+      state.usingLocalMarkets = locals.length > 0;
       state.apiOk = false;
-      $("#apiStatus").textContent = `API offline`;
-      renderMetrics({ count: 0, open: 0, resolved: 0, volume: "0" });
+      $("#apiStatus").textContent = locals.length ? `API offline · ${locals.length} local draft${locals.length === 1 ? "" : "s"}` : `API offline`;
+      renderMetrics({ count: locals.length, open: locals.filter((m) => m.status === "open").length, resolved: 0, volume: "0" });
       renderGrid();
       log("Market load failed", { error: err.message });
     }
   }
-  async function createMarket(body) { const p = await post("/markets", body); log("Created market", { market_id: p.market_id }); state.selectedId = p.market_id; await loadMarkets(); }
+  async function createMarket(body) {
+    try {
+      const p = await post("/markets", body);
+      log("Created market", { market_id: p.market_id });
+      state.selectedId = p.market_id;
+      await loadMarkets();
+    } catch (err) {
+      const local = saveLocalMarket(body, err.message);
+      state.selectedId = local.market_id;
+      state.markets = mergeLocalMarkets(state.markets);
+      state.usingLocalMarkets = true;
+      $("#apiStatus").textContent = `API write unavailable · saved local draft`;
+      log("Saved local market draft", { market_id: local.market_id, api_error: err.message });
+      renderAll({ count: state.markets.length, open: state.markets.filter((m) => m.status === "open").length, resolved: 0, volume: "0" });
+    }
+  }
   async function placeOrder(body) { const m = selectedMarket(); if (!m) throw new Error("Select a market first"); const p = await post(`/markets/${encodeURIComponent(m.market_id)}/order`, body); log("Placed order", { trades: (p.trades || []).length }); await loadMarkets(); }
   async function cancelOrder(orderId) { const m = selectedMarket(); if (!m || !orderId) return; await post(`/markets/${encodeURIComponent(m.market_id)}/orders/${encodeURIComponent(orderId)}/cancel`, { operator_override: true }); log("Canceled order", { order_id: orderId }); await loadMarkets(); }
   async function resolveMarket(requestOnly) {
@@ -313,6 +386,7 @@
   function wire() {
     $("#backToGrid").addEventListener("click", backToGrid);
     $("#searchInput").addEventListener("input", (e) => { state.query = e.target.value; renderGrid(); });
+    $("#newMarketButton")?.addEventListener("click", openCreateMarket);
     $("#refreshMarkets").addEventListener("click", loadMarkets);
     $("#loadPolymarket").addEventListener("click", loadPolymarket);
     $("#seedMarket").addEventListener("click", () => createMarket({ question: "Will NetCoin complete the Markets Labs upgrade?", outcomes: ["YES", "NO"], oracle: "manual operator review", resolution_source: "NetCoin demo operator", legal_acknowledged: true, sandbox_short_mode: true }));

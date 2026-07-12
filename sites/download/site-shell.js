@@ -156,17 +156,7 @@
   }
 
   function settingsHtml() {
-    const options = Object.keys(modes).map((key) => {
-      const selected = key === activeMode ? ' selected' : '';
-      return '<option value="' + key + '"' + selected + '>' + modes[key].label + '</option>';
-    }).join('');
-    return '<details class="site-settings"><summary>Settings</summary>' +
-      '<div class="site-settings-panel">' +
-      '<label for="netcoinSiteMode">Site profile</label>' +
-      '<select id="netcoinSiteMode" aria-label="Site profile">' + options + '</select>' +
-      '<p data-site-mode-help>' + modes[activeMode].detail + '</p>' +
-      '<p class="site-settings-note">Reorders grouped secondary tools. Core navigation stays focused.</p>' +
-      '</div></details>';
+    return '';
   }
 
   function normalizeNav() {
@@ -191,8 +181,8 @@
     const nav = q('.site-nav');
     if (!nav || q('.site-tools')) return;
     const tools = document.createElement('div');
-    tools.className = 'site-tools';
-    tools.innerHTML = '<div class="site-context"><span>Wallet-first</span><strong data-site-mode-label>' + modes[activeMode].label + '</strong><small data-site-mode-copy>' + modes[activeMode].detail + '</small></div><form class="site-search" role="search"><input type="search" aria-label="Search addresses, transactions, markets, or docs" placeholder="Search address, tx, market, or docs…"><button type="submit" aria-label="Search">Go</button></form>';
+    tools.className = 'site-tools site-tools-compact';
+    tools.innerHTML = '<form class="site-search" role="search"><input type="search" aria-label="Search addresses, transactions, markets, or docs" placeholder="Search address, tx, market, or docs…"><button type="submit" aria-label="Search">Go</button></form>';
     nav.insertAdjacentElement('afterend', tools);
     q('.site-search', tools)?.addEventListener('submit', (ev) => {
       ev.preventDefault();
@@ -229,17 +219,7 @@
   }
 
   function wireSettings() {
-    const select = q('#netcoinSiteMode');
-    if (!select) return;
-    select.addEventListener('change', () => {
-      const next = validMode(select.value) || 'user';
-      activeMode = next;
-      try { localStorage.setItem(MODE_KEY, next); } catch (e) {}
-      const url = new URL(location.href);
-      url.searchParams.set('mode', next);
-      history.replaceState(null, '', url.toString());
-      syncModeUi();
-    });
+    return;
   }
 
   function routeSearch(term) {
@@ -287,7 +267,7 @@
 
   function closeFloatingPanelsOnOutside() {
     document.addEventListener('click', (ev) => {
-      qa('.site-tools-more[open], .site-settings[open], .site-more[open]').forEach((d) => {
+      qa('.site-tools-more[open], .site-more[open]').forEach((d) => {
         if (!d.contains(ev.target)) d.removeAttribute('open');
       });
     });

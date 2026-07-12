@@ -143,6 +143,10 @@ a{color:inherit}
   width:100%!important;
   margin:0!important;
 }
+.site-tools.site-tools-compact{
+  grid-template-columns:minmax(280px,520px)!important;
+  justify-content:end!important;
+}
 .site-context{
   min-height:40px!important;
   display:flex!important;

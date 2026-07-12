@@ -35,6 +35,7 @@
             <input id="searchInput" type="search" placeholder="Search markets" autocomplete="off" />
           </div>
           <div class="mkt-chips" id="categoryChips"></div>
+          <button id="newMarketButton" class="new-market-btn" type="button">New market</button>
         </div>
 
         <div class="mkt-metrics" id="marketMetrics" aria-live="polite"></div>
@@ -51,7 +52,7 @@
       </section>
 
       <!-- OPERATOR DRAWER -->
-      <details class="operator">
+      <details class="operator" id="operatorTools">
         <summary>Operator tools — create markets, raw orders, resolution</summary>
         <div class="operator-body">
           <form id="createMarketForm">
