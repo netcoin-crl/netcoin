@@ -29,6 +29,9 @@ include = ["netcoin*"]
 # The ddtrace auto-loaded pytest plugin can keep local HTTP-server tests alive in some sandboxes.
 # Disable it by default so `pytest` runs deterministically for this repo.
 addopts = "-p no:ddtrace"
+markers = [
+  "localnet: multi-node localhost integration tests that spawn real netcoin node processes",
+]
 
 
 [tool.black]

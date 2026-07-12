@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Verify NetCoin release checksums and, when available, the GPG signature.
+"""Verify NetCoin release checksums and optional release signatures.
 
 Usage:
   python tools/verify_release.py dist/
+  python tools/verify_release.py dist/ --require-keyless \
+    --certificate-identity https://github.com/OWNER/REPO/.github/workflows/release.yml@refs/tags/vX.Y.Z
 
 The verifier is intentionally conservative: SHA256SUMS must match every listed
 file. If SHA256SUMS.asc exists and gpg is installed, the detached signature is
 verified too. Missing signatures are reported as unsigned rather than treated as
-checksum failure so local/dev builds remain possible.
+checksum failure so local/dev builds remain possible. Official GitHub releases
+should also publish Sigstore keyless bundles and can require them with
+``--require-keyless``.
 """
 
 from __future__ import annotations
@@ -70,19 +74,76 @@ def verify_signature(dist: Path) -> str:
     return "signature verified"
 
 
+def verify_keyless_signatures(
+    dist: Path,
+    verified_files: list[str],
+    *,
+    certificate_identity: str | None = None,
+    certificate_oidc_issuer: str = "https://token.actions.githubusercontent.com",
+    require: bool = False,
+) -> list[str]:
+    cosign = shutil.which("cosign")
+    results: list[str] = []
+    for name in verified_files + ["SHA256SUMS"]:
+        artifact = dist / name
+        bundle = dist / f"{name}.sigstore.json"
+        if not bundle.exists():
+            if require:
+                raise FileNotFoundError(f"missing keyless signature bundle: {bundle.name}")
+            results.append(f"{name}: unsigned keyless")
+            continue
+        if not cosign:
+            if require:
+                raise FileNotFoundError("cosign not found; cannot verify required keyless signatures")
+            results.append(f"{name}: keyless bundle present but cosign not installed")
+            continue
+        if not certificate_identity:
+            if require:
+                raise ValueError("--certificate-identity is required for keyless verification")
+            results.append(f"{name}: keyless bundle present; pass --certificate-identity to verify")
+            continue
+        cmd = [cosign, "verify-blob", str(artifact), "--bundle", str(bundle)]
+        cmd.extend(["--certificate-identity", certificate_identity])
+        if certificate_oidc_issuer:
+            cmd.extend(["--certificate-oidc-issuer", certificate_oidc_issuer])
+        subprocess.run(cmd, check=True)
+        results.append(f"{name}: keyless signature verified")
+    return results
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Verify NetCoin release checksums and optional signature")
     parser.add_argument("dist", nargs="?", default="dist", help="release artifact directory")
+    parser.add_argument(
+        "--require-keyless",
+        action="store_true",
+        help="fail unless every checksum-listed artifact and SHA256SUMS have Sigstore bundles",
+    )
+    parser.add_argument("--certificate-identity", help="expected Sigstore certificate identity for keyless releases")
+    parser.add_argument(
+        "--certificate-oidc-issuer",
+        default="https://token.actions.githubusercontent.com",
+        help="expected Sigstore OIDC issuer",
+    )
     args = parser.parse_args(argv)
     dist = Path(args.dist)
     try:
         verified = verify_checksums(dist)
         sig = verify_signature(dist)
+        keyless = verify_keyless_signatures(
+            dist,
+            verified,
+            certificate_identity=args.certificate_identity,
+            certificate_oidc_issuer=args.certificate_oidc_issuer,
+            require=args.require_keyless,
+        )
     except Exception as exc:
         print(f"release verification failed: {exc}", file=sys.stderr)
         return 1
     print("checksums verified:", ", ".join(verified))
     print(sig)
+    for line in keyless:
+        print(line)
     return 0
 
 

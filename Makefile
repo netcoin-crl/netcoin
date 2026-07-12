@@ -1,4 +1,4 @@
-.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check rust-consensus-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check full-suite-report devnet fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean p2p-soak-check indexer-db-check ts-api-contract-check browser-e2e-matrix-check security-audit-prep-check product-architecture-check design-system-check product-simplification-check trust-interaction-check product-coherence-check v033-check v034-check v035-check v036-check v037-check v038-check v0381-check v0382-check v0383-check v0384-check
+.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check reproducible-build-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check rust-consensus-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check full-suite-report devnet localnet-check nightly-fuzz-check chaos-drill-check fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean p2p-soak-check indexer-db-check ts-api-contract-check browser-e2e-matrix-check security-audit-prep-check product-architecture-check design-system-check product-simplification-check trust-interaction-check product-coherence-check v033-check v034-check v035-check v036-check v037-check v038-check v0381-check v0382-check v0383-check v0384-check
 
 PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
@@ -64,6 +64,15 @@ release-check:
 devnet:
 	NETCOIN_BACKEND=sqlite $(PYTHON) -m netcoin node --host 127.0.0.1 --port 28444 --p2p-port 28445 --data .netcoin-devnet
 
+localnet-check:
+	NETCOIN_BACKEND=sqlite $(PYTHON) -m pytest -m localnet -q
+
+nightly-fuzz-check:
+	$(PYTHON) tools/run_nightly_fuzz_accumulator.py --iterations 1000 --allow-missing-cargo
+
+chaos-drill-check:
+	$(PYTHON) tools/run_chaos_drill.py --nodes 3 --out reports/chaos_drill_report.json
+
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .mypy_cache .ruff_cache htmlcov coverage.xml
 
@@ -72,6 +81,9 @@ provenance-check:
 	printf netcoin > dist/provenance-smoke.txt
 	$(PYTHON) tools/generate_provenance.py dist/provenance-smoke.txt --out dist/provenance-smoke.provenance.json
 	$(PYTHON) tools/verify_provenance.py dist/provenance-smoke.txt dist/provenance-smoke.provenance.json
+
+reproducible-build-check:
+	$(PYTHON) tools/verify_reproducible_build.py --out reports/reproducible_build_source_report.json
 
 upgrade-healthcheck:
 	$(PYTHON) tools/upgrade_healthcheck.py
@@ -364,7 +376,7 @@ v041-check: mainnet-readiness-check product-completion-check phase0-complete-che
 	$(PYTHON) tools/run_ts_api_contract_enforcement.py
 	PYTHONPATH=. $(PYTHON) -m pytest -q tests/test_v041_mainnet_readiness.py
 
-.PHONY: site-ui-polish-check m1-readiness-check m1-live-smoke-plan m1-live-smoke m1-rc-check m1-rc-strict v042-check
+.PHONY: site-ui-polish-check m1-readiness-check m1-live-smoke-plan m1-live-smoke live-testnet-smoke-plan live-testnet-smoke m1-rc-check m1-rc-strict v042-check
 site-ui-polish-check:
 	$(PYTHON) tools/check_site_ui_polish.py
 
@@ -377,6 +389,11 @@ m1-live-smoke-plan:
 
 m1-live-smoke:
 	$(PYTHON) tools/check_m1_live_smoke.py --run --out reports/m1_live_smoke_report.json
+
+live-testnet-smoke-plan: m1-live-smoke-plan
+
+live-testnet-smoke:
+	$(PYTHON) tools/check_m1_live_smoke.py --run --out reports/live_smoke_history/manual-live-smoke.json
 
 m1-rc-check: m1-readiness-check site-ui-polish-check
 	$(PYTHON) tools/run_m1_release_candidate.py --profile source --out reports/m1_release_candidate_report.json

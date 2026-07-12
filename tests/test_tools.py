@@ -121,3 +121,25 @@ def test_verify_release_checksums(tmp_path: Path):
 
     assert module.verify_checksums(dist) == [artifact.name]
     assert module.main([str(dist)]) == 0
+
+
+def test_verify_release_keyless_mode_is_explicit(tmp_path: Path):
+    spec = importlib.util.spec_from_file_location(
+        "verify_release", Path(__file__).resolve().parents[1] / "tools" / "verify_release.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)
+
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    artifact = dist / "netcoin-test.zip"
+    artifact.write_bytes(b"netcoin")
+    digest = module.sha256_file(artifact)
+    (dist / "SHA256SUMS").write_text(f"{digest}  {artifact.name}\n")
+
+    assert module.verify_keyless_signatures(dist, [artifact.name]) == [
+        f"{artifact.name}: unsigned keyless",
+        "SHA256SUMS: unsigned keyless",
+    ]
+    assert module.main([str(dist), "--require-keyless"]) == 1

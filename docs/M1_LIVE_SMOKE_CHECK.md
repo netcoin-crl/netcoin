@@ -10,11 +10,18 @@ The live smoke check verifies that the main public M1 surfaces are reachable
 through the seed1 Host-header path that works around local ISP blocking:
 
 - `wallet.netcoin.online` loads the public wallet surface.
+- `wallet.netcoin.online` keeps wallet HTML SRI values matching the repository
+  script digests.
 - `faucet.netcoin.online` loads the faucet surface.
 - `explorer.netcoin.online/mempool.html` loads the live mempool/fee page.
 - `status.netcoin.online` loads the M1 network snapshot and incident card.
 - `docs.netcoin.online/testnet-user-journey.html` loads the tester path.
 - `api.netcoin.online/api/health` responds.
+- `api.netcoin.online/api/info`, `/api/supply`, `/api/emission`,
+  `/api/fee-estimates`, and `/api/p2p-hardening` respond with JSON.
+
+Live runs also write append-only JSON evidence under
+`reports/live_smoke_history/`.
 
 ## What this check does not claim
 
@@ -38,6 +45,9 @@ Run this only after you intentionally want to check the public seed1 path:
 ```bash
 python3 tools/check_m1_live_smoke.py --run --out reports/m1_live_smoke_report.json
 ```
+
+Nightly GitHub Actions runs use the same `--run` path and upload
+`reports/live_smoke_history/*.json` as artifacts.
 
 Equivalent one-off curl pattern:
 

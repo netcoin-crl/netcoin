@@ -37,18 +37,21 @@ source of truth; the release script reads it.
    git tag -a vX.Y.Z -m "NetCoin vX.Y.Z"
    ```
 
-5. **Build the signed artifact** from the tag (reproducible via `git archive`):
+5. **Build the local artifact** from the tag (reproducible via `git archive`):
    ```bash
    tools/make_release.sh vX.Y.Z
    ```
    This writes `dist/netcoin-X.Y.Z.zip`, `dist/SHA256SUMS`, and — if a GPG key is
    available — `dist/SHA256SUMS.asc`.
 
-6. **Push and publish.**
+6. **Push and publish through GitHub Actions.**
    ```bash
    git push && git push --tags
    ```
-   Create the GitHub release for `vX.Y.Z` and attach all three `dist/` files.
+   The tag workflow builds the release, verifies checksums, signs the source
+   archive, SBOM, and `SHA256SUMS` with Sigstore keyless GitHub OIDC bundles,
+   verifies those bundles, generates GitHub artifact attestations for release
+   provenance, and attaches the artifacts to the GitHub release.
 
 ## How users verify a download
 
@@ -60,6 +63,27 @@ shasum -a 256 -c SHA256SUMS     # macOS
 # Signature (if SHA256SUMS.asc is present)
 gpg --verify SHA256SUMS.asc SHA256SUMS
 ```
+
+Official GitHub releases also publish Sigstore keyless bundles:
+
+```bash
+python tools/verify_release.py dist/ \
+  --require-keyless \
+  --certificate-identity https://github.com/OWNER/REPO/.github/workflows/release.yml@refs/tags/vX.Y.Z
+```
+
+The keyless identity must match the release workflow and tag. The OIDC issuer is
+`https://token.actions.githubusercontent.com`.
+
+Official GitHub releases also have GitHub-hosted artifact attestations. After
+downloading the release files, generate the exact verification commands:
+
+```bash
+python tools/plan_release_attestation_verification.py dist/ --repository OWNER/REPO
+```
+
+Then run the printed `gh attestation verify ... -R OWNER/REPO` commands for the
+source archive, `netcoin-sbom.json`, and `SHA256SUMS`.
 
 The signing public key is published in this repo at
 [`netcoin-signing-key.asc`](netcoin-signing-key.asc). Import it before verifying:

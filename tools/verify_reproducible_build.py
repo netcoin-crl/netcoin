@@ -25,6 +25,13 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def iter_files(root: Path):
     for item in INCLUDE:
         p = root / item
@@ -75,7 +82,7 @@ def main() -> int:
     result = {
         "ok": first_hash == second_hash,
         "schema": "netcoin-reproducible-build-source-v1",
-        "archive": str(archive.relative_to(ROOT)),
+        "archive": display_path(archive),
         "sha256": first_hash,
         "second_sha256": second_hash,
         "independent_builder_required_for_strict_m2": True,

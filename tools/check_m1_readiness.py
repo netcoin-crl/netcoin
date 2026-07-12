@@ -616,8 +616,10 @@ def check_m1_live_smoke_tool() -> dict[str, object]:
         issues.append(f"missing live smoke regression test: {rel(test_path)}")
     for token in [
         'DEFAULT_SEED_IP = "18.220.89.128"',
+        'DEFAULT_HISTORY_DIR = "reports/live_smoke_history"',
         "curl -sk -H 'Host: {self.host}' https://{seed_ip}{self.path} | head -20",
         'headers={"Host": check.host',
+        "wallet_script_expectations",
         '"--run"',
         '"seed deployment"',
         '"mainnet readiness"',
@@ -630,21 +632,38 @@ def check_m1_live_smoke_tool() -> dict[str, object]:
     for token in [
         "# NetCoin M1 Live Smoke Check",
         "Host-header curl commands",
+        "reports/live_smoke_history",
+        "wallet HTML SRI",
         "python3 tools/check_m1_live_smoke.py --run",
         "docs/INCIDENT_RESPONSE.md",
         "does not claim seed deployment",
     ]:
         if token not in doc:
             issues.append(f"live smoke doc missing token: {token}")
-    for token in ["m1-live-smoke-plan", "m1-live-smoke:", "tools/check_m1_live_smoke.py --run"]:
+    for token in ["m1-live-smoke-plan", "m1-live-smoke:", "live-testnet-smoke:", "tools/check_m1_live_smoke.py --run"]:
         if token not in makefile:
             issues.append(f"Makefile missing live smoke token: {token}")
+    workflow = ROOT / ".github" / "workflows" / "live-smoke.yml"
+    if not workflow.exists():
+        issues.append(f"missing live smoke GitHub Actions workflow: {rel(workflow)}")
+    else:
+        workflow_text = read_text(workflow)
+        for token in ["schedule:", "tools/check_m1_live_smoke.py", "reports/live_smoke_history"]:
+            if token not in workflow_text:
+                issues.append(f"live smoke workflow missing token: {token}")
     for token in ["m1-live-smoke-plan", "M1 live smoke dry-run plan", "tests/test_m1_live_smoke_tool.py"]:
         if token not in runner:
             issues.append(f"M1 source runner missing live smoke token: {token}")
     return {
         "ok": not issues,
-        "files": [rel(tool_path), rel(doc_path), rel(makefile_path), rel(runner_path), rel(test_path)],
+        "files": [
+            rel(tool_path),
+            rel(doc_path),
+            rel(makefile_path),
+            rel(runner_path),
+            rel(test_path),
+            rel(ROOT / ".github" / "workflows" / "live-smoke.yml"),
+        ],
         "issues": issues,
     }
 

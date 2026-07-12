@@ -1,0 +1,29 @@
+name: Live Testnet Smoke
+
+on:
+  schedule:
+    - cron: "23 10 * * *"
+  workflow_dispatch:
+
+jobs:
+  live-smoke:
+    name: Host-header live smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run live smoke against seed1
+        run: |
+          python tools/check_m1_live_smoke.py \
+            --run \
+            --out reports/live_smoke_history/live-smoke-${{ github.run_id }}.json \
+            --history-dir reports/live_smoke_history
+      - name: Upload live smoke history
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-smoke-history
+          path: reports/live_smoke_history/*.json

@@ -16,6 +16,6 @@ COPY . /src
 RUN python -m compileall -q netcoin tools tests \
     && python tools/generate_sbom.py --out dist/netcoin-sbom.json \
     && python tools/generate_slsa_provenance.py --subject dist/netcoin-sbom.json --out dist/netcoin-slsa-provenance.json \
-    && tar --sort=name --mtime=@${SOURCE_DATE_EPOCH} --owner=0 --group=0 --numeric-owner \
-         -czf dist/netcoin-${NETCOIN_VERSION}-source.tar.gz \
-         netcoin tools docs sites architecture api README.md LICENSE pyproject.toml
+    && python tools/verify_reproducible_build.py \
+         --archive dist/netcoin-${NETCOIN_VERSION}-source.tar.gz \
+         --out reports/reproducible_build_docker_report.json

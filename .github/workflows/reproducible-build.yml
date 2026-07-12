@@ -1,0 +1,49 @@
+name: Reproducible Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    paths:
+      - "Dockerfile.repro"
+      - "tools/verify_reproducible_build.py"
+      - "tools/compare_reproducible_builds.py"
+      - ".github/workflows/reproducible-build.yml"
+
+jobs:
+  independent-repro-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build local normalized source archive
+        run: |
+          python tools/verify_reproducible_build.py \
+            --archive dist/netcoin-local-source.tar.gz \
+            --out reports/reproducible_build_source_report.json
+      - name: Build Docker normalized source archive
+        run: |
+          docker build \
+            -f Dockerfile.repro \
+            --build-arg NETCOIN_VERSION=ci \
+            --output type=local,dest=/tmp/netcoin-repro-docker \
+            .
+      - name: Compare local and Docker archives
+        run: |
+          python tools/compare_reproducible_builds.py \
+            --local-archive dist/netcoin-local-source.tar.gz \
+            --docker-archive /tmp/netcoin-repro-docker/src/dist/netcoin-ci-source.tar.gz \
+            --out reports/m2_evidence/independent_repro_build.json
+      - name: Upload reproducible-build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: netcoin-reproducible-build-evidence
+          path: |
+            reports/reproducible_build_source_report.json
+            reports/m2_evidence/independent_repro_build.json
