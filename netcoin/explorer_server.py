@@ -143,20 +143,56 @@ def address_payload(chain: Blockchain, address: str, limit: int = 50, offset: in
     return summary
 
 
+def percentile_fee_rate(values: list[int], percentile: int) -> int:
+    """Return a nearest-rank fee-rate percentile from sorted or unsorted values."""
+    if not values:
+        return 0
+    ordered = sorted(max(0, int(value)) for value in values)
+    if len(ordered) == 1:
+        return ordered[0]
+    idx = round((max(0, min(100, int(percentile))) / 100) * (len(ordered) - 1))
+    return ordered[idx]
+
+
 def fee_estimates_payload(chain: Blockchain, assumed_vbytes: int = 200) -> dict[str, Any]:
     presets = {
         "slow": 6,
         "normal": 3,
         "fast": 1,
     }
-    result: dict[str, Any] = {"assumed_vbytes": int(assumed_vbytes), "presets": {}}
+    assumed_vbytes = int(assumed_vbytes)
+    mempool = chain.mempool_info()
+    min_relay = int(mempool.get("min_relay_fee_per_kvb", 0))
+    observed_rates = [
+        int(entry.get("fee_rate_per_kvb", 0))
+        for entry in mempool.get("entries", [])
+        if int(entry.get("fee_rate_per_kvb", 0)) > 0
+    ]
+    percentile_source = "mempool-fee-rates" if observed_rates else "min-relay-fallback"
+    percentile_rates = observed_rates or [min_relay]
+    result: dict[str, Any] = {
+        "assumed_vbytes": assumed_vbytes,
+        "mempool_depth": int(mempool.get("size", 0)),
+        "mempool_bytes": int(mempool.get("bytes", 0)),
+        "source": percentile_source,
+        "fee_rate_percentiles": {},
+        "presets": {},
+    }
+    for key, pct in (("p10", 10), ("p50", 50), ("p90", 90)):
+        rate = percentile_fee_rate(percentile_rates, pct)
+        result["fee_rate_percentiles"][key] = {
+            "label": f"{pct}th percentile",
+            "percentile": pct,
+            "fee_rate_per_kvb": rate,
+            "estimated_fee_sats": max(1, (rate * assumed_vbytes + 999) // 1000),
+        }
     for name, target in presets.items():
         estimate = chain.estimate_smart_fee(target)
         rate = int(estimate.get("fee_rate_per_kvb", 0))
         result["presets"][name] = {
             "target_blocks": target,
             "fee_rate_per_kvb": rate,
-            "estimated_fee_sats": max(1, (rate * int(assumed_vbytes) + 999) // 1000),
+            "estimated_fee_sats": max(1, (rate * assumed_vbytes + 999) // 1000),
             "method": estimate.get("method", "local-policy"),
         }
     return result
@@ -265,10 +301,13 @@ def make_handler(chain: Blockchain, rate_limit_per_min: int = 240, *, trust_prox
             self.end_headers()
             last = None
             for _ in range(30):
+                fees = fee_estimates_payload(chain)
                 payload = {
                     "height": chain.height(),
                     "tip_hash": chain.tip_hash(),
                     "mempool": len(chain.mempool),
+                    "mempool_depth": fees.get("mempool_depth", len(chain.mempool)),
+                    "fee_rate_percentiles": fees.get("fee_rate_percentiles", {}),
                     "t": int(time.time()),
                 }
                 if payload != last:

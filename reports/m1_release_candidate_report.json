@@ -1,0 +1,92 @@
+{
+  "does_not_claim": [
+    "live seed deployment",
+    "real CAPTCHA credentials",
+    "external audit completion",
+    "hardware wallet support",
+    "independent-node decentralization"
+  ],
+  "dry_run": false,
+  "gate_count": 6,
+  "gates": [
+    {
+      "command": "python3 tools/check_m1_readiness.py --out reports/m1_readiness_source_report.json",
+      "duration_seconds": 0.045,
+      "id": "m1-readiness-source",
+      "label": "M1 source readiness markers",
+      "missing_requirements": [],
+      "profile": "source",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "      \"sites/status/index.html\",\n        \"sites/status/status.js\",\n        \"sites/status/status.css\"\n      ],\n      \"issues\": [],\n      \"ok\": true\n    },\n    \"testnet_feedback_intake\": {\n      \"files\": [\n        \"docs/TESTNET_FEEDBACK_LOG.md\",\n        \"sites/docs/testnet-feedback.html\",\n        \"docs/TESTNET_USER_JOURNEY.md\",\n        \"sites/docs/testnet-user-journey.html\",\n        \"sites/docs/index.html\",\n        \"sites/docs/docs.css\"\n      ],\n      \"issues\": [],\n      \"ok\": true\n    },\n    \"testnet_pilot_plan\": {\n      \"files\": [\n        \"docs/TESTNET_PILOT_PLAN.md\",\n        \"sites/docs/testnet-pilot.html\",\n        \"docs/TESTNET_USER_JOURNEY.md\",\n        \"docs/TESTNET_FEEDBACK_LOG.md\",\n        \"sites/docs/testnet-user-journey.html\",\n        \"sites/docs/testnet-feedback.html\",\n        \"sites/docs/index.html\",\n        \"sites/docs/docs.css\"\n      ],\n      \"issues\": [],\n      \"ok\": true\n    },\n    \"testnet_user_journey\": {\n      \"files\": [\n        \"docs/TESTNET_USER_JOURNEY.md\",\n        \"sites/docs/testnet-user-journey.html\",\n        \"sites/docs/index.html\",\n        \"sites/docs/docs.css\"\n      ],\n      \"issues\": [],\n      \"ok\": true\n    },\n    \"wallet_e2e_wiring\": {\n      \"files\": [\n        \"tools/run_browser_e2e_matrix.py\",\n        \"sites/tests/e2e/m1-wallet-workflow.spec.js\"\n      ],\n      \"issues\": [],\n      \"ok\": true\n    },\n    \"wallet_polish_and_sri\": {\n      \"files\": [\n        \"sites/wallet/index.html\",\n        \"sites/wallet/wallet-app.js\",\n        \"webwallet-browser/public/wallet.html\",\n        \"webwallet-browser/public/wallet-app.js\"\n      ],\n      \"issues\": [],\n      \"ok\": true,\n      \"wallet_app_sri\": \"sha384-YBG4qX/70pCwavJZQA75kEEZiyejIPeqURGEMU50Re8hvQCXgIFp0TXqnlGl25aI\"\n    }\n  },\n  \"does_not_claim\": [\n    \"live seed deployment\",\n    \"real CAPTCHA credentials\",\n    \"external audit completion\",\n    \"hardware wallet support\",\n    \"full CI success without local runner output\"\n  ],\n  \"incomplete\": [],\n  \"ok\": true,\n  \"scope\": \"M1 offline source readiness\"\n}\n"
+    },
+    {
+      "command": "python3 tools/check_site_ui_polish.py",
+      "duration_seconds": 0.044,
+      "id": "site-ui-polish",
+      "label": "Static site UI polish guard",
+      "missing_requirements": [],
+      "profile": "source",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"audited_surface_count\": 12,\n  \"copy_budget\": {\n    \"card_copy_count\": 30,\n    \"card_copy_max_chars\": 90,\n    \"panel_intro_count\": 9,\n    \"panel_intro_max_chars\": 140\n  },\n  \"design_flaw_count\": 8,\n  \"implemented_change_count\": 8,\n  \"issues\": [],\n  \"ok\": true,\n  \"phase\": \"Website UI clarity and copy-reduction pass\",\n  \"version\": \"0.42.0\"\n}\n"
+    },
+    {
+      "command": "python3 -m pytest tests/test_m1_readiness_gate.py tests/test_m1_ci_gate_wiring.py tests/test_m1_wallet_e2e_source.py tests/test_m1_wallet_regressions.py tests/test_m1_status_page.py tests/test_m1_faucet_hardening.py tests/test_m1_explorer_mempool_live.py tests/test_m1_incident_response_runbook.py tests/test_m1_testnet_user_journey.py tests/test_m1_testnet_feedback_intake.py tests/test_m1_testnet_pilot_plan.py tests/test_m1_live_smoke_tool.py -q",
+      "duration_seconds": 0.559,
+      "id": "m1-source-tests",
+      "label": "M1 source regression tests",
+      "missing_requirements": [],
+      "profile": "source",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "...........................................                              [100%]\n43 passed in 0.37s\n"
+    },
+    {
+      "command": "node --check sites/wallet/wallet-app.js && node --check webwallet-browser/public/wallet-app.js",
+      "duration_seconds": 0.062,
+      "id": "wallet-js-syntax",
+      "label": "Wallet JavaScript syntax",
+      "missing_requirements": [],
+      "profile": "source",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "command": "node --check sites/explorer/explorer-pro.js && node --check sites/status/status.js && node --check sites/tests/e2e/m1-wallet-workflow.spec.js",
+      "duration_seconds": 0.08,
+      "id": "explorer-status-js-syntax",
+      "label": "Explorer and status JavaScript syntax",
+      "missing_requirements": [],
+      "profile": "source",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "command": "python3 tools/check_m1_live_smoke.py --out reports/m1_live_smoke_plan.json",
+      "duration_seconds": 0.061,
+      "id": "m1-live-smoke-plan",
+      "label": "M1 live smoke dry-run plan",
+      "missing_requirements": [],
+      "profile": "source",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "   \"id\": \"faucet-home\",\n      \"label\": \"Faucet public home loads\",\n      \"path\": \"/\",\n      \"required_tokens\": [\n        \"Faucet\",\n        \"testnet\"\n      ],\n      \"status\": \"planned\"\n    },\n    {\n      \"curl\": \"curl -sk -H 'Host: explorer.netcoin.online' https://18.220.89.128/mempool.html | head -20\",\n      \"host\": \"explorer.netcoin.online\",\n      \"id\": \"explorer-mempool\",\n      \"label\": \"Explorer mempool page loads\",\n      \"path\": \"/mempool.html\",\n      \"required_tokens\": [\n        \"mempool\",\n        \"fee\",\n        \"Explorer\"\n      ],\n      \"status\": \"planned\"\n    },\n    {\n      \"curl\": \"curl -sk -H 'Host: status.netcoin.online' https://18.220.89.128/ | head -20\",\n      \"host\": \"status.netcoin.online\",\n      \"id\": \"status-home\",\n      \"label\": \"Status page exposes M1 snapshot\",\n      \"path\": \"/\",\n      \"required_tokens\": [\n        \"Live testnet snapshot\",\n        \"Incident response\"\n      ],\n      \"status\": \"planned\"\n    },\n    {\n      \"curl\": \"curl -sk -H 'Host: docs.netcoin.online' https://18.220.89.128/testnet-user-journey.html | head -20\",\n      \"host\": \"docs.netcoin.online\",\n      \"id\": \"docs-journey\",\n      \"label\": \"First-time tester journey is public\",\n      \"path\": \"/testnet-user-journey.html\",\n      \"required_tokens\": [\n        \"M1 tester path\",\n        \"wallet.netcoin.online\",\n        \"faucet.netcoin.online\"\n      ],\n      \"status\": \"planned\"\n    },\n    {\n      \"curl\": \"curl -sk -H 'Host: api.netcoin.online' https://18.220.89.128/api/health | head -20\",\n      \"host\": \"api.netcoin.online\",\n      \"id\": \"api-health\",\n      \"label\": \"API health endpoint responds\",\n      \"path\": \"/api/health\",\n      \"required_tokens\": [\n        \"status\"\n      ],\n      \"status\": \"planned\"\n    }\n  ],\n  \"does_not_claim\": [\n    \"seed deployment\",\n    \"systemd restart\",\n    \"real CAPTCHA credentials\",\n    \"external audit completion\",\n    \"mainnet readiness\"\n  ],\n  \"incomplete\": [],\n  \"mode\": \"dry-run\",\n  \"ok\": true,\n  \"scope\": \"M1 live smoke plan\",\n  \"seed_ip\": \"18.220.89.128\"\n}\n"
+    }
+  ],
+  "incomplete": [],
+  "ok": true,
+  "profile": "source",
+  "scope": "M1 release-candidate verification",
+  "status_counts": {
+    "pass": 6
+  }
+}

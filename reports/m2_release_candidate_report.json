@@ -1,0 +1,53 @@
+{
+  "command_count": 5,
+  "dry_run": false,
+  "ok": true,
+  "profile": "source",
+  "run_count": 5,
+  "runs": [
+    {
+      "command": "python3 tools/check_m2_readiness.py --out reports/m2_readiness_source_report.json",
+      "elapsed_seconds": 0.039,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"blocker_count\": 0,\n  \"cannot_claim_operational_m2_without_strict_evidence\": true,\n  \"claim_level\": \"m2-source-complete-evidence-required\",\n  \"deliverable_count\": 9,\n  \"issues\": [],\n  \"manifest_version\": \"netcoin-milestone-readiness-v1\",\n  \"milestone\": \"M2\",\n  \"mode\": \"source\",\n  \"ok\": true,\n  \"pass_count\": 9,\n  \"results\": [\n    {\n      \"id\": \"hardware-wallet-contract\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"psbt-round-trip\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"fee-bumping\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"watch-only-xpub-descriptors\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"reproducible-builds\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"signed-releases-sbom-provenance\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"fuzz-corpus\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"bug-bounty-and-audit\",\n      \"issues\": [],\n      \"ok\": true\n    },\n    {\n      \"id\": \"threat-model-cve-review\",\n      \"issues\": [],\n      \"ok\": true\n    }\n  ]\n}\n"
+    },
+    {
+      "command": "python3 -m pytest tests/test_m2_trust_hardening.py tests/test_m2_fee_bump.py -q",
+      "elapsed_seconds": 11.5,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "........                                                                 [100%]\n8 passed in 11.36s\n"
+    },
+    {
+      "command": "python3 tools/verify_reproducible_build.py --out reports/reproducible_build_source_report.json",
+      "elapsed_seconds": 8.574,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"archive\": \"dist/netcoin-source-repro.tar.gz\",\n  \"independent_builder_required_for_strict_m2\": true,\n  \"ok\": true,\n  \"schema\": \"netcoin-reproducible-build-source-v1\",\n  \"second_sha256\": \"6fd69404ad27ee276f8117b5484a8b961b07620c66819f6961d4fdc62aae9739\",\n  \"sha256\": \"6fd69404ad27ee276f8117b5484a8b961b07620c66819f6961d4fdc62aae9739\"\n}\n"
+    },
+    {
+      "command": "python3 tools/generate_sbom.py --out dist/netcoin-sbom.json",
+      "elapsed_seconds": 0.097,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\"file_count\": 579, \"out\": \"/Users/adoniyasnegash/Documents/Playground/netcoin/dist/netcoin-sbom.json\", \"version\": \"0.42.0\"}\n"
+    },
+    {
+      "command": "python3 tools/generate_slsa_provenance.py --subject dist/netcoin-sbom.json --out dist/netcoin-slsa-provenance.json",
+      "elapsed_seconds": 0.035,
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\"ok\": true, \"out\": \"dist/netcoin-slsa-provenance.json\", \"subject\": \"dist/netcoin-sbom.json\"}\n"
+    }
+  ],
+  "status_counts": {
+    "pass": 5
+  },
+  "strict_evidence_required_for_operational_m2": false
+}

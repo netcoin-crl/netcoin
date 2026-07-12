@@ -1,0 +1,10 @@
+{
+  "evidence_path": "reports/mainnet_evidence/public_testnet_incidents.json",
+  "gate_id": "public-testnet-incident-history",
+  "issues": [
+    "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/public_testnet_incidents.json"
+  ],
+  "mode": "strict",
+  "ok": false,
+  "status": "strict-evidence-required"
+}

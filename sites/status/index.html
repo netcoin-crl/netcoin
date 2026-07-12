@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Status</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="status.css?v=20260706-professional" />
+  <link rel="stylesheet" href="status.css?v=20260711-m1-network-snapshot-m1-incident-runbook" />
   <link rel="stylesheet" href="site-shell.css?v=20260710-widen" />
 </head>
 <body>
@@ -30,9 +30,31 @@ curl https://api.netcoin.online/api/info</pre>
       </div>
     </section>
 
+    <section class="card network-snapshot" aria-labelledby="networkSnapshotTitle">
+      <div class="section-head">
+        <div>
+          <span class="pill"><span id="networkDot" class="dot"></span><span id="networkState">Checking network</span></span>
+          <h2 id="networkSnapshotTitle">Live testnet snapshot</h2>
+        </div>
+        <p id="networkUpdated" class="muted">Waiting for node health...</p>
+      </div>
+      <div id="networkSnapshot" class="stats" aria-live="polite">
+        <div class="stat"><div class="k">Height</div><div id="statusHeight" class="v">—</div><div class="muted mono" id="statusTip">tip pending</div></div>
+        <div class="stat"><div class="k">Mempool depth</div><div id="statusMempool" class="v">—</div><div class="muted" id="statusMempoolBytes">transactions pending</div></div>
+        <div class="stat"><div class="k">Peer count</div><div id="statusPeers" class="v">—</div><div class="muted" id="statusPeerDetail">known peers pending</div></div>
+        <div class="stat"><div class="k">Node uptime</div><div id="statusUptime" class="v">—</div><div class="muted" id="statusHealthDetail">health pending</div></div>
+      </div>
+    </section>
+
     <section class="grid">
       <div class="card"><h2>Services</h2><div id="serviceChecks" class="stats"><div class="stat"><div class="k">Loading</div><div class="v">Checking...</div></div></div></div>
       <div class="card"><h2>Readiness Summary</h2><p id="readinessSummary" class="muted">Loading professional checklist...</p><div class="actions"><a class="pill" href="https://docs.netcoin.online">Docs map</a><a class="pill" href="https://governance.netcoin.online">Governance</a></div></div>
+      <div class="card incident-card" aria-labelledby="incidentResponseTitle">
+        <span class="pill">M1 operator runbook</span>
+        <h2 id="incidentResponseTitle">Incident response</h2>
+        <p class="muted">Public testnet operators follow severity levels, owner/scribe assignment, first-15-minute triage, containment, recovery, and postmortem templates.</p>
+        <div class="actions"><a class="pill" href="https://docs.netcoin.online/INCIDENT_RESPONSE.md">Open runbook</a><a class="pill" href="https://security.netcoin.online">Security</a></div>
+      </div>
     </section>
 
     <section class="card">
@@ -42,7 +64,7 @@ curl https://api.netcoin.online/api/info</pre>
 
     <p class="footer">NetCoin is public educational testnet software. Green status means the testnet service is reachable, not that NetCoin is mainnet or real-money ready.</p>
   </div>
-  <script src="status.js?v=20260706-professional"></script>
+  <script src="status.js?v=20260711-m1-network-snapshot"></script>
   <script src="site-shell.js?v=20260709-minimal"></script>
 </body>
 </html>

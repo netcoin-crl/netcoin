@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "schema_version": 12,
+  "vector_fingerprint": "39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c",
+  "summary": {
+    "schema_ok": true,
+    "route_ok": true,
+    "client_ok": true,
+    "codegen_ok": true
+  },
+  "expected": {
+    "schema_ok": true,
+    "route_ok": true,
+    "client_ok": true,
+    "codegen_ok": true
+  },
+  "source_issues": [],
+  "comparison_issues": []
+}

@@ -1,0 +1,72 @@
+{
+  "blocker_count": 5,
+  "cannot_claim_operational_m2_without_strict_evidence": true,
+  "claim_level": "m2-strict-evidence-required",
+  "deliverable_count": 9,
+  "issues": [
+    "missing strict evidence: reports/m2_evidence/hardware_wallet_device_evidence.json",
+    "missing strict evidence: reports/m2_evidence/independent_repro_build.json",
+    "missing strict evidence: reports/m2_evidence/release_signing_key_ceremony.json",
+    "missing strict evidence: reports/m2_evidence/fuzz_100m_report.json",
+    "missing strict evidence: reports/m2_evidence/audit_scoping_notes.json"
+  ],
+  "manifest_version": "netcoin-milestone-readiness-v1",
+  "milestone": "M2",
+  "mode": "strict",
+  "ok": false,
+  "pass_count": 9,
+  "results": [
+    {
+      "id": "hardware-wallet-contract",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "psbt-round-trip",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "fee-bumping",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "watch-only-xpub-descriptors",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "reproducible-builds",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "signed-releases-sbom-provenance",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "fuzz-corpus",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "bug-bounty-and-audit",
+      "issues": [],
+      "ok": true
+    },
+    {
+      "id": "threat-model-cve-review",
+      "issues": [],
+      "ok": true
+    }
+  ],
+  "strict_evidence": {
+    "audit_scoping_notes": "reports/m2_evidence/audit_scoping_notes.json",
+    "fuzz_100m_report": "reports/m2_evidence/fuzz_100m_report.json",
+    "hardware_wallet_device": "reports/m2_evidence/hardware_wallet_device_evidence.json",
+    "independent_repro_build": "reports/m2_evidence/independent_repro_build.json",
+    "release_signing_key_ceremony": "reports/m2_evidence/release_signing_key_ceremony.json"
+  }
+}

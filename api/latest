@@ -1,0 +1,7 @@
+{
+  "height": 0,
+  "tip_hash": "static-fallback",
+  "blocks": [],
+  "mempool": {"size": 0, "bytes": 0},
+  "status": "source-fallback"
+}

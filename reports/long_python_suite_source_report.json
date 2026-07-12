@@ -1,0 +1,14 @@
+{
+  "gate_id": "long-python-suite-confidence",
+  "mode": "source",
+  "ok": true,
+  "required_evidence": [
+    "all_test_files_passed",
+    "zero_timeouts",
+    "slowest_files_recorded",
+    "parity_fingerprint_recorded"
+  ],
+  "runner": "tools/run_test_suite_by_file.py --timeout 180",
+  "status": "source-complete-evidence-required",
+  "test_file_count": 122
+}

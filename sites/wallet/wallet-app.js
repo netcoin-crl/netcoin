@@ -18,6 +18,9 @@
   const MAX_WALLET_SEND_INPUTS = 500;
   const SESSION_STORE = "ncw.unlockedSession.v2";
   const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+  const AUTO_LOCK_STORE = "ncw.autoLockMinutes.v1";
+  const DEFAULT_AUTO_LOCK_MINUTES = 30;
+  const AUTO_LOCK_OPTIONS = [0, 15, 30, 60, 120];
   const Vault = window.NCWVault || null;
 
   let state = null; // { secretType, seed?, privHex, address, profile }
@@ -235,7 +238,7 @@
     const card = document.createElement("div");
     card.className = "card wallet-section";
     card.dataset.walletTab = tab;
-    card.innerHTML = `<h1 style="font-size:16px">${title}</h1>${bodyHtml}`;
+    card.innerHTML = `<h2>${title}</h2>${bodyHtml}`;
     return card;
   }
   function ensureWalletTabShell() {
@@ -257,8 +260,7 @@
       btn.onclick = () => setActiveWalletTab(tab.id);
       tabs.appendChild(btn);
     }
-    const firstCard = wallet.querySelector(":scope > .card");
-    if (firstCard) wallet.insertBefore(tabs, firstCard);
+    wallet.prepend(tabs);
     const cards = Array.from(wallet.querySelectorAll(":scope > .card"));
     for (const card of cards) {
       let tab = "wallet";
@@ -317,6 +319,15 @@
       </select>
       <div class="mode-grid" id="walletModeButtons"></div>
       <p id="walletModeHelp" class="muted compact-note"></p>
+      <label for="sessionAutoLock">Session auto-lock</label>
+      <select id="sessionAutoLock" aria-label="Session auto-lock timeout">
+        <option value="15">15 minutes</option>
+        <option value="30">30 minutes</option>
+        <option value="60">1 hour</option>
+        <option value="120">2 hours</option>
+        <option value="0">Disabled for this tab</option>
+      </select>
+      <p id="sessionAutoLockStatus" class="muted auto-lock-status"></p>
       <details class="raw-details">
         <summary>What each mode shows</summary>
         <p class="muted">Simple: one compact wallet page with balance, send, receive, and activity. Merchant mode adds payments and reports. Advanced mode adds watch-only, escrow, coin control, PSBT, descriptors, and backups/settings tools. Developer mode adds contract/debug links.</p>
@@ -341,6 +352,7 @@
     const wallet = $("walletView");
     if (!wallet) return;
     ensureWalletTabShell();
+    syncAutoLockControls();
     const mode = walletUiMode();
     let tab = activeWalletTab();
     if (!tabAllowed(tab, mode)) tab = "wallet";
@@ -1035,6 +1047,9 @@
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · private key · session unlocked`;
     if (remember) rememberUnlocked("privateKey", clean, profile, true);
     show("walletView");
+    lastWalletActivityAt = Date.now();
+    syncAutoLockControls();
+    scheduleAutoLock();
     applyWalletMode();
     makePaymentRequest();
     refresh();
@@ -1070,6 +1085,74 @@
       return false;
     }
   }
+
+
+  function autoLockMinutes() {
+    const raw = Number(localStorage.getItem(AUTO_LOCK_STORE));
+    return AUTO_LOCK_OPTIONS.includes(raw) ? raw : DEFAULT_AUTO_LOCK_MINUTES;
+  }
+
+  function autoLockLabel(minutes = autoLockMinutes()) {
+    if (!minutes) return "Auto-lock disabled for this tab";
+    return minutes >= 60 ? `Auto-lock after ${minutes / 60} hour${minutes === 60 ? "" : "s"} inactive` : `Auto-lock after ${minutes} minutes inactive`;
+  }
+
+  function syncAutoLockControls() {
+    const minutes = autoLockMinutes();
+    for (const id of ["unlockAutoLock", "privateKeyAutoLock", "sessionAutoLock"]) {
+      const el = $(id);
+      if (el) el.value = String(minutes);
+    }
+    const status = $("sessionAutoLockStatus");
+    if (status) status.textContent = autoLockLabel(minutes);
+  }
+
+  function setAutoLockMinutes(value) {
+    const minutes = AUTO_LOCK_OPTIONS.includes(Number(value)) ? Number(value) : DEFAULT_AUTO_LOCK_MINUTES;
+    localStorage.setItem(AUTO_LOCK_STORE, String(minutes));
+    syncAutoLockControls();
+    scheduleAutoLock();
+  }
+
+  let autoLockTimer = null;
+  let lastWalletActivityAt = Date.now();
+
+  function clearAutoLockTimer() {
+    if (autoLockTimer) window.clearTimeout(autoLockTimer);
+    autoLockTimer = null;
+  }
+
+  function lockWallet(reason = "") {
+    state = null;
+    pendingSend = null;
+    clearAutoLockTimer();
+    clearUnlockedSession();
+    renderProfiles();
+    show(hasProfiles() ? "unlock" : "welcome");
+    if (reason && $("profileMsg")) $("profileMsg").textContent = reason;
+  }
+
+  function scheduleAutoLock() {
+    clearAutoLockTimer();
+    if (!state) return;
+    const minutes = autoLockMinutes();
+    if (!minutes) return;
+    const timeoutMs = minutes * 60 * 1000;
+    const elapsed = Date.now() - lastWalletActivityAt;
+    const remaining = Math.max(1000, timeoutMs - elapsed);
+    autoLockTimer = window.setTimeout(() => {
+      if (!state) return;
+      if (Date.now() - lastWalletActivityAt >= timeoutMs) lockWallet(autoLockLabel(minutes) + ". Unlock again to continue.");
+      else scheduleAutoLock();
+    }, remaining);
+  }
+
+  function noteWalletActivity() {
+    if (!state) return;
+    lastWalletActivityAt = Date.now();
+    scheduleAutoLock();
+  }
+
 
   // ---------- encryption at rest (WebCrypto) ----------
   async function deriveKey(password, salt) {
@@ -1132,6 +1215,9 @@
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · seed phrase · session unlocked`;
     if (remember) rememberUnlocked("seed", seed, profile, true);
     show("walletView");
+    lastWalletActivityAt = Date.now();
+    syncAutoLockControls();
+    scheduleAutoLock();
     applyWalletMode();
     makePaymentRequest();
     refresh();
@@ -1668,7 +1754,14 @@
   document.addEventListener("click", (ev) => {
     if (ev.target && ev.target.id === "btnCopyMineCommand") navigator.clipboard?.writeText($("mineCommand")?.textContent || "");
   });
-  $("btnLock").onclick = () => { state = null; clearUnlockedSession(); renderProfiles(); show(hasProfiles() ? "unlock" : "welcome"); };
+  for (const eventName of ["pointerdown", "keydown", "input", "change"]) {
+    document.addEventListener(eventName, noteWalletActivity, { capture: true, passive: true });
+  }
+  document.addEventListener("change", (ev) => {
+    if (["unlockAutoLock", "privateKeyAutoLock", "sessionAutoLock"].includes(ev.target?.id)) setAutoLockMinutes(ev.target.value);
+  });
+  syncAutoLockControls();
+  $("btnLock").onclick = () => lockWallet();
   $("fee").oninput = () => { $("feePreset").value = "custom"; updateFeeHint(); };
   $("feePreset").onchange = () => {
     const p = $("feePreset");

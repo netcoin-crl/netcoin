@@ -11,10 +11,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MATRIX_PATH = ROOT / "architecture" / "browser-e2e-matrix.json"
 SPEC_PATH = ROOT / "sites" / "tests" / "e2e" / "netcoin-product-matrix.spec.ts"
+M1_WALLET_SPEC_PATH = ROOT / "sites" / "tests" / "e2e" / "m1-wallet-workflow.spec.js"
 
 
 def playwright_cmd() -> list[str]:
-    local = ROOT / "node_modules" / ".bin" / ("playwright.cmd" if __import__("os").name == "nt" else "playwright")
+    exe = "playwright.cmd" if __import__("os").name == "nt" else "playwright"
+    local = ROOT / "node_modules" / ".bin" / exe
     if local.exists():
         return [str(local)]
     return ["npx", "playwright"]
@@ -24,8 +26,11 @@ def source_check() -> dict[str, object]:
     issues: list[str] = []
     matrix = json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
     spec = SPEC_PATH.read_text(encoding="utf-8") if SPEC_PATH.exists() else ""
+    m1_wallet_spec = M1_WALLET_SPEC_PATH.read_text(encoding="utf-8") if M1_WALLET_SPEC_PATH.exists() else ""
     if not SPEC_PATH.exists():
         issues.append(f"missing {SPEC_PATH.relative_to(ROOT)}")
+    if not M1_WALLET_SPEC_PATH.exists():
+        issues.append(f"missing {M1_WALLET_SPEC_PATH.relative_to(ROOT)}")
     for surface in matrix.get("surfaces", []):
         name = str(surface.get("surface", ""))
         path = ROOT / str(surface.get("path", ""))
@@ -36,7 +41,28 @@ def source_check() -> dict[str, object]:
         for check in surface.get("required_checks", []):
             if str(check) not in spec:
                 issues.append(f"spec missing check token {name}:{check}")
-    return {"ok": not issues, "mode": "source", "surface_count": len(matrix.get("surfaces", [])), "issues": issues}
+    required_wallet_tokens = [
+        "create wallet",
+        "receive",
+        "send",
+        "lock",
+        "unlock",
+        "tab shell",
+        "btnQuizSkip",
+        "btnConfirmSend",
+        "btnLock",
+        "walletTabs",
+    ]
+    for token in required_wallet_tokens:
+        if token not in m1_wallet_spec:
+            issues.append(f"M1 wallet workflow spec missing token: {token}")
+    return {
+        "ok": not issues,
+        "mode": "source",
+        "surface_count": len(matrix.get("surfaces", [])),
+        "m1_wallet_workflow_spec": M1_WALLET_SPEC_PATH.exists(),
+        "issues": issues,
+    }
 
 
 def main() -> int:
@@ -48,7 +74,11 @@ def main() -> int:
     if args.run_playwright and result["ok"]:
         try:
             proc = subprocess.run(
-                playwright_cmd() + ["test", str(SPEC_PATH)], cwd=ROOT, text=True, capture_output=True, check=False
+                playwright_cmd() + ["test", str(SPEC_PATH), str(M1_WALLET_SPEC_PATH)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
             )
             result["mode"] = "playwright"
             result["playwright_returncode"] = proc.returncode

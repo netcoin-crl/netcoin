@@ -1,1 +1,12 @@
 .pro-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end;margin-bottom:16px}.pro-hero h1{font-size:clamp(30px,5vw,56px);line-height:.98;margin:0 0 8px}.pro-hero p{color:var(--mut);max-width:70ch}.pro-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.pro-panel{border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.035);padding:16px}.pro-panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:0 0 10px}.statline{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}.statline:last-child{border-bottom:0}.statline span{color:var(--mut)}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:10px;border-bottom:1px solid rgba(255,255,255,.08)}.table th{color:var(--mut);font-size:12px;text-transform:uppercase}.actions{display:flex;flex-wrap:wrap;gap:8px}.actions a,.actions button{display:inline-flex;width:auto;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.03);color:inherit}.actions a:hover,.actions button:hover{border-color:var(--accent)}.searchbar{display:flex;gap:8px;margin:12px 0}.searchbar input{flex:1}.muted{color:var(--mut)}.warn{color:var(--warn)}
+
+/* v20260711-m1-mempool-live: live mempool feed and percentile fee bands. */
+.fee-bands{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:12px}
+.fee-band{border:1px solid var(--line);border-radius:14px;background:rgba(61,220,151,.06);padding:12px}
+.fee-band span{display:block;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.fee-band b{display:block;font-size:24px;line-height:1.1;margin:5px 0;color:var(--accent)}
+.fee-band small{display:block;color:var(--mut);line-height:1.35}
+.live-feed-state{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 10px;background:rgba(255,255,255,.035);width:max-content;max-width:100%}
+.live-dot{width:9px;height:9px;border-radius:999px;background:var(--mut);box-shadow:0 0 0 3px rgba(255,255,255,.05)}
+.live-feed-state.live .live-dot{background:var(--accent);box-shadow:0 0 0 3px rgba(61,220,151,.14)}
+.live-feed-state.warn .live-dot{background:var(--warn)}

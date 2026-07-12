@@ -24,9 +24,9 @@ import tempfile
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import parse_qs
 
+from netcoin.captcha_provider import CaptchaConfig, verify_token
 from netcoin.crypto import validate_address
 from netcoin.faucet_abuse import (
     abuse_summary,
@@ -51,6 +51,7 @@ STATE_FILE = Path(os.environ.get("NETCOIN_FAUCET_STATE", "/opt/netcoin/faucet/st
 AMOUNT = os.environ.get("NETCOIN_FAUCET_AMOUNT", "5")
 FEE = os.environ.get("NETCOIN_FAUCET_FEE", "0.01")
 COOLDOWN_SECONDS = int(os.environ.get("NETCOIN_FAUCET_COOLDOWN_SECONDS", str(60 * 60)))  # 1h between claims
+ADDRESS_COOLDOWN_SECONDS = int(os.environ.get("NETCOIN_FAUCET_ADDRESS_COOLDOWN_SECONDS", str(COOLDOWN_SECONDS)))
 # Hardening knobs.
 MAX_BODY_BYTES = int(os.environ.get("NETCOIN_FAUCET_MAX_BODY", "4096"))
 MAX_REQUESTS_PER_MINUTE = int(os.environ.get("NETCOIN_FAUCET_MAX_PER_MINUTE", "5"))
@@ -68,6 +69,7 @@ REFILL_ADDRESS = os.environ.get("NETCOIN_FAUCET_REFILL_ADDRESS", "")
 CAPTCHA_PROVIDER = os.environ.get("NETCOIN_FAUCET_CAPTCHA_PROVIDER", "none").strip().lower()
 CAPTCHA_SITEKEY = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SITEKEY", "")
 CAPTCHA_SECRET = os.environ.get("NETCOIN_FAUCET_CAPTCHA_SECRET", "")
+CAPTCHA_VERIFY_URL = os.environ.get("NETCOIN_FAUCET_CAPTCHA_VERIFY_URL", "")
 CAPTCHA_SIMPLE_QUESTION = os.environ.get("NETCOIN_FAUCET_CAPTCHA_QUESTION", "Type netcoin")
 CAPTCHA_SIMPLE_ANSWER = os.environ.get("NETCOIN_FAUCET_CAPTCHA_ANSWER", "netcoin").strip().lower()
 POW_DIFFICULTY = int(os.environ.get("NETCOIN_FAUCET_POW_DIFFICULTY", "0"))
@@ -181,6 +183,25 @@ def rate_limited(ip: str, state: dict) -> tuple[bool, int]:
         ts = int(item.get("timestamp", 0))
         if now - ts < COOLDOWN_SECONDS and item.get("ip") == ip:
             limited_until = max(limited_until, ts + COOLDOWN_SECONDS)
+    return limited_until > now, max(0, limited_until - now)
+
+
+def address_rate_limited(address: str, state: dict) -> tuple[bool, int]:
+    """Rate-limit repeated claims to the same address across IPs/devices."""
+    if not address or ADDRESS_COOLDOWN_SECONDS <= 0:
+        return False, 0
+    now = int(time.time())
+    limited_until = 0
+    for item in state.get("requests", []):
+        ts = int(item.get("timestamp", 0))
+        if now - ts < ADDRESS_COOLDOWN_SECONDS and item.get("address") == address:
+            limited_until = max(limited_until, ts + ADDRESS_COOLDOWN_SECONDS)
+    for item in state.get("queue", []):
+        if item.get("status") != "queued":
+            continue
+        ts = int(item.get("timestamp", 0))
+        if now - ts < ADDRESS_COOLDOWN_SECONDS and item.get("address") == address:
+            limited_until = max(limited_until, ts + ADDRESS_COOLDOWN_SECONDS)
     return limited_until > now, max(0, limited_until - now)
 
 
@@ -397,40 +418,41 @@ def captcha_html() -> str:
     return '<p class="err">CAPTCHA is configured but missing a site key.</p>'
 
 
-def verify_captcha(form: dict, remote_ip: str) -> tuple[bool, str]:
-    """Validate CAPTCHA token. Network providers are best-effort stdlib calls.
+def captcha_token_from_form(form: dict) -> str:
+    """Return a CAPTCHA response token without binding callers to one provider."""
+    fields = ("cf-turnstile-response", "h-captcha-response", "captcha_token", "captcha-response")
+    for field in fields:
+        token = (form.get(field, [""])[0] or "").strip()
+        if token:
+            return token
+    return ""
 
-    This function is intentionally isolated so tests can exercise the local
-    provider and deployments can switch provider by environment variables.
-    """
+
+def captcha_status_payload() -> dict:
+    return {
+        "enabled": captcha_enabled(),
+        "provider": CAPTCHA_PROVIDER,
+        "sitekey_present": bool(CAPTCHA_SITEKEY),
+        "secret_configured": bool(CAPTCHA_SECRET),
+        "supported_providers": ["turnstile", "hcaptcha", "simple"],
+        "token_fields": ["cf-turnstile-response", "h-captcha-response", "captcha_token"],
+    }
+
+
+def verify_captcha(form: dict, remote_ip: str) -> tuple[bool, str]:
+    """Validate CAPTCHA token through the configured provider adapter."""
     if not captcha_enabled():
         return True, "disabled"
     if CAPTCHA_PROVIDER == "simple":
         answer = (form.get("captcha", [""])[0] or "").strip().lower()
         return (answer == CAPTCHA_SIMPLE_ANSWER, "simple")
 
-    if not CAPTCHA_SECRET:
-        return False, "missing captcha secret"
-
-    if CAPTCHA_PROVIDER == "turnstile":
-        token = form.get("cf-turnstile-response", [""])[0]
-        url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
-    elif CAPTCHA_PROVIDER == "hcaptcha":
-        token = form.get("h-captcha-response", [""])[0]
-        url = "https://hcaptcha.com/siteverify"
-    else:
-        return False, f"unsupported captcha provider: {CAPTCHA_PROVIDER}"
-
-    if not token:
-        return False, "missing captcha token"
-    body = urlencode({"secret": CAPTCHA_SECRET, "response": token, "remoteip": remote_ip}).encode("utf-8")
-    try:
-        request = Request(url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"}, method="POST")
-        with urlopen(request, timeout=10) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        return bool(payload.get("success")), CAPTCHA_PROVIDER
-    except Exception as exc:
-        return False, f"captcha verification failed: {exc}"
+    token = captcha_token_from_form(form)
+    config = CaptchaConfig(provider=CAPTCHA_PROVIDER, secret=CAPTCHA_SECRET, verify_url=CAPTCHA_VERIFY_URL)
+    result = verify_token(token, remote_ip=remote_ip, config=config)
+    if result.get("ok") is True:
+        return True, CAPTCHA_PROVIDER
+    return False, str(result.get("error") or CAPTCHA_PROVIDER)
 
 
 def message_box(message: str, error: bool = False) -> str:
@@ -493,7 +515,7 @@ class FaucetHandler(BaseHTTPRequestHandler):
                 {
                     "ok": True,
                     "queue_mode": QUEUE_MODE,
-                    "captcha": {"enabled": captcha_enabled(), "provider": CAPTCHA_PROVIDER},
+                    "captcha": captcha_status_payload(),
                     "proof_of_work": {
                         "enabled": POW_DIFFICULTY > 0,
                         "difficulty": POW_DIFFICULTY,
@@ -626,6 +648,15 @@ class FaucetHandler(BaseHTTPRequestHandler):
             save_state(state)
             hours = max(1, (remaining + 3599) // 3600)
             self.render(message_box(f"Rate limit active. Try again in about {hours} hour(s).", error=True))
+            return
+        address_limited, address_remaining = address_rate_limited(address, state)
+        if address_limited:
+            record_abuse(state, ip, "address-rate-limited", address=address, device=device)
+            save_state(state)
+            hours = max(1, (address_remaining + 3599) // 3600)
+            self.render(
+                message_box(f"This address already claimed recently. Try again in about {hours} hour(s).", error=True)
+            )
             return
         if burst_limited(state):
             record_abuse(state, ip, "burst", address=address, device=device)

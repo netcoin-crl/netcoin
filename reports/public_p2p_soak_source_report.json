@@ -1,0 +1,90 @@
+{
+  "gate_id": "public-production-p2p-soak",
+  "mode": "source-hostile-p2p-soak",
+  "ok": true,
+  "scenario_count": 3,
+  "smoke": {
+    "failed": 0,
+    "ok": true,
+    "passed": 3,
+    "results": [
+      {
+        "actual": {
+          "accepted_headers": 42,
+          "banned_peers": 1,
+          "best_height": 42,
+          "duplicate_headers": 3,
+          "eclipse_detected": false,
+          "ok": true,
+          "partition_healed": true,
+          "rejected_headers": 7
+        },
+        "detected_hostility": true,
+        "expected": {
+          "accepted_headers": 42,
+          "banned_peers": 1,
+          "best_height": 42,
+          "duplicate_headers": 3,
+          "eclipse_detected": false,
+          "ok": true,
+          "partition_healed": true,
+          "rejected_headers": 7
+        },
+        "id": "checkpoint-poison-peer",
+        "passed": true
+      },
+      {
+        "actual": {
+          "accepted_headers": 65,
+          "banned_peers": 0,
+          "best_height": 65,
+          "duplicate_headers": 9,
+          "eclipse_detected": false,
+          "ok": true,
+          "partition_healed": true,
+          "rejected_headers": 2
+        },
+        "detected_hostility": false,
+        "expected": {
+          "accepted_headers": 65,
+          "banned_peers": 0,
+          "best_height": 65,
+          "duplicate_headers": 9,
+          "eclipse_detected": false,
+          "ok": true,
+          "partition_healed": true,
+          "rejected_headers": 2
+        },
+        "id": "partition-heal-reorg",
+        "passed": true
+      },
+      {
+        "actual": {
+          "accepted_headers": 18,
+          "banned_peers": 3,
+          "best_height": 18,
+          "duplicate_headers": 30,
+          "eclipse_detected": true,
+          "ok": false,
+          "partition_healed": true,
+          "rejected_headers": 12
+        },
+        "detected_hostility": true,
+        "expected": {
+          "accepted_headers": 18,
+          "banned_peers": 3,
+          "best_height": 18,
+          "duplicate_headers": 30,
+          "eclipse_detected": true,
+          "ok": false,
+          "partition_healed": true,
+          "rejected_headers": 12
+        },
+        "id": "eclipse-attempt-detected",
+        "passed": true
+      }
+    ],
+    "scenario_count": 3
+  },
+  "status": "source-complete-evidence-required"
+}

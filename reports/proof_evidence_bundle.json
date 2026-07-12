@@ -1,0 +1,386 @@
+{
+  "artifact_count": 25,
+  "blockers": [],
+  "caveat": "Sandbox evidence bundle may include partial or source-only artifacts; strict mode is required for professional-candidate claims.",
+  "claim_level": "source-checked-testnet",
+  "created_at_utc": "2026-07-11T00:09:26+00:00",
+  "existing_artifact_count": 20,
+  "gate_count": 8,
+  "gates": [
+    {
+      "artifacts": [
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": null,
+          "ok_field": true,
+          "path": "reports/parity_suite_report.json",
+          "sha256": "a77725c272556ce6162d9df090526475740abb4191e4fa3515ec83eb855a5d7e",
+          "size_bytes": 39054
+        }
+      ],
+      "gate_id": "python-reference",
+      "label": "Python reference and parity suite",
+      "missing_paths": [],
+      "remediation": "Run python -m compileall -q netcoin tools, python tools/run_parity_suite.py --no-write, and the full pytest suite until all failures are resolved.",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "status": "pass"
+    },
+    {
+      "artifacts": [
+        {
+          "claim_level_field": null,
+          "exists": false,
+          "json_ok": null,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "reports/rust_workspace_report.json",
+          "sha256": null,
+          "size_bytes": null
+        }
+      ],
+      "gate_id": "rust-workspace",
+      "label": "Rust workspace compilation and tests",
+      "missing_paths": [
+        "reports/rust_workspace_report.json"
+      ],
+      "remediation": "Install Rust/Cargo, run cd core-rs && cargo test --workspace, then capture the output as reports/rust_workspace_report.json.",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "status": "partial"
+    },
+    {
+      "artifacts": [
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "allow-missing-cargo",
+          "ok_field": true,
+          "path": "reports/all_rust_parity_report.json",
+          "sha256": "cb02136657ccb7da9b057a5f7e28f8fb4a0e8a314fc0df343fba2d9996947309",
+          "size_bytes": 3903
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source-only-missing-cargo",
+          "ok_field": true,
+          "path": "reports/rust_consensus_parity_report.json",
+          "sha256": "c92c8a0621392312094186dc549bad9e2281001c01b76314d42bb0adfcda6849",
+          "size_bytes": 499
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source-only-missing-cargo",
+          "ok_field": true,
+          "path": "reports/rust_mempool_parity_report.json",
+          "sha256": "40343039f24054a78862d2534b395c74d1ce717d35b52f11566d5aa4356e2456",
+          "size_bytes": 497
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source-only-missing-cargo",
+          "ok_field": true,
+          "path": "reports/rust_wallet_parity_report.json",
+          "sha256": "92b89ca22e37add60c4a5703d713c8cfc5d02608c00b80a1460d314eca5afe3c",
+          "size_bytes": 496
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source-only-missing-cargo",
+          "ok_field": true,
+          "path": "reports/rust_markets_parity_report.json",
+          "sha256": "05e5375ebd28ece1362d41d99e98aa9414eb164647215b226ae28e74b4bcb9a0",
+          "size_bytes": 482
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source-only-missing-cargo",
+          "ok_field": true,
+          "path": "reports/rust_signer_parity_report.json",
+          "sha256": "b644ae01124d058db4f7ca8df708b8be882511d5417f947acb6cd22b44ab16b0",
+          "size_bytes": 481
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source-only-missing-cargo",
+          "ok_field": true,
+          "path": "reports/rust_p2p_parity_report.json",
+          "sha256": "9f9e36ce2faced22f05f01513770bef0c29995de43c2e987e422d218c9598aa1",
+          "size_bytes": 478
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source-only-missing-cargo",
+          "ok_field": true,
+          "path": "reports/rust_indexer_parity_report.json",
+          "sha256": "075d1407918d64f15804bec9df338a7df0603ca1b6c4d6bebb7b7bc89456f9b7",
+          "size_bytes": 482
+        }
+      ],
+      "gate_id": "rust-parity",
+      "label": "Executed Rust parity binaries",
+      "missing_paths": [],
+      "remediation": "Run python tools/run_all_rust_parity.py --strict after cargo test --workspace succeeds. Source-only reports are acceptable only in sandbox mode.",
+      "required_for_strict": true,
+      "source_only_allowed": true,
+      "status": "pass"
+    },
+    {
+      "artifacts": [
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source",
+          "ok_field": true,
+          "path": "reports/ts_api_contract_report.json",
+          "sha256": "2b5fc6ce6a54141a7e5c91110e1d55d9a5f441c036bf9973aa0adec2e87de152",
+          "size_bytes": 329
+        },
+        {
+          "claim_level_field": null,
+          "exists": false,
+          "json_ok": null,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "reports/ts_openapi_codegen_parity_report.json",
+          "sha256": null,
+          "size_bytes": null
+        }
+      ],
+      "gate_id": "typescript-api",
+      "label": "TypeScript API, OpenAPI contract, and parity",
+      "missing_paths": [
+        "reports/ts_openapi_codegen_parity_report.json"
+      ],
+      "remediation": "Run cd api && npm ci && npm run ci:api, then python tools/run_ts_api_contract_enforcement.py --run-npm --out reports/ts_api_contract_report.json.",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "status": "partial"
+    },
+    {
+      "artifacts": [
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source",
+          "ok_field": true,
+          "path": "reports/browser_e2e_matrix_source_report.json",
+          "sha256": "2784f11ff339a3f9e8d0bd5342f1ba396992f784aeff56699f88589a1f967a46",
+          "size_bytes": 75
+        },
+        {
+          "claim_level_field": null,
+          "exists": false,
+          "json_ok": null,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "reports/browser_e2e_matrix_report.json",
+          "sha256": null,
+          "size_bytes": null
+        }
+      ],
+      "gate_id": "browser-e2e",
+      "label": "Real browser E2E matrix",
+      "missing_paths": [
+        "reports/browser_e2e_matrix_report.json"
+      ],
+      "remediation": "Install Playwright browsers and run python tools/run_browser_e2e_matrix.py --run-playwright --out reports/browser_e2e_matrix_report.json.",
+      "required_for_strict": true,
+      "source_only_allowed": true,
+      "status": "partial"
+    },
+    {
+      "artifacts": [
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "source-only",
+          "ok_field": true,
+          "path": "reports/accessibility_source_report.json",
+          "sha256": "3ab06afea2df7f9954f75cdbf80d24fb695bcb569b07eda5756f748840ff6383",
+          "size_bytes": 308
+        },
+        {
+          "claim_level_field": null,
+          "exists": false,
+          "json_ok": null,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "reports/accessibility_matrix_report.json",
+          "sha256": null,
+          "size_bytes": null
+        }
+      ],
+      "gate_id": "accessibility",
+      "label": "Accessibility matrix",
+      "missing_paths": [
+        "reports/accessibility_matrix_report.json"
+      ],
+      "remediation": "Run the strict accessibility matrix with browser tooling and resolve keyboard, screen-reader, contrast, focus, and touch-target failures.",
+      "required_for_strict": true,
+      "source_only_allowed": true,
+      "status": "partial"
+    },
+    {
+      "artifacts": [
+        {
+          "claim_level_field": null,
+          "exists": false,
+          "json_ok": null,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "reports/security_audit_prep_report.json",
+          "sha256": null,
+          "size_bytes": null
+        },
+        {
+          "claim_level_field": "source-checked-testnet",
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "sandbox",
+          "ok_field": true,
+          "path": "reports/release_readiness_scorecard.json",
+          "sha256": "b8ca2df3c4b8e4dfd71a0fa04dfb89c0a052d857a8ea3fae804bb27afc250349",
+          "size_bytes": 3175
+        },
+        {
+          "claim_level_field": "source-checked-testnet",
+          "exists": true,
+          "json_ok": true,
+          "mode_field": "sandbox",
+          "ok_field": true,
+          "path": "reports/local_proof_run_report.json",
+          "sha256": "022264a527f6f3d7ca071b9716ca3a3326026d5441b81ab1ecba814594f44f32",
+          "size_bytes": 2713
+        }
+      ],
+      "gate_id": "security-release",
+      "label": "Security and release evidence",
+      "missing_paths": [
+        "reports/security_audit_prep_report.json"
+      ],
+      "remediation": "Run python tools/run_security_audit_prep.py and python tools/run_release_readiness.py --strict, then resolve any blocker statuses. Use python tools/run_local_proof.py --profile strict to capture per-gate logs before collecting evidence.",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "status": "partial"
+    },
+    {
+      "artifacts": [
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "architecture/phase0-completion.json",
+          "sha256": "a3cf10fc0f3c7fc57d4aee424011f4b72f08ef9cefb79576cb22d2532e753637",
+          "size_bytes": 9296
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "architecture/product-ux-architecture.json",
+          "sha256": "574c39971401724c6120773866a3ee3aff3117c70abb87d7dc0d5b7515c0687e",
+          "size_bytes": 8447
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "architecture/design-system.json",
+          "sha256": "3eb500a110e15ad484ceb8fae163204df23507ff22225eea584ed6dd76c2abb7",
+          "size_bytes": 6626
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "architecture/product-simplification.json",
+          "sha256": "295f771d259f36229c5317c5cdac8ae862f1c4c2128f84a1d3a5db04e6f5a522",
+          "size_bytes": 9757
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "architecture/trust-interaction.json",
+          "sha256": "8041656effad4e9a2c36300db3fc39aab9564032285931462a3d3b51027f81d2",
+          "size_bytes": 10098
+        },
+        {
+          "claim_level_field": null,
+          "exists": true,
+          "json_ok": true,
+          "mode_field": null,
+          "ok_field": null,
+          "path": "architecture/product-coherence.json",
+          "sha256": "4e90a67afc9e523bb4910500f03a9b9be194d5c6576dd60f5684dd919eb89c6e",
+          "size_bytes": 11581
+        }
+      ],
+      "gate_id": "phase0-guardrails",
+      "label": "Phase 0 product and anti-sprawl guardrails",
+      "missing_paths": [],
+      "remediation": "Run python tools/check_phase0_complete.py plus all Phase 0 validators and fix any product architecture drift before adding new surfaces.",
+      "required_for_strict": true,
+      "source_only_allowed": false,
+      "status": "pass"
+    }
+  ],
+  "mode": "sandbox",
+  "ok": true,
+  "phase": "Phase 1 - Proof Evidence Bundle",
+  "remediation": [
+    {
+      "action": "Install Rust/Cargo, run cd core-rs && cargo test --workspace, then capture the output as reports/rust_workspace_report.json.",
+      "gate_id": "rust-workspace"
+    },
+    {
+      "action": "Run cd api && npm ci && npm run ci:api, then python tools/run_ts_api_contract_enforcement.py --run-npm --out reports/ts_api_contract_report.json.",
+      "gate_id": "typescript-api"
+    },
+    {
+      "action": "Install Playwright browsers and run python tools/run_browser_e2e_matrix.py --run-playwright --out reports/browser_e2e_matrix_report.json.",
+      "gate_id": "browser-e2e"
+    },
+    {
+      "action": "Run the strict accessibility matrix with browser tooling and resolve keyboard, screen-reader, contrast, focus, and touch-target failures.",
+      "gate_id": "accessibility"
+    },
+    {
+      "action": "Run python tools/run_security_audit_prep.py and python tools/run_release_readiness.py --strict, then resolve any blocker statuses. Use python tools/run_local_proof.py --profile strict to capture per-gate logs before collecting evidence.",
+      "gate_id": "security-release"
+    }
+  ],
+  "source_only_gate_count": 4,
+  "version": "0.39.3"
+}

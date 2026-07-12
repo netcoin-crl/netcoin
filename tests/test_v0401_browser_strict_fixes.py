@@ -27,7 +27,16 @@ def test_root_playwright_package_manifest_exists() -> None:
 
 
 def test_static_local_e2e_api_fallbacks_exist() -> None:
-    for rel in ["api/health-center", "api/operator/live", "api/exchange/live", "faucet/history"]:
+    for rel in [
+        "api/health-center",
+        "api/operator/live",
+        "api/exchange/live",
+        "api/health",
+        "api/latest",
+        "api/mempool",
+        "api/peers",
+        "faucet/history",
+    ]:
         path = ROOT / rel
         assert path.exists(), rel
         assert path.read_text(encoding="utf-8").strip().startswith("{")

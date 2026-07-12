@@ -1,0 +1,55 @@
+{
+  "ci_alignment": {
+    "missing_jobs": [],
+    "ok": true,
+    "required_jobs": [
+      "python-source-proof",
+      "rust-strict-proof",
+      "typescript-api-proof",
+      "browser-accessibility-proof",
+      "release-readiness-scorecard"
+    ],
+    "rule": "Every strict local gate must have a matching CI command or a documented source-only CI fallback with a professional-readiness caveat.",
+    "workflow": ".github/workflows/proof-hardening.yml"
+  },
+  "claim_level": "triaged-source-checked-testnet",
+  "class_counts": {
+    "missing-tool": 1
+  },
+  "created_at_utc": "2026-07-11T00:23:15+00:00",
+  "item_count": 1,
+  "items": [
+    {
+      "class": "missing-tool",
+      "gate_id": "accessibility",
+      "meaning": "The gate did not run because a required local or CI tool is missing.",
+      "next_command": "python tools/run_accessibility_matrix.py --strict --out reports/accessibility_report.json",
+      "owner": "Product UI/accessibility",
+      "remediation": "The UI can be considered professional only after keyboard, labels, contrast, and breakpoint checks are tracked.",
+      "severity": "P0",
+      "source": "local_proof_report",
+      "status": "source_only"
+    }
+  ],
+  "next_priority": {
+    "class": "missing-tool",
+    "gate_id": "accessibility",
+    "meaning": "The gate did not run because a required local or CI tool is missing.",
+    "next_command": "python tools/run_accessibility_matrix.py --strict --out reports/accessibility_report.json",
+    "owner": "Product UI/accessibility",
+    "remediation": "The UI can be considered professional only after keyboard, labels, contrast, and breakpoint checks are tracked.",
+    "severity": "P0",
+    "source": "local_proof_report",
+    "status": "source_only"
+  },
+  "ok": true,
+  "phase": "Phase 1 - Proof Triage and CI Alignment",
+  "severity_counts": {
+    "P0": 1,
+    "P1": 0,
+    "P2": 0
+  },
+  "source_notes": [],
+  "strict_ready": false,
+  "version": "0.39.4"
+}

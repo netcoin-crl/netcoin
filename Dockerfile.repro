@@ -1,0 +1,21 @@
+# Deterministic source-release build recipe for NetCoin M2.
+# This image builds from the checked-out source tree and emits a normalized
+# source tarball plus SBOM/provenance metadata. It is a recipe, not proof by
+# itself; strict M2 requires independent builders to compare outputs.
+FROM python:3.12-slim AS build
+
+ARG NETCOIN_VERSION=source
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONHASHSEED=0 \
+    SOURCE_DATE_EPOCH=1704067200 \
+    NETCOIN_VERSION=${NETCOIN_VERSION}
+
+WORKDIR /src
+COPY . /src
+
+RUN python -m compileall -q netcoin tools tests \
+    && python tools/generate_sbom.py --out dist/netcoin-sbom.json \
+    && python tools/generate_slsa_provenance.py --subject dist/netcoin-sbom.json --out dist/netcoin-slsa-provenance.json \
+    && tar --sort=name --mtime=@${SOURCE_DATE_EPOCH} --owner=0 --group=0 --numeric-owner \
+         -czf dist/netcoin-${NETCOIN_VERSION}-source.tar.gz \
+         netcoin tools docs sites architecture api README.md LICENSE pyproject.toml

@@ -1,0 +1,18 @@
+{
+  "gate_id": "public-testnet-incident-history",
+  "mode": "source",
+  "ok": true,
+  "required_incident_fields": [
+    "id",
+    "severity",
+    "detected_at",
+    "runbook_ref",
+    "summary",
+    "status"
+  ],
+  "required_top_level": [
+    "public_testnet_start",
+    "runbook_links",
+    "incidents or no_incident_attestation"
+  ]
+}

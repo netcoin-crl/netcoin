@@ -1,0 +1,131 @@
+{
+  "checks": {
+    "ci_m1_source_gate": {
+      "files": [
+        ".github/workflows/ci.yml",
+        "tools/run_m1_release_candidate.py",
+        "tests/test_m1_ci_gate_wiring.py"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "explorer_mempool_fee_bands": {
+      "files": [
+        "sites/explorer/mempool.html",
+        "sites/explorer/explorer-pro.js",
+        "netcoin/explorer_server.py",
+        "api/fee-estimates"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "faucet_hardening": {
+      "files": [
+        ".env.example",
+        "tools/faucet_server.py",
+        "netcoin/captcha_provider.py"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "incident_response_runbook": {
+      "files": [
+        "docs/INCIDENT_RESPONSE.md",
+        "sites/status/index.html",
+        "sites/status/status.css"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "json_ignore": {
+      "file": ".gitignore",
+      "issues": [],
+      "ok": true
+    },
+    "m1_live_smoke_tool": {
+      "files": [
+        "tools/check_m1_live_smoke.py",
+        "docs/M1_LIVE_SMOKE_CHECK.md",
+        "Makefile",
+        "tools/run_m1_release_candidate.py",
+        "tests/test_m1_live_smoke_tool.py"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "status_page_snapshot": {
+      "files": [
+        "sites/status/index.html",
+        "sites/status/status.js",
+        "sites/status/status.css"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "testnet_feedback_intake": {
+      "files": [
+        "docs/TESTNET_FEEDBACK_LOG.md",
+        "sites/docs/testnet-feedback.html",
+        "docs/TESTNET_USER_JOURNEY.md",
+        "sites/docs/testnet-user-journey.html",
+        "sites/docs/index.html",
+        "sites/docs/docs.css"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "testnet_pilot_plan": {
+      "files": [
+        "docs/TESTNET_PILOT_PLAN.md",
+        "sites/docs/testnet-pilot.html",
+        "docs/TESTNET_USER_JOURNEY.md",
+        "docs/TESTNET_FEEDBACK_LOG.md",
+        "sites/docs/testnet-user-journey.html",
+        "sites/docs/testnet-feedback.html",
+        "sites/docs/index.html",
+        "sites/docs/docs.css"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "testnet_user_journey": {
+      "files": [
+        "docs/TESTNET_USER_JOURNEY.md",
+        "sites/docs/testnet-user-journey.html",
+        "sites/docs/index.html",
+        "sites/docs/docs.css"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "wallet_e2e_wiring": {
+      "files": [
+        "tools/run_browser_e2e_matrix.py",
+        "sites/tests/e2e/m1-wallet-workflow.spec.js"
+      ],
+      "issues": [],
+      "ok": true
+    },
+    "wallet_polish_and_sri": {
+      "files": [
+        "sites/wallet/index.html",
+        "sites/wallet/wallet-app.js",
+        "webwallet-browser/public/wallet.html",
+        "webwallet-browser/public/wallet-app.js"
+      ],
+      "issues": [],
+      "ok": true,
+      "wallet_app_sri": "sha384-YBG4qX/70pCwavJZQA75kEEZiyejIPeqURGEMU50Re8hvQCXgIFp0TXqnlGl25aI"
+    }
+  },
+  "does_not_claim": [
+    "live seed deployment",
+    "real CAPTCHA credentials",
+    "external audit completion",
+    "hardware wallet support",
+    "full CI success without local runner output"
+  ],
+  "incomplete": [],
+  "ok": true,
+  "scope": "M1 offline source readiness"
+}

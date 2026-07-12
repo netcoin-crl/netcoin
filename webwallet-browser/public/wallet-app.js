@@ -17,6 +17,9 @@
   const MAX_WALLET_SEND_INPUTS = 500;
   const SESSION_STORE = "ncw.unlockedSession.v2";
   const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+  const AUTO_LOCK_STORE = "ncw.autoLockMinutes.v1";
+  const DEFAULT_AUTO_LOCK_MINUTES = 30;
+  const AUTO_LOCK_OPTIONS = [0, 15, 30, 60, 120];
   const Vault = window.NCWVault || null;
 
   let state = null; // { secretType, seed?, privHex, address, profile }
@@ -234,12 +237,14 @@
     const card = document.createElement("div");
     card.className = "card wallet-section";
     card.dataset.walletTab = tab;
-    card.innerHTML = `<h1 style="font-size:16px">${title}</h1>${bodyHtml}`;
+    card.innerHTML = `<h2>${title}</h2>${bodyHtml}`;
     return card;
   }
   function ensureWalletTabShell() {
     const wallet = $("walletView");
     if (!wallet || $("walletTabs")) return;
+
+    function addWalletSection(section) { wallet.appendChild(section); }
 
     const tabs = document.createElement("div");
     tabs.id = "walletTabs";
@@ -254,8 +259,7 @@
       btn.onclick = () => setActiveWalletTab(tab.id);
       tabs.appendChild(btn);
     }
-    const firstCard = wallet.querySelector(":scope > .card");
-    if (firstCard) wallet.insertBefore(tabs, firstCard);
+    wallet.prepend(tabs);
 
     const cards = Array.from(wallet.querySelectorAll(":scope > .card"));
     for (const card of cards) {
@@ -271,13 +275,13 @@
       card.dataset.walletTab = tab;
     }
 
-    wallet.insertBefore(walletSection("Payments", `
+    addWalletSection(walletSection("Payments", `
       <p class="muted">Business payment tools live on the separated payment and merchant pages so the wallet stays clean.</p>
       <div class="section-links">
         <a href="https://pay.netcoin.online/"><b>Payment hub</b><br><span class="muted">Checkout, receipts, tips, donations, and profiles.</span></a>
         <a href="https://merchant.netcoin.online/"><b>Merchant dashboard</b><br><span class="muted">Invoices, POS, refunds, API keys, webhooks, and exports.</span></a>
-      </div>`, "payments"), $("btnLock"));
-    wallet.insertBefore(walletSection("Mining", `
+      </div>`, "payments"));
+    addWalletSection(walletSection("Mining", `
       <p class="muted">Mine NetCoin on your own computer and get the block reward paid to this wallet. No pools, no signup.</p>
       <p id="miningStats" class="muted">Checking chain status…</p>
       <p class="muted">1. Install NetCoin once (see the Learn site). 2. Activate your virtualenv. 3. Run the browser-address command below, or use the auto-harvest command if you mine with a local wallet file.</p>
@@ -285,23 +289,23 @@
       <pre id="harvestMineCommand" class="mono">python -m netcoin miner --node http://18.220.89.128:28444 --wallet miner.json --blocks 0 --auto-harvest --harvest-every 25 --harvest-min-utxos 50</pre>
       <button id="btnCopyMineCommand" class="secondary" type="button">Copy mining command</button>
       <p class="muted">Mining rewards show under your balance as "maturing" and unlock after 100 blocks. If the netcoin.online domain is blocked on your network, the command above already uses the raw seed IP.</p>
-      <div class="section-links"><a href="https://learn.netcoin.online/"><b>Full mining guide</b><br><span class="muted">Install steps, Windows/macOS/Linux notes, troubleshooting.</span></a></div>`, "mining"), $("btnLock"));
-    wallet.insertBefore(walletSection("Tokens", `
+      <div class="section-links"><a href="https://learn.netcoin.online/"><b>Full mining guide</b><br><span class="muted">Install steps, Windows/macOS/Linux notes, troubleshooting.</span></a></div>`, "mining"));
+    addWalletSection(walletSection("Tokens", `
       <p class="muted">App-layer NET-20 tokens tracked by this node. Read-only here: token writes support wallet-signed app actions plus developer keys, but this browser wallet does not move app-layer tokens yet.</p>
       <button id="btnRefreshTokens" class="secondary" type="button">Refresh token balances</button>
       <div id="tokenList" class="watch-list"><span class="muted">Unlock the wallet, then refresh to load tokens.</span></div>
-      <p class="muted">Create and manage tokens via the API — see <a href="https://api.netcoin.online/openapi.yaml" target="_blank" rel="noreferrer">the OpenAPI spec</a> or the SDKs.</p>`, "tokens"), $("btnLock"));
-    wallet.insertBefore(walletSection("Escrow", `
+      <p class="muted">Create and manage tokens via the API — see <a href="https://api.netcoin.online/openapi.yaml" target="_blank" rel="noreferrer">the OpenAPI spec</a> or the SDKs.</p>`, "tokens"));
+    addWalletSection(walletSection("Escrow", `
       <p class="muted">Escrow is an advanced app-layer workflow. Create and monitor 2-of-3 escrow deals from the separated markets/contract page.</p>
-      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"), $("btnLock"));
-    wallet.insertBefore(walletSection("Contracts", `
+      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"));
+    addWalletSection(walletSection("Contracts", `
       <p class="muted">Developer-mode contract tools are intentionally separated from normal wallet use.</p>
-      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open Phase 7 contracts</b><br><span class="muted">Timelock, vesting, multisig, recurring, polls, and prediction-market demos.</span></a></div>`, "contracts"), $("btnLock"));
-    wallet.insertBefore(walletSection("Developer", `
+      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open Phase 7 contracts</b><br><span class="muted">Timelock, vesting, multisig, recurring, polls, and prediction-market demos.</span></a></div>`, "contracts"));
+    addWalletSection(walletSection("Developer", `
       <p class="muted">Developer tools expose raw/debug views and are intended for local/testnet use.</p>
       <div class="section-links">
         <a href="https://api.netcoin.online/"><b>API docs</b><br><span class="muted">Explorer/backend API reference and SDK links.</span></a>
-      </div>`, "developer"), $("btnLock"));
+      </div>`, "developer"));
 
     const settings = walletSection("Settings", `
       <p class="muted">Choose a wallet mode. Hidden tabs are not deleted; they are only tucked away until you switch modes.</p>
@@ -314,11 +318,20 @@
       </select>
       <div class="mode-grid" id="walletModeButtons"></div>
       <p id="walletModeHelp" class="muted compact-note"></p>
+      <label for="sessionAutoLock">Session auto-lock</label>
+      <select id="sessionAutoLock" aria-label="Session auto-lock timeout">
+        <option value="15">15 minutes</option>
+        <option value="30">30 minutes</option>
+        <option value="60">1 hour</option>
+        <option value="120">2 hours</option>
+        <option value="0">Disabled for this tab</option>
+      </select>
+      <p id="sessionAutoLockStatus" class="muted auto-lock-status"></p>
       <details class="raw-details">
         <summary>What each mode shows</summary>
         <p class="muted">Simple: overview, send, receive, activity, contacts, settings. Merchant mode adds payments and reports. Node operator/Advanced mode adds watch-only, escrow, coin control, PSBT, and descriptors. Developer/Labs mode adds contract/debug links.</p>
       </details>`, "settings");
-    wallet.insertBefore(settings, $("btnLock"));
+    addWalletSection(settings);
     const modeButtons = $("walletModeButtons");
     if (modeButtons) {
       for (const [mode, text] of Object.entries(MODE_INFO)) {
@@ -338,6 +351,7 @@
     const wallet = $("walletView");
     if (!wallet) return;
     ensureWalletTabShell();
+    syncAutoLockControls();
     const mode = walletUiMode();
     let tab = activeWalletTab();
     if (!tabAllowed(tab, mode)) tab = "overview";
@@ -1014,6 +1028,9 @@
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · private key · session unlocked`;
     if (remember) rememberUnlocked("privateKey", clean, profile, true);
     show("walletView");
+    lastWalletActivityAt = Date.now();
+    syncAutoLockControls();
+    scheduleAutoLock();
     applyWalletMode();
     makePaymentRequest();
     refresh();
@@ -1049,6 +1066,74 @@
       return false;
     }
   }
+
+
+  function autoLockMinutes() {
+    const raw = Number(localStorage.getItem(AUTO_LOCK_STORE));
+    return AUTO_LOCK_OPTIONS.includes(raw) ? raw : DEFAULT_AUTO_LOCK_MINUTES;
+  }
+
+  function autoLockLabel(minutes = autoLockMinutes()) {
+    if (!minutes) return "Auto-lock disabled for this tab";
+    return minutes >= 60 ? `Auto-lock after ${minutes / 60} hour${minutes === 60 ? "" : "s"} inactive` : `Auto-lock after ${minutes} minutes inactive`;
+  }
+
+  function syncAutoLockControls() {
+    const minutes = autoLockMinutes();
+    for (const id of ["unlockAutoLock", "privateKeyAutoLock", "sessionAutoLock"]) {
+      const el = $(id);
+      if (el) el.value = String(minutes);
+    }
+    const status = $("sessionAutoLockStatus");
+    if (status) status.textContent = autoLockLabel(minutes);
+  }
+
+  function setAutoLockMinutes(value) {
+    const minutes = AUTO_LOCK_OPTIONS.includes(Number(value)) ? Number(value) : DEFAULT_AUTO_LOCK_MINUTES;
+    localStorage.setItem(AUTO_LOCK_STORE, String(minutes));
+    syncAutoLockControls();
+    scheduleAutoLock();
+  }
+
+  let autoLockTimer = null;
+  let lastWalletActivityAt = Date.now();
+
+  function clearAutoLockTimer() {
+    if (autoLockTimer) window.clearTimeout(autoLockTimer);
+    autoLockTimer = null;
+  }
+
+  function lockWallet(reason = "") {
+    state = null;
+    pendingSend = null;
+    clearAutoLockTimer();
+    clearUnlockedSession();
+    renderProfiles();
+    show(hasProfiles() ? "unlock" : "welcome");
+    if (reason && $("profileMsg")) $("profileMsg").textContent = reason;
+  }
+
+  function scheduleAutoLock() {
+    clearAutoLockTimer();
+    if (!state) return;
+    const minutes = autoLockMinutes();
+    if (!minutes) return;
+    const timeoutMs = minutes * 60 * 1000;
+    const elapsed = Date.now() - lastWalletActivityAt;
+    const remaining = Math.max(1000, timeoutMs - elapsed);
+    autoLockTimer = window.setTimeout(() => {
+      if (!state) return;
+      if (Date.now() - lastWalletActivityAt >= timeoutMs) lockWallet(autoLockLabel(minutes) + ". Unlock again to continue.");
+      else scheduleAutoLock();
+    }, remaining);
+  }
+
+  function noteWalletActivity() {
+    if (!state) return;
+    lastWalletActivityAt = Date.now();
+    scheduleAutoLock();
+  }
+
 
   // ---------- encryption at rest (WebCrypto) ----------
   async function deriveKey(password, salt) {
@@ -1111,6 +1196,9 @@
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · seed phrase · session unlocked`;
     if (remember) rememberUnlocked("seed", seed, profile, true);
     show("walletView");
+    lastWalletActivityAt = Date.now();
+    syncAutoLockControls();
+    scheduleAutoLock();
     applyWalletMode();
     makePaymentRequest();
     refresh();
@@ -1642,7 +1730,14 @@
   document.addEventListener("click", (ev) => {
     if (ev.target && ev.target.id === "btnCopyMineCommand") navigator.clipboard?.writeText($("mineCommand")?.textContent || "");
   });
-  $("btnLock").onclick = () => { state = null; clearUnlockedSession(); renderProfiles(); show(hasProfiles() ? "unlock" : "welcome"); };
+  for (const eventName of ["pointerdown", "keydown", "input", "change"]) {
+    document.addEventListener(eventName, noteWalletActivity, { capture: true, passive: true });
+  }
+  document.addEventListener("change", (ev) => {
+    if (["unlockAutoLock", "privateKeyAutoLock", "sessionAutoLock"].includes(ev.target?.id)) setAutoLockMinutes(ev.target.value);
+  });
+  syncAutoLockControls();
+  $("btnLock").onclick = () => lockWallet();
   $("fee").oninput = () => { $("feePreset").value = "custom"; updateFeeHint(); };
   $("feePreset").onchange = () => {
     const p = $("feePreset");

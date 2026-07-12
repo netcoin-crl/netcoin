@@ -1,0 +1,20 @@
+{
+  "command_count": 1,
+  "commands": [
+    {
+      "blocked_reason": null,
+      "command": "python tools/run_accessibility_matrix.py --source-only --out reports/accessibility_source_report.json",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"caveat\": \"source-only accessibility checks do not replace axe/Playwright execution\",\n  \"issues\": [],\n  \"mode\": \"source-only\",\n  \"ok\": true,\n  \"required_tokens\": [\n    \"keyboard_navigation\",\n    \"screen_reader_labels\",\n    \"focus_visible\",\n    \"contrast\",\n    \"touch_targets\"\n  ],\n  \"surface_count\": 6\n}\n",
+      "timed_out": false
+    }
+  ],
+  "gate_id": "accessibility",
+  "label": "Accessibility Proof",
+  "owner": "Product UI",
+  "profile": "sandbox",
+  "remediation": "The UI can be considered professional only after keyboard, labels, contrast, and breakpoint checks are tracked.",
+  "status": "source_only"
+}

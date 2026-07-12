@@ -1,0 +1,79 @@
+{
+  "audit_package": {
+    "cannot_replace_external_audit": true,
+    "created_at": 1783733603,
+    "gate_id": "external-crypto-security-audit",
+    "mode": "audit-package-source",
+    "ok": true,
+    "required_auditor_evidence": [
+      "auditor_name",
+      "auditor_independence_statement",
+      "scope_hash",
+      "report_date",
+      "critical_findings_zero_or_remediated",
+      "report_artifact_hash"
+    ],
+    "scope": [
+      {
+        "exists": true,
+        "path": "netcoin/consensus.py",
+        "sha256": "a2934799a1ab876fe8c8feec35f9c1aad7e621d9fdd75d2cb61e459213424477"
+      },
+      {
+        "exists": true,
+        "path": "netcoin/tx.py",
+        "sha256": "e58ab5ee8ca254df1be5af19c1f3774af833d02d1747f53ccbb4a83d512cde4b"
+      },
+      {
+        "exists": true,
+        "path": "netcoin/script.py",
+        "sha256": "f4bb1b29e6289bbbd942a4db76f227b0b676e28aa2daecf929c03a2db3300bd4"
+      },
+      {
+        "exists": true,
+        "path": "netcoin/wallet.py",
+        "sha256": "ba940fd7079cb3df9d81121dee387913f07e24f257305c165143736d8b988bba"
+      },
+      {
+        "exists": true,
+        "path": "netcoin/exchange_accounting.py",
+        "sha256": "6cb82070be80f7bb76aaf29fa32dc2cd48ec9368cb883b38c1bf50d223b8a069"
+      },
+      {
+        "exists": true,
+        "path": "netcoin/exchange_reserves.py",
+        "sha256": "c9937f67fff09aeaa96855baa0e984bf035d76750e0f28369e716cd1f8d6e1ff"
+      },
+      {
+        "exists": true,
+        "path": "core-rs/Cargo.toml",
+        "sha256": "e49a288a46f6c597c1fcbb84e755b34e3cab879104fc905612433b27f6ee078b"
+      },
+      {
+        "exists": true,
+        "path": "api/src/server.ts",
+        "sha256": "4290c97fa250a220ea94fe110be15622687256dc5694276fee9bd38ea7e4539a"
+      },
+      {
+        "exists": true,
+        "path": "docs/THREAT_MODEL.md",
+        "sha256": "20902bd39cecb264bf5b3883d18febb6f8a1d2a980e10761ecacff5601668868"
+      },
+      {
+        "exists": true,
+        "path": "docs/PRE_MAINNET_SECURITY_CHECKLIST.md",
+        "sha256": "d36a01fd058ab5f47090eaab7d16b0540bbc83652e6c1dca8d348f8e37a13e11"
+      }
+    ],
+    "scope_hash": "ab91041c37a023b4869264ba9d49abab3b1e87b74de3e782d015f95a00b4bc7d",
+    "status": "source-complete-evidence-required"
+  },
+  "evidence_path": "/mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/external_audit_evidence.json",
+  "gate_id": "external-crypto-security-audit",
+  "issues": [
+    "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/external_audit_evidence.json"
+  ],
+  "mode": "strict",
+  "ok": false,
+  "status": "strict-evidence-required"
+}

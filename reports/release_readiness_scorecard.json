@@ -1,0 +1,121 @@
+{
+  "version": "0.39.3",
+  "phase": "Phase 1 - Proof Hardening",
+  "mode": "sandbox",
+  "ok": true,
+  "claim_level": "source-checked-testnet",
+  "gate_count": 8,
+  "status_counts": {
+    "blocked": 0,
+    "fail": 0,
+    "not_run": 0,
+    "pass": 5,
+    "source_only": 3
+  },
+  "blocker_count": 3,
+  "blockers": [
+    {
+      "gate_id": "rust-parity",
+      "label": "All Rust Executable Parity",
+      "status": "source_only",
+      "mode": "sandbox",
+      "command_count": 1,
+      "issues": [
+        "source-only proof; rerun Phase 1 readiness in --strict mode for professional release evidence"
+      ]
+    },
+    {
+      "gate_id": "browser-e2e",
+      "label": "Browser Product E2E Proof",
+      "status": "source_only",
+      "mode": "sandbox",
+      "command_count": 1,
+      "issues": [
+        "source-only proof; rerun Phase 1 readiness in --strict mode for professional release evidence"
+      ]
+    },
+    {
+      "gate_id": "accessibility",
+      "label": "Accessibility Proof",
+      "status": "source_only",
+      "mode": "sandbox",
+      "command_count": 1,
+      "issues": [
+        "source-only proof; rerun Phase 1 readiness in --strict mode for professional release evidence"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "gate_id": "python-reference",
+      "label": "Python Reference Proof",
+      "status": "pass",
+      "mode": "sandbox",
+      "command_count": 2,
+      "issues": []
+    },
+    {
+      "gate_id": "rust-workspace",
+      "label": "Rust Workspace Build Proof",
+      "status": "pass",
+      "mode": "sandbox",
+      "command_count": 1,
+      "issues": []
+    },
+    {
+      "gate_id": "rust-parity",
+      "label": "All Rust Executable Parity",
+      "status": "source_only",
+      "mode": "sandbox",
+      "command_count": 1,
+      "issues": [
+        "source-only proof; rerun Phase 1 readiness in --strict mode for professional release evidence"
+      ]
+    },
+    {
+      "gate_id": "typescript-api",
+      "label": "TypeScript API Contract Proof",
+      "status": "pass",
+      "mode": "sandbox",
+      "command_count": 2,
+      "issues": []
+    },
+    {
+      "gate_id": "browser-e2e",
+      "label": "Browser Product E2E Proof",
+      "status": "source_only",
+      "mode": "sandbox",
+      "command_count": 1,
+      "issues": [
+        "source-only proof; rerun Phase 1 readiness in --strict mode for professional release evidence"
+      ]
+    },
+    {
+      "gate_id": "accessibility",
+      "label": "Accessibility Proof",
+      "status": "source_only",
+      "mode": "sandbox",
+      "command_count": 1,
+      "issues": [
+        "source-only proof; rerun Phase 1 readiness in --strict mode for professional release evidence"
+      ]
+    },
+    {
+      "gate_id": "security-release",
+      "label": "Security and Release Proof",
+      "status": "pass",
+      "mode": "sandbox",
+      "command_count": 1,
+      "issues": []
+    },
+    {
+      "gate_id": "phase0-guardrails",
+      "label": "Phase 0 Product Guardrails",
+      "status": "pass",
+      "mode": "sandbox",
+      "command_count": 6,
+      "issues": []
+    }
+  ],
+  "caveat": "Sandbox/source-only evidence is not enough for professional or mainnet readiness."
+}

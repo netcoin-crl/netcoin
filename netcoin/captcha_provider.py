@@ -26,12 +26,27 @@ class CaptchaConfig:
         return bool(self.provider and self.secret and self.verify_url)
 
 
-def load_captcha_config(env: dict[str, str] | None = None) -> CaptchaConfig:
+def _first_env(source: dict[str, str], *names: str) -> str:
+    for name in names:
+        value = source.get(name, "").strip()
+        if value:
+            return value
+    return ""
+
+
+def load_captcha_config(env: dict[str, str] | None = None, *, prefix: str = "NETCOIN_CAPTCHA") -> CaptchaConfig:
+    """Load CAPTCHA settings from generic or faucet-specific environment variables.
+
+    The generic names are useful for library tests and other NetCoin services.
+    The faucet-specific aliases keep the production faucet config explicit:
+    NETCOIN_FAUCET_CAPTCHA_PROVIDER, NETCOIN_FAUCET_CAPTCHA_SECRET, and
+    NETCOIN_FAUCET_CAPTCHA_VERIFY_URL.
+    """
     source = env or os.environ
-    provider = source.get("NETCOIN_CAPTCHA_PROVIDER", "").strip().lower()
-    secret = source.get("NETCOIN_CAPTCHA_SECRET", "").strip()
-    verify_url = source.get("NETCOIN_CAPTCHA_VERIFY_URL", "").strip() or PROVIDERS.get(provider, "")
-    return CaptchaConfig(provider=provider, secret=secret, verify_url=verify_url)
+    provider = _first_env(source, f"{prefix}_PROVIDER", "NETCOIN_FAUCET_CAPTCHA_PROVIDER").lower()
+    secret = _first_env(source, f"{prefix}_SECRET", "NETCOIN_FAUCET_CAPTCHA_SECRET")
+    verify_url = _first_env(source, f"{prefix}_VERIFY_URL", "NETCOIN_FAUCET_CAPTCHA_VERIFY_URL")
+    return CaptchaConfig(provider=provider, secret=secret, verify_url=verify_url or PROVIDERS.get(provider, ""))
 
 
 def source_validation() -> dict[str, Any]:
@@ -40,7 +55,11 @@ def source_validation() -> dict[str, Any]:
         "mode": "source",
         "status": "source-complete-evidence-required",
         "providers": sorted(PROVIDERS),
-        "env_required": ["NETCOIN_CAPTCHA_PROVIDER", "NETCOIN_CAPTCHA_SECRET"],
+        "env_required": [
+            "NETCOIN_FAUCET_CAPTCHA_PROVIDER",
+            "NETCOIN_FAUCET_CAPTCHA_SITEKEY",
+            "NETCOIN_FAUCET_CAPTCHA_SECRET",
+        ],
         "invalid_token_policy": "reject when provider success is false, token missing, provider unknown, or request fails",
     }
 

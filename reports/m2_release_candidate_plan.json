@@ -1,0 +1,15 @@
+{
+  "commands": [
+    "python3 tools/check_m2_readiness.py --out reports/m2_readiness_source_report.json",
+    "python3 -m pytest tests/test_m2_trust_hardening.py tests/test_m2_fee_bump.py -q",
+    "python3 tools/verify_reproducible_build.py --out reports/reproducible_build_source_report.json",
+    "python3 tools/generate_sbom.py --out dist/netcoin-sbom.json",
+    "python3 tools/generate_slsa_provenance.py --subject dist/netcoin-sbom.json --out dist/netcoin-slsa-provenance.json",
+    "python3 tools/check_m2_readiness.py --strict --out reports/m2_readiness_strict_report.json",
+    "python3 tools/run_hardware_wallet_device_tests.py --strict --out reports/m2_hardware_wallet_strict_report.json",
+    "python3 tools/run_security_audit_prep.py"
+  ],
+  "dry_run": true,
+  "ok": true,
+  "profile": "strict"
+}

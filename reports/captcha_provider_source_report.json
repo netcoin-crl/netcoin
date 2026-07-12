@@ -1,0 +1,15 @@
+{
+  "env_required": [
+    "NETCOIN_CAPTCHA_PROVIDER",
+    "NETCOIN_CAPTCHA_SECRET"
+  ],
+  "gate_id": "captcha-provider-integration",
+  "invalid_token_policy": "reject when provider success is false, token missing, provider unknown, or request fails",
+  "mode": "source",
+  "ok": true,
+  "providers": [
+    "hcaptcha",
+    "turnstile"
+  ],
+  "status": "source-complete-evidence-required"
+}

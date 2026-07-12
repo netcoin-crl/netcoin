@@ -1,0 +1,12 @@
+{
+  "checked_files": 5,
+  "client_get_route_count": 10,
+  "implemented_manifest_route_count": 28,
+  "issues": [],
+  "mode": "source",
+  "ok": true,
+  "registered_route_count": 28,
+  "required_route_count": 18,
+  "tsc_checked": false,
+  "tsc_skipped_reason": "api/node_modules is absent; regex/source contract checks still ran"
+}

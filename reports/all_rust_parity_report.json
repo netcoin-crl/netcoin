@@ -1,0 +1,88 @@
+{
+  "ok": true,
+  "mode": "allow-missing-cargo",
+  "lane_count": 7,
+  "failed_lanes": [],
+  "source_only_lanes": [
+    "consensus",
+    "mempool",
+    "wallet",
+    "markets",
+    "signer",
+    "p2p",
+    "indexer"
+  ],
+  "results": [
+    {
+      "lane": "consensus",
+      "script": "tools/run_rust_consensus_parity.py",
+      "status": "source_only",
+      "returncode": 0,
+      "mode": "source-only-missing-cargo",
+      "cargo_available": false,
+      "stdout_tail": "{\n  \"ok\": true,\n  \"mode\": \"source-only-missing-cargo\",\n  \"cargo_available\": false,\n  \"schema_version\": 12,\n  \"consensus_cases\": 30,\n  \"vector_fingerprint\": \"39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c\"\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "lane": "mempool",
+      "script": "tools/run_rust_mempool_parity.py",
+      "status": "source_only",
+      "returncode": 0,
+      "mode": "source-only-missing-cargo",
+      "cargo_available": false,
+      "stdout_tail": "{\n  \"ok\": true,\n  \"mode\": \"source-only-missing-cargo\",\n  \"cargo_available\": false,\n  \"schema_version\": 12,\n  \"mempool_cases\": 12,\n  \"vector_fingerprint\": \"39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c\"\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "lane": "wallet",
+      "script": "tools/run_rust_wallet_parity.py",
+      "status": "source_only",
+      "returncode": 0,
+      "mode": "source-only-missing-cargo",
+      "cargo_available": false,
+      "stdout_tail": "{\n  \"ok\": true,\n  \"mode\": \"source-only-missing-cargo\",\n  \"cargo_available\": false,\n  \"schema_version\": 12,\n  \"wallet_cases\": 21,\n  \"vector_fingerprint\": \"39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c\"\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "lane": "markets",
+      "script": "tools/run_rust_markets_parity.py",
+      "status": "source_only",
+      "returncode": 0,
+      "mode": "source-only-missing-cargo",
+      "cargo_available": false,
+      "stdout_tail": "{\n  \"ok\": true,\n  \"mode\": \"source-only-missing-cargo\",\n  \"cargo_available\": false,\n  \"schema_version\": 12,\n  \"markets_cases\": 24,\n  \"vector_fingerprint\": \"39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c\"\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "lane": "signer",
+      "script": "tools/run_rust_signer_parity.py",
+      "status": "source_only",
+      "returncode": 0,
+      "mode": "source-only-missing-cargo",
+      "cargo_available": false,
+      "stdout_tail": "{\n  \"ok\": true,\n  \"mode\": \"source-only-missing-cargo\",\n  \"cargo_available\": false,\n  \"schema_version\": 12,\n  \"signer_cases\": 10,\n  \"vector_fingerprint\": \"39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c\"\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "lane": "p2p",
+      "script": "tools/run_rust_p2p_parity.py",
+      "status": "source_only",
+      "returncode": 0,
+      "mode": "source-only-missing-cargo",
+      "cargo_available": false,
+      "stdout_tail": "{\n  \"ok\": true,\n  \"mode\": \"source-only-missing-cargo\",\n  \"cargo_available\": false,\n  \"schema_version\": 12,\n  \"p2p_cases\": 10,\n  \"vector_fingerprint\": \"39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c\"\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "lane": "indexer",
+      "script": "tools/run_rust_indexer_parity.py",
+      "status": "source_only",
+      "returncode": 0,
+      "mode": "source-only-missing-cargo",
+      "cargo_available": false,
+      "stdout_tail": "{\n  \"ok\": true,\n  \"mode\": \"source-only-missing-cargo\",\n  \"cargo_available\": false,\n  \"schema_version\": 12,\n  \"indexer_cases\": 10,\n  \"vector_fingerprint\": \"39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c\"\n}\n",
+      "stderr_tail": ""
+    }
+  ],
+  "caveat": "source-only lanes are not professional readiness proof"
+}

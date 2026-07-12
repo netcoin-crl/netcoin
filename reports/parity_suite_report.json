@@ -1,0 +1,1747 @@
+{
+  "ok": true,
+  "schema_version": 12,
+  "vector_fingerprint": "39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c",
+  "total": 163,
+  "passed": 163,
+  "failed": 0,
+  "lanes": {
+    "consensus": {
+      "passed": 30,
+      "failed": 0,
+      "total": 30
+    },
+    "mempool": {
+      "passed": 12,
+      "failed": 0,
+      "total": 12
+    },
+    "wallet": {
+      "passed": 21,
+      "failed": 0,
+      "total": 21
+    },
+    "markets": {
+      "passed": 24,
+      "failed": 0,
+      "total": 24
+    },
+    "signer": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10
+    },
+    "p2p": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10
+    },
+    "indexer": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10
+    },
+    "api": {
+      "passed": 46,
+      "failed": 0,
+      "total": 46
+    }
+  },
+  "failures": [],
+  "results": [
+    {
+      "lane": "consensus",
+      "case_id": "hash-empty-double-sha256",
+      "passed": true,
+      "expected": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+      "actual": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "hash-abc-double-sha256",
+      "passed": true,
+      "expected": "4f8b42c22dd3729b519ba6f68d2da7cc5b2d606d05daed5ad5128cc03e6c6358",
+      "actual": "4f8b42c22dd3729b519ba6f68d2da7cc5b2d606d05daed5ad5128cc03e6c6358",
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "money-zero",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "money-negative",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "money-too-large",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "linked-header-chain",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "broken-header-chain",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "checkpoint-mismatch",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "merkle-pair-starter",
+      "passed": true,
+      "expected": "6e9ff7ddcf4e1585c3f8472dbc6d58bfcb15b20b2c2e4b924950a06dbc9e940e",
+      "actual": "6e9ff7ddcf4e1585c3f8472dbc6d58bfcb15b20b2c2e4b924950a06dbc9e940e",
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "oversized-block-weight",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "tx-fee-nonnegative",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "tx-fee-negative",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "merkle-root-three-leaves",
+      "passed": true,
+      "expected": "4c55a74a2a917812895f7cdef957bf41dcebc315bcb4be16ffc0dad87a2034ef",
+      "actual": "4c55a74a2a917812895f7cdef957bf41dcebc315bcb4be16ffc0dad87a2034ef",
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "subsidy-after-two-reductions",
+      "passed": true,
+      "expected": 4050000000,
+      "actual": 4050000000,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "tx-parse-standard-summary",
+      "passed": true,
+      "expected": {
+        "valid": true,
+        "version": 2,
+        "locktime": 0,
+        "input_count": 1,
+        "output_count": 2,
+        "total_output_sats": 149000,
+        "coinbase": false
+      },
+      "actual": {
+        "valid": true,
+        "version": 2,
+        "locktime": 0,
+        "input_count": 1,
+        "output_count": 2,
+        "total_output_sats": 149000,
+        "coinbase": false
+      },
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "tx-parse-coinbase-summary",
+      "passed": true,
+      "expected": {
+        "valid": true,
+        "version": 1,
+        "locktime": 0,
+        "input_count": 1,
+        "output_count": 1,
+        "total_output_sats": 5000000000,
+        "coinbase": true
+      },
+      "actual": {
+        "valid": true,
+        "version": 1,
+        "locktime": 0,
+        "input_count": 1,
+        "output_count": 1,
+        "total_output_sats": 5000000000,
+        "coinbase": true
+      },
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "tx-parse-empty-inputs",
+      "passed": true,
+      "expected": {
+        "valid": false
+      },
+      "actual": {
+        "valid": false
+      },
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "block-header-hash-v1",
+      "passed": true,
+      "expected": {
+        "valid": true,
+        "hash_hex": "279b8f7d7ebad9229332d7dde3e5f827ed778b57ab3189e6da297062e1727ed4",
+        "height": 1
+      },
+      "actual": {
+        "valid": true,
+        "hash_hex": "279b8f7d7ebad9229332d7dde3e5f827ed778b57ab3189e6da297062e1727ed4",
+        "height": 1
+      },
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "block-header-invalid-prev-hash",
+      "passed": true,
+      "expected": {
+        "valid": false
+      },
+      "actual": {
+        "valid": false
+      },
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "basic-utxo-valid-spend",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "basic-utxo-overspend",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "basic-utxo-duplicate-input",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "basic-utxo-immature-coinbase",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "basic-utxo-missing-prevout",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "merkle-root-empty-leaves",
+      "passed": true,
+      "expected": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+      "actual": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "subsidy-genesis-height",
+      "passed": true,
+      "expected": 5000000000,
+      "actual": 5000000000,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "tx-parse-negative-output",
+      "passed": true,
+      "expected": {
+        "valid": false
+      },
+      "actual": {
+        "valid": false
+      },
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "block-header-uppercase-normalized",
+      "passed": true,
+      "expected": {
+        "valid": true,
+        "hash_hex": "9544fbdcfc191ebbc2d2b6cac42cbeff428e203082eb7a6a5e4fccb7fe246951",
+        "height": 2
+      },
+      "actual": {
+        "valid": true,
+        "hash_hex": "9544fbdcfc191ebbc2d2b6cac42cbeff428e203082eb7a6a5e4fccb7fe246951",
+        "height": 2
+      },
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "basic-utxo-mature-coinbase",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "consensus",
+      "case_id": "basic-utxo-negative-output",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-accept-standard-high-fee",
+      "passed": true,
+      "expected": {
+        "accepted": true,
+        "code": "accepted",
+        "fee_rate_sat_vb": 6
+      },
+      "actual": {
+        "accepted": true,
+        "code": "accepted",
+        "fee_rate_sat_vb": 6
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-reject-duplicate-txid",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "code": "duplicate",
+        "fee_rate_sat_vb": 6
+      },
+      "actual": {
+        "accepted": false,
+        "code": "duplicate",
+        "fee_rate_sat_vb": 6
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-reject-orphan-missing-prevout",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "code": "orphan",
+        "fee_rate_sat_vb": 6
+      },
+      "actual": {
+        "accepted": false,
+        "code": "orphan",
+        "fee_rate_sat_vb": 6
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-reject-low-fee-rate",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "code": "low_fee_rate",
+        "fee_rate_sat_vb": 0
+      },
+      "actual": {
+        "accepted": false,
+        "code": "low_fee_rate",
+        "fee_rate_sat_vb": 0
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-reject-dust-output",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "code": "dust",
+        "fee_rate_sat_vb": 6
+      },
+      "actual": {
+        "accepted": false,
+        "code": "dust",
+        "fee_rate_sat_vb": 6
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-reject-nonfinal-locktime",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "code": "nonfinal",
+        "fee_rate_sat_vb": 6
+      },
+      "actual": {
+        "accepted": false,
+        "code": "nonfinal",
+        "fee_rate_sat_vb": 6
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-reject-ancestor-limit",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "code": "too_many_ancestors",
+        "fee_rate_sat_vb": 6
+      },
+      "actual": {
+        "accepted": false,
+        "code": "too_many_ancestors",
+        "fee_rate_sat_vb": 6
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-reject-descendant-limit",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "code": "too_many_descendants",
+        "fee_rate_sat_vb": 6
+      },
+      "actual": {
+        "accepted": false,
+        "code": "too_many_descendants",
+        "fee_rate_sat_vb": 6
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-reject-too-large",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "code": "too_large",
+        "fee_rate_sat_vb": 4
+      },
+      "actual": {
+        "accepted": false,
+        "code": "too_large",
+        "fee_rate_sat_vb": 4
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-reject-insufficient-rbf-bump",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "code": "insufficient_replacement_fee",
+        "fee_rate_sat_vb": 5
+      },
+      "actual": {
+        "accepted": false,
+        "code": "insufficient_replacement_fee",
+        "fee_rate_sat_vb": 5
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-accept-sufficient-rbf-bump",
+      "passed": true,
+      "expected": {
+        "accepted": true,
+        "code": "accepted",
+        "fee_rate_sat_vb": 6
+      },
+      "actual": {
+        "accepted": true,
+        "code": "accepted",
+        "fee_rate_sat_vb": 6
+      },
+      "detail": ""
+    },
+    {
+      "lane": "mempool",
+      "case_id": "mempool-order-by-feerate-desc",
+      "passed": true,
+      "expected": {
+        "ordered_txids": [
+          "high",
+          "tie-a",
+          "tie-b",
+          "low"
+        ],
+        "top_fee_rate_sat_vb": 6
+      },
+      "actual": {
+        "ordered_txids": [
+          "high",
+          "tie-a",
+          "tie-b",
+          "low"
+        ],
+        "top_fee_rate_sat_vb": 6
+      },
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-safe-send",
+      "passed": true,
+      "expected": "allow",
+      "actual": "allow",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-high-fee",
+      "passed": true,
+      "expected": "review",
+      "actual": "review",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-frozen-coin",
+      "passed": true,
+      "expected": "block",
+      "actual": "block",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-negative-balance",
+      "passed": true,
+      "expected": "block",
+      "actual": "block",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-many-inputs",
+      "passed": true,
+      "expected": "review",
+      "actual": "review",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-fee-rate-review",
+      "passed": true,
+      "expected": "review",
+      "actual": "review",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-fee-rate-block",
+      "passed": true,
+      "expected": "block",
+      "actual": "block",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-dust-change",
+      "passed": true,
+      "expected": "review",
+      "actual": "review",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-reused-recipient",
+      "passed": true,
+      "expected": "review",
+      "actual": "review",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-negative-amount",
+      "passed": true,
+      "expected": "block",
+      "actual": "block",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-negative-fee",
+      "passed": true,
+      "expected": "block",
+      "actual": "block",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-poison-warning",
+      "passed": true,
+      "expected": "block",
+      "actual": "block",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-borderline-fee-rate-allow",
+      "passed": true,
+      "expected": "allow",
+      "actual": "allow",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-fee-rate-threshold-review",
+      "passed": true,
+      "expected": "review",
+      "actual": "review",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-fee-rate-threshold-block",
+      "passed": true,
+      "expected": "block",
+      "actual": "block",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-dust-threshold-allow",
+      "passed": true,
+      "expected": "allow",
+      "actual": "allow",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-zero-dust-change-allow",
+      "passed": true,
+      "expected": "allow",
+      "actual": "allow",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-hardware-signer-warning",
+      "passed": true,
+      "expected": "review",
+      "actual": "review",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-offline-signing-warning",
+      "passed": true,
+      "expected": "review",
+      "actual": "review",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-large-input-boundary-allow",
+      "passed": true,
+      "expected": "allow",
+      "actual": "allow",
+      "detail": ""
+    },
+    {
+      "lane": "wallet",
+      "case_id": "preview-large-input-over-limit-review",
+      "passed": true,
+      "expected": "review",
+      "actual": "review",
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "quote-valid",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "quote-zero-quantity",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "quote-bound-price",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "binary-yes-no-sum",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "binary-wide-spread-review",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "settlement-conservation",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "settlement-overpay",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "fee-within-cap",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "fee-over-cap",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "order-notional-ok",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "order-notional-too-small",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "price-tick-valid-50bps",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "price-tick-reject-off-grid",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "collateral-sufficient",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "collateral-insufficient",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "buy-crosses-best-ask",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "sell-does-not-cross-best-bid",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "open-market-allows-orders",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "resolved-market-blocks-orders",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "resolved-state-with-outcome",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "resolved-state-missing-outcome",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "portfolio-equity-conserves",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "portfolio-equity-mismatch",
+      "passed": true,
+      "expected": false,
+      "actual": false,
+      "detail": ""
+    },
+    {
+      "lane": "markets",
+      "case_id": "fee-cap-boundary-equal",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-digest-basic-transfer",
+      "passed": true,
+      "expected": "8f8c0a0a2ba080a22b23cee88635b314b6884f5a82bcaade07e718bc9cfd74c9",
+      "actual": "8f8c0a0a2ba080a22b23cee88635b314b6884f5a82bcaade07e718bc9cfd74c9",
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-digest-market-order",
+      "passed": true,
+      "expected": "e5edb72e456578df13ca7d8a92dea496c396ba97f7ac2e2a569837fbc9e4ec65",
+      "actual": "e5edb72e456578df13ca7d8a92dea496c396ba97f7ac2e2a569837fbc9e4ec65",
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-policy-single-hot-allow",
+      "passed": true,
+      "expected": {
+        "decision": "allow",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "actual": {
+        "decision": "allow",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-policy-missing-threshold-block",
+      "passed": true,
+      "expected": {
+        "decision": "block",
+        "required_signers": 2,
+        "available_signers": 1
+      },
+      "actual": {
+        "decision": "block",
+        "required_signers": 2,
+        "available_signers": 1
+      },
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-policy-hardware-large-review",
+      "passed": true,
+      "expected": {
+        "decision": "review",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "actual": {
+        "decision": "review",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-policy-offline-review",
+      "passed": true,
+      "expected": {
+        "decision": "review",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "actual": {
+        "decision": "review",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-policy-unknown-sighash-block",
+      "passed": true,
+      "expected": {
+        "decision": "block",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "actual": {
+        "decision": "block",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-policy-negative-amount-block",
+      "passed": true,
+      "expected": {
+        "decision": "block",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "actual": {
+        "decision": "block",
+        "required_signers": 1,
+        "available_signers": 1
+      },
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-envelope-valid-offline",
+      "passed": true,
+      "expected": {
+        "valid": true,
+        "digest": "29f4a271f4ff4475051150cb81ef2e766ccfb64ce7ca6c18f7c0d478ce766fd0"
+      },
+      "actual": {
+        "valid": true,
+        "digest": "29f4a271f4ff4475051150cb81ef2e766ccfb64ce7ca6c18f7c0d478ce766fd0"
+      },
+      "detail": ""
+    },
+    {
+      "lane": "signer",
+      "case_id": "signer-envelope-missing-digest",
+      "passed": true,
+      "expected": {
+        "valid": false,
+        "digest": "7d983b3ea259420bd658977ed6a60dd9a7fc85d473c7efd710b286841f92a5c8"
+      },
+      "actual": {
+        "valid": false,
+        "digest": "7d983b3ea259420bd658977ed6a60dd9a7fc85d473c7efd710b286841f92a5c8"
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-best-peer-highest-chainwork",
+      "passed": true,
+      "expected": {
+        "best_peer": "b",
+        "height": 98,
+        "chainwork": 1200
+      },
+      "actual": {
+        "best_peer": "b",
+        "height": 98,
+        "chainwork": 1200
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-best-peer-tiebreak-height",
+      "passed": true,
+      "expected": {
+        "best_peer": "b",
+        "height": 101,
+        "chainwork": 1000
+      },
+      "actual": {
+        "best_peer": "b",
+        "height": 101,
+        "chainwork": 1000
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-no-eligible-peers",
+      "passed": true,
+      "expected": {
+        "best_peer": "",
+        "height": 0,
+        "chainwork": 0
+      },
+      "actual": {
+        "best_peer": "",
+        "height": 0,
+        "chainwork": 0
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-header-sync-accept-linked",
+      "passed": true,
+      "expected": {
+        "accepted": true,
+        "linked": true,
+        "checkpoint_ok": true,
+        "protocol_ok": true
+      },
+      "actual": {
+        "accepted": true,
+        "linked": true,
+        "checkpoint_ok": true,
+        "protocol_ok": true
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-header-sync-reject-unlinked",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "linked": false,
+        "checkpoint_ok": true,
+        "protocol_ok": true
+      },
+      "actual": {
+        "accepted": false,
+        "linked": false,
+        "checkpoint_ok": true,
+        "protocol_ok": true
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-header-sync-reject-checkpoint",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "linked": true,
+        "checkpoint_ok": false,
+        "protocol_ok": true
+      },
+      "actual": {
+        "accepted": false,
+        "linked": true,
+        "checkpoint_ok": false,
+        "protocol_ok": true
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-header-sync-reject-protocol",
+      "passed": true,
+      "expected": {
+        "accepted": false,
+        "linked": true,
+        "checkpoint_ok": true,
+        "protocol_ok": false
+      },
+      "actual": {
+        "accepted": false,
+        "linked": true,
+        "checkpoint_ok": true,
+        "protocol_ok": false
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-ban-score-below-threshold",
+      "passed": true,
+      "expected": {
+        "score": 60,
+        "banned": false
+      },
+      "actual": {
+        "score": 60,
+        "banned": false
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-ban-score-at-threshold",
+      "passed": true,
+      "expected": {
+        "score": 100,
+        "banned": true
+      },
+      "actual": {
+        "score": 100,
+        "banned": true
+      },
+      "detail": ""
+    },
+    {
+      "lane": "p2p",
+      "case_id": "p2p-ban-score-above-threshold",
+      "passed": true,
+      "expected": {
+        "score": 105,
+        "banned": true
+      },
+      "actual": {
+        "score": 105,
+        "banned": true
+      },
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-address-simple-balance",
+      "passed": true,
+      "expected": {
+        "received_sats": 110000,
+        "sent_sats": 25000,
+        "balance_sats": 85000,
+        "event_count": 3
+      },
+      "actual": {
+        "received_sats": 110000,
+        "sent_sats": 25000,
+        "balance_sats": 85000,
+        "event_count": 3
+      },
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-address-zero-events",
+      "passed": true,
+      "expected": {
+        "received_sats": 0,
+        "sent_sats": 0,
+        "balance_sats": 0,
+        "event_count": 0
+      },
+      "actual": {
+        "received_sats": 0,
+        "sent_sats": 0,
+        "balance_sats": 0,
+        "event_count": 0
+      },
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-reorg-three-rollback-two-apply",
+      "passed": true,
+      "expected": {
+        "rollback_blocks": 3,
+        "apply_blocks": 2,
+        "new_tip_height": 104
+      },
+      "actual": {
+        "rollback_blocks": 3,
+        "apply_blocks": 2,
+        "new_tip_height": 104
+      },
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-reorg-no-rollback",
+      "passed": true,
+      "expected": {
+        "rollback_blocks": 0,
+        "apply_blocks": 2,
+        "new_tip_height": 102
+      },
+      "actual": {
+        "rollback_blocks": 0,
+        "apply_blocks": 2,
+        "new_tip_height": 102
+      },
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-market-event-rollup",
+      "passed": true,
+      "expected": {
+        "trade_volume_sats": 35000,
+        "disputes": 1,
+        "settlements": 1,
+        "event_count": 4
+      },
+      "actual": {
+        "trade_volume_sats": 35000,
+        "disputes": 1,
+        "settlements": 1,
+        "event_count": 4
+      },
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-market-event-empty",
+      "passed": true,
+      "expected": {
+        "trade_volume_sats": 0,
+        "disputes": 0,
+        "settlements": 0,
+        "event_count": 0
+      },
+      "actual": {
+        "trade_volume_sats": 0,
+        "disputes": 0,
+        "settlements": 0,
+        "event_count": 0
+      },
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-snapshot-hash-address",
+      "passed": true,
+      "expected": "2ee928e43b0ea05d82be74f8b54abbfde93197dbdc3f4811c44c0d6cd649efdc",
+      "actual": "2ee928e43b0ea05d82be74f8b54abbfde93197dbdc3f4811c44c0d6cd649efdc",
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-snapshot-hash-market",
+      "passed": true,
+      "expected": "4c442028bee819ad7232d38a199d3cc4511c73ae684af9f9d368e78b45fbf8f7",
+      "actual": "4c442028bee819ad7232d38a199d3cc4511c73ae684af9f9d368e78b45fbf8f7",
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-address-negative-net",
+      "passed": true,
+      "expected": {
+        "received_sats": 0,
+        "sent_sats": 1000,
+        "balance_sats": -1000,
+        "event_count": 1
+      },
+      "actual": {
+        "received_sats": 0,
+        "sent_sats": 1000,
+        "balance_sats": -1000,
+        "event_count": 1
+      },
+      "detail": ""
+    },
+    {
+      "lane": "indexer",
+      "case_id": "indexer-reorg-deep-fork",
+      "passed": true,
+      "expected": {
+        "rollback_blocks": 50,
+        "apply_blocks": 60,
+        "new_tip_height": 260
+      },
+      "actual": {
+        "rollback_blocks": 50,
+        "apply_blocks": 60,
+        "new_tip_height": 260
+      },
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:SignedEnvelopeSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:ExplorerAddressSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:WalletDraftSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:MarketOrderSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:ParityStatusSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:ExplorerTransactionSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:WalletPreviewSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:MarketSettlementSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:ParityVectorSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:SignerPolicySchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:P2PSyncSummarySchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:IndexerSnapshotSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:OpenApiRouteSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:OpenApiParitySchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:MigrationReadinessSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:OperatorDiagnosticsSchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "schema:ReleaseVerifySchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/migration-status",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/parity-status",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/explorer/address/{address}",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/wallet/drafts",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/markets/{market_id}/orderbook",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/parity-vectors",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/migration-readiness",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/explorer/tx/{txid}",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/explorer/block/{id}",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/explorer/mempool",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/operator/diagnostics/bundle",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "route:/api/release/verify",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:migrationStatus",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:explorerAddress",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:parityStatus",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:parityVectors",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:migrationReadiness",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:explorerTransaction",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:explorerBlock",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:explorerMempool",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:operatorDiagnosticsBundle",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "client:releaseVerify",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "codegen:OpenApiParitySchema",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "codegen:normalizeOpenApiRoute",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "codegen:requiredOpenApiRoutes",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "codegen:requiredOpenApiSchemas",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "codegen:summarizeOpenApiParity",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "codegen:assertOpenApiParity",
+      "passed": true,
+      "expected": true,
+      "actual": true,
+      "detail": ""
+    },
+    {
+      "lane": "api",
+      "case_id": "openapi-codegen-summary",
+      "passed": true,
+      "expected": {
+        "schema_ok": true,
+        "route_ok": true,
+        "client_ok": true,
+        "codegen_ok": true
+      },
+      "actual": {
+        "schema_ok": true,
+        "route_ok": true,
+        "client_ok": true,
+        "codegen_ok": true
+      },
+      "detail": ""
+    }
+  ]
+}

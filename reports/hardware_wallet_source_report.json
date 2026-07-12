@@ -1,0 +1,8 @@
+{
+  "evidence_path": "",
+  "gate_id": "hardware-wallet-device-testing",
+  "issues": [],
+  "mode": "source",
+  "ok": true,
+  "status": "source-complete-evidence-required"
+}

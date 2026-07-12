@@ -17,14 +17,23 @@ env/
 htmlcov/
 
 # Local node / wallet state — never commit these
-*.json
-!pyproject-example.json
 .netcoin*/
 data/
 wallets/
 *.wallet
 *.pem
 *.key
+
+# Local runtime JSON only. Do not ignore all *.json:
+# architecture manifests, fixtures, package-lock files, OpenAPI artifacts,
+# reports, and static API fallbacks must remain visible to git and CI.
+wallet.json
+wallet-*.json
+node-state.json
+peers.json
+mempool.json
+chainstate.json
+local-*.json
 
 # OS / editor
 .DS_Store
@@ -35,3 +44,7 @@ wallets/
 # JS deps and Rust build output
 node_modules/
 target/
+
+# Generated artifacts (never commit)
+graphify-out/
+test-results/

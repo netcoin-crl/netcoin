@@ -364,9 +364,25 @@ v041-check: mainnet-readiness-check product-completion-check phase0-complete-che
 	$(PYTHON) tools/run_ts_api_contract_enforcement.py
 	PYTHONPATH=. $(PYTHON) -m pytest -q tests/test_v041_mainnet_readiness.py
 
-.PHONY: site-ui-polish-check v042-check
+.PHONY: site-ui-polish-check m1-readiness-check m1-live-smoke-plan m1-live-smoke m1-rc-check m1-rc-strict v042-check
 site-ui-polish-check:
 	$(PYTHON) tools/check_site_ui_polish.py
+
+m1-readiness-check:
+	$(PYTHON) tools/check_m1_readiness.py --out reports/m1_readiness_source_report.json
+
+
+m1-live-smoke-plan:
+	$(PYTHON) tools/check_m1_live_smoke.py --out reports/m1_live_smoke_plan.json
+
+m1-live-smoke:
+	$(PYTHON) tools/check_m1_live_smoke.py --run --out reports/m1_live_smoke_report.json
+
+m1-rc-check: m1-readiness-check site-ui-polish-check
+	$(PYTHON) tools/run_m1_release_candidate.py --profile source --out reports/m1_release_candidate_report.json
+
+m1-rc-strict: m1-readiness-check site-ui-polish-check
+	$(PYTHON) tools/run_m1_release_candidate.py --profile strict --timeout 300 --out reports/m1_release_candidate_report.json
 
 v042-check: site-ui-polish-check product-completion-check mainnet-readiness-check product-check site-audit
 	$(PYTHON) -m compileall -q netcoin tools
@@ -376,3 +392,14 @@ v042-check: site-ui-polish-check product-completion-check mainnet-readiness-chec
 	$(PYTHON) tools/check_ts_workspace.py
 	$(PYTHON) tools/run_ts_api_contract_enforcement.py
 	PYTHONPATH=. $(PYTHON) -m pytest -q tests/test_v040_product_completion.py tests/test_v0401_browser_strict_fixes.py tests/test_v042_site_ui_polish.py
+
+.PHONY: m2-readiness-check m2-rc-check m2-rc-strict
+
+m2-readiness-check:
+	$(PYTHON) tools/check_m2_readiness.py --out reports/m2_readiness_source_report.json
+
+m2-rc-check: m2-readiness-check
+	$(PYTHON) tools/run_m2_release_candidate.py --profile source --out reports/m2_release_candidate_report.json
+
+m2-rc-strict: m2-readiness-check
+	$(PYTHON) tools/run_m2_release_candidate.py --profile strict --timeout 300 --out reports/m2_release_candidate_report.json

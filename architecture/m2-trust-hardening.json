@@ -1,0 +1,56 @@
+{
+  "schema": "netcoin-milestone-readiness-v1",
+  "milestone": "M2",
+  "name": "Trust hardening",
+  "claim_policy": "Source-complete M2 may be claimed when source gates pass. Operational M2 may only be claimed when strict evidence gates for physical hardware devices, release signing, reproducible builds, fuzzing, and audit scoping pass.",
+  "source_claim": "M2 source-complete, evidence-required",
+  "strict_claim": "M2 operationally verified",
+  "deliverables": [
+    {
+      "id": "hardware-wallet-contract",
+      "label": "Ledger and Trezor signing contract",
+      "source_files": ["netcoin/hardware_wallet.py", "tools/run_hardware_wallet_device_tests.py", "docs/HARDWARE_WALLET_INTEGRATION.md"],
+      "strict_evidence": "reports/m2_evidence/hardware_wallet_device_evidence.json"
+    },
+    {
+      "id": "psbt-round-trip",
+      "label": "PSBT create/export/sign/import/broadcast flow",
+      "source_files": ["netcoin/psbt.py", "tests/test_psbt_flow.py", "docs/PSBT_RBF_CPFP_WATCH_ONLY.md"]
+    },
+    {
+      "id": "fee-bumping",
+      "label": "RBF and CPFP wallet helpers",
+      "source_files": ["netcoin/fee_bump.py", "tests/test_m2_fee_bump.py", "docs/PSBT_RBF_CPFP_WATCH_ONLY.md"]
+    },
+    {
+      "id": "watch-only-xpub-descriptors",
+      "label": "xpub export and watch-only descriptors",
+      "source_files": ["netcoin/descriptors.py", "netcoin/hd.py", "tests/test_descriptors.py", "tests/test_hd.py"]
+    },
+    {
+      "id": "reproducible-builds",
+      "label": "Reproducible build recipe and verifier",
+      "source_files": ["Dockerfile.repro", "tools/verify_reproducible_build.py", "docs/REPRODUCIBLE_BUILDS.md"]
+    },
+    {
+      "id": "signed-releases-sbom-provenance",
+      "label": "Signed artifacts, SBOM, and SLSA-style provenance",
+      "source_files": ["tools/sign_release.py", "tools/verify_release.py", "tools/generate_sbom.py", "tools/generate_slsa_provenance.py", "sites/keys/index.html"]
+    },
+    {
+      "id": "fuzz-corpus",
+      "label": "Consensus, mempool, and tx-parse fuzz plan",
+      "source_files": ["docs/FUZZ_CORPUS_PLAN.md", "netcoin/fuzz.py", "tests/test_fuzz.py"]
+    },
+    {
+      "id": "bug-bounty-and-audit",
+      "label": "Bug bounty scope and audit scoping package",
+      "source_files": ["docs/BUG_BOUNTY_SCOPE.md", "docs/AUDIT_SCOPING_PACKAGE.md", "sites/security/bug-bounty.html"]
+    },
+    {
+      "id": "threat-model-cve-review",
+      "label": "Threat model and Bitcoin CVE review",
+      "source_files": ["docs/THREAT_MODEL.md", "docs/BITCOIN_CVE_THREAT_REVIEW.md"]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "gate_id": "captcha-provider-integration",
+  "invalid_result": {
+    "error": "provider not configured",
+    "ok": false
+  },
+  "issues": [
+    "NETCOIN_CAPTCHA_PROVIDER and NETCOIN_CAPTCHA_SECRET must be configured",
+    "valid provider token was not accepted"
+  ],
+  "mode": "strict-provider",
+  "ok": false,
+  "provider": "",
+  "valid_result": {
+    "error": "no valid test token supplied",
+    "ok": false
+  }
+}

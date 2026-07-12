@@ -25,6 +25,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+      - name: Set up Node for source asset checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Install dev dependencies
         run: python -m pip install -e ".[dev]"
       - name: Compile Python package
@@ -44,6 +48,9 @@ jobs:
       - name: Validate professional upgrade manifest
         run: python tools/professional_upgrade_audit.py --fail-on-issues
         timeout-minutes: 2
+      - name: M1 source release-candidate gate
+        run: python tools/run_m1_release_candidate.py --profile source --out reports/m1_release_candidate_report.json --stop-on-fail
+        timeout-minutes: 8
       - name: Fast protocol/market tests with timeout budget
         run: make test-fast
         timeout-minutes: 10

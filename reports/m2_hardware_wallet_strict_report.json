@@ -1,0 +1,10 @@
+{
+  "evidence_path": "reports/mainnet_evidence/hardware_wallet_device_evidence.json",
+  "gate_id": "hardware-wallet-device-testing",
+  "issues": [
+    "missing evidence file: reports/mainnet_evidence/hardware_wallet_device_evidence.json"
+  ],
+  "mode": "strict",
+  "ok": false,
+  "status": "strict-evidence-required"
+}

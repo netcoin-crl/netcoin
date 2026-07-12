@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "mode": "source-only-missing-cargo",
+  "cargo_available": false,
+  "schema_version": 12,
+  "vector_fingerprint": "39de795a1f9f7b227ab9b794a6d56a38fa52e346c19ffff85b983542e165643c",
+  "input_file_sha256": "cdced21c70ca6ad9cc848677f18b0a77cb8114067c007fa091fefb319870e15a",
+  "mempool_cases": 12,
+  "source_issues": [],
+  "comparison_issues": [],
+  "note": "Cargo was not executed; run without --allow-missing-cargo on a Rust-enabled machine for the live executable comparison."
+}

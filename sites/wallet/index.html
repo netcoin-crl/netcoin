@@ -206,11 +206,11 @@ body{letter-spacing:-.01em}
 @media(max-width:860px){.wallet-section[data-wallet-tab="wallet"].active-section,#wallet-send.active-section{display:block!important;grid-column:auto!important;max-width:none!important}}
 </style>
 </head>
-<body>
+<body class="wallet-page m1-hide-shell-search">
   <div class="wrap">
     <nav class="site-nav" aria-label="NetCoin ecosystem"><a href="https://wallet.netcoin.online" data-modes="all" class="active" aria-current="page">Wallet</a><a href="https://pay.netcoin.online" data-modes="simple merchant">Pay</a><a href="https://explorer.netcoin.online" data-modes="simple developer node labs">Explorer</a><a href="https://merchant.netcoin.online" data-modes="merchant">Merchant</a><a href="https://community.netcoin.online" data-modes="simple community">Community</a><a href="https://learn.netcoin.online" data-modes="all">Learn</a><details class="site-more"><summary>More</summary><div class="site-more-panel"><a href="https://nodes.netcoin.online" data-modes="node developer">Network<small>nodes, seeds, status, mining</small></a><a href="https://api.netcoin.online" data-modes="developer merchant node labs">Developers<small>API, SDKs, webhooks, examples</small></a><a href="https://governance.netcoin.online" data-modes="community node developer labs">Governance<small>NIPs, votes, treasury, roadmap</small></a><a href="https://security.netcoin.online" data-modes="all">Security<small>trust center and release safety</small></a><a href="https://markets.netcoin.online" data-modes="labs">Labs<small>experimental market demos</small></a><a href="https://faucet.netcoin.online" data-modes="simple">Faucet<small>request testnet coins</small></a><a href="https://learn.netcoin.online#download" data-modes="developer node simple">Download<small>install from Learn</small></a><a href="https://api.netcoin.online" data-modes="developer merchant">API host<small>machine API endpoint</small></a></div></details></nav>
-<h1>Net<span>Coin</span> Wallet</h1>
-    <p class="sub">Non-custodial · encrypted vault · keys stay in your browser · <span class="pill" id="netpill">testnet</span></p>
+<h1 class="wallet-page-title">Net<span>Coin</span> Wallet <span class="pill testnet-pill" id="netpill">testnet</span></h1>
+    <p class="sub">Non-custodial · encrypted vault · keys stay in your browser</p>
 
     <!-- WELCOME -->
     <div id="welcome" class="card hide">
@@ -266,6 +266,14 @@ body{letter-spacing:-.01em}
       <label>Password to encrypt on this device</label>
       <input id="privateKeyPw" type="password" placeholder="password" autocomplete="new-password" />
       <label class="checkline"><input id="privateKeyRemember" type="checkbox" checked /> Stay unlocked in this browser tab until I lock or close it</label>
+      <label for="privateKeyAutoLock">Auto-lock after inactivity</label>
+      <select id="privateKeyAutoLock" aria-label="Auto-lock timeout">
+        <option value="15">15 minutes</option>
+        <option value="30">30 minutes</option>
+        <option value="60">1 hour</option>
+        <option value="120">2 hours</option>
+        <option value="0">Disabled for this tab</option>
+      </select>
       <button id="btnPrivateKeyConfirm">Unlock and save encrypted profile</button>
       <button id="btnPrivateKeySession" class="secondary" type="button">Unlock for this session only</button>
       <button id="btnPrivateKeyBack" class="secondary">Back</button>
@@ -280,6 +288,14 @@ body{letter-spacing:-.01em}
       <select id="profileSelect" aria-label="Wallet profile"></select>
       <input id="unlockPw" type="password" placeholder="password" autocomplete="current-password" />
       <label class="checkline"><input id="unlockRemember" type="checkbox" checked /> Stay unlocked in this browser tab until I lock or close it</label>
+      <label for="unlockAutoLock">Auto-lock after inactivity</label>
+      <select id="unlockAutoLock" aria-label="Auto-lock timeout">
+        <option value="15">15 minutes</option>
+        <option value="30">30 minutes</option>
+        <option value="60">1 hour</option>
+        <option value="120">2 hours</option>
+        <option value="0">Disabled for this tab</option>
+      </select>
       <button id="btnUnlock">Unlock</button>
       <div class="row">
         <button id="btnCreateAnother" class="secondary inline" type="button">Create another wallet</button>
@@ -307,8 +323,8 @@ body{letter-spacing:-.01em}
             </select>
             <p class="muted">All four addresses come from the same recovery phrase. Coins on any of them belong to this wallet — the selector shows each type's balance; switch to see and spend it.</p>
             <div class="row overview-actions">
-              <button id="btnCopy" class="secondary">Copy address</button>
-              <button id="btnRefresh" class="secondary">Refresh</button>
+              <button id="btnCopy">Copy address</button>
+              <button id="btnRefresh" class="secondary ghost">Refresh</button>
             </div>
           </section>
           <section class="overview-panel balance-panel">
@@ -318,7 +334,10 @@ body{letter-spacing:-.01em}
             </div>
             <div class="bal"><span id="balNet">—</span> <small>NET</small></div>
             <div class="muted" id="balImmature"></div>
-            <p class="muted balance-explain">The NET you can spend right now, summed across all four address types (they all come from your one recovery phrase). This wallet is non-custodial — keys are encrypted in this browser and never uploaded. Use <b>Receive</b> to get paid, <b>Send</b> to pay someone, and <b>Lock</b> to end this session.</p>
+            <details class="balance-explain">
+              <summary>What this balance means</summary>
+              <p class="muted">The NET you can spend right now, summed across all four address types (they all come from your one recovery phrase). This wallet is non-custodial — keys are encrypted in this browser and never uploaded. Use <b>Receive</b> to get paid, <b>Send</b> to pay someone, and <b>Lock</b> to end this session.</p>
+            </details>
           </section>
         </div>
         <div class="statusbar wallet-status-inline"><span class="dot" id="statusDot"></span><span id="walletStatus" class="muted">Checking node status…</span><span class="pill" id="activeProfilePill">Profile</span></div>
@@ -333,7 +352,7 @@ body{letter-spacing:-.01em}
         </details>
       </div>
       <div class="card">
-        <h1 style="font-size:16px">Receive</h1>
+        <h2>Receive</h2>
         <p class="muted">Create a payment request link for your address.</p>
         <div class="row">
           <input id="requestAmount" inputmode="decimal" placeholder="Amount, optional" />
@@ -352,7 +371,7 @@ body{letter-spacing:-.01em}
         </div>
       </div>
       <div class="card">
-        <h1 style="font-size:16px">Send</h1>
+        <h2>Send</h2>
         <label>Recipient</label>
         <div class="send-recipient-row">
           <input id="toAddr" class="mono" placeholder="net1q... or netcoin:net1q...?amount=1" autocomplete="off" />
@@ -411,7 +430,7 @@ body{letter-spacing:-.01em}
         </details>
         <button id="btnSend">Review &amp; send</button>
         <div id="sendReview" class="review hide">
-          <h1 style="font-size:15px">Confirm transaction</h1>
+          <h2>Confirm transaction</h2>
           <div class="kv">
             <div class="k">Recipient</div><div class="v mono" id="reviewTo"></div>
             <div class="k">Contact</div><div class="v" id="reviewContact"></div>
@@ -443,12 +462,12 @@ body{letter-spacing:-.01em}
         <p id="sendMsg"></p>
       </div>
       <div class="card">
-        <h1 style="font-size:16px">Transactions &amp; labels</h1>
+        <h2>Transactions &amp; labels</h2>
         <p class="muted">Labels are saved only in this browser and never sent to the node.</p>
         <div id="txHistory" class="muted">Unlock wallet to load recent activity.</div>
       </div>
       <div class="card">
-        <h1 style="font-size:16px">Reports, alerts &amp; safety</h1>
+        <h2>Reports, alerts &amp; safety</h2>
         <p class="muted">Optional app-layer tools. These use the same-origin API when available; your private key still never leaves this browser.</p>
         <div class="row">
           <button id="btnWalletStatement" class="secondary inline" type="button">Create statement</button>
@@ -477,7 +496,7 @@ body{letter-spacing:-.01em}
         <p id="walletToolsMsg" class="muted"></p>
       </div>
       <div class="card">
-        <h1 style="font-size:16px">Descriptors &amp; offline signing</h1>
+        <h2>Descriptors &amp; offline signing</h2>
         <p class="muted">Export a watch-only descriptor for this wallet, import simple wpkh() descriptors into the watchlist, or create a NetCoin PSBT for offline review/signing workflows.</p>
         <label>Your wallet descriptor</label>
         <textarea id="walletDescriptor" class="mono" readonly></textarea>
@@ -492,7 +511,7 @@ body{letter-spacing:-.01em}
         <p id="descriptorMsg" class="muted"></p>
       </div>
       <div class="card">
-        <h1 style="font-size:16px">Watch-only addresses</h1>
+        <h2>Watch-only addresses</h2>
         <p class="muted">Monitor balances without importing a private key. These labels are saved only in this browser.</p>
         <label>Address to watch</label>
         <input id="watchAddress" class="mono" placeholder="net1q..." autocomplete="off" />
@@ -506,7 +525,7 @@ body{letter-spacing:-.01em}
         <div id="watchList" class="watch-list"></div>
       </div>
       <div class="card">
-        <h1 style="font-size:16px">Settings · Backups</h1>
+        <h2>Settings · Backups</h2>
         <p class="muted">Backup and restore saved contacts. Encrypted export protects the contact file with a password.</p>
         <div class="row">
           <button id="btnExportContacts" class="secondary" type="button">Export contacts</button>
@@ -523,7 +542,7 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260707-cap500" integrity="sha384-f2rfd5w+8CoOw7hqpFx1tEJNdaahCW+OeVInr/33yCnqqJKmAfMfQ1GeU4vSIMuJ" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260710-v0377" integrity="sha384-wGm5y53CMKs96lZCHSVP9ueV+hzIaEcGuperREoMp/BxSFNlt7tGyzLBgoCgOzye" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260711-m1-tab-regression" integrity="sha384-YBG4qX/70pCwavJZQA75kEEZiyejIPeqURGEMU50Re8hvQCXgIFp0TXqnlGl25aI" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260709-minimal"></script>
 </body>
 </html>
@@ -652,3 +671,22 @@ body{letter-spacing:-.01em}
   .wrap > p.sub{font-size:13px!important;line-height:1.4!important;margin:0 0 16px!important;color:var(--mut,#9aa7b5)!important;max-width:none!important}
   @media(max-width:940px){.wrap{padding-left:16px!important;padding-right:16px!important}.wrap > h1{font-size:20px!important}}
 </style>
+
+<!-- v0.43 M1 wallet flaw pass: semantic headings, clearer testnet state, compact balance help, action hierarchy, and session auto-lock controls. -->
+<style id="wallet-v043-m1-flaw-pass">
+  .wallet-page-title{display:flex!important;align-items:center!important;gap:10px!important;flex-wrap:wrap!important}
+  .testnet-pill{border-color:rgba(61,220,151,.55)!important;color:var(--acc,#3ddc97)!important;background:rgba(61,220,151,.12)!important;text-transform:uppercase!important;letter-spacing:.08em!important;font-weight:800!important}
+  #wallet-home .overview-actions #btnCopy{background:var(--acc,#3ddc97)!important;color:#06210f!important;border-color:transparent!important;font-weight:800!important}
+  #wallet-home .overview-actions #btnRefresh.ghost{background:transparent!important;color:var(--fg,#e9eef6)!important;border:1px solid var(--bd,#222a36)!important}
+  #wallet-home .balance-panel details.balance-explain{margin-top:10px!important;color:var(--mut,#9aa4b2)!important;font-size:12.5px!important;line-height:1.5!important;max-width:78ch!important;text-transform:none!important;letter-spacing:0!important}
+  #wallet-home .balance-panel details.balance-explain summary{cursor:pointer!important;color:var(--fg,#e9eef6)!important;font-weight:750!important;list-style-position:outside!important;text-transform:none!important;letter-spacing:0!important}
+  #wallet-home .balance-panel details.balance-explain p{margin:8px 0 0!important;text-transform:none!important;letter-spacing:0!important;color:var(--mut,#9aa4b2)!important}
+  #wallet-home .balance-panel details.balance-explain b{color:var(--fg,#e9eef6)!important;font-weight:700!important;text-transform:none!important}
+  #walletView h2{font-size:16px!important;line-height:1.25!important;margin:0 0 8px!important;letter-spacing:-.01em!important}
+  #sendReview h2{font-size:15px!important}
+  .auto-lock-status{margin-top:8px!important;font-size:12.5px!important}
+  /* M1 wallet focus: hide the global shell search on the wallet surface.
+     Wallet actions stay in the wallet; ecosystem navigation remains in Directory. */
+  body.m1-hide-shell-search .site-search{display:none!important}
+</style>
+

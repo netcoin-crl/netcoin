@@ -156,3 +156,9 @@ body{letter-spacing:-.01em}
   .grid,.split,.dashboard-grid{gap:14px!important;margin-bottom:14px!important;}
   pre{max-height:200px!important;}
 }
+
+/* v20260711 M1 status snapshot: make height, mempool, peer, and uptime metrics first-class. */
+.network-snapshot .section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px}.network-snapshot .section-head h2{margin-top:9px}.network-snapshot .stat .mono{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.network-snapshot #networkUpdated{margin:0;font-size:13px}@media(max-width:760px){.network-snapshot .section-head{display:block}.network-snapshot #networkUpdated{margin-top:8px}.network-snapshot .stat .mono{white-space:normal}}
+
+/* v20260711 M1 incident runbook: surface operator escalation and communication discipline. */
+.incident-card{border-color:rgba(61,220,151,.28)!important;background:linear-gradient(180deg,rgba(61,220,151,.075),rgba(255,255,255,.018))!important}.incident-card h2{text-transform:none!important;letter-spacing:0!important;color:var(--fg,#edf2f7)!important;font-size:20px!important}.incident-card .actions .pill:first-child{border-color:rgba(61,220,151,.48)!important;color:var(--accent,#3ddc97)!important}

@@ -1,0 +1,10 @@
+{
+  "generated_at": 1783606106,
+  "port": 8088,
+  "status": "timeout",
+  "steps": [],
+  "seconds": 1,
+  "tail": [
+    "Command '['/usr/local/bin/npx', 'playwright', 'test', 'sites/tests/e2e', 'webwallet-browser/tests/e2e', '--reporter=list']' timed out after 1 seconds"
+  ]
+}

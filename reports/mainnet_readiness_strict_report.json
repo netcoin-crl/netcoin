@@ -1,0 +1,300 @@
+{
+  "blocker_count": 8,
+  "cannot_claim_production_until_blocker_count_zero": true,
+  "claim_level": "testnet-evidence-gated",
+  "gate_count": 8,
+  "mode": "strict",
+  "ok": false,
+  "pass_count": 0,
+  "phase": "Phase 3 - Mainnet Readiness Evidence Gates",
+  "results": [
+    {
+      "evidence_path": "",
+      "gate_id": "hardware-wallet-device-testing",
+      "issues": [
+        "command failed",
+        "missing evidence file: reports/mainnet_evidence/hardware_wallet_device_evidence.json"
+      ],
+      "mode": "strict",
+      "ok": false,
+      "status": "strict-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "captcha-provider-integration",
+      "issues": [
+        "command failed",
+        "NETCOIN_CAPTCHA_PROVIDER and NETCOIN_CAPTCHA_SECRET must be configured",
+        "valid provider token was not accepted"
+      ],
+      "mode": "strict",
+      "ok": false,
+      "status": "fail"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "production-exchange-custody",
+      "issues": [
+        "command failed",
+        "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/production_custody_evidence.json"
+      ],
+      "mode": "strict",
+      "ok": false,
+      "status": "strict-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "external-crypto-security-audit",
+      "issues": [
+        "command failed",
+        "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/external_audit_evidence.json"
+      ],
+      "mode": "strict",
+      "ok": false,
+      "status": "strict-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "public-production-p2p-soak",
+      "issues": [
+        "command failed",
+        "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/public_p2p_soak_evidence.json"
+      ],
+      "mode": "strict",
+      "ok": false,
+      "status": "strict-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "long-python-suite-confidence",
+      "issues": [
+        "command failed"
+      ],
+      "mode": "strict",
+      "ok": false,
+      "status": "fail"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "mainnet-launch-checklist-approval",
+      "issues": [
+        "command failed",
+        "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/mainnet_launch_approval.json"
+      ],
+      "mode": "strict",
+      "ok": false,
+      "status": "strict-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "public-testnet-incident-history",
+      "issues": [
+        "command failed",
+        "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/public_testnet_incidents.json"
+      ],
+      "mode": "strict",
+      "ok": false,
+      "status": "strict-evidence-required"
+    }
+  ],
+  "runs": {
+    "captcha-provider-integration": {
+      "command": "/opt/pyvenv/bin/python3 tools/check_captcha_provider.py --strict --out reports/captcha_provider_report.json",
+      "parsed": {
+        "gate_id": "captcha-provider-integration",
+        "invalid_result": {
+          "error": "provider not configured",
+          "ok": false
+        },
+        "issues": [
+          "NETCOIN_CAPTCHA_PROVIDER and NETCOIN_CAPTCHA_SECRET must be configured",
+          "valid provider token was not accepted"
+        ],
+        "mode": "strict-provider",
+        "ok": false,
+        "provider": "",
+        "valid_result": {
+          "error": "no valid test token supplied",
+          "ok": false
+        }
+      },
+      "returncode": 1,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"gate_id\": \"captcha-provider-integration\",\n  \"invalid_result\": {\n    \"error\": \"provider not configured\",\n    \"ok\": false\n  },\n  \"issues\": [\n    \"NETCOIN_CAPTCHA_PROVIDER and NETCOIN_CAPTCHA_SECRET must be configured\",\n    \"valid provider token was not accepted\"\n  ],\n  \"mode\": \"strict-provider\",\n  \"ok\": false,\n  \"provider\": \"\",\n  \"valid_result\": {\n    \"error\": \"no valid test token supplied\",\n    \"ok\": false\n  }\n}\n"
+    },
+    "external-crypto-security-audit": {
+      "command": "/opt/pyvenv/bin/python3 tools/generate_external_audit_package.py --strict --evidence reports/mainnet_evidence/external_audit_evidence.json --out reports/external_audit_report.json",
+      "parsed": {
+        "audit_package": {
+          "cannot_replace_external_audit": true,
+          "created_at": 1783733603,
+          "gate_id": "external-crypto-security-audit",
+          "mode": "audit-package-source",
+          "ok": true,
+          "required_auditor_evidence": [
+            "auditor_name",
+            "auditor_independence_statement",
+            "scope_hash",
+            "report_date",
+            "critical_findings_zero_or_remediated",
+            "report_artifact_hash"
+          ],
+          "scope": [
+            {
+              "exists": true,
+              "path": "netcoin/consensus.py",
+              "sha256": "a2934799a1ab876fe8c8feec35f9c1aad7e621d9fdd75d2cb61e459213424477"
+            },
+            {
+              "exists": true,
+              "path": "netcoin/tx.py",
+              "sha256": "e58ab5ee8ca254df1be5af19c1f3774af833d02d1747f53ccbb4a83d512cde4b"
+            },
+            {
+              "exists": true,
+              "path": "netcoin/script.py",
+              "sha256": "f4bb1b29e6289bbbd942a4db76f227b0b676e28aa2daecf929c03a2db3300bd4"
+            },
+            {
+              "exists": true,
+              "path": "netcoin/wallet.py",
+              "sha256": "ba940fd7079cb3df9d81121dee387913f07e24f257305c165143736d8b988bba"
+            },
+            {
+              "exists": true,
+              "path": "netcoin/exchange_accounting.py",
+              "sha256": "6cb82070be80f7bb76aaf29fa32dc2cd48ec9368cb883b38c1bf50d223b8a069"
+            },
+            {
+              "exists": true,
+              "path": "netcoin/exchange_reserves.py",
+              "sha256": "c9937f67fff09aeaa96855baa0e984bf035d76750e0f28369e716cd1f8d6e1ff"
+            },
+            {
+              "exists": true,
+              "path": "core-rs/Cargo.toml",
+              "sha256": "e49a288a46f6c597c1fcbb84e755b34e3cab879104fc905612433b27f6ee078b"
+            },
+            {
+              "exists": true,
+              "path": "api/src/server.ts",
+              "sha256": "4290c97fa250a220ea94fe110be15622687256dc5694276fee9bd38ea7e4539a"
+            },
+            {
+              "exists": true,
+              "path": "docs/THREAT_MODEL.md",
+              "sha256": "20902bd39cecb264bf5b3883d18febb6f8a1d2a980e10761ecacff5601668868"
+            },
+            {
+              "exists": true,
+              "path": "docs/PRE_MAINNET_SECURITY_CHECKLIST.md",
+              "sha256": "d36a01fd058ab5f47090eaab7d16b0540bbc83652e6c1dca8d348f8e37a13e11"
+            }
+          ],
+          "scope_hash": "ab91041c37a023b4869264ba9d49abab3b1e87b74de3e782d015f95a00b4bc7d",
+          "status": "source-complete-evidence-required"
+        },
+        "evidence_path": "/mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/external_audit_evidence.json",
+        "gate_id": "external-crypto-security-audit",
+        "issues": [
+          "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/external_audit_evidence.json"
+        ],
+        "mode": "strict",
+        "ok": false,
+        "status": "strict-evidence-required"
+      },
+      "returncode": 1,
+      "stderr_tail": "",
+      "stdout_tail": "true,\n        \"path\": \"netcoin/tx.py\",\n        \"sha256\": \"e58ab5ee8ca254df1be5af19c1f3774af833d02d1747f53ccbb4a83d512cde4b\"\n      },\n      {\n        \"exists\": true,\n        \"path\": \"netcoin/script.py\",\n        \"sha256\": \"f4bb1b29e6289bbbd942a4db76f227b0b676e28aa2daecf929c03a2db3300bd4\"\n      },\n      {\n        \"exists\": true,\n        \"path\": \"netcoin/wallet.py\",\n        \"sha256\": \"ba940fd7079cb3df9d81121dee387913f07e24f257305c165143736d8b988bba\"\n      },\n      {\n        \"exists\": true,\n        \"path\": \"netcoin/exchange_accounting.py\",\n        \"sha256\": \"6cb82070be80f7bb76aaf29fa32dc2cd48ec9368cb883b38c1bf50d223b8a069\"\n      },\n      {\n        \"exists\": true,\n        \"path\": \"netcoin/exchange_reserves.py\",\n        \"sha256\": \"c9937f67fff09aeaa96855baa0e984bf035d76750e0f28369e716cd1f8d6e1ff\"\n      },\n      {\n        \"exists\": true,\n        \"path\": \"core-rs/Cargo.toml\",\n        \"sha256\": \"e49a288a46f6c597c1fcbb84e755b34e3cab879104fc905612433b27f6ee078b\"\n      },\n      {\n        \"exists\": true,\n        \"path\": \"api/src/server.ts\",\n        \"sha256\": \"4290c97fa250a220ea94fe110be15622687256dc5694276fee9bd38ea7e4539a\"\n      },\n      {\n        \"exists\": true,\n        \"path\": \"docs/THREAT_MODEL.md\",\n        \"sha256\": \"20902bd39cecb264bf5b3883d18febb6f8a1d2a980e10761ecacff5601668868\"\n      },\n      {\n        \"exists\": true,\n        \"path\": \"docs/PRE_MAINNET_SECURITY_CHECKLIST.md\",\n        \"sha256\": \"d36a01fd058ab5f47090eaab7d16b0540bbc83652e6c1dca8d348f8e37a13e11\"\n      }\n    ],\n    \"scope_hash\": \"ab91041c37a023b4869264ba9d49abab3b1e87b74de3e782d015f95a00b4bc7d\",\n    \"status\": \"source-complete-evidence-required\"\n  },\n  \"evidence_path\": \"/mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/external_audit_evidence.json\",\n  \"gate_id\": \"external-crypto-security-audit\",\n  \"issues\": [\n    \"missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/external_audit_evidence.json\"\n  ],\n  \"mode\": \"strict\",\n  \"ok\": false,\n  \"status\": \"strict-evidence-required\"\n}\n"
+    },
+    "hardware-wallet-device-testing": {
+      "command": "/opt/pyvenv/bin/python3 tools/run_hardware_wallet_device_tests.py --strict --evidence reports/mainnet_evidence/hardware_wallet_device_evidence.json --out reports/hardware_wallet_device_report.json",
+      "parsed": {
+        "evidence_path": "reports/mainnet_evidence/hardware_wallet_device_evidence.json",
+        "gate_id": "hardware-wallet-device-testing",
+        "issues": [
+          "missing evidence file: reports/mainnet_evidence/hardware_wallet_device_evidence.json"
+        ],
+        "mode": "strict",
+        "ok": false,
+        "status": "strict-evidence-required"
+      },
+      "returncode": 1,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"evidence_path\": \"reports/mainnet_evidence/hardware_wallet_device_evidence.json\",\n  \"gate_id\": \"hardware-wallet-device-testing\",\n  \"issues\": [\n    \"missing evidence file: reports/mainnet_evidence/hardware_wallet_device_evidence.json\"\n  ],\n  \"mode\": \"strict\",\n  \"ok\": false,\n  \"status\": \"strict-evidence-required\"\n}\n"
+    },
+    "long-python-suite-confidence": {
+      "command": "/opt/pyvenv/bin/python3 tools/run_long_python_confidence.py --strict --timeout 240 --out reports/long_python_suite_report.json",
+      "parsed": {},
+      "returncode": 124,
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout": true
+    },
+    "mainnet-launch-checklist-approval": {
+      "command": "/opt/pyvenv/bin/python3 tools/check_mainnet_launch_approval.py --strict --evidence reports/mainnet_evidence/mainnet_launch_approval.json --out reports/mainnet_launch_approval_report.json",
+      "parsed": {
+        "evidence_path": "/mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/mainnet_launch_approval.json",
+        "gate_id": "mainnet-launch-checklist-approval",
+        "issues": [
+          "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/mainnet_launch_approval.json"
+        ],
+        "mode": "strict",
+        "ok": false,
+        "status": "strict-evidence-required"
+      },
+      "returncode": 1,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"evidence_path\": \"/mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/mainnet_launch_approval.json\",\n  \"gate_id\": \"mainnet-launch-checklist-approval\",\n  \"issues\": [\n    \"missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/mainnet_launch_approval.json\"\n  ],\n  \"mode\": \"strict\",\n  \"ok\": false,\n  \"status\": \"strict-evidence-required\"\n}\n"
+    },
+    "production-exchange-custody": {
+      "command": "/opt/pyvenv/bin/python3 tools/check_production_custody.py --strict --evidence reports/mainnet_evidence/production_custody_evidence.json --out reports/production_custody_report.json",
+      "parsed": {
+        "evidence_path": "/mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/production_custody_evidence.json",
+        "gate_id": "production-exchange-custody",
+        "issues": [
+          "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/production_custody_evidence.json"
+        ],
+        "mode": "strict",
+        "ok": false,
+        "status": "strict-evidence-required"
+      },
+      "returncode": 1,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"evidence_path\": \"/mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/production_custody_evidence.json\",\n  \"gate_id\": \"production-exchange-custody\",\n  \"issues\": [\n    \"missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/production_custody_evidence.json\"\n  ],\n  \"mode\": \"strict\",\n  \"ok\": false,\n  \"status\": \"strict-evidence-required\"\n}\n"
+    },
+    "public-production-p2p-soak": {
+      "command": "/opt/pyvenv/bin/python3 tools/run_public_p2p_soak.py --strict --evidence reports/mainnet_evidence/public_p2p_soak_evidence.json --out reports/public_p2p_soak_report.json",
+      "parsed": {
+        "evidence_path": "/mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/public_p2p_soak_evidence.json",
+        "gate_id": "public-production-p2p-soak",
+        "issues": [
+          "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/public_p2p_soak_evidence.json"
+        ],
+        "mode": "strict",
+        "ok": false,
+        "status": "strict-evidence-required"
+      },
+      "returncode": 1,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"evidence_path\": \"/mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/public_p2p_soak_evidence.json\",\n  \"gate_id\": \"public-production-p2p-soak\",\n  \"issues\": [\n    \"missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/public_p2p_soak_evidence.json\"\n  ],\n  \"mode\": \"strict\",\n  \"ok\": false,\n  \"status\": \"strict-evidence-required\"\n}\n"
+    },
+    "public-testnet-incident-history": {
+      "command": "/opt/pyvenv/bin/python3 tools/check_incident_history.py --strict --evidence reports/mainnet_evidence/public_testnet_incidents.json --out reports/incident_history_report.json",
+      "parsed": {
+        "evidence_path": "reports/mainnet_evidence/public_testnet_incidents.json",
+        "gate_id": "public-testnet-incident-history",
+        "issues": [
+          "missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/public_testnet_incidents.json"
+        ],
+        "mode": "strict",
+        "ok": false,
+        "status": "strict-evidence-required"
+      },
+      "returncode": 1,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"evidence_path\": \"reports/mainnet_evidence/public_testnet_incidents.json\",\n  \"gate_id\": \"public-testnet-incident-history\",\n  \"issues\": [\n    \"missing evidence file: /mnt/data/work_v041/netcoin-main/reports/mainnet_evidence/public_testnet_incidents.json\"\n  ],\n  \"mode\": \"strict\",\n  \"ok\": false,\n  \"status\": \"strict-evidence-required\"\n}\n"
+    }
+  },
+  "version": "0.41.0"
+}

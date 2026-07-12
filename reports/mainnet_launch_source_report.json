@@ -1,0 +1,16 @@
+{
+  "gate_id": "mainnet-launch-checklist-approval",
+  "issues": [],
+  "mode": "source",
+  "ok": true,
+  "required_approvals": [
+    "release_manager_approval",
+    "security_approval",
+    "ops_approval",
+    "wallet_approval",
+    "custody_approval",
+    "rollback_plan",
+    "genesis_or_upgrade_hash"
+  ],
+  "status": "source-complete-evidence-required"
+}

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Testnet User Journey</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
+  <link rel="stylesheet" href="docs.css?v=20260711-m1-pilot-plan" />
+  <link rel="stylesheet" href="site-shell.css?v=20260710-widen" />
+</head>
+<body>
+  <div class="shell testnet-journey-page">
+    <header class="topbar">
+      <div class="brand"><div class="logo">N</div><div>NetCoin Docs<small>public testnet user journey</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin ecosystem"><a href="https://wallet.netcoin.online" data-modes="all">Wallet</a><a href="https://faucet.netcoin.online" data-modes="simple">Faucet</a><a href="https://explorer.netcoin.online" data-modes="simple developer node labs">Explorer</a><a href="https://status.netcoin.online" data-modes="all">Status</a><a href="https://learn.netcoin.online" data-modes="all">Learn</a></nav>
+    </header>
+
+    <section class="hero dashboard-hero">
+      <div class="card">
+        <span class="pill">M1 tester path</span>
+        <h1>Complete the testnet loop without operator help.</h1>
+        <p>Create a wallet, claim faucet NET, verify it in Explorer, send a small payment, lock the wallet, and check Status if anything stalls.</p>
+        <div class="actions"><a class="pill" href="https://wallet.netcoin.online">Start with Wallet</a><a class="pill" href="https://faucet.netcoin.online">Open Faucet</a><a class="pill" href="https://status.netcoin.online">Check Status</a><a class="pill" href="testnet-feedback.html">Report friction</a><a class="pill" href="testnet-pilot.html">Pilot plan</a></div>
+      </div>
+      <div class="card notice warn">
+        <h2>Safety first</h2>
+        <p>NetCoin is public testnet software. Testnet NET has no real-money value. Never share seed phrases, private keys, or screenshots containing full recovery words.</p>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="journeyChecklistTitle">
+      <div class="section-head">
+        <div><span class="pill">wallet -> faucet -> explorer -> status</span><h2 id="journeyChecklistTitle">First-time tester checklist</h2></div>
+        <p class="muted">Record friction with device, browser, URL, expected result, and actual result.</p>
+      </div>
+      <ol class="journey-steps">
+        <li><b>Create wallet.</b> Open Wallet, create a fresh testnet wallet, and store the recovery phrase offline.</li>
+        <li><b>Copy receive address.</b> Open Receive and copy one address from the wallet.</li>
+        <li><b>Claim faucet NET.</b> Paste the address into Faucet and complete the challenge if one is enabled.</li>
+        <li><b>Verify in Explorer.</b> Search the address or transaction ID and confirm the transaction is pending or confirmed.</li>
+        <li><b>Send a tiny payment.</b> Use Wallet Send and confirm the review screen before broadcast.</li>
+        <li><b>Lock and unlock.</b> Lock the wallet, unlock the saved vault, and verify the dashboard returns.</li>
+        <li><b>Check Status.</b> If anything is stuck, check height, mempool depth, peer count, and uptime.</li>
+      </ol>
+    </section>
+
+    <section class="grid testnet-journey-grid">
+      <div class="card"><h2>Success signals</h2><ul><li>Wallet shows the prominent testnet pill.</li><li>Faucet accepts the request or clearly explains cooldown.</li><li>Explorer shows pending or confirmed activity.</li><li>Status shows height, mempool depth, peers, and uptime.</li></ul></div>
+      <div class="card"><h2>Report format</h2><ul><li>Device and browser.</li><li>URL and action taken.</li><li>Expected versus actual result.</li><li>Safe screenshot or console error.</li><li>Status-page condition when it happened.</li><li><a href="testnet-feedback.html">Use the feedback intake template.</a></li><li><a href="testnet-pilot.html">Follow the two-week pilot plan before expanding testers.</a></li></ul></div>
+      <div class="card"><h2>Operator preflight</h2><pre>make m1-rc-check
+make m1-rc-strict</pre><p class="muted">Do not invite testers until local source and strict gates have been run in the real checkout.</p></div>
+    </section>
+
+    <section class="card">
+      <h2>Blocked domain workaround</h2>
+      <p class="muted">If a local ISP blocks <code>netcoin.online</code>, verify through seed1 using explicit Host headers:</p>
+      <pre>curl -sk -H 'Host: wallet.netcoin.online' https://18.220.89.128/ | head -6
+curl -sk -H 'Host: faucet.netcoin.online' https://18.220.89.128/ | head -6
+curl -sk -H 'Host: explorer.netcoin.online' https://18.220.89.128/ | head -6
+curl -sk -H 'Host: status.netcoin.online' https://18.220.89.128/ | head -6</pre>
+    </section>
+
+    <p class="footer">This page does not claim mainnet readiness, real-money safety, independent-node decentralization, hardware wallet support, an external audit, or live CAPTCHA credentials in source control.</p>
+  </div>
+  <script src="site-shell.js?v=20260709-minimal"></script>
+</body>
+</html>

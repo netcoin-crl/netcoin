@@ -12,6 +12,7 @@ import argparse
 import json
 import subprocess
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 MODULE_GROUPS: dict[str, list[str]] = {
@@ -38,6 +39,24 @@ def _covered_percent_for_group(report: dict, prefixes: list[str]) -> float:
     if statements == 0:
         return 100.0
     return covered * 100.0 / statements
+
+
+@lru_cache(maxsize=1)
+def _pytest_supports_timeout() -> bool:
+    """Return True when pytest-timeout is installed for the active interpreter.
+
+    Local source-check environments sometimes have pytest/pytest-cov but not
+    pytest-timeout. CI and the project venv should install pytest-timeout from
+    requirements-dev.lock, but the coverage gate should degrade gracefully
+    instead of failing before tests run.
+    """
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "--help"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return "--timeout" in (proc.stdout + proc.stderr)
 
 
 def _parse_thresholds(value: str, default: int) -> dict[str, int]:
@@ -80,12 +99,15 @@ def main() -> int:
         "-m",
         "pytest",
         "-q",
-        "--timeout=300",
         "--cov=netcoin",
         "--cov-report=term-missing",
         f"--cov-report=json:{args.json_out}",
         f"--cov-fail-under={int(args.minimum)}",
     ] + args.pytest_args
+    if _pytest_supports_timeout():
+        cmd.insert(4, "--timeout=300")
+    else:
+        print("Coverage gate: pytest-timeout not installed; running without --timeout=300")
     test_rc = subprocess.call(cmd)
     if test_rc != 0:
         return test_rc

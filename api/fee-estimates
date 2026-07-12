@@ -1,0 +1,47 @@
+{
+  "status": "source-fallback",
+  "assumed_vbytes": 200,
+  "mempool_depth": 0,
+  "mempool_bytes": 0,
+  "source": "min-relay-fallback",
+  "fee_rate_percentiles": {
+    "p10": {
+      "label": "10th percentile",
+      "percentile": 10,
+      "fee_rate_per_kvb": 1000,
+      "estimated_fee_sats": 200
+    },
+    "p50": {
+      "label": "50th percentile",
+      "percentile": 50,
+      "fee_rate_per_kvb": 1000,
+      "estimated_fee_sats": 200
+    },
+    "p90": {
+      "label": "90th percentile",
+      "percentile": 90,
+      "fee_rate_per_kvb": 1000,
+      "estimated_fee_sats": 200
+    }
+  },
+  "presets": {
+    "slow": {
+      "target_blocks": 6,
+      "fee_rate_per_kvb": 1000,
+      "estimated_fee_sats": 200,
+      "method": "local-policy"
+    },
+    "normal": {
+      "target_blocks": 3,
+      "fee_rate_per_kvb": 1300,
+      "estimated_fee_sats": 260,
+      "method": "local-policy"
+    },
+    "fast": {
+      "target_blocks": 1,
+      "fee_rate_per_kvb": 1500,
+      "estimated_fee_sats": 300,
+      "method": "local-policy"
+    }
+  }
+}

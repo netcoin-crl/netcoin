@@ -1,0 +1,68 @@
+{
+  "does_not_claim": [
+    "live seed deployment",
+    "real CAPTCHA credentials",
+    "external audit completion",
+    "hardware wallet support",
+    "independent-node decentralization"
+  ],
+  "dry_run": true,
+  "gate_count": 6,
+  "gates": [
+    {
+      "command": "python3 tools/check_m1_readiness.py --out reports/m1_readiness_source_report.json",
+      "id": "m1-readiness-source",
+      "label": "M1 source readiness markers",
+      "missing_requirements": [],
+      "profile": "source",
+      "status": "planned"
+    },
+    {
+      "command": "python3 tools/check_site_ui_polish.py",
+      "id": "site-ui-polish",
+      "label": "Static site UI polish guard",
+      "missing_requirements": [],
+      "profile": "source",
+      "status": "planned"
+    },
+    {
+      "command": "python3 -m pytest tests/test_m1_readiness_gate.py tests/test_m1_ci_gate_wiring.py tests/test_m1_wallet_e2e_source.py tests/test_m1_wallet_regressions.py tests/test_m1_status_page.py tests/test_m1_faucet_hardening.py tests/test_m1_explorer_mempool_live.py tests/test_m1_incident_response_runbook.py tests/test_m1_testnet_user_journey.py tests/test_m1_testnet_feedback_intake.py tests/test_m1_testnet_pilot_plan.py tests/test_m1_live_smoke_tool.py -q",
+      "id": "m1-source-tests",
+      "label": "M1 source regression tests",
+      "missing_requirements": [],
+      "profile": "source",
+      "status": "planned"
+    },
+    {
+      "command": "node --check sites/wallet/wallet-app.js && node --check webwallet-browser/public/wallet-app.js",
+      "id": "wallet-js-syntax",
+      "label": "Wallet JavaScript syntax",
+      "missing_requirements": [],
+      "profile": "source",
+      "status": "planned"
+    },
+    {
+      "command": "node --check sites/explorer/explorer-pro.js && node --check sites/status/status.js && node --check sites/tests/e2e/m1-wallet-workflow.spec.js",
+      "id": "explorer-status-js-syntax",
+      "label": "Explorer and status JavaScript syntax",
+      "missing_requirements": [],
+      "profile": "source",
+      "status": "planned"
+    },
+    {
+      "command": "python3 tools/check_m1_live_smoke.py --out reports/m1_live_smoke_plan.json",
+      "id": "m1-live-smoke-plan",
+      "label": "M1 live smoke dry-run plan",
+      "missing_requirements": [],
+      "profile": "source",
+      "status": "planned"
+    }
+  ],
+  "incomplete": [],
+  "ok": true,
+  "profile": "source",
+  "scope": "M1 release-candidate verification",
+  "status_counts": {
+    "planned": 6
+  }
+}

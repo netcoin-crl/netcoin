@@ -1,0 +1,15 @@
+{
+  "audited_surface_count": 12,
+  "copy_budget": {
+    "card_copy_count": 30,
+    "card_copy_max_chars": 90,
+    "panel_intro_count": 9,
+    "panel_intro_max_chars": 140
+  },
+  "design_flaw_count": 8,
+  "implemented_change_count": 8,
+  "issues": [],
+  "ok": true,
+  "phase": "Website UI clarity and copy-reduction pass",
+  "version": "0.42.0"
+}

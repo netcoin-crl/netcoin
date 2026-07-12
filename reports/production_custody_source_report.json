@@ -1,0 +1,16 @@
+{
+  "balanced_double_entry_ledger": true,
+  "gate_id": "production-exchange-custody",
+  "hot_wallet_reconciliation": {
+    "delta_sats": 0,
+    "expected_hot_wallet_sats": 75000,
+    "ledger_balanced": true,
+    "observed_hot_wallet_sats": 75000,
+    "ok": true
+  },
+  "mode": "source",
+  "ok": true,
+  "reserve_attestation_ok": true,
+  "solvent": true,
+  "status": "source-complete-evidence-required"
+}

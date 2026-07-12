@@ -1,0 +1,374 @@
+{
+  "blocker_count": 0,
+  "cannot_claim_production_until_blocker_count_zero": true,
+  "cannot_claim_production_until_strict_evidence_passes": true,
+  "claim_level": "source-complete-evidence-required-not-mainnet",
+  "gate_count": 8,
+  "mode": "source",
+  "ok": true,
+  "pass_count": 8,
+  "phase": "Phase 3 - Mainnet Readiness Evidence Gates",
+  "results": [
+    {
+      "evidence_path": "",
+      "gate_id": "hardware-wallet-device-testing",
+      "issues": [],
+      "mode": "source",
+      "ok": true,
+      "status": "source-complete-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "captcha-provider-integration",
+      "issues": [],
+      "mode": "source",
+      "ok": true,
+      "status": "source-complete-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "production-exchange-custody",
+      "issues": [],
+      "mode": "source",
+      "ok": true,
+      "status": "source-complete-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "external-crypto-security-audit",
+      "issues": [],
+      "mode": "source",
+      "ok": true,
+      "status": "source-complete-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "public-production-p2p-soak",
+      "issues": [],
+      "mode": "source",
+      "ok": true,
+      "status": "source-complete-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "long-python-suite-confidence",
+      "issues": [],
+      "mode": "source",
+      "ok": true,
+      "status": "source-complete-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "mainnet-launch-checklist-approval",
+      "issues": [],
+      "mode": "source",
+      "ok": true,
+      "status": "source-complete-evidence-required"
+    },
+    {
+      "evidence_path": "",
+      "gate_id": "public-testnet-incident-history",
+      "issues": [],
+      "mode": "source",
+      "ok": true,
+      "status": "pass"
+    }
+  ],
+  "runs": {
+    "captcha-provider-integration": {
+      "command": "/opt/pyvenv/bin/python3 tools/check_captcha_provider.py --source-only --out reports/captcha_provider_source_report.json",
+      "parsed": {
+        "env_required": [
+          "NETCOIN_CAPTCHA_PROVIDER",
+          "NETCOIN_CAPTCHA_SECRET"
+        ],
+        "gate_id": "captcha-provider-integration",
+        "invalid_token_policy": "reject when provider success is false, token missing, provider unknown, or request fails",
+        "mode": "source",
+        "ok": true,
+        "providers": [
+          "hcaptcha",
+          "turnstile"
+        ],
+        "status": "source-complete-evidence-required"
+      },
+      "returncode": 0,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"env_required\": [\n    \"NETCOIN_CAPTCHA_PROVIDER\",\n    \"NETCOIN_CAPTCHA_SECRET\"\n  ],\n  \"gate_id\": \"captcha-provider-integration\",\n  \"invalid_token_policy\": \"reject when provider success is false, token missing, provider unknown, or request fails\",\n  \"mode\": \"source\",\n  \"ok\": true,\n  \"providers\": [\n    \"hcaptcha\",\n    \"turnstile\"\n  ],\n  \"status\": \"source-complete-evidence-required\"\n}\n"
+    },
+    "external-crypto-security-audit": {
+      "command": "/opt/pyvenv/bin/python3 tools/generate_external_audit_package.py --out reports/external_audit_package.json",
+      "parsed": {
+        "cannot_replace_external_audit": true,
+        "created_at": 1783733583,
+        "gate_id": "external-crypto-security-audit",
+        "mode": "audit-package-source",
+        "ok": true,
+        "required_auditor_evidence": [
+          "auditor_name",
+          "auditor_independence_statement",
+          "scope_hash",
+          "report_date",
+          "critical_findings_zero_or_remediated",
+          "report_artifact_hash"
+        ],
+        "scope": [
+          {
+            "exists": true,
+            "path": "netcoin/consensus.py",
+            "sha256": "a2934799a1ab876fe8c8feec35f9c1aad7e621d9fdd75d2cb61e459213424477"
+          },
+          {
+            "exists": true,
+            "path": "netcoin/tx.py",
+            "sha256": "e58ab5ee8ca254df1be5af19c1f3774af833d02d1747f53ccbb4a83d512cde4b"
+          },
+          {
+            "exists": true,
+            "path": "netcoin/script.py",
+            "sha256": "f4bb1b29e6289bbbd942a4db76f227b0b676e28aa2daecf929c03a2db3300bd4"
+          },
+          {
+            "exists": true,
+            "path": "netcoin/wallet.py",
+            "sha256": "ba940fd7079cb3df9d81121dee387913f07e24f257305c165143736d8b988bba"
+          },
+          {
+            "exists": true,
+            "path": "netcoin/exchange_accounting.py",
+            "sha256": "6cb82070be80f7bb76aaf29fa32dc2cd48ec9368cb883b38c1bf50d223b8a069"
+          },
+          {
+            "exists": true,
+            "path": "netcoin/exchange_reserves.py",
+            "sha256": "c9937f67fff09aeaa96855baa0e984bf035d76750e0f28369e716cd1f8d6e1ff"
+          },
+          {
+            "exists": true,
+            "path": "core-rs/Cargo.toml",
+            "sha256": "e49a288a46f6c597c1fcbb84e755b34e3cab879104fc905612433b27f6ee078b"
+          },
+          {
+            "exists": true,
+            "path": "api/src/server.ts",
+            "sha256": "4290c97fa250a220ea94fe110be15622687256dc5694276fee9bd38ea7e4539a"
+          },
+          {
+            "exists": true,
+            "path": "docs/THREAT_MODEL.md",
+            "sha256": "20902bd39cecb264bf5b3883d18febb6f8a1d2a980e10761ecacff5601668868"
+          },
+          {
+            "exists": true,
+            "path": "docs/PRE_MAINNET_SECURITY_CHECKLIST.md",
+            "sha256": "d36a01fd058ab5f47090eaab7d16b0540bbc83652e6c1dca8d348f8e37a13e11"
+          }
+        ],
+        "scope_hash": "ab91041c37a023b4869264ba9d49abab3b1e87b74de3e782d015f95a00b4bc7d",
+        "status": "source-complete-evidence-required"
+      },
+      "returncode": 0,
+      "stderr_tail": "",
+      "stdout_tail": "o-security-audit\",\n  \"mode\": \"audit-package-source\",\n  \"ok\": true,\n  \"required_auditor_evidence\": [\n    \"auditor_name\",\n    \"auditor_independence_statement\",\n    \"scope_hash\",\n    \"report_date\",\n    \"critical_findings_zero_or_remediated\",\n    \"report_artifact_hash\"\n  ],\n  \"scope\": [\n    {\n      \"exists\": true,\n      \"path\": \"netcoin/consensus.py\",\n      \"sha256\": \"a2934799a1ab876fe8c8feec35f9c1aad7e621d9fdd75d2cb61e459213424477\"\n    },\n    {\n      \"exists\": true,\n      \"path\": \"netcoin/tx.py\",\n      \"sha256\": \"e58ab5ee8ca254df1be5af19c1f3774af833d02d1747f53ccbb4a83d512cde4b\"\n    },\n    {\n      \"exists\": true,\n      \"path\": \"netcoin/script.py\",\n      \"sha256\": \"f4bb1b29e6289bbbd942a4db76f227b0b676e28aa2daecf929c03a2db3300bd4\"\n    },\n    {\n      \"exists\": true,\n      \"path\": \"netcoin/wallet.py\",\n      \"sha256\": \"ba940fd7079cb3df9d81121dee387913f07e24f257305c165143736d8b988bba\"\n    },\n    {\n      \"exists\": true,\n      \"path\": \"netcoin/exchange_accounting.py\",\n      \"sha256\": \"6cb82070be80f7bb76aaf29fa32dc2cd48ec9368cb883b38c1bf50d223b8a069\"\n    },\n    {\n      \"exists\": true,\n      \"path\": \"netcoin/exchange_reserves.py\",\n      \"sha256\": \"c9937f67fff09aeaa96855baa0e984bf035d76750e0f28369e716cd1f8d6e1ff\"\n    },\n    {\n      \"exists\": true,\n      \"path\": \"core-rs/Cargo.toml\",\n      \"sha256\": \"e49a288a46f6c597c1fcbb84e755b34e3cab879104fc905612433b27f6ee078b\"\n    },\n    {\n      \"exists\": true,\n      \"path\": \"api/src/server.ts\",\n      \"sha256\": \"4290c97fa250a220ea94fe110be15622687256dc5694276fee9bd38ea7e4539a\"\n    },\n    {\n      \"exists\": true,\n      \"path\": \"docs/THREAT_MODEL.md\",\n      \"sha256\": \"20902bd39cecb264bf5b3883d18febb6f8a1d2a980e10761ecacff5601668868\"\n    },\n    {\n      \"exists\": true,\n      \"path\": \"docs/PRE_MAINNET_SECURITY_CHECKLIST.md\",\n      \"sha256\": \"d36a01fd058ab5f47090eaab7d16b0540bbc83652e6c1dca8d348f8e37a13e11\"\n    }\n  ],\n  \"scope_hash\": \"ab91041c37a023b4869264ba9d49abab3b1e87b74de3e782d015f95a00b4bc7d\",\n  \"status\": \"source-complete-evidence-required\"\n}\n"
+    },
+    "hardware-wallet-device-testing": {
+      "command": "/opt/pyvenv/bin/python3 tools/run_hardware_wallet_device_tests.py --source-only --out reports/hardware_wallet_source_report.json",
+      "parsed": {
+        "evidence_path": "",
+        "gate_id": "hardware-wallet-device-testing",
+        "issues": [],
+        "mode": "source",
+        "ok": true,
+        "status": "source-complete-evidence-required"
+      },
+      "returncode": 0,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"evidence_path\": \"\",\n  \"gate_id\": \"hardware-wallet-device-testing\",\n  \"issues\": [],\n  \"mode\": \"source\",\n  \"ok\": true,\n  \"status\": \"source-complete-evidence-required\"\n}\n"
+    },
+    "long-python-suite-confidence": {
+      "command": "/opt/pyvenv/bin/python3 tools/run_long_python_confidence.py --source-only --out reports/long_python_suite_source_report.json",
+      "parsed": {
+        "gate_id": "long-python-suite-confidence",
+        "mode": "source",
+        "ok": true,
+        "required_evidence": [
+          "all_test_files_passed",
+          "zero_timeouts",
+          "slowest_files_recorded",
+          "parity_fingerprint_recorded"
+        ],
+        "runner": "tools/run_test_suite_by_file.py --timeout 180",
+        "status": "source-complete-evidence-required",
+        "test_file_count": 122
+      },
+      "returncode": 0,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"gate_id\": \"long-python-suite-confidence\",\n  \"mode\": \"source\",\n  \"ok\": true,\n  \"required_evidence\": [\n    \"all_test_files_passed\",\n    \"zero_timeouts\",\n    \"slowest_files_recorded\",\n    \"parity_fingerprint_recorded\"\n  ],\n  \"runner\": \"tools/run_test_suite_by_file.py --timeout 180\",\n  \"status\": \"source-complete-evidence-required\",\n  \"test_file_count\": 122\n}\n"
+    },
+    "mainnet-launch-checklist-approval": {
+      "command": "/opt/pyvenv/bin/python3 tools/check_mainnet_launch_approval.py --source-only --out reports/mainnet_launch_source_report.json",
+      "parsed": {
+        "gate_id": "mainnet-launch-checklist-approval",
+        "issues": [],
+        "mode": "source",
+        "ok": true,
+        "required_approvals": [
+          "release_manager_approval",
+          "security_approval",
+          "ops_approval",
+          "wallet_approval",
+          "custody_approval",
+          "rollback_plan",
+          "genesis_or_upgrade_hash"
+        ],
+        "status": "source-complete-evidence-required"
+      },
+      "returncode": 0,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"gate_id\": \"mainnet-launch-checklist-approval\",\n  \"issues\": [],\n  \"mode\": \"source\",\n  \"ok\": true,\n  \"required_approvals\": [\n    \"release_manager_approval\",\n    \"security_approval\",\n    \"ops_approval\",\n    \"wallet_approval\",\n    \"custody_approval\",\n    \"rollback_plan\",\n    \"genesis_or_upgrade_hash\"\n  ],\n  \"status\": \"source-complete-evidence-required\"\n}\n"
+    },
+    "production-exchange-custody": {
+      "command": "/opt/pyvenv/bin/python3 tools/check_production_custody.py --source-only --out reports/production_custody_source_report.json",
+      "parsed": {
+        "balanced_double_entry_ledger": true,
+        "gate_id": "production-exchange-custody",
+        "hot_wallet_reconciliation": {
+          "delta_sats": 0,
+          "expected_hot_wallet_sats": 75000,
+          "ledger_balanced": true,
+          "observed_hot_wallet_sats": 75000,
+          "ok": true
+        },
+        "mode": "source",
+        "ok": true,
+        "reserve_attestation_ok": true,
+        "solvent": true,
+        "status": "source-complete-evidence-required"
+      },
+      "returncode": 0,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"balanced_double_entry_ledger\": true,\n  \"gate_id\": \"production-exchange-custody\",\n  \"hot_wallet_reconciliation\": {\n    \"delta_sats\": 0,\n    \"expected_hot_wallet_sats\": 75000,\n    \"ledger_balanced\": true,\n    \"observed_hot_wallet_sats\": 75000,\n    \"ok\": true\n  },\n  \"mode\": \"source\",\n  \"ok\": true,\n  \"reserve_attestation_ok\": true,\n  \"solvent\": true,\n  \"status\": \"source-complete-evidence-required\"\n}\n"
+    },
+    "public-production-p2p-soak": {
+      "command": "/opt/pyvenv/bin/python3 tools/run_public_p2p_soak.py --source-only --out reports/public_p2p_soak_source_report.json",
+      "parsed": {
+        "gate_id": "public-production-p2p-soak",
+        "mode": "source-hostile-p2p-soak",
+        "ok": true,
+        "scenario_count": 3,
+        "smoke": {
+          "failed": 0,
+          "ok": true,
+          "passed": 3,
+          "results": [
+            {
+              "actual": {
+                "accepted_headers": 42,
+                "banned_peers": 1,
+                "best_height": 42,
+                "duplicate_headers": 3,
+                "eclipse_detected": false,
+                "ok": true,
+                "partition_healed": true,
+                "rejected_headers": 7
+              },
+              "detected_hostility": true,
+              "expected": {
+                "accepted_headers": 42,
+                "banned_peers": 1,
+                "best_height": 42,
+                "duplicate_headers": 3,
+                "eclipse_detected": false,
+                "ok": true,
+                "partition_healed": true,
+                "rejected_headers": 7
+              },
+              "id": "checkpoint-poison-peer",
+              "passed": true
+            },
+            {
+              "actual": {
+                "accepted_headers": 65,
+                "banned_peers": 0,
+                "best_height": 65,
+                "duplicate_headers": 9,
+                "eclipse_detected": false,
+                "ok": true,
+                "partition_healed": true,
+                "rejected_headers": 2
+              },
+              "detected_hostility": false,
+              "expected": {
+                "accepted_headers": 65,
+                "banned_peers": 0,
+                "best_height": 65,
+                "duplicate_headers": 9,
+                "eclipse_detected": false,
+                "ok": true,
+                "partition_healed": true,
+                "rejected_headers": 2
+              },
+              "id": "partition-heal-reorg",
+              "passed": true
+            },
+            {
+              "actual": {
+                "accepted_headers": 18,
+                "banned_peers": 3,
+                "best_height": 18,
+                "duplicate_headers": 30,
+                "eclipse_detected": true,
+                "ok": false,
+                "partition_healed": true,
+                "rejected_headers": 12
+              },
+              "detected_hostility": true,
+              "expected": {
+                "accepted_headers": 18,
+                "banned_peers": 3,
+                "best_height": 18,
+                "duplicate_headers": 30,
+                "eclipse_detected": true,
+                "ok": false,
+                "partition_healed": true,
+                "rejected_headers": 12
+              },
+              "id": "eclipse-attempt-detected",
+              "passed": true
+            }
+          ],
+          "scenario_count": 3
+        },
+        "status": "source-complete-evidence-required"
+      },
+      "returncode": 0,
+      "stderr_tail": "",
+      "stdout_tail": "\": 3,\n          \"eclipse_detected\": false,\n          \"ok\": true,\n          \"partition_healed\": true,\n          \"rejected_headers\": 7\n        },\n        \"detected_hostility\": true,\n        \"expected\": {\n          \"accepted_headers\": 42,\n          \"banned_peers\": 1,\n          \"best_height\": 42,\n          \"duplicate_headers\": 3,\n          \"eclipse_detected\": false,\n          \"ok\": true,\n          \"partition_healed\": true,\n          \"rejected_headers\": 7\n        },\n        \"id\": \"checkpoint-poison-peer\",\n        \"passed\": true\n      },\n      {\n        \"actual\": {\n          \"accepted_headers\": 65,\n          \"banned_peers\": 0,\n          \"best_height\": 65,\n          \"duplicate_headers\": 9,\n          \"eclipse_detected\": false,\n          \"ok\": true,\n          \"partition_healed\": true,\n          \"rejected_headers\": 2\n        },\n        \"detected_hostility\": false,\n        \"expected\": {\n          \"accepted_headers\": 65,\n          \"banned_peers\": 0,\n          \"best_height\": 65,\n          \"duplicate_headers\": 9,\n          \"eclipse_detected\": false,\n          \"ok\": true,\n          \"partition_healed\": true,\n          \"rejected_headers\": 2\n        },\n        \"id\": \"partition-heal-reorg\",\n        \"passed\": true\n      },\n      {\n        \"actual\": {\n          \"accepted_headers\": 18,\n          \"banned_peers\": 3,\n          \"best_height\": 18,\n          \"duplicate_headers\": 30,\n          \"eclipse_detected\": true,\n          \"ok\": false,\n          \"partition_healed\": true,\n          \"rejected_headers\": 12\n        },\n        \"detected_hostility\": true,\n        \"expected\": {\n          \"accepted_headers\": 18,\n          \"banned_peers\": 3,\n          \"best_height\": 18,\n          \"duplicate_headers\": 30,\n          \"eclipse_detected\": true,\n          \"ok\": false,\n          \"partition_healed\": true,\n          \"rejected_headers\": 12\n        },\n        \"id\": \"eclipse-attempt-detected\",\n        \"passed\": true\n      }\n    ],\n    \"scenario_count\": 3\n  },\n  \"status\": \"source-complete-evidence-required\"\n}\n"
+    },
+    "public-testnet-incident-history": {
+      "command": "/opt/pyvenv/bin/python3 tools/check_incident_history.py --source-only --out reports/incident_history_source_report.json",
+      "parsed": {
+        "gate_id": "public-testnet-incident-history",
+        "mode": "source",
+        "ok": true,
+        "required_incident_fields": [
+          "id",
+          "severity",
+          "detected_at",
+          "runbook_ref",
+          "summary",
+          "status"
+        ],
+        "required_top_level": [
+          "public_testnet_start",
+          "runbook_links",
+          "incidents or no_incident_attestation"
+        ]
+      },
+      "returncode": 0,
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"gate_id\": \"public-testnet-incident-history\",\n  \"mode\": \"source\",\n  \"ok\": true,\n  \"required_incident_fields\": [\n    \"id\",\n    \"severity\",\n    \"detected_at\",\n    \"runbook_ref\",\n    \"summary\",\n    \"status\"\n  ],\n  \"required_top_level\": [\n    \"public_testnet_start\",\n    \"runbook_links\",\n    \"incidents or no_incident_attestation\"\n  ]\n}\n"
+    }
+  },
+  "version": "0.41.0"
+}

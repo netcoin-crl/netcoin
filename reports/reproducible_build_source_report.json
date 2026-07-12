@@ -1,0 +1,8 @@
+{
+  "archive": "dist/netcoin-source-repro.tar.gz",
+  "independent_builder_required_for_strict_m2": true,
+  "ok": true,
+  "schema": "netcoin-reproducible-build-source-v1",
+  "second_sha256": "6fd69404ad27ee276f8117b5484a8b961b07620c66819f6961d4fdc62aae9739",
+  "sha256": "6fd69404ad27ee276f8117b5484a8b961b07620c66819f6961d4fdc62aae9739"
+}

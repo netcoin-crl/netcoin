@@ -1,0 +1,90 @@
+{
+  "checks": [
+    {
+      "curl": "curl -sk -H 'Host: wallet.netcoin.online' https://18.220.89.128/ | head -20",
+      "host": "wallet.netcoin.online",
+      "id": "wallet-home",
+      "label": "Wallet public home loads",
+      "path": "/",
+      "required_tokens": [
+        "NetCoin",
+        "Wallet",
+        "testnet"
+      ],
+      "status": "planned"
+    },
+    {
+      "curl": "curl -sk -H 'Host: faucet.netcoin.online' https://18.220.89.128/ | head -20",
+      "host": "faucet.netcoin.online",
+      "id": "faucet-home",
+      "label": "Faucet public home loads",
+      "path": "/",
+      "required_tokens": [
+        "Faucet",
+        "testnet"
+      ],
+      "status": "planned"
+    },
+    {
+      "curl": "curl -sk -H 'Host: explorer.netcoin.online' https://18.220.89.128/mempool.html | head -20",
+      "host": "explorer.netcoin.online",
+      "id": "explorer-mempool",
+      "label": "Explorer mempool page loads",
+      "path": "/mempool.html",
+      "required_tokens": [
+        "mempool",
+        "fee",
+        "Explorer"
+      ],
+      "status": "planned"
+    },
+    {
+      "curl": "curl -sk -H 'Host: status.netcoin.online' https://18.220.89.128/ | head -20",
+      "host": "status.netcoin.online",
+      "id": "status-home",
+      "label": "Status page exposes M1 snapshot",
+      "path": "/",
+      "required_tokens": [
+        "Live testnet snapshot",
+        "Incident response"
+      ],
+      "status": "planned"
+    },
+    {
+      "curl": "curl -sk -H 'Host: docs.netcoin.online' https://18.220.89.128/testnet-user-journey.html | head -20",
+      "host": "docs.netcoin.online",
+      "id": "docs-journey",
+      "label": "First-time tester journey is public",
+      "path": "/testnet-user-journey.html",
+      "required_tokens": [
+        "M1 tester path",
+        "wallet.netcoin.online",
+        "faucet.netcoin.online"
+      ],
+      "status": "planned"
+    },
+    {
+      "curl": "curl -sk -H 'Host: api.netcoin.online' https://18.220.89.128/api/health | head -20",
+      "host": "api.netcoin.online",
+      "id": "api-health",
+      "label": "API health endpoint responds",
+      "path": "/api/health",
+      "required_tokens": [
+        "status"
+      ],
+      "status": "planned"
+    }
+  ],
+  "does_not_claim": [
+    "seed deployment",
+    "systemd restart",
+    "real CAPTCHA credentials",
+    "external audit completion",
+    "mainnet readiness"
+  ],
+  "incomplete": [],
+  "mode": "dry-run",
+  "ok": true,
+  "scope": "M1 live smoke plan",
+  "seed_ip": "18.220.89.128"
+}

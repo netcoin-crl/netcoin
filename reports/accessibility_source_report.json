@@ -1,0 +1,14 @@
+{
+  "caveat": "source-only accessibility checks do not replace axe/Playwright execution",
+  "issues": [],
+  "mode": "source-only",
+  "ok": true,
+  "required_tokens": [
+    "keyboard_navigation",
+    "screen_reader_labels",
+    "focus_visible",
+    "contrast",
+    "touch_targets"
+  ],
+  "surface_count": 6
+}

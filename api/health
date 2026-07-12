@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "version": "static-fallback",
+  "network": "testnet",
+  "height": 0,
+  "tip_hash": "static-fallback",
+  "mempool": 0,
+  "peers": 0,
+  "uptime_seconds": 0,
+  "status": "source-fallback"
+}

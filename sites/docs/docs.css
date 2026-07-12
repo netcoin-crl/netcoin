@@ -156,3 +156,25 @@ body{letter-spacing:-.01em}
   .grid,.split,.dashboard-grid{gap:14px!important;margin-bottom:14px!important;}
   pre{max-height:200px!important;}
 }
+
+/* M1 user journey: public tester path for wallet -> faucet -> explorer -> status. */
+.testnet-journey-page .notice.warn{border-left-color:var(--warn);background:rgba(255,209,102,.08)}
+.testnet-journey-page .journey-steps{display:grid;gap:10px;margin:0;padding-left:22px}.testnet-journey-page .journey-steps li{padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025)}
+.testnet-journey-page .journey-steps b{color:var(--fg)}
+.testnet-journey-page .section-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}.testnet-journey-page .section-head h2{margin:8px 0 0}.testnet-journey-grid ul{margin:0;padding-left:18px}.testnet-journey-grid li+li{margin-top:6px}
+@media(max-width:760px){.testnet-journey-page .journey-steps{padding-left:18px}.testnet-journey-page .section-head{display:block}}
+
+
+/* M1 feedback intake: tester issue capture without collecting secrets. */
+.testnet-feedback-page .notice.warn{border-left-color:var(--warn);background:rgba(255,209,102,.08)}
+.testnet-feedback-page pre{white-space:pre-wrap;line-height:1.45}
+.testnet-feedback-grid ul{margin:0;padding-left:18px}.testnet-feedback-grid li+li{margin-top:6px}
+.testnet-feedback-page b{color:var(--fg)}
+
+
+/* M1 pilot plan: two-week tester loop with entry criteria and stop conditions. */
+.testnet-pilot-page .notice.warn{border-left-color:var(--warn);background:rgba(255,209,102,.08)}
+.testnet-pilot-page .pilot-checklist{display:grid;gap:10px;margin:0;padding-left:22px}.testnet-pilot-page .pilot-checklist li{padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025)}
+.testnet-pilot-grid ul,.testnet-pilot-grid ol{margin:0;padding-left:18px}.testnet-pilot-grid li+li{margin-top:6px}
+.testnet-pilot-page table{font-size:14px}.testnet-pilot-page b{color:var(--fg)}
+@media(max-width:760px){.testnet-pilot-page .pilot-checklist{padding-left:18px}.testnet-pilot-page table{font-size:13px}}
