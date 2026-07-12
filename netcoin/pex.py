@@ -77,8 +77,17 @@ def select_pex_records(peers: Iterable[dict[str, Any]], *, policy: PEXPolicy | N
     return selected
 
 
-def build_pex_response(peer_database: Any, *, limit: int = 1000) -> dict[str, Any]:
-    """Build a public peer-exchange response from a PeerDatabase-like object."""
+def build_pex_response(peer_database: Any, *, limit: int = 1000, bandwidth_mode: str | None = None) -> dict[str, Any]:
+    """Build a public peer-exchange response from a PeerDatabase-like object.
+
+    When ``bandwidth_mode`` is set (home/low), the advertised peer count is
+    capped to that mode's outbound-peer budget so a bandwidth-constrained node
+    does not amplify PEX traffic beyond what it can sustain.
+    """
+    if bandwidth_mode:
+        from .bandwidth import budget_for_mode
+
+        limit = min(limit, budget_for_mode(bandwidth_mode).max_outbound_peers)
     if hasattr(peer_database, "candidates"):
         peers = peer_database.candidates(limit=limit, include_banned=False, max_per_group=1000)
     else:

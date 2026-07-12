@@ -32,6 +32,8 @@ from .compact import (
     reconstruct_compact_block,
 )
 from .crypto import _fast_crypto_enabled, crypto_backend_status, crypto_self_test
+from .emission import emission_report
+from .p2p_public_hardening import public_p2p_hardening_plan
 from .logsetup import emit
 from .p2p import PeerManager
 from .params import (
@@ -809,6 +811,35 @@ class NetCoinNode:
         return delivered
 
 
+def _p2p_hardening_snapshot() -> dict[str, Any]:
+    """Live public-P2P hardening plan reflecting this node's actual capabilities.
+
+    PEX, AddrV2 and compact-block relay are all wired into the P2P layer, so
+    those flags are True. The DNS-seed plan is read from config/dns_seeds.json
+    when present. The plan's `ok`/`issues` show what still blocks operational
+    M3 (e.g. independent domains/operators), computed by the shared validator.
+    """
+    seed_config: dict[str, Any] = {}
+    config_path = Path(__file__).resolve().parents[1] / "config" / "dns_seeds.json"
+    if config_path.exists():
+        try:
+            seed_config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            seed_config = {}
+    domains = [
+        {"domain": entry.get("domain"), "operator": entry.get("operator")}
+        for entry in seed_config.get("seeds", [])
+        if isinstance(entry, dict)
+    ]
+    return public_p2p_hardening_plan(
+        dns_seed_plan={"domains": domains},
+        operator_manifests=[],
+        compact_blocks_enabled=True,
+        pex_enabled=True,
+        addrv2_enabled=True,
+    )
+
+
 def fee_estimates_payload(chain: Blockchain, assumed_vbytes: int = 200) -> dict[str, Any]:
     presets = {"slow": 6, "normal": 3, "fast": 1}
     payload: dict[str, Any] = {"assumed_vbytes": int(assumed_vbytes), "presets": {}}
@@ -1082,6 +1113,11 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     self.send_json({"confirmed": confirmed, "mempool": mempool, "limit": n})
                 elif parsed.path == "/supply":
                     self.send_json(node.chain.supply_summary())
+                elif parsed.path == "/emission":
+                    summary = node.chain.supply_summary()
+                    self.send_json(emission_report(int(summary["height"]), int(summary["total_minted_sats"])))
+                elif parsed.path == "/p2p-hardening":
+                    self.send_json(_p2p_hardening_snapshot())
                 elif parsed.path == "/blocktemplate":
                     query = parse_qs(parsed.query)
                     address = query.get("address", [None])[0]

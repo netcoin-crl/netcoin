@@ -1285,6 +1285,10 @@ def cmd_fuzz(args: argparse.Namespace) -> None:
     report = run_fuzz(
         FuzzConfig(target=args.target, iterations=args.iterations, seed=args.seed, max_bytes=args.max_bytes)
     )
+    if getattr(args, "out", None):
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(report, indent=2, sort_keys=True))
     print_json(report)
 
 
@@ -1839,6 +1843,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--iterations", type=int, default=500)
     p.add_argument("--seed", type=int, default=1234567)
     p.add_argument("--max-bytes", type=int, default=256)
+    p.add_argument("--out", default=None, help="write the fuzz report JSON to this path (evidence)")
     p.set_defaults(func=cmd_fuzz)
 
     p = sub.add_parser("competitive-check", help="show the competitive-feature scaffold/level-5 registry")

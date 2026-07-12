@@ -1,0 +1,30 @@
+{
+  "name": "@netcoin/sdk",
+  "version": "0.42.0",
+  "description": "NetCoin JavaScript SDK — signed API envelopes and a thin client for the NetCoin testnet API.",
+  "type": "module",
+  "main": "index.js",
+  "module": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "netcoin",
+    "cryptocurrency",
+    "testnet",
+    "sdk",
+    "bitcoin-family"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "scripts": {
+    "check": "node --check index.js"
+  }
+}

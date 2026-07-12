@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netcoin-sdk"
+version = "0.42.0"
+description = "NetCoin Python SDK — signed API envelopes and a thin client for the NetCoin testnet API."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["netcoin", "cryptocurrency", "testnet", "sdk", "bitcoin-family"]
+authors = [{ name = "NetCoin" }]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+Homepage = "https://netcoin.online"
+API = "https://api.netcoin.online"
+
+[tool.setuptools]
+py-modules = ["netcoin_sdk"]

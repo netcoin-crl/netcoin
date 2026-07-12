@@ -225,7 +225,10 @@ def handle_message(message: Message, chain: Any | None = None) -> Message | None
         peer_db = getattr(chain, "peer_database", None) if chain is not None else None
         if peer_db is None:
             return addr_message([])
-        return addr_message(build_pex_response(peer_db).get("addresses", []))
+        import os
+
+        bandwidth_mode = os.environ.get("NETCOIN_BANDWIDTH_MODE") or None
+        return addr_message(build_pex_response(peer_db, bandwidth_mode=bandwidth_mode).get("addresses", []))
     if command in {"addr", "pex"}:
         peer_db = getattr(chain, "peer_database", None) if chain is not None else None
         if peer_db is None:

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable
+from typing import Any
 
 from .params import (
     COIN,
@@ -76,6 +77,53 @@ def emission_subsidy(height: int) -> int:
     for _ in range(reduction_epoch(height)):
         subsidy = subsidy * REWARD_REDUCTION_NUMERATOR // REWARD_REDUCTION_DENOMINATOR
     return subsidy
+
+
+def total_emission_cap_sats() -> int:
+    """Deterministic-schedule maximum supply in satoshis.
+
+    Sums ``REWARD_REDUCTION_INTERVAL`` blocks per epoch at each epoch's
+    integer-satoshi subsidy until the flooring reduction drives the subsidy to
+    zero. This converges (geometric 0.9 decay with satoshi flooring), giving a
+    finite, deterministic hard cap independent of chain state.
+    """
+    subsidy = REWARD_START_SUBSIDY
+    total = 0
+    while subsidy > 0:
+        total += subsidy * REWARD_REDUCTION_INTERVAL
+        subsidy = subsidy * REWARD_REDUCTION_NUMERATOR // REWARD_REDUCTION_DENOMINATOR
+    return total
+
+
+def emission_report(height: int, minted_sats: int | None = None) -> dict[str, Any]:
+    """Public supply/emission snapshot for the supply API.
+
+    ``minted_sats`` (actual coins minted so far, from chain state) is optional;
+    when supplied the report includes circulating supply and percent-of-cap.
+    All amounts are satoshis; callers format to NET as needed.
+    """
+    if height < 0:
+        raise ValueError("height cannot be negative")
+    cap = total_emission_cap_sats()
+    report: dict[str, Any] = {
+        "schema": "netcoin-emission-report-v1",
+        "height": height,
+        "max_supply_sats": cap,
+        "block_subsidy_sats": emission_subsidy(height),
+        "reduction_epoch": reduction_epoch(height),
+        "next_reduction_height": next_reduction_height(height),
+        "reduction_interval": REWARD_REDUCTION_INTERVAL,
+        "reduction_percent_per_epoch": 100
+        * (REWARD_REDUCTION_DENOMINATOR - REWARD_REDUCTION_NUMERATOR)
+        // REWARD_REDUCTION_DENOMINATOR,
+    }
+    if minted_sats is not None:
+        if minted_sats < 0:
+            raise ValueError("minted_sats cannot be negative")
+        report["circulating_supply_sats"] = minted_sats
+        report["remaining_to_mint_sats"] = max(0, cap - minted_sats)
+        report["percent_of_cap_minted"] = round(100.0 * minted_sats / cap, 6) if cap else 0.0
+    return report
 
 
 # ---------------------------------------------------------------------------

@@ -31,6 +31,12 @@ from .params import (
     NODE_VERSION,
     TICKER,
 )
+from .offline_signing import (
+    build_broadcast_package,
+    export_unsigned_psbt_bundle,
+    import_signed_psbt,
+)
+from .psbt import PartiallySignedTransaction
 from .serialization import transaction_weight
 from .tx import SpendableOutput, Transaction, TxInput, TxOutput, amount_to_sats
 from .wallet import Wallet
@@ -242,6 +248,58 @@ def build_and_broadcast(
         "change": change / COIN,
         "node_response": response,
     }
+
+
+def build_unsigned_psbt_for_send(
+    wallet: Wallet,
+    to_address: str,
+    amount_sats: int,
+    fee_sats: int,
+    from_type: str,
+    node_url: str,
+) -> PartiallySignedTransaction:
+    """Select coins and build an UNSIGNED PSBT for offline/hardware signing.
+
+    Mirrors build_and_broadcast's covering coin selection but stops at the
+    unsigned PSBT: no key ever touches this path, so the returned bundle is
+    safe to hand to an offline signer or hardware wallet.
+    """
+    if amount_sats <= 0:
+        raise ValueError("amount must be positive")
+    if fee_sats < 0:
+        raise ValueError("fee cannot be negative")
+    from_address = wallet.address_for(from_type)
+
+    info = _node_get(node_url, "/info").get("node", {})
+    tip_height = int(info.get("height", 0))
+    data = _node_get(node_url, f"/utxos?address={from_address}")
+    spendables = [SpendableOutput.from_dict(item) for item in data.get("utxos", [])]
+    spendables = [s for s in spendables if not s.coinbase or (tip_height - s.height) >= COINBASE_MATURITY]
+    if not spendables:
+        raise ValueError("no spendable (mature) coins at this address yet")
+
+    needed = amount_sats + fee_sats
+    by_value_desc = sorted(spendables, key=lambda s: s.output.amount, reverse=True)
+    selected: list[SpendableOutput] = []
+    total = 0
+    for utxo in by_value_desc:
+        selected.append(utxo)
+        total += utxo.output.amount
+        if total >= needed:
+            break
+    if total < needed:
+        raise ValueError(f"insufficient spendable balance: have {total / COIN:.8f}, need {needed / COIN:.8f} {TICKER}")
+    if len(selected) > MAX_WALLET_SEND_INPUTS:
+        raise ValueError(
+            f"this send needs more than {MAX_WALLET_SEND_INPUTS} coins as inputs; "
+            f"run `netcoin consolidate` to combine coins first."
+        )
+
+    outputs = [TxOutput(amount=amount_sats, address=to_address)]
+    change = total - needed
+    if change > 0:
+        outputs.append(TxOutput(amount=change, address=from_address))
+    return PartiallySignedTransaction.create(selected, outputs)
 
 
 def consolidate_coins(
@@ -675,6 +733,14 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     self._send({"address": wallet.address_for("segwit"), "addresses": _wallet_addresses(wallet)})
                 elif parsed.path == "/api/wallet/send":
                     self._send(self._send_tx(self._read()))
+                elif parsed.path == "/api/wallet/psbt/export":
+                    self._send(self._psbt_export(self._read()))
+                elif parsed.path == "/api/wallet/psbt/sign":
+                    self._send(self._psbt_sign(self._read()))
+                elif parsed.path == "/api/wallet/psbt/import":
+                    self._send(self._psbt_import(self._read()))
+                elif parsed.path == "/api/wallet/psbt/broadcast":
+                    self._send(self._psbt_broadcast(self._read()))
                 else:
                     self._send({"error": "not found"}, status=404)
             except HTTPError as exc:
@@ -718,6 +784,60 @@ def make_handler(node_url: str, faucet_url: str = ""):
             fee_sats = amount_to_sats(str(body.get("fee", "0") or "0"))
             from_type = str(body.get("from_type") or "segwit")
             return build_and_broadcast(wallet, to, amount_sats, fee_sats, from_type, node_url)
+
+        def _psbt_export(self, body: dict[str, Any]) -> dict[str, Any]:
+            """Build an unsigned PSBT for offline/hardware signing (no keys used)."""
+            wallet = state["wallet"]
+            if wallet is None:
+                raise ValueError("no wallet loaded")
+            to = str(body.get("to", "")).strip()
+            if not to:
+                raise ValueError("destination address required")
+            amount_sats = amount_to_sats(str(body.get("amount", "")))
+            fee_sats = amount_to_sats(str(body.get("fee", "0") or "0"))
+            from_type = str(body.get("from_type") or "segwit")
+            psbt = build_unsigned_psbt_for_send(wallet, to, amount_sats, fee_sats, from_type, node_url)
+            unsigned_text = "netpsbt:" + psbt.to_base64()
+            return export_unsigned_psbt_bundle(unsigned_text)
+
+        def _psbt_sign(self, body: dict[str, Any]) -> dict[str, Any]:
+            """Software offline signer: sign a supplied unsigned PSBT with the loaded wallet."""
+            wallet = state["wallet"]
+            if wallet is None:
+                raise ValueError("no wallet loaded")
+            unsigned_text = str(body.get("unsigned_psbt", "")).strip()
+            if not unsigned_text.startswith("netpsbt:"):
+                raise ValueError("unsigned_psbt must be a netpsbt: payload")
+            psbt = PartiallySignedTransaction.from_base64(unsigned_text)
+            psbt.sign(wallet)
+            return {
+                "signed_psbt": "netpsbt:" + psbt.to_base64(),
+                "fully_signed": psbt.is_fully_signed(),
+                "signer_type": "software-offline",
+            }
+
+        def _psbt_import(self, body: dict[str, Any]) -> dict[str, Any]:
+            """Validate a signed PSBT against its unsigned skeleton; prep for broadcast."""
+            unsigned_text = str(body.get("unsigned_psbt", "")).strip()
+            signed_text = str(body.get("signed_psbt", "")).strip()
+            if not unsigned_text or not signed_text:
+                raise ValueError("both unsigned_psbt and signed_psbt are required")
+            return import_signed_psbt(unsigned_text, signed_text)
+
+        def _psbt_broadcast(self, body: dict[str, Any]) -> dict[str, Any]:
+            """Extract the signed transaction and submit it to the node."""
+            signed_text = str(body.get("signed_psbt", "")).strip()
+            if not signed_text:
+                raise ValueError("signed_psbt is required")
+            package = build_broadcast_package(signed_text)
+            psbt = PartiallySignedTransaction.from_base64(signed_text)
+            tx = psbt.extract()
+            response = _node_post(node_url, "/tx", tx.to_dict(), timeout=30)
+            return {
+                "txid": response.get("txid") or package["txid"],
+                "broadcast_hash": package["broadcast_hash"],
+                "node_response": response,
+            }
 
         def _search(self, query: str) -> dict[str, Any]:
             query = query.strip()
