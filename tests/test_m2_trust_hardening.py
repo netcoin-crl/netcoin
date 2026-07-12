@@ -8,8 +8,22 @@ from netcoin.hardware_wallet import (
     stable_hash,
     validate_hardware_transcript,
 )
+from netcoin.psbt import PartiallySignedTransaction
+from netcoin.tx import SpendableOutput, TxOutput
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _valid_signed_psbt_text() -> str:
+    prevout = SpendableOutput(
+        txid="a" * 64,
+        vout=0,
+        output=TxOutput(amount=1000, script_pubkey="OP_TRUE"),
+        height=1,
+    )
+    psbt = PartiallySignedTransaction.create([prevout], [TxOutput(amount=900, script_pubkey="OP_TRUE")])
+    psbt.tx.inputs[0].signature = "deadbeef"
+    return "netpsbt:" + psbt.to_base64()
 
 
 def test_hardware_sign_request_contains_no_private_key_material():
@@ -41,7 +55,7 @@ def test_hardware_transcript_validator_accepts_complete_evidence():
         "tx_reviewed_on_device": True,
         "fee_reviewed_on_device": True,
         "change_reviewed_on_device": True,
-        "signed_psbt": "netpsbt:" + "11" * 8,
+        "signed_psbt": _valid_signed_psbt_text(),
         "operator_attestation": "signed by test operator",
     }
     body["evidence_hash"] = stable_hash(body)

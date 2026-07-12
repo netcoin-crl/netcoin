@@ -16,6 +16,13 @@ class PEXPolicy:
     include_anchor_peers: bool = True
 
 
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _as_record(peer: dict[str, Any], source: str) -> AddrV2Record | None:
     host = peer.get("host") or peer.get("address") or peer.get("endpoint")
     if not host:
@@ -23,12 +30,12 @@ def _as_record(peer: dict[str, Any], source: str) -> AddrV2Record | None:
     try:
         return AddrV2Record(
             host=str(host),
-            port=int(peer.get("port") or 28444),
+            port=_safe_int(peer.get("port"), 28444),
             services=[str(item) for item in peer.get("services", [])] or list(DEFAULT_SERVICES),
-            last_seen=int(peer.get("last_seen") or peer.get("last_success") or 0),
+            last_seen=_safe_int(peer.get("last_seen") or peer.get("last_success"), 0),
             source=source,
             user_agent=str(peer.get("user_agent") or ""),
-            best_height=int(peer.get("best_height") or peer.get("height") or 0),
+            best_height=_safe_int(peer.get("best_height") or peer.get("height"), 0),
             operator=str(peer.get("operator") or ""),
             region=str(peer.get("region") or ""),
         )
@@ -39,24 +46,29 @@ def _as_record(peer: dict[str, Any], source: str) -> AddrV2Record | None:
 def select_pex_records(peers: Iterable[dict[str, Any]], *, policy: PEXPolicy | None = None) -> list[dict[str, Any]]:
     """Select a bounded, diversity-aware AddrV2 set for peer exchange."""
     active_policy = policy or PEXPolicy()
+    if active_policy.max_records <= 0:
+        return []
     selected = []
     groups: dict[str, int] = {}
     for peer in sorted(
         peers,
         key=lambda item: (
-            int(item.get("anchor") or 0),
-            int(item.get("score") or 0),
-            int(item.get("last_success") or item.get("last_seen") or 0),
+            1 if item.get("anchor") else 0,
+            _safe_int(item.get("score"), 0),
+            _safe_int(item.get("last_success") or item.get("last_seen"), 0),
         ),
         reverse=True,
     ):
-        if peer.get("banned") or int(peer.get("score") or 0) < active_policy.min_score:
+        is_anchor = bool(peer.get("anchor"))
+        if is_anchor and not active_policy.include_anchor_peers:
+            continue
+        if peer.get("banned") or _safe_int(peer.get("score"), 0) < active_policy.min_score:
             continue
         record = _as_record(peer, source="pex")
         if record is None:
             continue
         key = record.diversity_key
-        if groups.get(key, 0) >= active_policy.max_per_diversity_group and not peer.get("anchor"):
+        if groups.get(key, 0) >= active_policy.max_per_diversity_group and not is_anchor:
             continue
         groups[key] = groups.get(key, 0) + 1
         selected.append(record.to_dict())

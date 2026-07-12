@@ -16,6 +16,8 @@ LOCKED_IN = "locked_in"
 ACTIVE = "active"
 FAILED = "failed"
 
+VALID_STATES = {DEFINED, STARTED, LOCKED_IN, ACTIVE, FAILED}
+
 
 @dataclass(frozen=True)
 class VersionBitsDeployment:
@@ -43,9 +45,28 @@ class VersionBitsDeployment:
         return issues
 
 
+def _coerce_versions(versions: Iterable[int]) -> tuple[list[int], list[str]]:
+    normalized: list[int] = []
+    issues: list[str] = []
+    for index, version in enumerate(versions):
+        try:
+            value = int(version)
+        except (TypeError, ValueError):
+            issues.append(f"block_versions[{index}] must be an integer")
+            continue
+        if value < 0:
+            issues.append(f"block_versions[{index}] must be non-negative")
+            continue
+        normalized.append(value)
+    return normalized, issues
+
+
 def count_signals(versions: Iterable[int], bit: int) -> int:
     mask = 1 << bit
-    return sum(1 for version in versions if int(version) & mask)
+    normalized, issues = _coerce_versions(versions)
+    if issues:
+        raise ValueError("; ".join(issues))
+    return sum(1 for version in normalized if version & mask)
 
 
 def evaluate_period(
@@ -58,10 +79,15 @@ def evaluate_period(
     """Evaluate one signaling period for rehearsal/test planning."""
 
     issues = deployment.validate()
-    versions = list(block_versions)
+    versions, version_issues = _coerce_versions(block_versions)
+    issues.extend(version_issues)
+    if previous_state not in VALID_STATES:
+        issues.append(f"unknown previous_state: {previous_state}")
     if len(versions) > deployment.period:
         issues.append("block_versions cannot exceed the deployment period")
-    signals = count_signals(versions, deployment.bit)
+    if previous_state == STARTED and len(versions) != deployment.period:
+        issues.append("started deployments require exactly one complete signaling period")
+    signals = count_signals(versions, deployment.bit) if not version_issues else 0
     state = previous_state
     if issues:
         state = FAILED

@@ -48,7 +48,12 @@ def main() -> int:
             },
             "runDetails": {
                 "builder": {"id": "netcoin-local-source-builder"},
-                "metadata": {"startedOn": int(time.time()), "finishedOn": int(time.time())},
+                "metadata": {
+                    "invocationId": "netcoin-local-source-provenance",
+                    "startedOn": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "finishedOn": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                },
+                "byproducts": [],
             },
         },
         "strict_m2_note": "SLSA-3 requires hosted builder controls and independent verification; this is source provenance scaffolding.",

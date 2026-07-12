@@ -14,6 +14,9 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from .psbt import PSBTError, PartiallySignedTransaction
+
+TRANSCRIPT_SCHEMA = "netcoin-hardware-device-transcript-v1"
 SUPPORTED_DEVICE_FAMILIES = ("ledger", "trezor")
 SUPPORTED_TRANSPORTS = ("webusb", "webhid", "file-psbt", "qr-airgap")
 SUPPORTED_NETWORKS = ("testnet", "mainnet-dry-run")
@@ -151,6 +154,11 @@ REQUIRED_TRANSCRIPT_FIELDS = (
 )
 
 
+def _is_sha256_hex(value: Any) -> bool:
+    text = str(value or "")
+    return len(text) == 64 and all(ch in "0123456789abcdefABCDEF" for ch in text)
+
+
 def validate_hardware_transcript(transcript: dict[str, Any]) -> list[str]:
     """Return validation issues for a physical-device signing transcript."""
 
@@ -158,6 +166,8 @@ def validate_hardware_transcript(transcript: dict[str, Any]) -> list[str]:
     for field in REQUIRED_TRANSCRIPT_FIELDS:
         if transcript.get(field) in (None, "", [], {}):
             issues.append(f"missing transcript field: {field}")
+    if transcript.get("schema") != TRANSCRIPT_SCHEMA:
+        issues.append(f"schema must be {TRANSCRIPT_SCHEMA}")
     try:
         normalize_device_family(str(transcript.get("device_family", "")))
     except HardwareWalletError as exc:
@@ -178,9 +188,17 @@ def validate_hardware_transcript(transcript: dict[str, Any]) -> list[str]:
     ):
         if transcript.get(field) is not True:
             issues.append(f"{field} must be true")
+    for field in ("psbt_sha256", "challenge"):
+        if transcript.get(field) and not _is_sha256_hex(transcript.get(field)):
+            issues.append(f"{field} must be a 64-character hex digest")
     signed = str(transcript.get("signed_psbt", ""))
     if signed and not signed.startswith("netpsbt:"):
         issues.append("signed_psbt must be a netpsbt: payload")
+    elif signed:
+        try:
+            PartiallySignedTransaction.from_base64(signed)
+        except PSBTError:
+            issues.append("signed_psbt must decode as a NetCoin PSBT")
     body = {k: v for k, v in transcript.items() if k != "evidence_hash"}
     expected = stable_hash(body)
     if transcript.get("evidence_hash") != expected:

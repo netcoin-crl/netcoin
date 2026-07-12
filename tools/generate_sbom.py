@@ -42,8 +42,21 @@ def iter_release_files(root: Path) -> Iterable[Path]:
 
 def build_sbom(root: Path) -> dict:
     files = []
+    components = []
     for p in sorted(set(iter_release_files(root))):
-        files.append({"path": str(p.relative_to(root)), "sha256": sha256(p), "bytes": p.stat().st_size})
+        rel = str(p.relative_to(root))
+        digest = sha256(p)
+        size = p.stat().st_size
+        files.append({"path": rel, "sha256": digest, "bytes": size})
+        components.append(
+            {
+                "type": "file",
+                "name": rel,
+                "bom-ref": f"file:{rel}",
+                "hashes": [{"alg": "SHA-256", "content": digest}],
+                "properties": [{"name": "netcoin:bytes", "value": str(size)}],
+            }
+        )
     version = "unknown"
     params = root / "netcoin" / "params.py"
     if params.exists():
@@ -53,12 +66,25 @@ def build_sbom(root: Path) -> dict:
                 break
     return {
         "schema": "netcoin-source-sbom-v1",
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.5",
+        "serialNumber": "urn:uuid:00000000-0000-4000-8000-netcoin-source",
+        "version": 1,
+        "metadata": {
+            "component": {"type": "application", "name": "netcoin", "version": version},
+            "properties": [
+                {"name": "netcoin:production_ready", "value": "false"},
+                {
+                    "name": "netcoin:note",
+                    "value": "SBOM/provenance inventory for source-release verification; not an audit statement.",
+                },
+            ],
+        },
+        "components": components,
         "name": "netcoin",
-        "version": version,
         "file_count": len(files),
         "files": files,
         "production_ready": False,
-        "note": "SBOM/provenance inventory for source-release verification; not an audit statement.",
     }
 
 

@@ -10,6 +10,7 @@ wire payload for NetCoin's current educational P2P frame layer.
 from __future__ import annotations
 
 import ipaddress
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -28,35 +29,72 @@ SERVICE_NETCOIN_PEX = "NETCOIN_PEX"
 SERVICE_NETCOIN_COMPACT_BLOCKS = "NETCOIN_COMPACT_BLOCKS"
 
 DEFAULT_SERVICES = [SERVICE_NODE_NETWORK, SERVICE_NETCOIN_PEX, SERVICE_NETCOIN_COMPACT_BLOCKS]
+MAX_HOST_LENGTH = 253
+TORV3_LABEL_LENGTH = 56
+_DNS_LABEL_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+_ONION_RE = re.compile(r"^[a-z2-7]{56}\.onion$")
 
 
 class AddrV2Error(ValueError):
     """Raised when an AddrV2 record is not safe to relay."""
 
 
-def network_id_for_host(host: str) -> str:
-    """Return a stable AddrV2 network id for a host string."""
-    text = str(host).strip().strip("[]").lower()
+def _clean_host(host: str) -> str:
+    if host is None:
+        raise AddrV2Error("host is required")
+    text = str(host).strip()
     if not text:
         raise AddrV2Error("host is required")
+    if any(ch.isspace() for ch in text) or any(ch in text for ch in ("/", "\\", "@", "#", "?")):
+        raise AddrV2Error("host contains unsafe characters")
+    if text.startswith("[") or text.endswith("]"):
+        if not (text.startswith("[") and text.endswith("]")):
+            raise AddrV2Error("IPv6 brackets must be balanced")
+        text = text[1:-1]
+    if "[" in text or "]" in text:
+        raise AddrV2Error("IPv6 brackets must wrap the whole host")
+    if len(text) > MAX_HOST_LENGTH:
+        raise AddrV2Error("host exceeds 253 characters")
+    return text.lower()
+
+
+def _validate_dns_or_onion(text: str) -> None:
     if text.endswith(".onion"):
+        if not _ONION_RE.match(text):
+            raise AddrV2Error("torv3 onion hosts must be 56 base32 characters plus .onion")
+        return
+    if text.endswith(".") or text.startswith("."):
+        raise AddrV2Error("DNS host must not start or end with a dot")
+    labels = text.split(".")
+    if any(not label for label in labels):
+        raise AddrV2Error("DNS host contains an empty label")
+    for label in labels:
+        if not _DNS_LABEL_RE.match(label):
+            raise AddrV2Error("DNS host contains an invalid label")
+
+
+def network_id_for_host(host: str) -> str:
+    """Return a stable AddrV2 network id for a host string."""
+    text = _clean_host(host)
+    if text.endswith(".onion"):
+        _validate_dns_or_onion(text)
         return ADDRV2_NETWORK_TORV3
     try:
         ip = ipaddress.ip_address(text)
     except ValueError:
+        _validate_dns_or_onion(text)
         return ADDRV2_NETWORK_DNS
     return ADDRV2_NETWORK_IPV4 if ip.version == 4 else ADDRV2_NETWORK_IPV6
 
 
 def normalize_host(host: str) -> str:
     """Normalize a host without resolving DNS or touching the network."""
-    text = str(host).strip().strip("[]")
-    if not text:
-        raise AddrV2Error("host is required")
+    text = _clean_host(host)
     try:
         return ipaddress.ip_address(text).compressed
     except ValueError:
-        return text.lower()
+        _validate_dns_or_onion(text)
+        return text
 
 
 def diversity_key_for_host(host: str) -> str:
@@ -128,7 +166,11 @@ class AddrV2Record:
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "AddrV2Record":
         host = payload.get("host") or payload.get("address") or payload.get("endpoint")
+        if host in (None, ""):
+            raise AddrV2Error("host is required")
         port = int(payload.get("port") or 28444)
+        if isinstance(host, str) and (host.startswith("[") ^ ("]" in host)):
+            raise AddrV2Error("IPv6 brackets must be balanced")
         if isinstance(host, str) and host.count(":") == 1 and not host.startswith("["):
             maybe_host, maybe_port = host.rsplit(":", 1)
             if maybe_port.isdigit():

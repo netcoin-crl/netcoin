@@ -173,6 +173,9 @@ pub fn addrv2_snapshot(host: &str, port: u16) -> AddrV2Snapshot {
 
 pub fn pex_select_addrs(peers: &[AddrV2Snapshot], max_records: usize) -> Vec<AddrV2Snapshot> {
     let mut out = Vec::new();
+    if max_records == 0 {
+        return out;
+    }
     for peer in peers.iter() {
         if peer.services.iter().any(|svc| svc == "NETCOIN_PEX") {
             out.push(peer.clone());
@@ -211,5 +214,36 @@ mod m3_tests {
     #[test]
     fn compact_shortid_is_stable_prefix() {
         assert_eq!(compact_block_shortid("abcdef1234567890"), "abcdef123456");
+    }
+
+    #[test]
+    fn addrv2_snapshot_normalizes_bracketed_ipv6_and_onion() {
+        let ipv6 = addrv2_snapshot("[2001:db8::1]", 28444);
+        assert_eq!(ipv6.host, "2001:db8::1");
+        assert_eq!(ipv6.network_id, "ipv6");
+        let onion = addrv2_snapshot(
+            "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd.onion",
+            28444,
+        );
+        assert_eq!(onion.network_id, "torv3");
+    }
+
+    #[test]
+    fn pex_select_addrs_honors_exact_cap_boundaries() {
+        let peers = vec![
+            addrv2_snapshot("18.220.89.128", 28444),
+            addrv2_snapshot("18.220.197.20", 28444),
+            addrv2_snapshot("18.226.74.252", 28444),
+        ];
+        assert!(pex_select_addrs(&peers, 0).is_empty());
+        assert_eq!(pex_select_addrs(&peers, 2).len(), 2);
+        assert_eq!(pex_select_addrs(&peers, 3).len(), 3);
+        assert_eq!(pex_select_addrs(&peers, 4).len(), 3);
+    }
+
+    #[test]
+    fn compact_shortid_handles_short_and_empty_txids() {
+        assert_eq!(compact_block_shortid("abc"), "abc");
+        assert_eq!(compact_block_shortid(""), "");
     }
 }

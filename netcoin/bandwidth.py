@@ -49,7 +49,8 @@ def relay_plan(
     """Return a deterministic relay plan without sleeping or touching sockets."""
     budget = budget_for_mode(mode)
     outbound = min(max(0, int(peer_count)), budget.max_outbound_peers)
-    inventory_limit = 0 if not budget.relay_mempool_inventory else min(int(pending_inventory), 5000)
+    safe_pending_inventory = max(0, int(pending_inventory))
+    inventory_limit = 0 if not budget.relay_mempool_inventory else min(safe_pending_inventory, 5000)
     return {
         "schema": "netcoin-bandwidth-plan-v1",
         "budget": budget.to_dict(),
