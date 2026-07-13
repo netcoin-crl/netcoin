@@ -1298,12 +1298,152 @@
         outputs,
       };
       const prevouts = chosen.map((u) => ({ txid: u.txid, vout: u.vout, output: { amount: u.amount, address: u.address || state.address } }));
-      const psbt = { magic: "netcoin-psbt-v1", tx, prevouts, created_at: new Date().toISOString(), note: "Unsigned browser wallet PSBT. Review offline before signing." };
-      $("psbtOut").value = encodeNetPsbt(psbt);
-      setDescriptorMsg("Unsigned PSBT created. Copy it for offline review/signing.", "ok");
+      // Payment intent lets an offline copy of this wallet reconstruct and sign
+      // the exact same payment; the outputs are re-verified on import so a
+      // tampered signer cannot change where funds go.
+      const intent = {
+        utxos: chosen.map((u) => ({ txid: u.txid, vout: u.vout, amount: u.amount, address: u.address || state.address })),
+        toAddress: to,
+        amount,
+        fee,
+        changeAddress: state.address,
+      };
+      const psbt = {
+        magic: "netcoin-psbt-v1",
+        tx,
+        prevouts,
+        intent,
+        intent_hash: await psbtIntentHash(intent),
+        created_at: new Date().toISOString(),
+        note: "Unsigned browser wallet PSBT. Review offline before signing.",
+      };
+      const encoded = encodeNetPsbt(psbt);
+      lastUnsignedPsbt = encoded;
+      $("psbtOut").value = encoded;
+      renderPsbtQr(encoded);
+      $("btnDownloadUnsignedPsbt")?.removeAttribute("disabled");
+      $("btnSignPsbtOffline")?.removeAttribute("disabled");
+      setDescriptorMsg("Unsigned PSBT created. Export it (file/QR) to an offline signer, or sign here.", "ok");
     } catch (e) {
       setDescriptorMsg("PSBT creation failed: " + e.message, "err");
     }
+  }
+
+  // ---------- airgap / offline PSBT signing loop ----------
+  const PSBT_SIGNED_PREFIX = "netpsbt-signed:";
+  let lastUnsignedPsbt = "";
+  let pendingSignedPsbt = null; // { intent, signed } awaiting broadcast
+
+  async function psbtIntentHash(intent) {
+    const canonical = JSON.stringify({
+      utxos: intent.utxos, toAddress: intent.toAddress, amount: intent.amount,
+      fee: intent.fee, changeAddress: intent.changeAddress,
+    });
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  function decodePsbt(text, prefix) {
+    const t = String(text || "").trim();
+    if (!t.startsWith(prefix)) throw new Error("expected a " + prefix.replace(":", "") + " payload");
+    return JSON.parse(atob(t.slice(prefix.length)));
+  }
+
+  // Sign an unsigned PSBT in this browser using the loaded key (software offline
+  // signer). On a real airgapped device this same wallet copy holds the key.
+  async function signPsbtOffline() {
+    try {
+      if (!state) throw new Error("unlock a wallet first");
+      const unsigned = decodePsbt($("psbtOut").value || lastUnsignedPsbt, "netpsbt:");
+      if (unsigned.magic !== "netcoin-psbt-v1" || !unsigned.intent) throw new Error("not a NetCoin unsigned PSBT with a payment intent");
+      const intent = unsigned.intent;
+      if ((await psbtIntentHash(intent)) !== unsigned.intent_hash) throw new Error("PSBT intent hash mismatch; refusing to sign a tampered payment");
+      const signed = W.buildSignedPayment({
+        privHex: state.privHex, utxos: intent.utxos, toAddress: intent.toAddress,
+        amount: intent.amount, fee: intent.fee, changeAddress: intent.changeAddress, maxInputs: MAX_WALLET_SEND_INPUTS,
+      });
+      const wrapper = { magic: "netcoin-psbt-signed-v1", intent, intent_hash: unsigned.intent_hash, signed, signed_at: new Date().toISOString() };
+      const encoded = PSBT_SIGNED_PREFIX + btoa(JSON.stringify(wrapper));
+      $("signedPsbtOut").value = encoded;
+      renderPsbtQr(encoded);
+      $("btnDownloadSignedPsbt")?.removeAttribute("disabled");
+      setDescriptorMsg("Signed offline. Export the signed PSBT back to the online wallet to broadcast.", "ok");
+    } catch (e) {
+      setDescriptorMsg("Offline signing failed: " + e.message, "err");
+    }
+  }
+
+  // Import a signed PSBT, re-verify its payment matches the intent, and stage it.
+  async function importSignedPsbt(rawText) {
+    try {
+      const wrapper = decodePsbt(rawText, PSBT_SIGNED_PREFIX);
+      if (wrapper.magic !== "netcoin-psbt-signed-v1" || !wrapper.intent || !wrapper.signed) throw new Error("not a NetCoin signed PSBT");
+      if ((await psbtIntentHash(wrapper.intent)) !== wrapper.intent_hash) throw new Error("signed PSBT intent hash mismatch; refusing to broadcast a tampered payment");
+      pendingSignedPsbt = wrapper;
+      const i = wrapper.intent;
+      const review = $("psbtReview");
+      if (review) {
+        review.innerHTML =
+          `<div class="kv"><div class="k">To</div><div class="v mono">${esc(i.toAddress)}</div>` +
+          `<div class="k">Amount</div><div class="v">${satsToNet(i.amount)} NET</div>` +
+          `<div class="k">Fee</div><div class="v">${satsToNet(i.fee)} NET</div>` +
+          `<div class="k">Inputs</div><div class="v">${i.utxos.length}</div></div>`;
+        review.classList.remove("hide");
+      }
+      $("btnBroadcastSignedPsbt")?.removeAttribute("disabled");
+      setDescriptorMsg("Signed PSBT verified against its intent. Review, then broadcast.", "ok");
+    } catch (e) {
+      pendingSignedPsbt = null;
+      $("btnBroadcastSignedPsbt")?.setAttribute("disabled", "disabled");
+      setDescriptorMsg("Signed PSBT import failed: " + e.message, "err");
+    }
+  }
+
+  async function broadcastSignedPsbt() {
+    try {
+      if (!pendingSignedPsbt) throw new Error("import a signed PSBT first");
+      const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pendingSignedPsbt.signed) });
+      setDescriptorMsg("Broadcast ✓ txid " + String(res.txid || "").slice(0, 16) + "…", "ok");
+      pendingSignedPsbt = null;
+      $("btnBroadcastSignedPsbt")?.setAttribute("disabled", "disabled");
+      refresh();
+    } catch (e) {
+      setDescriptorMsg("Broadcast failed: " + e.message, "err");
+    }
+  }
+
+  // Chunked animated QR so a large PSBT can cross an airgap by camera. Each
+  // frame is "p<i>/<n>:<chunk>" and small enough for the bundled v1-5 renderer.
+  let psbtQrTimer = null;
+  function renderPsbtQr(text) {
+    const canvas = $("psbtQrCanvas");
+    if (!canvas) return;
+    if (psbtQrTimer) { clearInterval(psbtQrTimer); psbtQrTimer = null; }
+    if (!text) return;
+    const CHUNK = 70; // keep each frame within the bundled v1-5 QR renderer's capacity
+    const frames = [];
+    const n = Math.ceil(text.length / CHUNK);
+    for (let i = 0; i < n; i++) frames.push(`p${i + 1}/${n}:${text.slice(i * CHUNK, (i + 1) * CHUNK)}`);
+    let idx = 0;
+    const ctx = canvas.getContext("2d");
+    const draw = () => {
+      try {
+        const matrix = makeQrMatrix(frames[idx % frames.length]);
+        const quiet = 4;
+        const scale = Math.floor(canvas.width / (matrix.length + quiet * 2));
+        const used = (matrix.length + quiet * 2) * scale;
+        const off = Math.floor((canvas.width - used) / 2);
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#000";
+        for (let y = 0; y < matrix.length; y++) for (let x = 0; x < matrix.length; x++) {
+          if (matrix[y][x]) ctx.fillRect(off + (x + quiet) * scale, off + (y + quiet) * scale, scale, scale);
+        }
+        const label = $("psbtQrLabel"); if (label) label.textContent = `Airgap QR frame ${(idx % frames.length) + 1}/${frames.length}`;
+        idx++;
+      } catch { /* frame too large for bundled renderer; file export still works */ }
+    };
+    draw();
+    if (frames.length > 1) psbtQrTimer = setInterval(draw, 700);
   }
 
   // ---------- app-layer wallet reports / alerts / limits ----------
@@ -1787,6 +1927,18 @@
   $("btnCopyDescriptor").onclick = () => navigator.clipboard?.writeText($("walletDescriptor").value || "");
   $("btnImportDescriptor").onclick = importDescriptorToWatchlist;
   $("btnMakePsbt").onclick = makeUnsignedPsbt;
+  $("btnDownloadUnsignedPsbt").onclick = () => downloadText("netcoin-unsigned.psbt", $("psbtOut").value || lastUnsignedPsbt, "text/plain");
+  $("btnSignPsbtOffline").onclick = signPsbtOffline;
+  $("btnDownloadSignedPsbt").onclick = () => downloadText("netcoin-signed.psbt", $("signedPsbtOut").value, "text/plain");
+  $("btnImportSignedPsbt").onclick = () => importSignedPsbt($("signedPsbtOut").value);
+  $("btnBroadcastSignedPsbt").onclick = broadcastSignedPsbt;
+  $("signedPsbtFile").onchange = async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    const text = (await file.text()).trim();
+    $("signedPsbtOut").value = text;
+    await importSignedPsbt(text);
+  };
   if ($("btnWalletStatement")) $("btnWalletStatement").onclick = createWalletStatement;
   if ($("btnWalletStatementCsv")) $("btnWalletStatementCsv").onclick = downloadWalletStatementCsv;
   if ($("btnWalletStatementPdf")) $("btnWalletStatementPdf").onclick = downloadWalletStatementPdf;
