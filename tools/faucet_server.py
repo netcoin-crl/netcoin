@@ -205,6 +205,59 @@ def address_rate_limited(address: str, state: dict) -> tuple[bool, int]:
     return limited_until > now, max(0, limited_until - now)
 
 
+def api_key_quotas() -> dict[str, int]:
+    """Programmatic faucet keys from env: ``NETCOIN_FAUCET_API_KEYS=key:quota,...``.
+
+    The key string before ``:`` is the shared secret (operator-provided via env,
+    never committed); the integer after ``:`` is the per-key claims-per-24h
+    quota. Empty/unset means the programmatic API is disabled.
+    """
+    raw = os.environ.get("NETCOIN_FAUCET_API_KEYS", "").strip()
+    quotas: dict[str, int] = {}
+    for part in raw.split(","):
+        part = part.strip()
+        if not part or ":" not in part:
+            continue
+        key, _, quota = part.partition(":")
+        key = key.strip()
+        try:
+            quotas[key] = max(0, int(quota.strip()))
+        except ValueError:
+            continue
+    return quotas
+
+
+def authorize_api_claim(api_key: str, state: dict, now: int | None = None) -> tuple[bool, str, int]:
+    """Validate a programmatic faucet key and enforce its rolling-24h quota.
+
+    Returns (ok, reason, remaining). Quota usage is tracked per key in state so
+    it holds across IPs/devices (a CI pipeline gets a predictable budget).
+    """
+    now = int(time.time()) if now is None else now
+    quotas = api_key_quotas()
+    key = str(api_key or "").strip()
+    if not key:
+        return False, "missing X-Faucet-Key", 0
+    if key not in quotas:
+        return False, "invalid faucet API key", 0
+    window_start = now - 24 * 3600
+    usage = state.setdefault("api_claims", {})
+    stamps = [t for t in usage.get(key, []) if t >= window_start]
+    limit = quotas[key]
+    if len(stamps) >= limit:
+        return False, "daily quota exhausted for this key", 0
+    return True, "ok", limit - len(stamps)
+
+
+def record_api_claim(api_key: str, state: dict, now: int | None = None) -> None:
+    now = int(time.time()) if now is None else now
+    window_start = now - 24 * 3600
+    usage = state.setdefault("api_claims", {})
+    stamps = [t for t in usage.get(str(api_key).strip(), []) if t >= window_start]
+    stamps.append(now)
+    usage[str(api_key).strip()] = stamps
+
+
 def public_history(state: dict, limit: int = 50) -> list:
     """Recent faucet grants for a public JSON endpoint. Excludes client IPs."""
     grants = state.get("requests", []) or []
@@ -584,6 +637,34 @@ class FaucetHandler(BaseHTTPRequestHandler):
             result = process_queue(state, limit=MAX_REQUESTS_PER_MINUTE)
             save_state(state)
             self.write_json({"ok": True, **result})
+            return
+        if self.path == "/api/claim":
+            # Programmatic faucet: key-authorized JSON claim for CI/dev pipelines.
+            # Bypasses CAPTCHA and IP cooldown but is bounded by the key's quota.
+            length = request_content_length(self)
+            body = self.rfile.read(max(0, min(length, MAX_BODY_BYTES))).decode("utf-8", "replace")
+            try:
+                payload = json.loads(body) if body.strip() else {}
+            except json.JSONDecodeError:
+                self.write_json({"ok": False, "error": "invalid JSON body"}, status=400)
+                return
+            address = str(payload.get("address", "")).strip()
+            if not address:
+                self.write_json({"ok": False, "error": "address required"}, status=400)
+                return
+            api_key = self.headers.get("X-Faucet-Key", "")
+            state = load_state()
+            if state.get("paused"):
+                self.write_json({"ok": False, "error": "faucet paused"}, status=503)
+                return
+            ok, reason, remaining = authorize_api_claim(api_key, state)
+            if not ok:
+                self.write_json({"ok": False, "error": reason}, status=401 if "key" in reason else 429)
+                return
+            grant = queue_grant(state, client_ip(self), address)
+            record_api_claim(api_key, state, grant["timestamp"])
+            save_state(state)
+            self.write_json({"ok": True, "grant": grant, "quota_remaining": remaining - 1})
             return
         if self.path != "/faucet":
             self.send_error(404)
