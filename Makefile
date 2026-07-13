@@ -64,6 +64,9 @@ release-check:
 devnet:
 	NETCOIN_BACKEND=sqlite $(PYTHON) -m netcoin node --host 127.0.0.1 --port 28444 --p2p-port 28445 --data .netcoin-devnet
 
+devnet-instant:
+	$(PYTHON) -m netcoin --data .netcoin-devnet devnet --funded 3 --reset --serve
+
 localnet-check:
 	NETCOIN_BACKEND=sqlite $(PYTHON) -m pytest -m localnet -q
 

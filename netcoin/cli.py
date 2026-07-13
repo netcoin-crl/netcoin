@@ -1292,6 +1292,61 @@ def cmd_fuzz(args: argparse.Namespace) -> None:
     print_json(report)
 
 
+def cmd_devnet(args: argparse.Namespace) -> None:
+    """Instant developer network: N pre-funded wallets on a fresh local chain.
+
+    Mines a throwaway chain and round-robin-funds `--funded` wallets so every
+    wallet has mature, spendable coin immediately. Wallet files are saved
+    UNENCRYPTED on purpose — this is a disposable devnet, never mainnet.
+    """
+    import shutil
+
+    from .params import COIN, COINBASE_MATURITY
+
+    data_dir = Path(args.data)
+    if args.reset and data_dir.exists():
+        shutil.rmtree(data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    chain = Blockchain(str(data_dir))
+    wallets = []
+    for i in range(args.funded):
+        w = Wallet.create()
+        wf = data_dir / f"devnet-wallet-{i}.json"
+        w.save(wf, passphrase=None)
+        wallets.append((w, wf))
+
+    # Round-robin mine so each wallet accrues mature coinbases (>100 confs).
+    total_blocks = max(args.blocks, COINBASE_MATURITY + args.funded * 3)
+    for h in range(total_blocks):
+        chain.mine_block(wallets[h % len(wallets)][0].address)
+
+    summary = {
+        "network": "devnet",
+        "data_dir": str(data_dir),
+        "height": chain.height(),
+        "tip_hash": chain.tip_hash(),
+        "coinbase_maturity": COINBASE_MATURITY,
+        "wallets": [],
+    }
+    for i, (w, wf) in enumerate(wallets):
+        bal = chain.balances_for_address(w.address)
+        summary["wallets"].append(
+            {
+                "index": i,
+                "address": w.address,
+                "private_key_hex": w.private_key_hex,
+                "wallet_file": str(wf),
+                "spendable_sats": bal["spendable"],
+                "spendable_net": round(bal["spendable"] / COIN, 8),
+            }
+        )
+    print_json(summary)
+
+    if args.serve:
+        run_node(str(data_dir), host=args.host, port=args.port, p2p_port=args.p2p_port, rate_limit_per_min=0)
+
+
 def cmd_psbt_sign(args: argparse.Namespace) -> None:
     wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
     psbt = PartiallySignedTransaction.from_base64(Path(args.psbt).read_text().strip())
@@ -1845,6 +1900,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-bytes", type=int, default=256)
     p.add_argument("--out", default=None, help="write the fuzz report JSON to this path (evidence)")
     p.set_defaults(func=cmd_fuzz)
+
+    p = sub.add_parser("devnet", help="instant local devnet with pre-funded wallets")
+    p.add_argument("--funded", type=int, default=3, help="number of pre-funded wallets (default 3)")
+    p.add_argument("--blocks", type=int, default=0, help="blocks to mine (default: enough for mature funds)")
+    p.add_argument("--reset", action="store_true", help="wipe the data dir before building the devnet")
+    p.add_argument("--serve", action="store_true", help="start the node after building the chain")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=DEFAULT_NODE_PORT)
+    p.add_argument("--p2p-port", type=int, default=DEFAULT_P2P_PORT)
+    p.set_defaults(func=cmd_devnet)
 
     p = sub.add_parser("competitive-check", help="show the competitive-feature scaffold/level-5 registry")
     p.add_argument("--area", help="limit output to one competitive area slug")
