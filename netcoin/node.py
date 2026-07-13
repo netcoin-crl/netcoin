@@ -33,6 +33,7 @@ from .compact import (
 )
 from .crypto import _fast_crypto_enabled, crypto_backend_status, crypto_self_test
 from .emission import emission_report
+from . import esplora
 from .p2p_public_hardening import public_p2p_hardening_plan
 from .logsetup import emit
 from .p2p import PeerManager
@@ -922,6 +923,87 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
         def send_error_json(self, message: str, status: int = 400) -> None:
             self.send_json({"ok": False, "error": message}, status=status)
 
+        def send_text(self, text: str, status: int = 200) -> None:
+            body = str(text).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _esplora_status_for_height(self, height: int | None) -> dict[str, Any]:
+            if height is None or height < 0 or height > node.chain.height():
+                return esplora.esplora_status(confirmed=False, block_height=None, block_hash=None, block_time=None)
+            block = node.chain.chain[height]
+            return esplora.esplora_status(
+                confirmed=True,
+                block_height=height,
+                block_hash=block.hash(),
+                block_time=int(block.header.timestamp),
+            )
+
+        def _handle_esplora(self, parsed: Any, node: "NetCoinNode") -> None:
+            # Blockstream-Esplora-compatible read API so BDK and other Bitcoin
+            # tooling can point at a NetCoin node with only a URL change.
+            parts = parsed.path.split("/")[2:]  # drop leading "", "esplora"
+            chain = node.chain
+            try:
+                if parts == ["blocks", "tip", "height"]:
+                    return self.send_text(str(chain.height()))
+                if parts == ["blocks", "tip", "hash"]:
+                    return self.send_text(chain.tip_hash())
+                if len(parts) == 2 and parts[0] == "block-height":
+                    h = int(parts[1])
+                    if h < 0 or h > chain.height():
+                        return self.send_error_json("block not found", status=404)
+                    return self.send_text(chain.chain[h].hash())
+                if len(parts) == 2 and parts[0] == "block":
+                    block = chain.block_by_hash(parts[1])
+                    if block is None:
+                        return self.send_error_json("block not found", status=404)
+                    return self.send_json(
+                        esplora.esplora_block(
+                            block.header.to_dict(), block_id=block.hash(), tx_count=len(block.transactions)
+                        )
+                    )
+                if len(parts) == 2 and parts[0] == "tx":
+                    found = chain.get_transaction(parts[1])
+                    if found is None:
+                        return self.send_error_json("transaction not found", status=404)
+                    tx, block = found
+                    status = self._esplora_status_for_height(block.header.height if block else None)
+                    return self.send_json(
+                        esplora.esplora_tx(
+                            tx.to_dict(include_scripts=True, include_witness=True), txid=tx.txid(), status=status
+                        )
+                    )
+                if len(parts) == 3 and parts[0] == "address" and parts[2] == "utxo":
+                    utxos = chain.utxos_for_address(parts[1], include_immature=True)
+                    out = []
+                    for u in utxos:
+                        d = u.to_dict()
+                        out.append(esplora.esplora_utxo(d, status=self._esplora_status_for_height(d.get("height"))))
+                    return self.send_json(out)
+                if len(parts) == 2 and parts[0] == "address":
+                    summary = chain.address_summary(parts[1])
+                    summary.setdefault("address", parts[1])
+                    balance = summary.get("balance", {})
+                    funded = int(balance.get("total", 0)) if isinstance(balance, dict) else int(balance)
+                    return self.send_json(
+                        esplora.esplora_address(
+                            summary,
+                            funded_sum=funded,
+                            spent_sum=0,
+                            funded_count=int(summary.get("utxo_count", 0)),
+                            spent_count=0,
+                        )
+                    )
+                if parts == ["fee-estimates"]:
+                    return self.send_json(esplora.esplora_fee_estimates(fee_estimates_payload(chain)))
+                return self.send_error_json("esplora endpoint not found", status=404)
+            except (ValueError, KeyError, IndexError) as exc:
+                return self.send_error_json(f"bad esplora request: {exc}", status=400)
+
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
             if not node.rate_limiter.allow((self.client_ip(), "GET", parsed.path)):
@@ -1118,6 +1200,8 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     self.send_json(emission_report(int(summary["height"]), int(summary["total_minted_sats"])))
                 elif parsed.path == "/p2p-hardening":
                     self.send_json(_p2p_hardening_snapshot())
+                elif parsed.path.startswith("/esplora/"):
+                    self._handle_esplora(parsed, node)
                 elif parsed.path == "/blocktemplate":
                     query = parse_qs(parsed.query)
                     address = query.get("address", [None])[0]
