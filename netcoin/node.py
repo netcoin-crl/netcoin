@@ -501,13 +501,20 @@ class NetCoinNode:
     def metrics_text(self) -> str:
         """Prometheus text-exposition-format metrics."""
         info = self.chain.chain_info()
+        mempool = self.chain.mempool_info()
         lines = [
             "# HELP netcoin_block_height Current best block height.",
             "# TYPE netcoin_block_height gauge",
             f"netcoin_block_height {info['height']}",
+            "# HELP netcoin_chain_tip_info Best-chain tip labels; value is always 1.",
+            "# TYPE netcoin_chain_tip_info gauge",
+            f"netcoin_chain_tip_info{{hash=\"{info['tip_hash']}\",height=\"{info['height']}\"}} 1",
             "# HELP netcoin_mempool_transactions Transactions in the mempool.",
             "# TYPE netcoin_mempool_transactions gauge",
             f"netcoin_mempool_transactions {info['mempool_transactions']}",
+            "# HELP netcoin_mempool_bytes Total serialized mempool bytes.",
+            "# TYPE netcoin_mempool_bytes gauge",
+            f"netcoin_mempool_bytes {mempool.get('bytes', 0)}",
             "# HELP netcoin_peers Connected/known peers.",
             "# TYPE netcoin_peers gauge",
             f"netcoin_peers {len(self.peers)}",
@@ -526,6 +533,9 @@ class NetCoinNode:
             "# HELP netcoin_uptime_seconds Node uptime in seconds.",
             "# TYPE netcoin_uptime_seconds counter",
             f"netcoin_uptime_seconds {self.uptime_seconds()}",
+            "# HELP netcoin_build_info Static build labels; value is always 1.",
+            "# TYPE netcoin_build_info gauge",
+            'netcoin_build_info{implementation="python",network="testnet"} 1',
         ]
         return "\n".join(lines) + "\n"
 

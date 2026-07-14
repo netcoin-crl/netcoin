@@ -19,6 +19,13 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const trunc = (s, n = 20) => (s && s.length > n ? s.slice(0, n) + "…" : s || "");
   const fmtNet = (sats) => (sats / COIN).toLocaleString(undefined, { maximumFractionDigits: 8 });
+  function csvEscape(value) {
+    const text = String(value ?? "");
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+  function csvDataUri(rows) {
+    return "data:text/csv;charset=utf-8," + encodeURIComponent(rows.map((row) => row.map(csvEscape).join(",")).join("\n"));
+  }
   function ago(ts) {
     if (!ts) return "";
     const d = Math.max(0, Math.floor(Date.now() / 1000 - ts));
@@ -327,10 +334,18 @@
   // ---------- address ----------
   async function address(addr) {
     setView(el(`<div class="card muted">Loading address…</div>`));
-    let a; try { a = await api("/address/" + encodeURIComponent(addr)); } catch (e) { return setView(el(`<div class="card err">${esc(e.message)}</div>`)); }
+    const [addressOnly, queryText = ""] = String(addr).split("?");
+    const query = new URLSearchParams(queryText);
+    const limit = Math.max(1, Math.min(Number(query.get("limit") || 25), 100));
+    const offset = Math.max(0, Number(query.get("offset") || 0));
+    let a; try { a = await api(`/address/${encodeURIComponent(addressOnly)}?limit=${limit}&offset=${offset}`); } catch (e) { return setView(el(`<div class="card err">${esc(e.message)}</div>`)); }
     const bal = a.balance || {};
-    const txids = (a.transaction_ids || []).slice(-25).reverse();
+    const txids = a.transaction_ids || [];
     const txRows = txids.map((t) => `<tr><td class="mono trunc"><a href="#/tx/${t}">${t}</a></td></tr>`).join("") || `<tr><td class="muted">No transactions.</td></tr>`;
+    const total = Number(a.transaction_ids_total ?? a.transaction_count ?? txids.length);
+    const nextOffset = offset + limit;
+    const prevOffset = Math.max(0, offset - limit);
+    const csvHref = csvDataUri([["address", "txid", "offset", "limit"], ...txids.map((t) => [a.address, t, offset, limit])]);
     setView(el(`<div>
       <div class="back" id="bk">← back</div>
       <div class="card"><h2>Address${contactNameFor(a.address) ? ` · ${esc(contactNameFor(a.address))}` : ""}</h2>
@@ -341,7 +356,14 @@
           <div class="stat"><div class="k">Immature</div><div class="v warn">${fmtNet(bal.immature||0)} NET</div></div>
           <div class="stat"><div class="k">Txs</div><div class="v">${a.transaction_count ?? txids.length}</div></div>
         </div></div>
-      <div class="card"><h2>Recent transactions</h2><table><tbody>${txRows}</tbody></table></div></div>`));
+      <div class="card"><h2>Transactions ${offset + 1}-${Math.min(total, offset + txids.length)} of ${total}</h2>
+        <div class="actions">
+          <a class="pill" href="${csvHref}" download="netcoin-address-${esc(a.address)}-${offset}.csv">Export visible CSV</a>
+          <a class="pill" href="#/address/${encodeURIComponent(a.address)}?offset=${prevOffset}&limit=${limit}">Previous</a>
+          <a class="pill" href="#/address/${encodeURIComponent(a.address)}?offset=${nextOffset}&limit=${limit}">Next</a>
+        </div>
+        <table><tbody>${txRows}</tbody></table>
+      </div></div>`));
     fillContactForm(a.address);
     setContactMsg("Viewing address. Add a name above and save it as a contact.");
     $("#bk").onclick = () => history.back();
@@ -409,6 +431,8 @@
       const latest = await api("/latest?n=1");
       const start = Math.max(0, (latest.height || 0) - 99);
       const d = await api(`/headers?start=${start}&limit=100`);
+      const events = await api("/events?limit=50").catch(() => ({ events: [] }));
+      const health = await api("/health").catch(() => ({}));
       const headers = d.headers || [];
       const bits = headers.map((h) => Number(h.bits || 0));
       const times = headers.map((h) => Number(h.timestamp || 0)).filter(Boolean);
@@ -420,7 +444,9 @@
       }).join("");
       const span = times.length > 1 ? times[times.length - 1] - times[0] : 0;
       const avg = times.length > 1 ? span / (times.length - 1) : 0;
-      setView(el(`<div><div class="card"><h2>Network stats</h2><div class="stats"><div class="stat"><div class="k">Height</div><div class="v">${latest.height ?? "—"}</div></div><div class="stat"><div class="k">Sampled headers</div><div class="v">${headers.length}</div></div><div class="stat"><div class="k">Avg block interval</div><div class="v">${avg ? Math.round(avg) + "s" : "—"}</div></div><div class="stat"><div class="k">Tip bits</div><div class="v mono">0x${((bits[bits.length-1] || 0)>>>0).toString(16)}</div></div></div></div><div class="card"><h2>Recent difficulty bits</h2><div class="mini-bars">${bars || '<span class="muted">No headers.</span>'}</div><p class="muted">This shows compact difficulty bits over recent blocks. A full hash-rate estimate should be treated as an approximation on small/test networks.</p></div></div>`));
+      const eventRows = (events.events || []).map((ev) => `<tr><td>${esc(ev.event || ev.kind || "event")}</td><td class="mono trunc">${esc(ev.hash || ev.block_hash || ev.txid || "")}</td><td class="right muted">${esc(ev.height ?? "")}</td></tr>`).join("") || `<tr><td colspan="3" class="muted">No recent reorg/orphan events.</td></tr>`;
+      const headerCsv = csvDataUri([["height", "hash", "timestamp", "bits"], ...headers.map((h) => [h.height, h.hash, h.timestamp, h.bits])]);
+      setView(el(`<div><div class="card"><h2>Network stats</h2><div class="stats"><div class="stat"><div class="k">Height</div><div class="v">${latest.height ?? "—"}</div></div><div class="stat"><div class="k">Sampled headers</div><div class="v">${headers.length}</div></div><div class="stat"><div class="k">Avg block interval</div><div class="v">${avg ? Math.round(avg) + "s" : "—"}</div></div><div class="stat"><div class="k">Orphan candidates</div><div class="v ${Number(health.orphans || 0) ? "warn" : "ok"}">${health.orphans ?? 0}</div></div></div><div class="actions"><a class="pill" href="${headerCsv}" download="netcoin-headers-${start}-${headers.length}.csv">Export headers CSV</a></div></div><div class="card"><h2>Recent difficulty bits</h2><div class="mini-bars">${bars || '<span class="muted">No headers.</span>'}</div><p class="muted">This shows compact difficulty bits over recent blocks. A full hash-rate estimate should be treated as an approximation on small/test networks.</p></div><div class="card"><h2>Reorg / orphan watch</h2><table><thead><tr><th>Event</th><th>Object</th><th class="right">Height</th></tr></thead><tbody>${eventRows}</tbody></table><p class="muted">Blocks reported as orphan candidates are not active-chain confirmations. Wait for confirmations after any reorg/orphan event.</p></div></div>`));
     } catch (e) { setView(el(`<div class="card err">Could not load stats: ${esc(e.message)}</div>`)); }
   }
 

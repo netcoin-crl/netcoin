@@ -56,6 +56,7 @@ ADDRESS_COOLDOWN_SECONDS = int(os.environ.get("NETCOIN_FAUCET_ADDRESS_COOLDOWN_S
 MAX_BODY_BYTES = int(os.environ.get("NETCOIN_FAUCET_MAX_BODY", "4096"))
 MAX_REQUESTS_PER_MINUTE = int(os.environ.get("NETCOIN_FAUCET_MAX_PER_MINUTE", "5"))
 MAX_ABUSE_LOG = int(os.environ.get("NETCOIN_FAUCET_MAX_ABUSE_LOG", "200"))
+MAX_ADMIN_AUDIT_LOG = int(os.environ.get("NETCOIN_FAUCET_MAX_ADMIN_AUDIT_LOG", "500"))
 QUEUE_MODE = os.environ.get("NETCOIN_FAUCET_QUEUE_MODE", "sync").strip().lower()
 MAX_QUEUE_ITEMS = int(os.environ.get("NETCOIN_FAUCET_MAX_QUEUE", "100"))
 ADMIN_TOKEN = os.environ.get("NETCOIN_FAUCET_ADMIN_TOKEN", "")
@@ -73,6 +74,13 @@ CAPTCHA_VERIFY_URL = os.environ.get("NETCOIN_FAUCET_CAPTCHA_VERIFY_URL", "")
 CAPTCHA_SIMPLE_QUESTION = os.environ.get("NETCOIN_FAUCET_CAPTCHA_QUESTION", "Type netcoin")
 CAPTCHA_SIMPLE_ANSWER = os.environ.get("NETCOIN_FAUCET_CAPTCHA_ANSWER", "netcoin").strip().lower()
 POW_DIFFICULTY = int(os.environ.get("NETCOIN_FAUCET_POW_DIFFICULTY", "0"))
+POW_AUTOSCALE_ENABLED = os.environ.get("NETCOIN_FAUCET_POW_AUTOSCALE", "1").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+POW_MAX_DIFFICULTY = int(os.environ.get("NETCOIN_FAUCET_POW_MAX_DIFFICULTY", "6"))
 POW_SECRET = os.environ.get("NETCOIN_FAUCET_POW_SECRET", "netcoin-faucet-local-secret")
 POW_TTL_SECONDS = int(os.environ.get("NETCOIN_FAUCET_POW_TTL", "300"))
 DAILY_SPEND_CAP_SATS = int(os.environ.get("NETCOIN_FAUCET_DAILY_CAP_SATS", "0"))
@@ -144,6 +152,7 @@ def load_state() -> dict:
     state.setdefault("difficulty", POW_DIFFICULTY)
     state.setdefault("daily_cap_sats", DAILY_SPEND_CAP_SATS)
     state.setdefault("reputation", {})
+    state.setdefault("admin_audit", [])
     return state
 
 
@@ -284,6 +293,56 @@ def public_queue(state: dict, limit: int = 50) -> list:
         }
         for item in recent
     ]
+
+
+def admin_audit_log(state: dict, limit: int = 100) -> list:
+    return list(reversed(state.get("admin_audit", []) or []))[: max(1, min(int(limit), MAX_ADMIN_AUDIT_LOG))]
+
+
+def record_admin_audit(
+    state: dict, action: str, *, actor: str = "operator", details: dict | None = None, now: int | None = None
+) -> dict:
+    now = int(time.time()) if now is None else now
+    entry = {
+        "timestamp": now,
+        "actor": str(actor or "operator")[:80],
+        "action": str(action or "unknown")[:80],
+        "details": details or {},
+    }
+    log = state.setdefault("admin_audit", [])
+    log.append(entry)
+    state["admin_audit"] = log[-MAX_ADMIN_AUDIT_LOG:]
+    return entry
+
+
+def autoscaled_pow_difficulty(state: dict, now: int | None = None) -> dict:
+    """Return the effective PoW difficulty and why it changed."""
+    now = int(time.time()) if now is None else now
+    configured = max(0, int(state.get("difficulty", POW_DIFFICULTY) or 0))
+    if not POW_AUTOSCALE_ENABLED:
+        return {"difficulty": configured, "configured": configured, "autoscaled": False, "reasons": []}
+    recent_abuse = [
+        item for item in state.get("abuse", []) or [] if now - int(item.get("timestamp", 0) or 0) < 60 * 60
+    ]
+    queued = [item for item in state.get("queue", []) or [] if item.get("status") == "queued"]
+    bump = 0
+    reasons: list[str] = []
+    if len(recent_abuse) >= 5:
+        bump += 1
+        reasons.append(f"abuse_1h:{len(recent_abuse)}")
+    if len(recent_abuse) >= 20:
+        bump += 1
+        reasons.append("abuse_spike")
+    if MAX_QUEUE_ITEMS > 0 and len(queued) >= max(1, int(MAX_QUEUE_ITEMS * 0.8)):
+        bump += 1
+        reasons.append(f"queue_pressure:{len(queued)}/{MAX_QUEUE_ITEMS}")
+    difficulty = min(max(configured, 0) + bump, max(0, POW_MAX_DIFFICULTY))
+    return {
+        "difficulty": difficulty,
+        "configured": configured,
+        "autoscaled": difficulty != configured,
+        "reasons": reasons,
+    }
 
 
 def body_too_large(length: int) -> bool:
@@ -550,10 +609,19 @@ class FaucetHandler(BaseHTTPRequestHandler):
             self.write_json({"queue": public_queue(load_state())})
             return
         if path == "/challenge":
+            state = load_state()
+            pow_policy = autoscaled_pow_difficulty(state)
             challenge = issue_challenge(
-                client_ip(self), secret=POW_SECRET, difficulty=POW_DIFFICULTY, ttl_seconds=POW_TTL_SECONDS
+                client_ip(self), secret=POW_SECRET, difficulty=pow_policy["difficulty"], ttl_seconds=POW_TTL_SECONDS
             )
-            self.write_json({"ok": True, "enabled": POW_DIFFICULTY > 0, **challenge.to_dict()})
+            self.write_json(
+                {
+                    "ok": True,
+                    "enabled": pow_policy["difficulty"] > 0,
+                    "autoscale": pow_policy,
+                    **challenge.to_dict(),
+                }
+            )
             return
         if path == "/admin/status":
             if not self.admin_allowed():
@@ -564,14 +632,18 @@ class FaucetHandler(BaseHTTPRequestHandler):
             state = load_state()
             queued = sum(1 for item in state.get("queue", []) if item.get("status") == "queued")
             spend = daily_spend_report(state, cap_sats=DAILY_SPEND_CAP_SATS, amount_sats=amount_to_sats(AMOUNT))
+            pow_policy = autoscaled_pow_difficulty(state)
             self.write_json(
                 {
                     "ok": True,
                     "queue_mode": QUEUE_MODE,
                     "captcha": captcha_status_payload(),
                     "proof_of_work": {
-                        "enabled": POW_DIFFICULTY > 0,
-                        "difficulty": POW_DIFFICULTY,
+                        "enabled": pow_policy["difficulty"] > 0,
+                        "difficulty": pow_policy["difficulty"],
+                        "configured_difficulty": pow_policy["configured"],
+                        "autoscaled": pow_policy["autoscaled"],
+                        "autoscale_reasons": pow_policy["reasons"],
                         "ttl_seconds": POW_TTL_SECONDS,
                     },
                     "daily_cap": spend,
@@ -583,6 +655,7 @@ class FaucetHandler(BaseHTTPRequestHandler):
                     "daily_cap_sats": state.get("daily_cap_sats", DAILY_SPEND_CAP_SATS),
                     "challenge_bits": state.get("difficulty", POW_DIFFICULTY),
                     "reputation": state.get("reputation", {}),
+                    "admin_audit": admin_audit_log(state),
                     "recent_requests": public_history(state, 100),
                     "blocked_requests": list(reversed(state.get("abuse", []) or []))[:100],
                 }
@@ -600,6 +673,7 @@ class FaucetHandler(BaseHTTPRequestHandler):
                 return
             state = load_state()
             state["paused"] = True
+            record_admin_audit(state, "pause", actor=client_ip(self), details={"paused": True})
             save_state(state)
             self.write_json({"ok": True, "paused": True})
             return
@@ -609,6 +683,7 @@ class FaucetHandler(BaseHTTPRequestHandler):
                 return
             state = load_state()
             state["paused"] = False
+            record_admin_audit(state, "resume", actor=client_ip(self), details={"paused": False})
             save_state(state)
             self.write_json({"ok": True, "paused": False})
             return
@@ -624,6 +699,12 @@ class FaucetHandler(BaseHTTPRequestHandler):
                 state["difficulty"] = max(0, int(form.get("difficulty", ["0"])[0]))
             if form.get("daily_cap_sats", [""])[0]:
                 state["daily_cap_sats"] = max(0, int(form.get("daily_cap_sats", ["0"])[0]))
+            record_admin_audit(
+                state,
+                "config",
+                actor=client_ip(self),
+                details={"difficulty": state.get("difficulty"), "daily_cap_sats": state.get("daily_cap_sats")},
+            )
             save_state(state)
             self.write_json(
                 {"ok": True, "difficulty": state.get("difficulty"), "daily_cap_sats": state.get("daily_cap_sats")}
@@ -635,6 +716,7 @@ class FaucetHandler(BaseHTTPRequestHandler):
                 return
             state = load_state()
             result = process_queue(state, limit=MAX_REQUESTS_PER_MINUTE)
+            record_admin_audit(state, "process-queue", actor=client_ip(self), details=result)
             save_state(state)
             self.write_json({"ok": True, **result})
             return
@@ -707,11 +789,14 @@ class FaucetHandler(BaseHTTPRequestHandler):
             save_state(state)
             self.render(message_box("Faucet daily spend cap reached. Try again tomorrow.", error=True))
             return
-        if POW_DIFFICULTY > 0 or rep["risk"] == "challenge":
+        pow_policy = autoscaled_pow_difficulty(state)
+        if pow_policy["difficulty"] > 0 or rep["risk"] == "challenge":
             challenge = form.get("pow_challenge", [""])[0]
             nonce = form.get("pow_nonce", [""])[0]
-            expected = issue_challenge(ip, secret=POW_SECRET, difficulty=POW_DIFFICULTY, ttl_seconds=POW_TTL_SECONDS)
-            difficulty = POW_DIFFICULTY or 3
+            expected = issue_challenge(
+                ip, secret=POW_SECRET, difficulty=pow_policy["difficulty"], ttl_seconds=POW_TTL_SECONDS
+            )
+            difficulty = pow_policy["difficulty"] or 3
             if challenge != expected.challenge or not verify_pow(challenge, nonce, difficulty=difficulty):
                 record_abuse(state, ip, "pow-failed", address=address, device=device)
                 save_state(state)

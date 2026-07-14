@@ -230,6 +230,25 @@ def search_payload(chain: Blockchain, query: str) -> dict[str, Any]:
     return {"query": q, "matches": matches}
 
 
+def events_payload(chain: Blockchain, limit: int = 50) -> dict[str, Any]:
+    limit = max(1, min(int(limit), 500))
+    orphan_events = [
+        {
+            "event": "orphan_candidate",
+            "hash": block.hash(),
+            "height": block.header.height,
+            "previous_hash": block.header.previous_hash,
+            "timestamp": block.header.timestamp,
+        }
+        for block in chain.orphan_blocks.values()
+    ]
+    return {
+        "events": sorted(orphan_events, key=lambda item: int(item.get("timestamp", 0)), reverse=True)[:limit],
+        "orphan_candidates": len(chain.orphan_blocks),
+        "source": "explorer-server-chain-state",
+    }
+
+
 def make_handler(chain: Blockchain, rate_limit_per_min: int = 240, *, trust_proxy_headers: bool = False):
     app_store = AppStore(chain.data_dir)
     rate_limiter = RateLimiter(max_requests=rate_limit_per_min, window_seconds=60)
@@ -331,6 +350,9 @@ def make_handler(chain: Blockchain, rate_limit_per_min: int = 240, *, trust_prox
             try:
                 if parsed.path == "/api/events/stream":
                     self.send_event_stream()
+                elif parsed.path == "/api/events":
+                    query = parse_qs(parsed.query)
+                    self.send_json(events_payload(chain, int(query.get("limit", [50])[0])))
                 elif parsed.path in ("/api/latest", "/api/blocks"):
                     query = parse_qs(parsed.query)
                     n = int(query.get("n", query.get("limit", [20]))[0])

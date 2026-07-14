@@ -1,0 +1,74 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "targets": [{"expr": "netcoin_block_height", "legendFormat": "height"}],
+      "title": "Block Height",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "targets": [{"expr": "netcoin_mempool_transactions", "legendFormat": "tx"}],
+      "title": "Mempool Transactions",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "targets": [{"expr": "netcoin_peers", "legendFormat": "peers"}],
+      "title": "Peers",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "targets": [{"expr": "netcoin_orphan_candidates", "legendFormat": "orphans"}],
+      "title": "Orphan Candidates",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "id": 5,
+      "targets": [{"expr": "rate(netcoin_outbound_relay_bytes_total[5m])", "legendFormat": "bytes/s"}],
+      "title": "Relay Egress",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "id": 6,
+      "targets": [{"expr": "netcoin_mempool_bytes", "legendFormat": "vbytes"}],
+      "title": "Mempool Bytes",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["netcoin", "testnet"],
+  "templating": {
+    "list": [
+      {
+        "current": {"text": "Prometheus", "value": "Prometheus"},
+        "hide": 0,
+        "label": "Prometheus",
+        "name": "DS_PROMETHEUS",
+        "query": "prometheus",
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "NetCoin Node",
+  "uid": "netcoin-node",
+  "version": 1
+}

@@ -1,4 +1,4 @@
-.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check reproducible-build-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check rust-consensus-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check full-suite-report devnet localnet-check nightly-fuzz-check chaos-drill-check fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean p2p-soak-check indexer-db-check ts-api-contract-check browser-e2e-matrix-check security-audit-prep-check product-architecture-check design-system-check product-simplification-check trust-interaction-check product-coherence-check v033-check v034-check v035-check v036-check v037-check v038-check v0381-check v0382-check v0383-check v0384-check
+.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check reproducible-build-check explorer-faucet-status-metrics-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check rust-consensus-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check full-suite-report devnet localnet-check nightly-fuzz-check chaos-drill-check fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean p2p-soak-check indexer-db-check ts-api-contract-check browser-e2e-matrix-check security-audit-prep-check product-architecture-check design-system-check product-simplification-check trust-interaction-check product-coherence-check v033-check v034-check v035-check v036-check v037-check v038-check v0381-check v0382-check v0383-check v0384-check
 
 PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
@@ -87,6 +87,9 @@ provenance-check:
 
 reproducible-build-check:
 	$(PYTHON) tools/verify_reproducible_build.py --out reports/reproducible_build_source_report.json
+
+explorer-faucet-status-metrics-check:
+	$(PYTHON) -m pytest tests/test_p12_explorer_faucet_status_metrics.py -q
 
 upgrade-healthcheck:
 	$(PYTHON) tools/upgrade_healthcheck.py

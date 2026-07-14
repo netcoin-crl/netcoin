@@ -6,6 +6,7 @@ const asNumber = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 };
+const UPTIME_HISTORY_KEY = 'netcoin.status.uptime.history.v1';
 
 function formatDuration(seconds) {
   const n = asNumber(seconds);
@@ -85,6 +86,40 @@ function renderNetworkSnapshot({ health, latest, mempool, peers, errors }) {
   $('#statusPeerDetail').textContent = peerCount === null ? 'known peers unavailable' : 'known peers';
   $('#statusUptime').textContent = formatDuration(uptime);
   $('#statusHealthDetail').textContent = health?.version ? `node ${health.version}` : (ok ? 'health endpoint online' : 'health endpoint unavailable');
+  recordUptimeSample({ ok, height, uptime, checked_at: Date.now() });
+  renderUptimeHistory();
+}
+
+function loadUptimeHistory() {
+  try {
+    const data = JSON.parse(localStorage.getItem(UPTIME_HISTORY_KEY) || '[]');
+    return Array.isArray(data) ? data.slice(-288) : [];
+  } catch {
+    return [];
+  }
+}
+
+function recordUptimeSample(sample) {
+  const history = loadUptimeHistory();
+  const last = history[history.length - 1];
+  if (last && sample.checked_at - Number(last.checked_at || 0) < 60 * 1000) return;
+  history.push(sample);
+  localStorage.setItem(UPTIME_HISTORY_KEY, JSON.stringify(history.slice(-288)));
+}
+
+function renderUptimeHistory() {
+  const el = $('#uptimeHistory');
+  if (!el) return;
+  const history = loadUptimeHistory();
+  const total = history.length;
+  const online = history.filter((item) => item.ok).length;
+  const pct = total ? Math.round((online / total) * 1000) / 10 : 0;
+  const last = history[history.length - 1] || {};
+  el.innerHTML = `
+    <div class="stat"><div class="k">Samples</div><div class="v">${total}</div><div class="muted">kept locally in this browser</div></div>
+    <div class="stat"><div class="k">Observed uptime</div><div class="v ${pct >= 95 ? 'ok' : 'warn'}">${pct}%</div><div class="muted">last 288 checks</div></div>
+    <div class="stat"><div class="k">Last height</div><div class="v">${last.height ?? '—'}</div><div class="muted">${last.checked_at ? new Date(last.checked_at).toLocaleString() : 'no sample'}</div></div>
+  `;
 }
 
 async function loadNetworkSnapshot() {

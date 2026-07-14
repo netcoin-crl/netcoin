@@ -68,12 +68,14 @@ async function checkFaucet() {
     const captcha = status.captcha || {};
     setText('#captcha', captcha.enabled ? (captcha.provider || 'on') : 'off');
     const pow = status.proof_of_work || {};
-    setText('#powStatus', pow.enabled ? `${pow.difficulty} zeros` : 'off');
+    setText('#powStatus', pow.enabled ? `${pow.difficulty} zeros${pow.autoscaled ? ' auto' : ''}` : 'off');
     const cap = status.daily_cap || {};
     setText('#dailyCap', cap.cap_sats ? fmtNet(cap.remaining_sats) + ' left' : 'off');
     const abuse = status.abuse || {};
     setText('#abuseNote', abuse.abuse_events_24h ? `${abuse.abuse_events_24h} abuse events blocked today.` : 'Faucet protection is quiet.');
     renderHistory(history.grants);
+    const audit = Array.isArray(status.admin_audit) ? status.admin_audit : [];
+    show('#auditLog', audit.length ? audit.slice(0, 12).map((item) => `${new Date(Number(item.timestamp || 0) * 1000).toISOString()} ${item.action} ${JSON.stringify(item.details || {})}`).join('\n') : 'No admin changes recorded.');
   } catch (e) {
     const dot = $('#faucetDot'); if (dot) dot.className = 'dot err';
     setText('#faucetStatus', 'Faucet unavailable');
