@@ -476,7 +476,7 @@
   }
   function genericPanel(){ return panel('Product clarity','One job, one action, one trust signal, one next step.', statusStrip([['Healthy','healthy'],['No dead ends','healthy']])+'<div class="nc-upgrade-grid">'+card('Command palette','Ctrl/⌘ K opens Wallet, Explorer, Markets, Faucet, Operator, Docs.')+card('Alerts','Local-only status and reminders.')+card('Notes','Private labels and reminders.')+card('Status words','Healthy, Warning, Offline, Maintenance.')+'</div>'+localNoteHtml(hostKey())); }
   function surfaceHtml(surface) {
-    if (surface === 'wallet') return walletPanel();
+    if (surface === 'wallet') return '';
     if (surface === 'explorer') return explorerPanel();
     if (surface === 'markets') return marketsPanel();
     if (surface === 'faucet') return faucetPanel();
@@ -490,6 +490,7 @@
     if (qs('[data-nc-completion-panel]')) return;
     var root = shellRoot();
     var html = surfaceHtml(hostKey());
+    if (!html) return;
     var wrap = document.createElement('div'); wrap.innerHTML = html;
     var target = qs('.footer', root) || root.lastElementChild;
     if (target && target.parentNode === root) root.insertBefore(wrap.firstElementChild, target); else root.appendChild(wrap.firstElementChild);
