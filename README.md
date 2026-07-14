@@ -6,6 +6,8 @@ NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should 
 
 > Current release: **v0.42.0** · website UI clarity pass, strict proof tooling, Rust/TS/Python parity, and explicit mainnet evidence gates.
 
+> Current main: Codex P1-P12 package work and Claude wallet/app updates are merged, the shared public-site shell is synchronized across the 24 deployed site folders, and the local site audit is clean. The full pytest suite remains a Mac-reviewer run because it can time out in constrained containers.
+
 ## Start here
 
 | File | Purpose |
@@ -62,6 +64,17 @@ curl -s -X POST https://api.netcoin.online/api/keys/register -H 'Content-Type: a
 - **App-layer NET-20 tokens:** create/mint/transfer via `/api/tokens` — indexed ledger, not consensus ([NIP-0004](docs/nips/NIP-0004.md) explains the auth model and its limits)
 - **Exchange sandbox integration:** [docs/EXCHANGE_INTEGRATION.md](docs/EXCHANGE_INTEGRATION.md) covers private RPC, deposit watching, withdrawals, confirmation policy, and reorg handling. This is not a real-money listing claim.
 - **Improvement process:** [docs/nips/NIP-0001.md](docs/nips/NIP-0001.md) · upgrade activations: [docs/nips/NIP-0005.md](docs/nips/NIP-0005.md)
+
+### Current verification shortcuts
+
+Use these focused checks for the current package set before handing a build to the full-suite Mac reviewer:
+
+```bash
+python3 tools/audit_site_ui.py
+python3 -m pytest tests/test_p1_protocol_spec_docs.py tests/test_p2_perf_benchmark.py tests/test_p3_versionbits_rehearsal.py tests/test_p4_genesis_rehearsal.py tests/test_p5_bandwidth_enforcement.py tests/test_p6_dns_seeder.py tests/test_p7_stratum_pool.py tests/test_p8_node_installer_rate_limit.py tests/test_p9_api_v1_openapi_sdk.py tests/test_p12_explorer_faucet_status_metrics.py -q
+```
+
+Before a package handoff, run Black/Ruff on the files changed by that package. For a complete release review, run `make test-full` or the full pytest battery on a real Mac runner and attach the report.
 
 ## Key network facts
 
@@ -135,6 +148,7 @@ Use the hosted public-testnet apps here:
 | API Docs | <https://api.netcoin.online> | Public endpoint reference, examples, auth notes, and webhook references. |
 
 The public sites are separated by purpose so the Explorer stays focused and users are not overwhelmed.
+Every site uses the shared NetCoin shell for navigation, safety text, run-from-GitHub commands, and consistent responsive UI. The source folders live in [sites/](sites/); run `make site-sync` after changing shared shell assets and `make site-audit` before deployment.
 
 ## Quick install from source
 

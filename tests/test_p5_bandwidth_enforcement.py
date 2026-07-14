@@ -14,7 +14,6 @@ from netcoin.chain import Blockchain
 from netcoin.node import NetCoinNode
 from tools.run_bandwidth_relay_probe import run_probe
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

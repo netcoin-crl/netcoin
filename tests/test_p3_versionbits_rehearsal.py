@@ -10,9 +10,7 @@ import pytest
 
 from netcoin.versionbits import (
     ACTIVE,
-    DEFINED,
     ENV_ENABLE_REHEARSAL,
-    FAILED,
     LOCKED_IN,
     STARTED,
     VersionBitsDeployment,
@@ -23,7 +21,6 @@ from netcoin.versionbits import (
     load_rehearsal_config,
 )
 from tools.run_versionbits_rehearsal import run_localnet_rehearsal
-
 
 ROOT = Path(__file__).resolve().parents[1]
 

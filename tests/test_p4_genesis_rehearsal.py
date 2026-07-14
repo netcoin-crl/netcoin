@@ -9,7 +9,6 @@ from netcoin.block import Block, check_proof_of_work
 from netcoin.params import ZERO_HASH
 from tools.generate_genesis import build_genesis_block, generate_report, validate_manifest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

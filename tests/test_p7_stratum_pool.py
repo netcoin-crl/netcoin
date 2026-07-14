@@ -9,10 +9,9 @@ import pytest
 
 from netcoin.chain import Blockchain
 from netcoin.miner import solve_template
-from netcoin.pool import MiningPool, POOL_PROTOCOL, ShareRecord, StratumLiteTCPServer
+from netcoin.pool import POOL_PROTOCOL, MiningPool, ShareRecord, StratumLiteTCPServer
 from netcoin.wallet import Wallet
 from tools.run_pool_mining_probe import pool_rpc, run_probe
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,7 +36,12 @@ def test_stratum_lite_getwork_and_submit_mines_block(tmp_path: Path):
         submit = pool_rpc(
             "127.0.0.1",
             port,
-            [{"method": "submit", "params": {"miner": pool_wallet.address, "job_id": template["job_id"], "block": block.to_dict()}}],
+            [
+                {
+                    "method": "submit",
+                    "params": {"miner": pool_wallet.address, "job_id": template["job_id"], "block": block.to_dict()},
+                }
+            ],
         )[1]
     finally:
         server.shutdown()

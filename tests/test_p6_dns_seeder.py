@@ -20,7 +20,6 @@ from netcoin.seeder import (
 )
 from tools.run_localnet import Localnet, LocalnetConfig
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -74,7 +73,9 @@ def test_dns_seeder_rotates_answers_and_ignores_wrong_domain(tmp_path: Path):
 def test_dns_seeder_serves_real_udp_query(tmp_path: Path):
     db = seed_db(tmp_path / "peers.sqlite")
     port = reserve_udp_port()
-    config = DNSSeederConfig(peer_db=tmp_path / "peers.sqlite", host="127.0.0.1", port=port, domain="seed.netcoin.local")
+    config = DNSSeederConfig(
+        peer_db=tmp_path / "peers.sqlite", host="127.0.0.1", port=port, domain="seed.netcoin.local"
+    )
     seeder = DNSSeeder(db, config)
     stop = Event()
     thread = Thread(target=serve_dns, args=(seeder,), kwargs={"stop_event": stop}, daemon=True)
@@ -109,7 +110,9 @@ def test_dns_seeder_answers_from_localnet_peer_database(tmp_path: Path):
         for node in localnet.nodes:
             db.record_success(node.url, best_height=localnet.node_info(node)["height"], user_agent="NetCoin:localnet")
         port = reserve_udp_port()
-        config = DNSSeederConfig(peer_db=tmp_path / "peers.sqlite", host="127.0.0.1", port=port, domain="seed.netcoin.local")
+        config = DNSSeederConfig(
+            peer_db=tmp_path / "peers.sqlite", host="127.0.0.1", port=port, domain="seed.netcoin.local"
+        )
         seeder = DNSSeeder(db, config)
         stop = Event()
         thread = Thread(target=serve_dns, args=(seeder,), kwargs={"stop_event": stop}, daemon=True)

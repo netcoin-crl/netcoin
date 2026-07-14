@@ -10,7 +10,6 @@ from netcoin.chain import Blockchain
 from netcoin.node import NetCoinNode, RateLimiter, api_key_identity_from_headers, make_handler
 from tools.run_rate_limit_loadtest import run_loadtest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

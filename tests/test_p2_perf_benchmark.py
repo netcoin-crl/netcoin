@@ -9,7 +9,6 @@ import pytest
 
 from tools.run_perf_benchmark import DEFAULT_THRESHOLDS, evaluate_thresholds, run_benchmark
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
