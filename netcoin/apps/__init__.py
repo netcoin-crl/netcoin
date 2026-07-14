@@ -33,6 +33,7 @@ from urllib.parse import quote, urlencode, urlparse
 from ..crypto import decode_address, validate_address, verify_message
 from ..descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
 from ..emission import next_reduction_height
+from ..feature_catalog import feature_catalog
 from ..params import (
     REWARD_REDUCTION_DENOMINATOR,
     REWARD_REDUCTION_INTERVAL,
@@ -40,8 +41,8 @@ from ..params import (
     REWARD_SCHEDULE_ACTIVATION_HEIGHT,
 )
 from ..script import ScriptError, script_to_p2sh_address, timelocked_redeem_script
-from ..tx import amount_to_sats, sats_to_amount
-from ..feature_catalog import feature_catalog
+from ..serialization import transaction_vsize
+from ..tx import Transaction, TxInput, TxOutput, amount_to_sats, sats_to_amount
 
 
 class AppError(ValueError):
@@ -70,7 +71,7 @@ def assert_public_webhook_url(url: str) -> None:
     try:
         infos = socket.getaddrinfo(host, parsed.port or 443, proto=socket.IPPROTO_TCP)
     except OSError as exc:
-        raise AppError(f"webhook host does not resolve: {exc}")
+        raise AppError(f"webhook host does not resolve: {exc}") from exc
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
         if (
@@ -97,6 +98,7 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     "webhooks": {},
     "webhook_events": [],
     "refunds": {},
+    "withdrawals": {},
     "airdrops": {},
     "gifts": {},
     "bounties": {},
@@ -110,6 +112,10 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     "backup_health": {},
     "address_rotation": {},
     "rewards": {},
+    "payment_links": {},
+    "watched_addresses": {},
+    "developer_batches": {},
+    "developer_simulations": {},
     "tip_buttons": {},
     "tokens": {},
     "token_events": [],
@@ -144,6 +150,7 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     },
     "admin_events": [],
     "operator_announcements": [],
+    "developer_apps": {},
     "community_posts": [],
     "community_comments": [],
     "community_votes": {},
@@ -852,7 +859,7 @@ class AppStore:
             "created_at": now(),
             "last_used_at": None,
         }
-        regs[ip] = recent + [now()]
+        regs[ip] = [*recent, now()]
         # Bound the registration log so it cannot grow without limit.
         if len(regs) > 10_000:
             data["api_key_registrations"] = dict(sorted(regs.items(), key=lambda kv: max(kv[1] or [0]))[-5_000:])
@@ -1296,7 +1303,6 @@ class AppStore:
 
     def tip_html(self, name: str) -> str:
         profile = self.resolve_username(name)
-        amt = ""
         uri = payment_uri(
             profile["address"],
             label="Tip " + (profile.get("display_name") or profile["username"]),
@@ -1629,6 +1635,496 @@ class AppStore:
         data["refunds"][record["refund_id"]]["status"] = "ready_for_wallet_signing"
         self.save(data)
         return data["refunds"][record["refund_id"]]
+
+    # ----- developer rewards / withdrawals / payment links -----
+    def create_developer_reward(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create a developer-funded reward plan for games and apps.
+
+        This is intentionally app-layer state. It records the reward, queues a
+        signed webhook event, and returns an unsigned payout plan for the
+        developer/operator wallet to review and sign.
+        """
+        developer_id = str(payload.get("developer_id") or payload.get("app_id") or "default")[:80]
+        player_id = str(payload.get("player_id") or payload.get("user_id") or "")[:120]
+        reward_payload = dict(payload)
+        reward_payload.setdefault("reason", payload.get("event") or payload.get("reason") or "developer reward")
+        reward = self.create_reward(reward_payload)
+        data = self.load()
+        reward["developer_id"] = developer_id
+        reward["player_id"] = player_id
+        reward["event"] = str(payload.get("event") or payload.get("reason") or "")[:160]
+        reward["metadata"] = payload.get("metadata", {})
+        data["rewards"][reward["reward_id"]] = reward
+        app = data.setdefault("developer_apps", {}).setdefault(
+            developer_id, {"developer_id": developer_id, "created_at": now()}
+        )
+        app["updated_at"] = now()
+        app["reward_count"] = int(app.get("reward_count", 0) or 0) + 1
+        app["reward_total_sats"] = int(app.get("reward_total_sats", 0) or 0) + int(reward["amount_sats"])
+        data["webhook_events"].append(
+            {
+                "event_id": clean_id("evt"),
+                "event": "reward.created",
+                "merchant_id": developer_id,
+                "payload": {
+                    "reward_id": reward["reward_id"],
+                    "developer_id": developer_id,
+                    "player_id": player_id,
+                    "address": reward["address"],
+                    "amount_sats": reward["amount_sats"],
+                    "reason": reward["reason"],
+                    "status": reward["status"],
+                },
+                "created_at": now(),
+                "delivered": False,
+            }
+        )
+        data["webhook_events"] = data["webhook_events"][-500:]
+        self.save(data)
+        return reward | {"developer_id": developer_id, "player_id": player_id}
+
+    def create_developer_withdrawal(self, payload: dict[str, Any]) -> dict[str, Any]:
+        developer_id = str(payload.get("developer_id") or payload.get("app_id") or "default")[:80]
+        withdrawal_id = str(payload.get("withdrawal_id") or clean_id("wd"))
+        address = normalize_address(
+            payload.get("address") or payload.get("to_address") or payload.get("player_address")
+        )
+        amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "withdrawal amount")
+        if amount_sats <= 0:
+            raise AppError("withdrawal amount must be greater than zero")
+        fee_sats = parse_amount_sats(payload.get("fee_sats", payload.get("fee", 0)), "withdrawal fee")
+        record = {
+            "withdrawal_id": withdrawal_id,
+            "developer_id": developer_id,
+            "player_id": str(payload.get("player_id") or payload.get("user_id") or "")[:120],
+            "address": address,
+            "amount_sats": amount_sats,
+            "amount": sats_to_amount(amount_sats),
+            "fee_sats": fee_sats,
+            "fee": sats_to_amount(fee_sats),
+            "status": str(payload.get("status") or "ready_for_wallet_signing"),
+            "reason": str(payload.get("reason") or "developer withdrawal")[:250],
+            "created_at": now(),
+            "payout_txid": str(payload.get("payout_txid") or ""),
+            "metadata": payload.get("metadata", {}),
+        }
+        if not record["payout_txid"]:
+            record["payout_plan"] = self.plan_payout(
+                "developer_withdrawal",
+                [{"address": address, "amount_sats": amount_sats}],
+                memo=record["reason"],
+            )
+        data = self.load()
+        data["withdrawals"][withdrawal_id] = record
+        data["webhook_events"].append(
+            {
+                "event_id": clean_id("evt"),
+                "event": "withdrawal.created",
+                "merchant_id": developer_id,
+                "payload": {
+                    "withdrawal_id": withdrawal_id,
+                    "developer_id": developer_id,
+                    "address": address,
+                    "amount_sats": amount_sats,
+                    "status": record["status"],
+                },
+                "created_at": now(),
+                "delivered": False,
+            }
+        )
+        data["webhook_events"] = data["webhook_events"][-500:]
+        self.save(data)
+        return record
+
+    def create_payment_link(self, chain: Any, payload: dict[str, Any]) -> dict[str, Any]:
+        developer_id = str(
+            payload.get("developer_id") or payload.get("merchant_id") or payload.get("app_id") or "default"
+        )[:80]
+        invoice_payload = dict(payload)
+        invoice_payload["merchant_id"] = developer_id
+        invoice = self.create_invoice(chain, invoice_payload)
+        link_id = str(payload.get("link_id") or invoice["invoice_id"])
+        record = {
+            "link_id": link_id,
+            "developer_id": developer_id,
+            "invoice_id": invoice["invoice_id"],
+            "title": str(payload.get("title") or payload.get("label") or "NetCoin payment")[:120],
+            "checkout_path": f"/pay/{quote(invoice['invoice_id'])}",
+            "checkout_url": f"/pay/{quote(invoice['invoice_id'])}",
+            "payment_uri": invoice["payment_uri"],
+            "amount_sats": invoice["amount_sats"],
+            "amount": invoice["amount"],
+            "recipient_address": invoice["recipient_address"],
+            "status": invoice["status"],
+            "created_at": invoice["created_at"],
+        }
+        data = self.load()
+        data["payment_links"][link_id] = record
+        self.save(data)
+        return record | {"invoice": invoice}
+
+    def developer_dashboard(self, chain: Any, developer_id: str | None = None) -> dict[str, Any]:
+        data = self.load()
+        dev = developer_id or ""
+
+        def belongs(item: dict[str, Any]) -> bool:
+            return not dev or item.get("developer_id") == dev or item.get("merchant_id") == dev
+
+        rewards = [r for r in data.get("rewards", {}).values() if belongs(r)]
+        withdrawals = [w for w in data.get("withdrawals", {}).values() if belongs(w)]
+        links = [p for p in data.get("payment_links", {}).values() if belongs(p)]
+        webhooks = [h for h in data.get("webhooks", {}).values() if not dev or h.get("merchant_id") == dev]
+        events = [e for e in data.get("webhook_events", []) if not dev or e.get("merchant_id") == dev]
+        invoices = [
+            inv
+            for inv in self.list_invoices(chain, limit=200, merchant_id=dev or None)["invoices"]
+            if not dev or inv.get("merchant_id") == dev
+        ]
+        reward_total = sum(int(r.get("amount_sats", 0) or 0) for r in rewards)
+        withdrawal_total = sum(int(w.get("amount_sats", 0) or 0) for w in withdrawals)
+        return {
+            "developer_id": dev or "all",
+            "schema": "netcoin-developer-dashboard-v1",
+            "counts": {
+                "rewards": len(rewards),
+                "withdrawals": len(withdrawals),
+                "payment_links": len(links),
+                "invoices": len(invoices),
+                "webhooks": len(webhooks),
+                "webhook_events": len(events),
+                "webhook_dead_letters": sum(1 for e in events if e.get("dead_letter")),
+            },
+            "totals": {
+                "reward_sats": reward_total,
+                "reward": sats_to_amount(reward_total),
+                "withdrawal_sats": withdrawal_total,
+                "withdrawal": sats_to_amount(withdrawal_total),
+            },
+            "recent_rewards": sorted(rewards, key=lambda r: int(r.get("created_at", 0) or 0), reverse=True)[:20],
+            "recent_withdrawals": sorted(withdrawals, key=lambda r: int(r.get("created_at", 0) or 0), reverse=True)[
+                :20
+            ],
+            "payment_links": sorted(links, key=lambda r: int(r.get("created_at", 0) or 0), reverse=True)[:20],
+            "webhooks": webhooks,
+            "recent_webhook_events": events[-20:],
+            "api_usage": self.api_usage_report(),
+            "notes": [
+                "All amounts are exact integer netoshis internally.",
+                "Rewards and withdrawals produce unsigned payout plans for manual wallet signing.",
+                "Use idempotency_key on reward and withdrawal writes to prevent double payment on retries.",
+            ],
+        }
+
+    def developer_sdk_packages(self) -> dict[str, Any]:
+        endpoints = {
+            "reward": "POST /api/developer/rewards",
+            "batch_rewards": "POST /api/developer/rewards/batch",
+            "withdrawal": "POST /api/developer/withdrawals",
+            "payment_link": "POST /api/developer/payment-links",
+            "watch_address": "POST /api/developer/watch-addresses",
+            "deposits": "GET /api/developer/deposits",
+            "unsigned_tx": "POST /api/developer/transactions/build",
+            "simulate_rewards": "POST /api/developer/simulate/rewards",
+        }
+        return {
+            "schema": "netcoin-developer-sdk-packages-v1",
+            "packages": [
+                {
+                    "language": "typescript",
+                    "package": "@netcoin/developer",
+                    "status": "reference-snippet",
+                    "install": "npm install @netcoin/developer",
+                    "snippet": (
+                        "await netcoin.rewards.send({ developer_id, player_id, address, "
+                        "amount_sats, idempotency_key });"
+                    ),
+                },
+                {
+                    "language": "python",
+                    "package": "netcoin-developer",
+                    "status": "reference-snippet",
+                    "install": "pip install netcoin-developer",
+                    "snippet": (
+                        "client.rewards.send(developer_id=developer_id, player_id=player_id, "
+                        "address=address, amount_sats=amount_sats, idempotency_key=key)"
+                    ),
+                },
+                {
+                    "language": "unity-csharp",
+                    "package": "NetCoin.Developer",
+                    "status": "reference-snippet",
+                    "install": "Import the NetCoin.Developer Unity package",
+                    "snippet": "await client.Rewards.SendAsync(developerId, playerId, address, amountNetoshis);",
+                },
+            ],
+            "endpoints": endpoints,
+            "amount_unit": "netoshis",
+            "non_custodial_rule": "SDKs never ask for player private keys; they send rewards to player addresses.",
+        }
+
+    def webhook_verifier_packages(self) -> dict[str, Any]:
+        js = """function verifyNetcoinWebhook(rawBody, header, secret) {
+  const crypto = require("crypto");
+  const expected = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(header), Buffer.from(expected));
+}"""
+        py = """import hmac, hashlib
+
+def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
+    expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(header, expected)
+"""
+        return {
+            "schema": "netcoin-webhook-verifier-packages-v1",
+            "header": "X-Netcoin-Signature",
+            "algorithm": "HMAC-SHA256 over the raw JSON request body",
+            "packages": [
+                {"language": "typescript", "package": "@netcoin/webhook-verifier", "snippet": js},
+                {"language": "python", "package": "netcoin-webhooks", "snippet": py},
+            ],
+        }
+
+    def register_watch_address(self, payload: dict[str, Any]) -> dict[str, Any]:
+        developer_id = str(payload.get("developer_id") or payload.get("app_id") or "default")[:80]
+        address = normalize_address(payload.get("address"))
+        watch_id = str(payload.get("watch_id") or clean_id("watch"))
+        record = {
+            "watch_id": watch_id,
+            "developer_id": developer_id,
+            "address": address,
+            "label": str(payload.get("label") or "")[:120],
+            "confirmations_required": max(0, int(payload.get("confirmations_required", 1) or 1)),
+            "active": bool(payload.get("active", True)),
+            "created_at": now(),
+            "last_seen_height": int(payload.get("last_seen_height", 0) or 0),
+        }
+        data = self.load()
+        data.setdefault("watched_addresses", {})[watch_id] = record
+        self.save(data)
+        return record
+
+    def developer_deposits(self, chain: Any, developer_id: str | None = None) -> dict[str, Any]:
+        data = self.load()
+        watches = [
+            w
+            for w in data.get("watched_addresses", {}).values()
+            if w.get("active", True) and (not developer_id or w.get("developer_id") == developer_id)
+        ]
+        deposits: list[dict[str, Any]] = []
+        for watch in watches:
+            required = int(watch.get("confirmations_required", 1) or 1)
+            for receipt in self.scan_address_payments(chain, watch["address"]):
+                amount_sats = int(receipt.outputs_to_address_sats.get(watch["address"], 0) or 0)
+                if amount_sats <= 0:
+                    continue
+                row = receipt.to_dict() | {
+                    "watch_id": watch["watch_id"],
+                    "developer_id": watch["developer_id"],
+                    "address": watch["address"],
+                    "label": watch.get("label", ""),
+                    "amount_sats": amount_sats,
+                    "amount": sats_to_amount(amount_sats),
+                    "required_confirmations": required,
+                    "ready": receipt.confirmations >= required,
+                }
+                deposits.append(row)
+        deposits.sort(key=lambda item: (int(item.get("timestamp", 0) or 0), str(item.get("txid", ""))), reverse=True)
+        return {"deposits": deposits[:200], "count": len(deposits), "watched_addresses": watches}
+
+    def build_unsigned_transaction(self, chain: Any, payload: dict[str, Any]) -> dict[str, Any]:
+        from_address = normalize_address(payload.get("from_address") or payload.get("address"))
+        outputs = payload.get("outputs") or []
+        if not outputs and payload.get("to_address"):
+            outputs = [{"address": payload.get("to_address"), "amount": payload.get("amount", 0)}]
+        if not isinstance(outputs, list) or not outputs:
+            raise AppError("outputs are required")
+        tx_outputs: list[TxOutput] = []
+        output_total = 0
+        for item in outputs:
+            address = normalize_address(item.get("address"))
+            amount_sats = parse_amount_sats(item.get("amount_sats", item.get("amount", 0)), "output amount")
+            if amount_sats <= 0:
+                raise AppError("output amount must be greater than zero")
+            output_total += amount_sats
+            tx_outputs.append(TxOutput(amount_sats, address=address))
+        fee_sats = parse_amount_sats(payload.get("fee_sats", payload.get("fee", 0)), "fee")
+        if fee_sats <= 0:
+            fee_sats = max(1000, int(chain.estimate_smart_fee(1).get("fee_rate_per_kvb", 1000) or 1000))
+        needed = output_total + fee_sats
+        selected = []
+        selected_total = 0
+        for utxo in chain.utxos_for_address(from_address):
+            selected.append(utxo)
+            selected_total += int(utxo.output.amount)
+            if selected_total >= needed:
+                break
+        if selected_total < needed:
+            raise AppError("insufficient spendable balance for unsigned transaction draft")
+        change_sats = selected_total - needed
+        if change_sats:
+            tx_outputs.append(TxOutput(change_sats, address=from_address))
+        tx = Transaction(
+            inputs=[TxInput(txid=utxo.txid, vout=utxo.vout) for utxo in selected],
+            outputs=tx_outputs,
+            locktime=int(payload.get("locktime", 0) or 0),
+        )
+        return {
+            "schema": "netcoin-unsigned-transaction-draft-v1",
+            "unsigned": True,
+            "from_address": from_address,
+            "transaction": tx.to_dict(include_scripts=False),
+            "vsize": transaction_vsize(tx),
+            "selected_utxos": [utxo.to_dict() for utxo in selected],
+            "input_total_sats": selected_total,
+            "output_total_sats": output_total,
+            "fee_sats": fee_sats,
+            "change_sats": change_sats,
+            "input_total": sats_to_amount(selected_total),
+            "output_total": sats_to_amount(output_total),
+            "fee": sats_to_amount(fee_sats),
+            "change": sats_to_amount(change_sats),
+            "next_step": "sign this draft locally with the wallet that controls from_address, then broadcast /tx",
+        }
+
+    def create_batch_rewards(self, payload: dict[str, Any]) -> dict[str, Any]:
+        developer_id = str(payload.get("developer_id") or payload.get("app_id") or "default")[:80]
+        rewards = payload.get("rewards") or payload.get("recipients") or []
+        if isinstance(rewards, dict):
+            rewards = [rewards]
+        if not isinstance(rewards, list) or not rewards:
+            raise AppError("rewards list is required")
+        batch_id = str(payload.get("batch_id") or clean_id("batch"))
+        reason = str(payload.get("reason") or "batch developer reward")[:250]
+        rows = []
+        outputs = []
+        total_sats = 0
+        for idx, item in enumerate(rewards):
+            address = normalize_address(item.get("address"))
+            amount_sats = parse_amount_sats(
+                item.get("amount_sats", item.get("amount", payload.get("amount", 0))), "reward amount"
+            )
+            if amount_sats <= 0:
+                raise AppError("reward amount must be greater than zero")
+            reward_id = str(item.get("reward_id") or f"{batch_id}_{idx}")
+            row = {
+                "reward_id": reward_id,
+                "batch_id": batch_id,
+                "developer_id": developer_id,
+                "player_id": str(item.get("player_id") or item.get("user_id") or "")[:120],
+                "address": address,
+                "amount_sats": amount_sats,
+                "amount": sats_to_amount(amount_sats),
+                "reason": str(item.get("reason") or reason)[:250],
+                "status": "ready_for_wallet_signing",
+                "created_at": now(),
+            }
+            rows.append(row)
+            outputs.append({"address": address, "amount_sats": amount_sats})
+            total_sats += amount_sats
+        plan = self.plan_payout("batch_reward", outputs, memo=reason)
+        data = self.load()
+        batch = {
+            "batch_id": batch_id,
+            "developer_id": developer_id,
+            "reward_count": len(rows),
+            "total_sats": total_sats,
+            "total": sats_to_amount(total_sats),
+            "reason": reason,
+            "status": "ready_for_wallet_signing",
+            "payout_plan": plan,
+            "created_at": now(),
+        }
+        for row in rows:
+            row["payout_plan"] = plan
+            data["rewards"][row["reward_id"]] = row
+            data["leaderboard_events"].append(
+                {
+                    "type": "developer_batch_reward",
+                    "address": row["address"],
+                    "amount_sats": row["amount_sats"],
+                    "t": now(),
+                }
+            )
+        data.setdefault("developer_batches", {})[batch_id] = batch
+        data["webhook_events"].append(
+            {
+                "event_id": clean_id("evt"),
+                "event": "reward.batch_created",
+                "merchant_id": developer_id,
+                "payload": {"batch_id": batch_id, "reward_count": len(rows), "total_sats": total_sats},
+                "created_at": now(),
+                "delivered": False,
+            }
+        )
+        data["webhook_events"] = data["webhook_events"][-500:]
+        self.save(data)
+        return batch | {"rewards": rows}
+
+    def simulate_rewards(self, payload: dict[str, Any]) -> dict[str, Any]:
+        developer_id = str(payload.get("developer_id") or payload.get("app_id") or "default")[:80]
+        rewards = payload.get("rewards") or payload.get("recipients") or []
+        count = int(payload.get("count", 0) or 0)
+        if isinstance(rewards, list) and rewards:
+            amounts = [
+                parse_amount_sats(
+                    item.get("amount_sats", item.get("amount", payload.get("amount", 0))), "reward amount"
+                )
+                for item in rewards
+            ]
+        else:
+            count = max(1, count)
+            amounts = [parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "reward amount")] * count
+        total_sats = sum(amounts)
+        reward_count = len(amounts)
+        withdrawal_threshold_sats = parse_amount_sats(
+            payload.get("withdrawal_threshold_sats", payload.get("withdrawal_threshold", "0.001")),
+            "withdrawal threshold",
+        )
+        tiny = [amount for amount in amounts if amount < 100]
+        estimated_single_payout_fee_sats = 1000
+        estimated_batch_fee_sats = 1000 + reward_count * 60
+        recommendation = "batch payouts and hold tiny rewards off-chain until the withdrawal threshold"
+        if not tiny and total_sats >= withdrawal_threshold_sats:
+            recommendation = "batch payout is reasonable for this reward set"
+        simulation = {
+            "simulation_id": clean_id("sim"),
+            "developer_id": developer_id,
+            "reward_count": reward_count,
+            "total_sats": total_sats,
+            "total": sats_to_amount(total_sats),
+            "min_reward_sats": min(amounts) if amounts else 0,
+            "max_reward_sats": max(amounts) if amounts else 0,
+            "withdrawal_threshold_sats": withdrawal_threshold_sats,
+            "withdrawal_threshold": sats_to_amount(withdrawal_threshold_sats),
+            "tiny_reward_count": len(tiny),
+            "estimated_single_payout_fee_sats": estimated_single_payout_fee_sats,
+            "estimated_batch_fee_sats": estimated_batch_fee_sats,
+            "dust_risk": bool(tiny),
+            "recommendation": recommendation,
+            "created_at": now(),
+        }
+        data = self.load()
+        data.setdefault("developer_simulations", {})[simulation["simulation_id"]] = simulation
+        self.save(data)
+        return simulation
+
+    def developer_console(self, chain: Any, developer_id: str | None = None) -> dict[str, Any]:
+        return {
+            "schema": "netcoin-developer-console-v1",
+            "dashboard": self.developer_dashboard(chain, developer_id),
+            "sdk": self.developer_sdk_packages(),
+            "webhook_verifiers": self.webhook_verifier_packages(),
+            "deposits": self.developer_deposits(chain, developer_id),
+            "quick_actions": [
+                "create_api_key",
+                "send_reward",
+                "create_batch_rewards",
+                "watch_address",
+                "build_unsigned_transaction",
+                "simulate_rewards",
+                "register_webhook",
+            ],
+        }
 
     # ----- community -----
     def airdrop(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -2209,10 +2705,12 @@ class AppStore:
                     post["status"] = "visible"
                 changed = True
         for report in data.get("community_reports", []):
-            if report.get("post_id") == target or report.get("report_id") == target:
-                if action in {"reviewed", "close_report"}:
-                    report["status"] = "closed"
-                    changed = True
+            if (report.get("post_id") == target or report.get("report_id") == target) and action in {
+                "reviewed",
+                "close_report",
+            }:
+                report["status"] = "closed"
+                changed = True
         if not changed:
             raise AppError("moderation target not found")
         rec = {
@@ -2348,7 +2846,7 @@ class AppStore:
             if month:
                 import datetime as _dt
 
-                m = _dt.datetime.utcfromtimestamp(ts).strftime("%Y-%m") if ts else ""
+                m = _dt.datetime.fromtimestamp(ts, tz=_dt.UTC).strftime("%Y-%m") if ts else ""
                 if m != month:
                     continue
             amount = receipt.outputs_to_address_sats.get(address, 0)
@@ -3498,7 +3996,7 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def validate_address_payload(address: str) -> dict[str, Any]:
+def validate_address_payload(address: str) -> dict[str, Any]:  # noqa: RET503
     valid = validate_address(address)
     details: dict[str, Any] | None = None
     error = None
@@ -3607,9 +4105,9 @@ def route_app_get(
     # /receipt/<txid> remains the public receipt page.
     if not is_api_route and path.startswith("/pay/"):
         return 200, store.checkout_html(chain, path.split("/", 2)[2]), "text/html; charset=utf-8"
-    if not is_api_route and (path.startswith("/tip/") or path.startswith("/donate/")):
+    if not is_api_route and path.startswith(("/tip/", "/donate/")):
         return 200, store.tip_html(path.split("/", 2)[2]), "text/html; charset=utf-8"
-    if not is_api_route and (path.startswith("/u/") or path.startswith("/profile/")):
+    if not is_api_route and path.startswith(("/u/", "/profile/")):
         return 200, store.profile_html(path.split("/", 2)[2]), "text/html; charset=utf-8"
     if path.startswith("/receipt/") and path.endswith(".pdf"):
         txid = path.split("/", 2)[2][:-4]
@@ -3635,7 +4133,7 @@ def route_app_get(
             store.list_invoices(chain, int(q("limit", "50") or 50), merchant_id=q("merchant_id") or None),
             "application/json",
         )
-    if path.startswith("/payments/") or path.startswith("/invoices/"):
+    if path.startswith(("/payments/", "/invoices/")):
         invoice_id = path.split("/", 2)[2]
         return 200, store.invoice_status(chain, invoice_id), "application/json"
     if path.startswith("/payment/invoices/") and path.endswith("/status"):
@@ -3644,14 +4142,14 @@ def route_app_get(
     if path.startswith("/checkout/"):
         invoice_id = path.split("/", 2)[2]
         return 200, {"checkout": store.invoice_status(chain, invoice_id)}, "application/json"
-    if path.startswith("/receipt/") or path.startswith("/receipts/"):
+    if path.startswith(("/receipt/", "/receipts/")):
         txid = path.split("/", 2)[2]
         return 200, store.receipt(chain, txid), "application/json"
     if path == "/usernames":
         return 200, {"usernames": list(store.load()["usernames"].values())}, "application/json"
     if path.startswith("/usernames/"):
         return 200, store.resolve_username(path.split("/", 2)[2]), "application/json"
-    if path.startswith("/profiles/") or path.startswith("/u/"):
+    if path.startswith(("/profiles/", "/u/")):
         name = path.split("/", 2)[2]
         return 200, store.resolve_username(name), "application/json"
     if path == "/labels":
@@ -3674,6 +4172,61 @@ def route_app_get(
         return 200, {"api_keys": keys}, "application/json"
     if path == "/merchant/api-usage":
         return 200, store.api_usage_report(), "application/json"
+    if path == "/developer/dashboard":
+        return 200, store.developer_dashboard(chain, q("developer_id") or q("app_id") or None), "application/json"
+    if path == "/developer/console":
+        return 200, store.developer_console(chain, q("developer_id") or q("app_id") or None), "application/json"
+    if path == "/developer/sdk":
+        return 200, store.developer_sdk_packages(), "application/json"
+    if path == "/developer/webhook-verifiers":
+        return 200, store.webhook_verifier_packages(), "application/json"
+    if path == "/developer/rewards":
+        rewards = list(store.load().get("rewards", {}).values())
+        developer_id = q("developer_id") or q("app_id")
+        if developer_id:
+            rewards = [item for item in rewards if item.get("developer_id") == developer_id]
+        return 200, {"rewards": rewards, "count": len(rewards)}, "application/json"
+    if path == "/developer/rewards/batch":
+        batches = list(store.load().get("developer_batches", {}).values())
+        developer_id = q("developer_id") or q("app_id")
+        if developer_id:
+            batches = [item for item in batches if item.get("developer_id") == developer_id]
+        return 200, {"batches": batches, "count": len(batches)}, "application/json"
+    if path == "/developer/withdrawals":
+        withdrawals = list(store.load().get("withdrawals", {}).values())
+        developer_id = q("developer_id") or q("app_id")
+        if developer_id:
+            withdrawals = [item for item in withdrawals if item.get("developer_id") == developer_id]
+        return 200, {"withdrawals": withdrawals, "count": len(withdrawals)}, "application/json"
+    if path == "/developer/payment-links":
+        links = list(store.load().get("payment_links", {}).values())
+        developer_id = q("developer_id") or q("app_id")
+        if developer_id:
+            links = [item for item in links if item.get("developer_id") == developer_id]
+        return 200, {"payment_links": links, "count": len(links)}, "application/json"
+    if path == "/developer/webhooks":
+        data = store.load()
+        developer_id = q("developer_id") or q("app_id")
+        webhooks = list(data.get("webhooks", {}).values())
+        events = data.get("webhook_events", [])[-100:]
+        if developer_id:
+            webhooks = [item for item in webhooks if item.get("merchant_id") == developer_id]
+            events = [item for item in events if item.get("merchant_id") == developer_id]
+        return 200, {"webhooks": webhooks, "events": events}, "application/json"
+    if path == "/developer/watch-addresses":
+        watches = list(store.load().get("watched_addresses", {}).values())
+        developer_id = q("developer_id") or q("app_id")
+        if developer_id:
+            watches = [item for item in watches if item.get("developer_id") == developer_id]
+        return 200, {"watched_addresses": watches, "count": len(watches)}, "application/json"
+    if path == "/developer/deposits":
+        return 200, store.developer_deposits(chain, q("developer_id") or q("app_id") or None), "application/json"
+    if path == "/developer/simulations":
+        simulations = list(store.load().get("developer_simulations", {}).values())
+        developer_id = q("developer_id") or q("app_id")
+        if developer_id:
+            simulations = [item for item in simulations if item.get("developer_id") == developer_id]
+        return 200, {"simulations": simulations, "count": len(simulations)}, "application/json"
     if path == "/community/gifts":
         return 200, {"gifts": list(store.load()["gifts"].values())}, "application/json"
     if path == "/community/airdrops":
@@ -3741,7 +4294,7 @@ def route_app_get(
 
     if path == "/operator/diagnostics/bundle":
         from ..health_center import build_health_center
-        from ..live_product import operator_live_controls, digest_payload
+        from ..live_product import digest_payload, operator_live_controls
 
         payload = {
             "health": build_health_center(
@@ -3781,7 +4334,7 @@ def route_app_get(
 
         return 200, architecture_summary(Path(__file__).resolve().parents[2]), "application/json"
     if path == "/migration-status":
-        from ..migration_status import migration_status, parity_vectors, final_version_readiness, parity_bridge_status
+        from ..migration_status import final_version_readiness, migration_status, parity_bridge_status, parity_vectors
 
         root = Path(__file__).resolve().parents[2]
         return (
@@ -4035,6 +4588,34 @@ def _route_app_post_uncached(
 
     if path in ("/payments", "/invoices", "/payment/invoices/create"):
         return 200, store.create_invoice(chain, body)
+    if path == "/developer/payment-links":
+        return 200, store.create_payment_link(chain, body)
+    if path == "/developer/rewards":
+        return 200, store.create_developer_reward(body)
+    if path == "/developer/rewards/batch":
+        return 200, store.create_batch_rewards(body)
+    if path == "/developer/withdrawals":
+        return 200, store.create_developer_withdrawal(body)
+    if path == "/developer/watch-addresses":
+        return 200, store.register_watch_address(body)
+    if path == "/developer/transactions/build":
+        return 200, store.build_unsigned_transaction(chain, body)
+    if path == "/developer/simulate/rewards":
+        return 200, store.simulate_rewards(body)
+    if path == "/developer/webhooks":
+        developer_id = str(body.get("developer_id") or body.get("app_id") or body.get("merchant_id") or "default")[:80]
+        payload = dict(body)
+        payload["merchant_id"] = developer_id
+        store.maybe_require_api_key(payload, developer_id, "merchant:write")
+        return 200, store.register_webhook(payload)
+    if path == "/developer/webhook-events":
+        payload = dict(body)
+        payload["merchant_id"] = str(
+            body.get("developer_id") or body.get("app_id") or body.get("merchant_id") or "default"
+        )[:80]
+        return 200, store.queue_webhook_event(payload)
+    if path == "/developer/webhook-events/deliver":
+        return 200, store.deliver_webhook_events(body)
     if path == "/usernames" or path == "/profiles":
         return 200, store.upsert_username(body)
     if path == "/merchant/api-keys":
@@ -4234,5 +4815,5 @@ def route_app_post(
         store.idempotency_store(action, body, status, payload)
         store.record_api_usage(body, action, status)
         if action.startswith(("/markets", "/merchant", "/admin", "/custody", "/treasury")):
-            store.append_immutable_audit(action, {"status": status, "keys": sorted(str(k) for k in body.keys())})
+            store.append_immutable_audit(action, {"status": status, "keys": sorted(str(k) for k in body)})
     return status, payload

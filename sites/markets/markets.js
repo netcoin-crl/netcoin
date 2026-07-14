@@ -61,6 +61,24 @@
     return market;
   }
 
+  function netcoinMarketFromPolymarket(m) {
+    const labels = (m.outcomes || []).map((o) => String(o.label || "").trim()).filter(Boolean);
+    const outcomes = labels.length >= 2 ? labels : ["YES", "NO"];
+    return {
+      question: String(m.question || m.slug || "Imported market idea").slice(0, 240),
+      outcomes,
+      oracle: "manual",
+      category: String(m.category || "Imported").slice(0, 80),
+      tags: ["polymarket-discovery", "imported"],
+      rules: `Imported as a separate NetCoin play-money market idea. Original public source: ${m.url || m.slug || "Polymarket"}`,
+      resolution_source: m.url || "Polymarket public market discovery",
+      legal_acknowledged: true,
+      sandbox_short_mode: true,
+      external_source: "polymarket_gamma",
+      external_id: m.external_id || m.condition_id || m.slug || "",
+    };
+  }
+
   function openCreateMarket() {
     const drawer = $("#operatorTools") || $("details.operator");
     if (drawer) drawer.open = true;
@@ -374,13 +392,41 @@
   async function submitEvidence() { const m = selectedMarket(); if (!m) throw new Error("Select a market first"); await post(`/markets/${encodeURIComponent(m.market_id)}/evidence`, { oracle_id: $("#oracleId").value || "manual", title: $("#evidenceTitle").value, evidence_url: $("#evidenceUrl").value, statement: $("#disputeComment").value, source_type: "operator_note", submitter: "labs-ui", sandbox_short_mode: true }); log("Submitted evidence"); await loadMarkets(); }
   async function submitDisputeComment() { const m = selectedMarket(); if (!m) throw new Error("Select a market first"); await post(`/markets/${encodeURIComponent(m.market_id)}/evidence-dispute`, { commenter: $("#oracleId").value || "operator", comment: $("#disputeComment").value, sandbox_short_mode: true }); log("Submitted dispute"); await loadMarkets(); }
   async function loadPolymarket() {
-    const box = $("#polymarketFeed"); box.textContent = "Loading read-only feed…";
+    const box = $("#polymarketFeed"); box.innerHTML = `<div class="poly-card"><h3>Loading market ideas…</h3><p class="muted">Fetching public discovery data.</p></div>`;
     try {
       const payload = await api("/markets/external/polymarket?limit=8&active=true");
       if (!payload.ok) throw new Error(payload.error || "feed unavailable");
-      box.textContent = (payload.markets || []).map((m) => `• ${m.question || m.slug} — ${(m.outcomes || []).map((o) => `${o.label} ${o.price || "-"}`).join(" / ")}`).join("\n") || "No public markets returned.";
+      const markets = payload.markets || [];
+      box.innerHTML = markets.length ? markets.map((m, i) => {
+        const outcomes = (m.outcomes || []).slice(0, 4).map((o) => `<span>${esc(o.label)}${o.price ? ` ${esc(o.price)}` : ""}</span>`).join("");
+        const meta = [m.category, m.volume ? `Vol ${m.volume}` : "", m.end_date ? `Ends ${esc(m.end_date).slice(0, 10)}` : ""].filter(Boolean).join(" · ");
+        return `<article class="poly-card">
+          <h3>${esc(m.question || m.slug || "Untitled market")}</h3>
+          <div class="poly-meta">${esc(meta || "Public market idea")}</div>
+          <div class="poly-outcomes">${outcomes || "<span>YES</span><span>NO</span>"}</div>
+          <button type="button" data-poly-import="${i}">Use as NetCoin market</button>
+        </article>`;
+      }).join("") : `<div class="poly-card"><h3>No public market ideas returned</h3><p class="muted">Try refreshing in a minute.</p></div>`;
+      box.querySelectorAll("[data-poly-import]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const market = markets[Number(button.getAttribute("data-poly-import"))];
+          if (!market) return;
+          button.disabled = true;
+          button.textContent = "Importing…";
+          try {
+            await createMarket(netcoinMarketFromPolymarket(market));
+            button.textContent = "Imported";
+          } catch (err) {
+            button.disabled = false;
+            button.textContent = "Use as NetCoin market";
+            alert(`Import failed: ${err.message}`);
+          }
+        });
+      });
       log("Loaded Polymarket feed", { count: (payload.markets || []).length });
-    } catch (err) { box.textContent = `Could not load Polymarket feed: ${err.message}`; }
+    } catch (err) {
+      box.innerHTML = `<div class="poly-card"><h3>Could not load ideas</h3><p class="muted">${esc(err.message)}</p></div>`;
+    }
   }
 
   function wire() {

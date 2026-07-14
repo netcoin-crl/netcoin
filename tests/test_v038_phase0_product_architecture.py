@@ -38,6 +38,12 @@ def test_shared_site_shell_uses_phase0_primary_nav_and_modes():
     assert "label: 'Wallet', detail: 'send and receive', group: 'Core', primary: true" in shell
     assert "label: 'Explorer', detail: 'verify activity', group: 'Core', primary: true" in shell
     assert "label: 'Markets', detail: 'trade test markets', group: 'Core', primary: true" in shell
+    assert "const navGroups = [" in shell
+    assert "title: 'Governance', detail: 'NIPs and treasury'" in shell
+    assert "label: 'Treasury', detail: 'grants and spending', group: 'Governance'" in shell
+    assert "title: 'Build', detail: 'docs and APIs'" in shell
+    assert "label: 'SDKs', detail: 'client libraries', group: 'Build'" in shell
+    assert "label: 'Download', detail: 'install files', group: 'Build'" in shell
     assert "<summary>More</summary>" in shell
     assert "const primary = links.filter((link) => link.primary);" in shell
     assert "label: 'Features'," not in shell
@@ -51,8 +57,8 @@ def test_homepage_is_wallet_first_and_grouped():
     assert "Search Explorer" in html
     assert "Browse Markets" in html
     assert "Network" in html
-    assert "Community" in html
-    assert "Developers" in html
+    assert "Governance" in html
+    assert "Build" in html
     assert "Every new NetCoin capability" in html
 
 

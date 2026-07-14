@@ -1,6 +1,7 @@
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
+from typing import ClassVar
 
 from netcoin.apps import AppStore
 from netcoin.feature_catalog import feature_catalog, top_impact_fixes
@@ -17,7 +18,7 @@ def test_feature_catalog_is_comprehensive_and_has_top_fixes():
         assert groups[required]
     fixes = top_impact_fixes()
     assert len(fixes) == 10
-    assert fixes[0]["area"] == "Community"
+    assert fixes[0]["area"] == "Protocol"
 
 
 def test_community_votes_comments_feed_and_moderation(tmp_path):
@@ -55,13 +56,13 @@ def test_leaderboards_return_readable_summary(tmp_path):
         amount = 10000
 
     class Tx:
-        outputs = [TxOut()]
+        outputs: ClassVar = [TxOut()]
 
     class Block:
-        transactions = [Tx()]
+        transactions: ClassVar = [Tx()]
 
     class Chain:
-        chain = [Block()]
+        chain: ClassVar = [Block()]
 
     result = store.leaderboards(Chain())
     assert result["summary"]["miner_count"] == 1

@@ -6,22 +6,22 @@
     user: {
       label: 'User',
       detail: 'Wallet, Explorer, Markets, Faucet.',
-      groups: ['Core', 'Network', 'Community', 'Developers']
+      groups: ['Core', 'Network', 'Governance', 'Build', 'More']
     },
     trader: {
       label: 'Trader',
       detail: 'Markets, portfolio, settlement.',
-      groups: ['Core', 'Community', 'Network', 'Developers']
+      groups: ['Core', 'More', 'Governance', 'Network', 'Build']
     },
     operator: {
       label: 'Operator',
       detail: 'Health, nodes, custody, releases.',
-      groups: ['Network', 'Developers', 'Core', 'Community']
+      groups: ['Network', 'Build', 'Core', 'Governance', 'More']
     },
     developer: {
       label: 'Developer',
       detail: 'Docs, API, design, downloads.',
-      groups: ['Developers', 'Network', 'Core', 'Community']
+      groups: ['Build', 'Network', 'Core', 'Governance', 'More']
     }
   };
 
@@ -31,8 +31,8 @@
     { href: 'https://markets.netcoin.online', host: 'markets.netcoin.online', label: 'Markets', detail: 'trade test markets', group: 'Core', primary: true },
 
     { href: 'https://netcoin.online', host: 'netcoin.online', label: 'Home', detail: 'testnet hub', group: 'Core' },
-    { href: 'https://pay.netcoin.online', host: 'pay.netcoin.online', label: 'Pay', detail: 'links and receipts', group: 'Core' },
-    { href: 'https://merchant.netcoin.online', host: 'merchant.netcoin.online', label: 'Merchant', detail: 'checkout', group: 'Core' },
+    { href: 'https://pay.netcoin.online', host: 'pay.netcoin.online', label: 'Pay', detail: 'payment links', group: 'More' },
+    { href: 'https://merchant.netcoin.online', host: 'merchant.netcoin.online', label: 'Merchant', detail: 'checkout tools', group: 'More' },
 
     { href: 'https://faucet.netcoin.online', host: 'faucet.netcoin.online', label: 'Faucet', detail: 'claim NET', group: 'Network' },
     { href: 'https://nodes.netcoin.online', host: 'nodes.netcoin.online', label: 'Nodes', detail: 'seeds and mining', group: 'Network' },
@@ -41,18 +41,26 @@
     { href: 'https://exchange.netcoin.online', host: 'exchange.netcoin.online', label: 'Exchange', detail: 'custody', group: 'Network' },
     { href: 'https://security.netcoin.online', host: 'security.netcoin.online', label: 'Security', detail: 'release safety', group: 'Network' },
 
-    { href: 'https://community.netcoin.online', host: 'community.netcoin.online', label: 'Community', detail: 'posts and bounties', group: 'Community' },
-    { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs', group: 'Community' },
-    { href: 'https://treasury.netcoin.online', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'grants', group: 'Community' },
-    { href: 'https://learn.netcoin.online', host: 'learn.netcoin.online', label: 'Learn', detail: 'guides', group: 'Community' },
+    { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and votes', group: 'Governance' },
+    { href: 'https://governance.netcoin.online#treasury', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'grants and spending', group: 'Governance' },
+    { href: 'https://community.netcoin.online', host: 'community.netcoin.online', label: 'Community', detail: 'posts and bounties', group: 'More' },
+    { href: 'https://learn.netcoin.online', host: 'learn.netcoin.online', label: 'Learn', detail: 'guides', group: 'More' },
 
-    { href: 'https://docs.netcoin.online', host: 'docs.netcoin.online', label: 'Docs', detail: 'reference', group: 'Developers' },
-    { href: 'https://api.netcoin.online', host: 'api.netcoin.online', label: 'API', detail: 'OpenAPI', group: 'Developers' },
-    { href: 'https://developers.netcoin.online', host: 'developers.netcoin.online', label: 'SDKs', detail: 'SDKs', group: 'Developers' },
-    { href: 'https://architecture.netcoin.online', host: 'architecture.netcoin.online', label: 'System Design', detail: 'architecture', group: 'Developers' },
-    { href: 'https://features.netcoin.online', host: 'features.netcoin.online', label: 'Capabilities', detail: 'feature status', group: 'Developers' },
-    { href: 'https://learn.netcoin.online#download', host: 'download.netcoin.online', label: 'Download', detail: 'install', group: 'Developers' },
-    { href: 'https://download.netcoin.online/verify.html', host: 'download.netcoin.online', label: 'Verify Release', detail: 'verify files', group: 'Developers' }
+    { href: 'https://docs.netcoin.online', host: 'docs.netcoin.online', label: 'Docs', detail: 'reference', group: 'Build' },
+    { href: 'https://api.netcoin.online', host: 'api.netcoin.online', label: 'API', detail: 'OpenAPI', group: 'Build' },
+    { href: 'https://developers.netcoin.online', host: 'developers.netcoin.online', label: 'SDKs', detail: 'client libraries', group: 'Build' },
+    { href: 'https://architecture.netcoin.online', host: 'architecture.netcoin.online', label: 'System Design', detail: 'architecture', group: 'Build' },
+    { href: 'https://features.netcoin.online', host: 'features.netcoin.online', label: 'Capabilities', detail: 'feature status', group: 'Build' },
+    { href: 'https://download.netcoin.online', host: 'download.netcoin.online', label: 'Download', detail: 'install files', group: 'Build' },
+    { href: 'https://download.netcoin.online/verify.html', host: 'download.netcoin.online', label: 'Verify Release', detail: 'release checks', group: 'Build' }
+  ];
+
+  const navGroups = [
+    { title: 'Core', detail: 'daily tools' },
+    { title: 'Network', detail: 'nodes and health' },
+    { title: 'Governance', detail: 'NIPs and treasury' },
+    { title: 'Build', detail: 'docs and APIs' },
+    { title: 'More', detail: 'community and commerce' }
   ];
 
   const featureGroups = [
@@ -78,26 +86,35 @@
       ]
     },
     {
-      title: 'Community',
+      title: 'Governance',
       items: [
-        ['Community', 'https://community.netcoin.online'],
-        ['Ideas', 'https://community.netcoin.online#ideas'],
-        ['Bounties', 'https://community.netcoin.online#bounties'],
         ['Governance', 'https://governance.netcoin.online'],
-        ['Treasury', 'https://treasury.netcoin.online'],
-        ['Learn', 'https://learn.netcoin.online']
+        ['Treasury', 'https://governance.netcoin.online#treasury'],
+        ['NIPs', 'https://governance.netcoin.online'],
+        ['Roadmap', 'https://governance.netcoin.online#roadmap']
       ]
     },
     {
-      title: 'Developers',
+      title: 'Build',
       items: [
         ['Docs', 'https://docs.netcoin.online'],
         ['API', 'https://api.netcoin.online'],
         ['SDKs', 'https://developers.netcoin.online'],
         ['System Design', 'https://architecture.netcoin.online'],
         ['Capabilities', 'https://features.netcoin.online'],
-        ['Download', 'https://learn.netcoin.online#download'],
+        ['Download', 'https://download.netcoin.online'],
         ['Verify Release', 'https://download.netcoin.online/verify.html']
+      ]
+    },
+    {
+      title: 'More',
+      items: [
+        ['Community', 'https://community.netcoin.online'],
+        ['Ideas', 'https://community.netcoin.online#ideas'],
+        ['Bounties', 'https://community.netcoin.online#bounties'],
+        ['Learn', 'https://learn.netcoin.online'],
+        ['Pay', 'https://pay.netcoin.online'],
+        ['Merchant', 'https://merchant.netcoin.online']
       ]
     }
   ];
@@ -148,10 +165,22 @@
   }
 
   function directoryHtml() {
-    return sortedLinks().map((link) => {
-      const active = isCurrent(link) ? ' class="active" aria-current="page"' : '';
-      return '<a href="' + link.href + '" data-group="' + link.group + '"' + active + '>' +
-        '<span>' + link.label + '</span><small>' + link.detail + '</small></a>';
+    const byGroup = sortedLinks().reduce((acc, link) => {
+      if (!acc[link.group]) acc[link.group] = [];
+      acc[link.group].push(link);
+      return acc;
+    }, {});
+    return navGroups.map((group) => {
+      const groupLinks = byGroup[group.title] || [];
+      if (!groupLinks.length) return '';
+      const activeGroup = groupLinks.some(isCurrent) ? ' active' : '';
+      const items = groupLinks.map((link) => {
+        const active = isCurrent(link) ? ' class="active" aria-current="page"' : '';
+        return '<a href="' + link.href + '" data-group="' + link.group + '"' + active + '>' +
+          '<span>' + link.label + '</span><small>' + link.detail + '</small></a>';
+      }).join('');
+      return '<section class="site-more-group' + activeGroup + '" aria-label="' + group.title + '">' +
+        '<h3>' + group.title + '<small>' + group.detail + '</small></h3><div>' + items + '</div></section>';
     }).join('');
   }
 
@@ -237,7 +266,8 @@
       [/community|discuss|idea|bounty|roadmap/, 'https://community.netcoin.online'],
       [/operator|runbook|incident|health center|ops/, 'https://operator.netcoin.online'],
       [/node|seed|peer|mining|status|network/, 'https://nodes.netcoin.online'],
-      [/download|install|windows|mac|linux|learn|guide|how/, 'https://learn.netcoin.online#download'],
+      [/download|install|windows|mac|linux/, 'https://download.netcoin.online'],
+      [/learn|guide|how/, 'https://learn.netcoin.online'],
       [/api|developer|sdk|webhook|endpoint/, 'https://api.netcoin.online'],
       [/security|audit|checksum|release|verify|bug/, 'https://security.netcoin.online'],
       [/governance|proposal|treasury|vote|nip/, 'https://governance.netcoin.online'],
@@ -450,9 +480,9 @@
       '<div class="nc-upgrade-grid">'+card('Address, tx, block, mempool','Each page starts with a plain summary.')+card('Confirmation badges','Pending, confirmed, reorg-risk, orphaned, invalid.')+card('Fee bands','Mempool age and fee buckets guide wallet fees.')+card('CSV exports','Include schema, range, height, and source.')+'</div>'+localNoteHtml('explorer'));
   }
   function marketsPanel(){
-    return panel('Markets risk','Preview orderbook depth, trades, portfolio impact, cost, fee, max loss, and settlement before action.',
-      '<div class="nc-mode-switch" data-nc-market-mode><button class="active" type="button" data-mode="simple">Simple</button><button type="button" data-mode="advanced">Advanced</button></div>'+statusStrip([['Lifecycle','healthy'],['Risk preview','warning'],['Settlement','healthy']])+
-      '<div class="nc-form-grid"><label>Stake NET<input data-nc-market-stake inputmode="decimal" value="10"></label><label>Price %<input data-nc-market-price inputmode="decimal" value="62"></label><label>Fee %<input data-nc-market-fee inputmode="decimal" value="1"></label></div><div class="nc-upgrade-card" data-nc-market-preview></div>'+timeline([['Preview','Cost, fee, max loss, payout.'],['Submit','Confirm market state.'],['Portfolio','Split realized and unrealized PnL.'],['Settlement','Show evidence and dispute path.']])+localNoteHtml('markets'));
+    return panel('Markets','Browse play-money markets, open the order book, or import public ideas into NetCoin Labs.',
+      statusStrip([['Play-money','healthy'],['CLOB','healthy'],['Discovery','healthy']])+
+      '<div class="nc-upgrade-grid">'+card('Trade','Open market cards with buy buttons and order-book depth.')+card('Portfolio','Review positions, orders, and PnL without raw JSON.')+card('Discovery','Load public market ideas and import them as NetCoin demo markets.')+card('Settlement','Use evidence and reconciliation pages when markets close.')+'</div>'+localNoteHtml('markets'));
   }
   function faucetPanel(){
     return panel('Faucet clarity','Show challenge, claim, status, admin state, and recovery without extra copy.',

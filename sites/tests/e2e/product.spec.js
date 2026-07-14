@@ -3,13 +3,13 @@ import { test, expect } from '@playwright/test';
 const pages = [
   ['/sites/operator/index.html', /Operator/i, 'Live feature wiring'],
   ['/sites/exchange/index.html', /Exchange/i, 'Custody balances'],
-  ['/sites/explorer/address.html', /Address/i, 'CSV statement'],
+  ['/sites/explorer/address.html', /Address/i, 'CSV exports'],
   ['/sites/explorer/tx.html', /Transaction/i, 'txid'],
   ['/sites/explorer/block.html', /Block/i, 'height'],
   ['/sites/explorer/mempool.html', /Mempool/i, 'Pending transactions'],
   ['/sites/markets/trade.html', /Markets/i, 'Order ticket'],
   ['/sites/markets/portfolio.html', /Portfolio/i, 'Open orders'],
-  ['/sites/markets/disputes.html', /Dispute/i, 'Evidence'],
+  ['/sites/markets/disputes.html', /Dispute/i, 'Dispute + evidence panel'],
   ['/sites/markets/settlement.html', /Settlement/i, 'Settlement report'],
   ['/sites/community/index.html', /Community/i, 'Leaderboard'],
   ['/sites/features/index.html', /Feature/i, 'Live wiring'],
@@ -29,5 +29,5 @@ for (const [url, title, text] of pages) {
 test('wallet merges overview send receive activity contacts into one workspace', async ({ page }) => {
   await page.goto('/sites/wallet/index.html');
   await expect(page.locator('body')).toContainText('NetCoin Wallet');
-  await expect(page.locator('body')).toContainText('Create wallet');
+  await expect(page.locator('body')).toContainText('Create a new wallet');
 });

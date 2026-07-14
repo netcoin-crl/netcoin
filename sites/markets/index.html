@@ -7,9 +7,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
   <link rel="stylesheet" href="ui-polish.css?v=20260710-v0377-widen" />
   <link rel="stylesheet" href="site-shell.css?v=20260710-widen" />
-  <link rel="stylesheet" href="markets.css?v=20260708-polymarket" />
+  <link rel="stylesheet" href="markets.css?v=20260714-market-discovery" />
 
-<style id="markets-v016-polish">.market-pro-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0 18px}.market-pro-strip a{border:1px solid var(--line);border-radius:12px;padding:12px;background:rgba(255,255,255,.04);color:inherit;text-decoration:none}.market-pro-strip a:hover{border-color:var(--accent);text-decoration:none}.market-pro-strip b{display:block}.market-pro-strip span{color:var(--mut);font-size:13px}</style>
 </head>
 <body>
   <div class="shell">
@@ -20,11 +19,11 @@
 
     <main class="mkt-wrap">
       <div class="mkt-banner"><span class="dot"></span> Play-money testnet · NET has no real value · <span id="apiStatus">connecting…</span></div>
-      <section class="market-pro-strip" id="marketProStrip">
-        <a href="#orderbook"><b>Orderbook</b><span>CLOB levels</span></a>
-        <a href="#portfolio"><b>Portfolio</b><span>Positions and PnL</span></a>
-        <a href="#disputes"><b>Disputes</b><span>Evidence and oracle review</span></a>
-        <a href="https://exchange.netcoin.online"><b>Settlement</b><span>Reconciliation and reserves</span></a>
+      <section class="market-actions" id="marketProStrip" aria-label="Markets workspace">
+        <a href="trade.html">Trade</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="disputes.html">Disputes</a>
+        <a href="settlement.html">Settlement</a>
       </section>
 
       <!-- GRID VIEW -->
@@ -37,6 +36,17 @@
           <div class="mkt-chips" id="categoryChips"></div>
           <button id="newMarketButton" class="new-market-btn" type="button">New market</button>
         </div>
+
+        <section class="discover-panel" aria-label="Market discovery">
+          <div>
+            <h2>Discover markets</h2>
+            <p>Load public Polymarket ideas, then import one as a separate NetCoin play-money market.</p>
+          </div>
+          <div class="discover-actions">
+            <button id="loadPolymarket" type="button">Load ideas</button>
+          </div>
+          <div id="polymarketFeed" class="poly-grid">Choose “Load ideas” to browse importable market ideas.</div>
+        </section>
 
         <div class="mkt-metrics" id="marketMetrics" aria-live="polite"></div>
         <div class="mkt-grid" id="marketGrid"></div>
@@ -53,7 +63,7 @@
 
       <!-- OPERATOR DRAWER -->
       <details class="operator" id="operatorTools">
-        <summary>Operator tools — create markets, raw orders, resolution</summary>
+        <summary>Advanced tools</summary>
         <div class="operator-body">
           <form id="createMarketForm">
             <h4>Create market</h4>
@@ -100,8 +110,7 @@
           </form>
 
           <div style="grid-column:1/-1">
-            <div class="op-actions"><button id="refreshMarkets" type="button">Refresh</button><button id="loadPolymarket" type="button">Load Polymarket feed</button></div>
-            <div id="polymarketFeed" class="op-log">Polymarket discovery feed not loaded.</div>
+            <div class="op-actions"><button id="refreshMarkets" type="button">Refresh</button></div>
             <pre id="activityLog" class="op-log">Ready.</pre>
           </div>
         </div>
@@ -110,7 +119,7 @@
       <p class="footer">NetCoin is public testnet/demo software. Never share private keys or seed phrases. Polymarket data is read-only discovery; NetCoin orders stay separate play-money records.</p>
     </main>
   </div>
-  <script src="site-shell.js?v=20260714-wallet-panel"></script>
-  <script src="markets.js?v=20260708-polymarket"></script>
+  <script src="site-shell.js?v=20260714-nav-groups"></script>
+  <script src="markets.js?v=20260714-market-discovery"></script>
 </body>
 </html>

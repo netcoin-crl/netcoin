@@ -1,0 +1,20 @@
+{
+  "command_count": 1,
+  "commands": [
+    {
+      "blocked_reason": null,
+      "command": "\"/Users/adoniyasnegash/Documents/Playground/netcoin/.venv/bin/python\" tools/check_rust_workspace.py",
+      "returncode": 0,
+      "status": "pass",
+      "stderr_tail": "",
+      "stdout_tail": "{\n  \"ok\": true,\n  \"checked_files\": 20,\n  \"issues\": []\n}\n",
+      "timed_out": false
+    }
+  ],
+  "gate_id": "rust-workspace",
+  "label": "Rust Workspace Build Proof",
+  "owner": "Rust core",
+  "profile": "sandbox",
+  "remediation": "Rust migration stops being structural-only and becomes compiled/tested.",
+  "status": "pass"
+}

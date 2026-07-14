@@ -15,6 +15,7 @@ env/
 .ruff_cache/
 .coverage
 htmlcov/
+test-results/
 
 # Local node / wallet state — never commit these
 .netcoin*/

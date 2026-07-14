@@ -49,7 +49,7 @@
     community: { title: "Community", note: "Community tools: bounties, gifts, rewards, leaderboards, names, and profiles.", route: "#/community", nav: ["navCommunity", "navNames"] },
     markets: { title: "Markets", note: "Phase 7 testnet/demo area: polls, escrow, recurring agreements, contracts, and prediction-market demos.", route: "#/phase7", nav: ["navPhase7"] },
     docs: { title: "Docs", note: "User, merchant, developer, and operator documentation links.", route: "#/api", nav: ["navApi"] },
-    api: { title: "API", note: "API reference and SDK entry point for developers.", route: "#/api", nav: ["navApi"] },
+    api: { title: "API", note: "API reference and SDK entry point for developers.", route: "#/developer", nav: ["navDeveloper", "navApi"] },
   };
   function configureSiteShell() {
     const site = document.body?.dataset?.site || "explorer";
@@ -506,6 +506,58 @@
     $("#btnRefundPlan").onclick = async () => { const msg=$("#refMsg"); try { const r=await apiPost("/merchant/refunds/plan", { to_address: $("#refAddr").value, amount: $("#refAmount").value, reason: $("#refReason").value, api_key: $("#merchantApiKey").value }); msg.className="ok"; msg.textContent=`Refund payout plan ${r.payout_plan.payout_id} ready for wallet signing.`; } catch(e){ msg.className="err"; msg.textContent=e.message; } };
   }
 
+  async function developerPage() {
+    setView(el(`<div class="card muted">Loading developer dashboard…</div>`));
+    let dashboard = {};
+    try { dashboard = await api("/developer/dashboard"); } catch { dashboard = { counts: {}, totals: {}, recent_rewards: [], recent_withdrawals: [], payment_links: [] }; }
+    const c = dashboard.counts || {};
+    const t = dashboard.totals || {};
+    const linkRows = (dashboard.payment_links || []).map((p) => `<tr><td>${esc(p.title || p.link_id)}</td><td class="right acc">${esc(p.amount)} NET</td><td class="mono trunc">${esc(p.checkout_url || p.checkout_path)}</td></tr>`).join("") || `<tr><td colspan="3" class="muted">No payment links yet.</td></tr>`;
+    const rewardRows = (dashboard.recent_rewards || []).map((r) => `<tr><td>${esc(r.developer_id || "")}</td><td>${esc(r.player_id || "")}</td><td class="right">${Number(r.amount_sats || 0).toLocaleString()} netoshis</td><td>${esc(r.status || "")}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No rewards yet.</td></tr>`;
+    const withdrawalRows = (dashboard.recent_withdrawals || []).map((w) => `<tr><td>${esc(w.developer_id || "")}</td><td>${esc(w.player_id || "")}</td><td class="right acc">${esc(w.amount)} NET</td><td>${esc(w.status || "")}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No withdrawals yet.</td></tr>`;
+    setView(el(`<div>
+      <div class="stats">
+        <div class="stat"><div class="k">Rewards</div><div class="v">${Number(c.rewards || 0).toLocaleString()}</div><div class="muted">${Number(t.reward_sats || 0).toLocaleString()} netoshis</div></div>
+        <div class="stat"><div class="k">Withdrawals</div><div class="v">${Number(c.withdrawals || 0).toLocaleString()}</div><div class="muted">${esc(t.withdrawal || "0")} NET planned</div></div>
+        <div class="stat"><div class="k">Payment links</div><div class="v">${Number(c.payment_links || 0).toLocaleString()}</div><div class="muted">${Number(c.invoices || 0).toLocaleString()} invoices</div></div>
+        <div class="stat"><div class="k">Webhooks</div><div class="v">${Number(c.webhooks || 0).toLocaleString()}</div><div class="muted">${Number(c.webhook_events || 0).toLocaleString()} queued events</div></div>
+      </div>
+      <div class="card"><h2>Developer app</h2>
+        <div class="row"><input id="devId" placeholder="developer id" value="game-studio" /><input id="devAddress" class="mono" placeholder="funding/player payout address" /></div>
+        <div class="row"><button id="btnDevDashboard" type="button">Load dashboard</button><button id="btnDevKey" class="secondary" type="button">Create API key</button></div>
+        <p id="devMsg" class="muted"></p>
+      </div>
+      <div class="card"><h2>Reward player</h2>
+        <div class="row"><input id="rewardPlayer" placeholder="player id" /><input id="rewardSats" placeholder="netoshis, e.g. 2500" inputmode="numeric" /></div>
+        <input id="rewardReason" placeholder="event/reason, e.g. daily_quest" />
+        <button id="btnDevReward" type="button">Create reward payout plan</button><pre id="rewardOut"></pre>
+      </div>
+      <div class="card"><h2>Withdrawal request</h2>
+        <div class="row"><input id="wdPlayer" placeholder="player id" /><input id="wdAmount" placeholder="amount NET" inputmode="decimal" /></div>
+        <button id="btnDevWithdrawal" type="button">Create withdrawal payout plan</button><pre id="withdrawalOut"></pre>
+      </div>
+      <div class="card"><h2>Payment link</h2>
+        <div class="row"><input id="linkTitle" placeholder="title" /><input id="linkAmount" placeholder="amount NET" inputmode="decimal" /></div>
+        <button id="btnDevLink" type="button">Create payment link</button><pre id="linkOut"></pre>
+      </div>
+      <div class="card"><h2>Webhook</h2>
+        <input id="hookUrlDev" placeholder="https://example.com/netcoin-webhook" />
+        <button id="btnDevWebhook" type="button">Register webhook</button><pre id="hookOutDev"></pre>
+      </div>
+      <div class="card"><h2>Recent payment links</h2><table><thead><tr><th>Title</th><th class="right">Amount</th><th>URL</th></tr></thead><tbody>${linkRows}</tbody></table></div>
+      <div class="card"><h2>Recent rewards</h2><table><thead><tr><th>Developer</th><th>Player</th><th class="right">Amount</th><th>Status</th></tr></thead><tbody>${rewardRows}</tbody></table></div>
+      <div class="card"><h2>Recent withdrawals</h2><table><thead><tr><th>Developer</th><th>Player</th><th class="right">Amount</th><th>Status</th></tr></thead><tbody>${withdrawalRows}</tbody></table></div>
+    </div>`));
+    const out = (id, data) => { $(id).textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2); };
+    const devPayload = () => ({ developer_id: $("#devId").value.trim() || "game-studio", address: $("#devAddress").value.trim() });
+    $("#btnDevDashboard").onclick = () => { location.hash = "#/developer"; };
+    $("#btnDevKey").onclick = async () => { const msg=$("#devMsg"); try { const r=await apiPost("/keys/register", { app: $("#devId").value.trim() || "game-studio" }); msg.className="ok"; msg.innerHTML=`API key: <span class="mono">${esc(r.api_key)}</span>`; } catch(e){ msg.className="err"; msg.textContent=e.message; } };
+    $("#btnDevReward").onclick = async () => { try { out("#rewardOut", await apiPost("/developer/rewards", { ...devPayload(), player_id:$("#rewardPlayer").value, amount_sats:Number($("#rewardSats").value || 0), event:$("#rewardReason").value, idempotency_key:`reward-${Date.now()}` })); } catch(e){ out("#rewardOut", e.message); } };
+    $("#btnDevWithdrawal").onclick = async () => { try { out("#withdrawalOut", await apiPost("/developer/withdrawals", { ...devPayload(), player_id:$("#wdPlayer").value, amount:$("#wdAmount").value })); } catch(e){ out("#withdrawalOut", e.message); } };
+    $("#btnDevLink").onclick = async () => { try { out("#linkOut", await apiPost("/developer/payment-links", { ...devPayload(), title:$("#linkTitle").value, amount:$("#linkAmount").value })); } catch(e){ out("#linkOut", e.message); } };
+    $("#btnDevWebhook").onclick = async () => { try { out("#hookOutDev", await apiPost("/developer/webhooks", { developer_id:$("#devId").value.trim() || "game-studio", url:$("#hookUrlDev").value, events:["reward.created","withdrawal.created","payment.confirmed"] })); } catch(e){ out("#hookOutDev", e.message); } };
+  }
+
   async function communityPage() {
     let boards = {}; let bounties = [];
     try { boards = await api("/community/leaderboards"); } catch { boards = {}; }
@@ -592,6 +644,18 @@
       <tr><td class="mono">/api/receipt/&lt;txid&gt;</td><td>Shareable transaction receipt data.</td></tr>
       <tr><td class="mono">/api/usernames</td><td>Local username/profile registry.</td></tr>
       <tr><td class="mono">/api/merchant/webhooks</td><td>Merchant webhook subscriptions and event log.</td></tr>
+      <tr><td class="mono">/api/developer/dashboard</td><td>Developer rewards, withdrawals, payment links, webhook events, and API usage summary.</td></tr>
+      <tr><td class="mono">/api/developer/rewards</td><td>Create/list game/app reward payout plans with idempotency support.</td></tr>
+      <tr><td class="mono">/api/developer/withdrawals</td><td>Create/list player withdrawal payout plans for manual wallet signing.</td></tr>
+      <tr><td class="mono">/api/developer/payment-links</td><td>Create/list hosted checkout links backed by invoices.</td></tr>
+      <tr><td class="mono">/api/developer/webhooks</td><td>Register/list signed developer webhook subscriptions.</td></tr>
+      <tr><td class="mono">/api/developer/sdk</td><td>Reference SDK package metadata and snippets for TypeScript, Python, and Unity.</td></tr>
+      <tr><td class="mono">/api/developer/watch-addresses</td><td>Register/list deposit watch addresses for games and apps.</td></tr>
+      <tr><td class="mono">/api/developer/deposits</td><td>Watched-address deposit scan with confirmation readiness.</td></tr>
+      <tr><td class="mono">/api/developer/webhook-verifiers</td><td>Webhook signature verification snippets.</td></tr>
+      <tr><td class="mono">/api/developer/transactions/build</td><td>Build unsigned transaction drafts for local signing.</td></tr>
+      <tr><td class="mono">/api/developer/rewards/batch</td><td>Create batch reward payout plans.</td></tr>
+      <tr><td class="mono">/api/developer/simulate/rewards</td><td>Simulate reward cost, dust risk, and withdrawal thresholds.</td></tr>
       <tr><td class="mono">/api/community/gifts</td><td>Gift-link creation and claim status.</td></tr>
       <tr><td class="mono">/api/wallet/statement</td><td>Wallet accounting statement by address.</td></tr>
       <tr><td class="mono">/api/contracts/templates</td><td>Phase 7 contract template registry.</td></tr>
@@ -636,6 +700,7 @@
     if (location.hash === "#/pos") return posPage();
     if (location.hash === "#/names") return namesPage();
     if (location.hash === "#/merchant") return merchantPage();
+    if (location.hash === "#/developer") return developerPage();
     if (location.hash === "#/community") return communityPage();
     if (location.hash === "#/wallet-tools") return walletToolsPage();
     if (location.hash === "#/phase7") return phase7Page();
@@ -666,6 +731,7 @@
   $("#navPos").onclick = () => { location.hash = "#/pos"; };
   $("#navNames").onclick = () => { location.hash = "#/names"; };
   $("#navMerchant").onclick = () => { location.hash = "#/merchant"; };
+  const navDeveloper = $("#navDeveloper"); if (navDeveloper) navDeveloper.onclick = () => { location.hash = "#/developer"; };
   $("#navCommunity").onclick = () => { location.hash = "#/community"; };
   $("#navWalletTools").onclick = () => { location.hash = "#/wallet-tools"; };
   $("#navPhase7").onclick = () => { location.hash = "#/phase7"; };

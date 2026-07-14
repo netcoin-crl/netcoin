@@ -1,0 +1,1689 @@
+{
+  "generated_at": 1784008606,
+  "file_count": 168,
+  "files": [
+    "tests/test_address_and_config.py",
+    "tests/test_admin_operator_dashboard.py",
+    "tests/test_api_key_auth.py",
+    "tests/test_app_idempotency_nonce.py",
+    "tests/test_app_layer_phases.py",
+    "tests/test_app_tokens.py",
+    "tests/test_binary_codec.py",
+    "tests/test_blockfilter.py",
+    "tests/test_browser_upgrade_assets.py",
+    "tests/test_channel.py",
+    "tests/test_chatgpt_source_review_edge_cases.py",
+    "tests/test_competitive_level5.py",
+    "tests/test_competitive_scaffold.py",
+    "tests/test_consolidate.py",
+    "tests/test_continued_upgrades.py",
+    "tests/test_crash_recovery.py",
+    "tests/test_deployment_qa.py",
+    "tests/test_descriptors.py",
+    "tests/test_devnet.py",
+    "tests/test_difficulty_v2.py",
+    "tests/test_discovery.py",
+    "tests/test_do_it_big_impact_fixes.py",
+    "tests/test_emission.py",
+    "tests/test_esplora_compat.py",
+    "tests/test_exchange_rpc.py",
+    "tests/test_explorer_server.py",
+    "tests/test_fast_crypto_differential.py",
+    "tests/test_faucet_hardening.py",
+    "tests/test_faucet_programmatic.py",
+    "tests/test_fuzz.py",
+    "tests/test_fuzz_harness_functional.py",
+    "tests/test_gap_fixes.py",
+    "tests/test_hd.py",
+    "tests/test_indexes.py",
+    "tests/test_kdf_ancestors_scan.py",
+    "tests/test_localnet_harness.py",
+    "tests/test_m1_ci_gate_wiring.py",
+    "tests/test_m1_explorer_mempool_live.py",
+    "tests/test_m1_faucet_hardening.py",
+    "tests/test_m1_incident_response_runbook.py",
+    "tests/test_m1_live_smoke_tool.py",
+    "tests/test_m1_readiness_gate.py",
+    "tests/test_m1_release_candidate_runner.py",
+    "tests/test_m1_status_page.py",
+    "tests/test_m1_testnet_feedback_intake.py",
+    "tests/test_m1_testnet_pilot_plan.py",
+    "tests/test_m1_testnet_user_journey.py",
+    "tests/test_m1_wallet_e2e_source.py",
+    "tests/test_m1_wallet_regressions.py",
+    "tests/test_m2_fee_bump.py",
+    "tests/test_m2_trust_hardening.py",
+    "tests/test_m3_decentralized_testnet.py",
+    "tests/test_m4_mainnet_ready.py",
+    "tests/test_m5_mainnet_launch.py",
+    "tests/test_market_surveillance.py",
+    "tests/test_markets_create_and_profile_tabs.py",
+    "tests/test_markets_upgrade.py",
+    "tests/test_mempool_and_coins.py",
+    "tests/test_mempool_attacks.py",
+    "tests/test_message_signing.py",
+    "tests/test_migration.py",
+    "tests/test_miner_workflow.py",
+    "tests/test_netcoin.py",
+    "tests/test_netcoin_v2.py",
+    "tests/test_next_upgrade_layer.py",
+    "tests/test_node_api.py",
+    "tests/test_node_compat.py",
+    "tests/test_node_health.py",
+    "tests/test_node_ops.py",
+    "tests/test_offline_signing_flow_functional.py",
+    "tests/test_operator_manual_qa_smoke.py",
+    "tests/test_operator_smoke_qa.py",
+    "tests/test_ops_tools.py",
+    "tests/test_p12_explorer_faucet_status_metrics.py",
+    "tests/test_p1_protocol_spec_docs.py",
+    "tests/test_p2_perf_benchmark.py",
+    "tests/test_p2p_bandwidth_wiring_functional.py",
+    "tests/test_p2p_messages.py",
+    "tests/test_p2p_node_sync.py",
+    "tests/test_p3_versionbits_rehearsal.py",
+    "tests/test_p4_genesis_rehearsal.py",
+    "tests/test_p5_bandwidth_enforcement.py",
+    "tests/test_p6_dns_seeder.py",
+    "tests/test_p7_stratum_pool.py",
+    "tests/test_p8_node_installer_rate_limit.py",
+    "tests/test_p9_api_v1_openapi_sdk.py",
+    "tests/test_paymenturi.py",
+    "tests/test_peer_reputation.py",
+    "tests/test_persistent_utxo.py",
+    "tests/test_phase7_app_layer.py",
+    "tests/test_phase7_hardening.py",
+    "tests/test_phase_finish_completion.py",
+    "tests/test_polymarket_style_markets.py",
+    "tests/test_post_m5_engineering_backlog.py",
+    "tests/test_professional_code_upgrades.py",
+    "tests/test_professional_readiness.py",
+    "tests/test_propagation.py",
+    "tests/test_protocol_vectors.py",
+    "tests/test_pruning.py",
+    "tests/test_psbt_flow.py",
+    "tests/test_remaining_code_upgrades.py",
+    "tests/test_reorg.py",
+    "tests/test_script_vm.py",
+    "tests/test_sdk_packaging_functional.py",
+    "tests/test_security_regressions.py",
+    "tests/test_sighash.py",
+    "tests/test_site_asset_references.py",
+    "tests/test_snapshot_multisig_logs.py",
+    "tests/test_soak.py",
+    "tests/test_spacing_v2.py",
+    "tests/test_sqlite_backend.py",
+    "tests/test_supply_emission_api_functional.py",
+    "tests/test_sync_resilience.py",
+    "tests/test_taproot_scriptpath.py",
+    "tests/test_taproot_segwit.py",
+    "tests/test_thorough_rerate_fixes.py",
+    "tests/test_tools.py",
+    "tests/test_upgrade_batches.py",
+    "tests/test_upgrade_layer_plus.py",
+    "tests/test_utxo_addr_index.py",
+    "tests/test_v016_product_reliability.py",
+    "tests/test_v017_product_polish.py",
+    "tests/test_v018_live_product_wiring.py",
+    "tests/test_v019_architecture_space.py",
+    "tests/test_v020_migration_foundation.py",
+    "tests/test_v021_parity_bridge.py",
+    "tests/test_v022_rust_ts_parity_expansion.py",
+    "tests/test_v023_rust_consensus_parity.py",
+    "tests/test_v024_rust_executable_consensus_parity.py",
+    "tests/test_v025_rust_mempool_parity.py",
+    "tests/test_v026_rust_wallet_core_parity.py",
+    "tests/test_v027_rust_markets_core_parity.py",
+    "tests/test_v028_rust_signer_core_parity.py",
+    "tests/test_v029_rust_p2p_sync_parity.py",
+    "tests/test_v030_rust_indexer_core_parity.py",
+    "tests/test_v031_ts_openapi_codegen_parity.py",
+    "tests/test_v033_hostile_p2p_soak.py",
+    "tests/test_v034_indexer_db_integration.py",
+    "tests/test_v035_ts_api_openapi_enforcement.py",
+    "tests/test_v036_browser_e2e_matrix.py",
+    "tests/test_v0374_wallet_ui_compact.py",
+    "tests/test_v037_security_fuzz_audit_prep.py",
+    "tests/test_v0381_phase0_design_system.py",
+    "tests/test_v0382_phase0_product_simplification.py",
+    "tests/test_v0383_phase0_trust_interaction.py",
+    "tests/test_v0384_phase0_product_coherence.py",
+    "tests/test_v0385_phase0_completion.py",
+    "tests/test_v038_phase0_product_architecture.py",
+    "tests/test_v0391_phase1_strict_proof_execution.py",
+    "tests/test_v0392_phase1_proof_evidence_bundle.py",
+    "tests/test_v0393_phase1_local_proof_runner.py",
+    "tests/test_v0394_phase1_proof_triage.py",
+    "tests/test_v039_phase1_proof_hardening.py",
+    "tests/test_v0401_browser_strict_fixes.py",
+    "tests/test_v040_product_completion.py",
+    "tests/test_v041_mainnet_readiness.py",
+    "tests/test_v042_site_ui_polish.py",
+    "tests/test_wallet_cli.py",
+    "tests/test_wallet_features.py",
+    "tests/test_wallet_migration.py",
+    "tests/test_wallet_safety.py",
+    "tests/test_wave1_3_fuzz_accumulator.py",
+    "tests/test_wave1_4_chaos_drill.py",
+    "tests/test_wave5_1_keyless_release.py",
+    "tests/test_wave5_2_release_attestations.py",
+    "tests/test_wave5_3_reproducible_build_ci.py",
+    "tests/test_webhook_ssrf.py",
+    "tests/test_webwallet.py"
+  ],
+  "results": [
+    {
+      "file": "tests/test_address_and_config.py",
+      "returncode": 0,
+      "seconds": 1.06,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 0.80s"
+      ]
+    },
+    {
+      "file": "tests/test_admin_operator_dashboard.py",
+      "returncode": 0,
+      "seconds": 0.92,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.72s"
+      ]
+    },
+    {
+      "file": "tests/test_api_key_auth.py",
+      "returncode": 0,
+      "seconds": 1.7,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 1.48s"
+      ]
+    },
+    {
+      "file": "tests/test_app_idempotency_nonce.py",
+      "returncode": 0,
+      "seconds": 0.28,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.07s"
+      ]
+    },
+    {
+      "file": "tests/test_app_layer_phases.py",
+      "returncode": 0,
+      "seconds": 4.07,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 3.92s"
+      ]
+    },
+    {
+      "file": "tests/test_app_tokens.py",
+      "returncode": 0,
+      "seconds": 1.4,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 1.25s"
+      ]
+    },
+    {
+      "file": "tests/test_binary_codec.py",
+      "returncode": 0,
+      "seconds": 2.88,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 2.73s"
+      ]
+    },
+    {
+      "file": "tests/test_blockfilter.py",
+      "returncode": 0,
+      "seconds": 6.35,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 6.18s"
+      ]
+    },
+    {
+      "file": "tests/test_browser_upgrade_assets.py",
+      "returncode": 0,
+      "seconds": 0.17,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_channel.py",
+      "returncode": 0,
+      "seconds": 2.04,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 1.90s"
+      ]
+    },
+    {
+      "file": "tests/test_chatgpt_source_review_edge_cases.py",
+      "returncode": 0,
+      "seconds": 9.49,
+      "tail": [
+        ".........                                                                [100%]",
+        "9 passed in 9.34s"
+      ]
+    },
+    {
+      "file": "tests/test_competitive_level5.py",
+      "returncode": 0,
+      "seconds": 0.75,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 0.62s"
+      ]
+    },
+    {
+      "file": "tests/test_competitive_scaffold.py",
+      "returncode": 0,
+      "seconds": 0.24,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.11s"
+      ]
+    },
+    {
+      "file": "tests/test_consolidate.py",
+      "returncode": 0,
+      "seconds": 5.11,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 4.90s"
+      ]
+    },
+    {
+      "file": "tests/test_continued_upgrades.py",
+      "returncode": 0,
+      "seconds": 0.44,
+      "tail": [
+        ".........                                                                [100%]",
+        "9 passed in 0.29s"
+      ]
+    },
+    {
+      "file": "tests/test_crash_recovery.py",
+      "returncode": 0,
+      "seconds": 0.32,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.19s"
+      ]
+    },
+    {
+      "file": "tests/test_deployment_qa.py",
+      "returncode": 0,
+      "seconds": 2.52,
+      "tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.37s"
+      ]
+    },
+    {
+      "file": "tests/test_descriptors.py",
+      "returncode": 0,
+      "seconds": 0.26,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.11s"
+      ]
+    },
+    {
+      "file": "tests/test_devnet.py",
+      "returncode": 0,
+      "seconds": 3.59,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 3.46s"
+      ]
+    },
+    {
+      "file": "tests/test_difficulty_v2.py",
+      "returncode": 0,
+      "seconds": 0.21,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.06s"
+      ]
+    },
+    {
+      "file": "tests/test_discovery.py",
+      "returncode": 0,
+      "seconds": 2.35,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 2.21s"
+      ]
+    },
+    {
+      "file": "tests/test_do_it_big_impact_fixes.py",
+      "returncode": 0,
+      "seconds": 0.23,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.09s"
+      ]
+    },
+    {
+      "file": "tests/test_emission.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.07s"
+      ]
+    },
+    {
+      "file": "tests/test_esplora_compat.py",
+      "returncode": 0,
+      "seconds": 0.39,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.25s"
+      ]
+    },
+    {
+      "file": "tests/test_exchange_rpc.py",
+      "returncode": 0,
+      "seconds": 1.02,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.89s"
+      ]
+    },
+    {
+      "file": "tests/test_explorer_server.py",
+      "returncode": 0,
+      "seconds": 3.36,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 3.22s"
+      ]
+    },
+    {
+      "file": "tests/test_fast_crypto_differential.py",
+      "returncode": 0,
+      "seconds": 51.8,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 51.64s"
+      ]
+    },
+    {
+      "file": "tests/test_faucet_hardening.py",
+      "returncode": 0,
+      "seconds": 0.28,
+      "tail": [
+        ".............                                                            [100%]",
+        "13 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_faucet_programmatic.py",
+      "returncode": 0,
+      "seconds": 0.19,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.05s"
+      ]
+    },
+    {
+      "file": "tests/test_fuzz.py",
+      "returncode": 0,
+      "seconds": 0.84,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.69s"
+      ]
+    },
+    {
+      "file": "tests/test_fuzz_harness_functional.py",
+      "returncode": 0,
+      "seconds": 1.16,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 1.01s"
+      ]
+    },
+    {
+      "file": "tests/test_gap_fixes.py",
+      "returncode": 0,
+      "seconds": 0.3,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 0.17s"
+      ]
+    },
+    {
+      "file": "tests/test_hd.py",
+      "returncode": 0,
+      "seconds": 0.41,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.28s"
+      ]
+    },
+    {
+      "file": "tests/test_indexes.py",
+      "returncode": 0,
+      "seconds": 0.27,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.14s"
+      ]
+    },
+    {
+      "file": "tests/test_kdf_ancestors_scan.py",
+      "returncode": 0,
+      "seconds": 2.24,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 2.11s"
+      ]
+    },
+    {
+      "file": "tests/test_localnet_harness.py",
+      "returncode": 0,
+      "seconds": 0.17,
+      "tail": [
+        "ss..                                                                     [100%]",
+        "2 passed, 2 skipped in 0.04s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_ci_gate_wiring.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_explorer_mempool_live.py",
+      "returncode": 0,
+      "seconds": 0.18,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.06s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_faucet_hardening.py",
+      "returncode": 0,
+      "seconds": 0.18,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.05s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_incident_response_runbook.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_live_smoke_tool.py",
+      "returncode": 0,
+      "seconds": 0.23,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.11s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_readiness_gate.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_release_candidate_runner.py",
+      "returncode": 0,
+      "seconds": 0.24,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.11s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_status_page.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_testnet_feedback_intake.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_testnet_pilot_plan.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_testnet_user_journey.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_wallet_e2e_source.py",
+      "returncode": 0,
+      "seconds": 0.18,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.05s"
+      ]
+    },
+    {
+      "file": "tests/test_m1_wallet_regressions.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_m2_fee_bump.py",
+      "returncode": 0,
+      "seconds": 2.51,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 2.39s"
+      ]
+    },
+    {
+      "file": "tests/test_m2_trust_hardening.py",
+      "returncode": 0,
+      "seconds": 8.47,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 8.34s"
+      ]
+    },
+    {
+      "file": "tests/test_m3_decentralized_testnet.py",
+      "returncode": 0,
+      "seconds": 0.24,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 0.11s"
+      ]
+    },
+    {
+      "file": "tests/test_m4_mainnet_ready.py",
+      "returncode": 0,
+      "seconds": 0.29,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.16s"
+      ]
+    },
+    {
+      "file": "tests/test_m5_mainnet_launch.py",
+      "returncode": 0,
+      "seconds": 0.29,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.16s"
+      ]
+    },
+    {
+      "file": "tests/test_market_surveillance.py",
+      "returncode": 0,
+      "seconds": 0.19,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.06s"
+      ]
+    },
+    {
+      "file": "tests/test_markets_create_and_profile_tabs.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_markets_upgrade.py",
+      "returncode": 0,
+      "seconds": 0.26,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.13s"
+      ]
+    },
+    {
+      "file": "tests/test_mempool_and_coins.py",
+      "returncode": 0,
+      "seconds": 3.54,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 3.41s"
+      ]
+    },
+    {
+      "file": "tests/test_mempool_attacks.py",
+      "returncode": 0,
+      "seconds": 7.76,
+      "tail": [
+        ".........                                                                [100%]",
+        "9 passed in 7.63s"
+      ]
+    },
+    {
+      "file": "tests/test_message_signing.py",
+      "returncode": 0,
+      "seconds": 0.4,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.27s"
+      ]
+    },
+    {
+      "file": "tests/test_migration.py",
+      "returncode": 0,
+      "seconds": 1.09,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.96s"
+      ]
+    },
+    {
+      "file": "tests/test_miner_workflow.py",
+      "returncode": 0,
+      "seconds": 1.84,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 1.72s"
+      ]
+    },
+    {
+      "file": "tests/test_netcoin.py",
+      "returncode": 0,
+      "seconds": 1.03,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.89s"
+      ]
+    },
+    {
+      "file": "tests/test_netcoin_v2.py",
+      "returncode": 0,
+      "seconds": 2.31,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 2.18s"
+      ]
+    },
+    {
+      "file": "tests/test_next_upgrade_layer.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.06s"
+      ]
+    },
+    {
+      "file": "tests/test_node_api.py",
+      "returncode": 0,
+      "seconds": 8.41,
+      "tail": [
+        "............                                                             [100%]",
+        "12 passed in 8.25s"
+      ]
+    },
+    {
+      "file": "tests/test_node_compat.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.06s"
+      ]
+    },
+    {
+      "file": "tests/test_node_health.py",
+      "returncode": 0,
+      "seconds": 1.81,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 1.65s"
+      ]
+    },
+    {
+      "file": "tests/test_node_ops.py",
+      "returncode": 0,
+      "seconds": 4.4,
+      "tail": [
+        "...........                                                              [100%]",
+        "11 passed in 4.24s"
+      ]
+    },
+    {
+      "file": "tests/test_offline_signing_flow_functional.py",
+      "returncode": 0,
+      "seconds": 2.68,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 2.54s"
+      ]
+    },
+    {
+      "file": "tests/test_operator_manual_qa_smoke.py",
+      "returncode": 0,
+      "seconds": 2.65,
+      "tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.51s"
+      ]
+    },
+    {
+      "file": "tests/test_operator_smoke_qa.py",
+      "returncode": 0,
+      "seconds": 2.59,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 2.44s"
+      ]
+    },
+    {
+      "file": "tests/test_ops_tools.py",
+      "returncode": 0,
+      "seconds": 0.71,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.55s"
+      ]
+    },
+    {
+      "file": "tests/test_p12_explorer_faucet_status_metrics.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.06s"
+      ]
+    },
+    {
+      "file": "tests/test_p1_protocol_spec_docs.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_p2_perf_benchmark.py",
+      "returncode": 0,
+      "seconds": 1.83,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 1.71s"
+      ]
+    },
+    {
+      "file": "tests/test_p2p_bandwidth_wiring_functional.py",
+      "returncode": 0,
+      "seconds": 0.19,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.05s"
+      ]
+    },
+    {
+      "file": "tests/test_p2p_messages.py",
+      "returncode": 0,
+      "seconds": 3.2,
+      "tail": [
+        "............                                                             [100%]",
+        "12 passed in 3.04s"
+      ]
+    },
+    {
+      "file": "tests/test_p2p_node_sync.py",
+      "returncode": 0,
+      "seconds": 0.8,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.64s"
+      ]
+    },
+    {
+      "file": "tests/test_p3_versionbits_rehearsal.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        "......ss                                                                 [100%]",
+        "6 passed, 2 skipped in 0.05s"
+      ]
+    },
+    {
+      "file": "tests/test_p4_genesis_rehearsal.py",
+      "returncode": 0,
+      "seconds": 0.27,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 0.14s"
+      ]
+    },
+    {
+      "file": "tests/test_p5_bandwidth_enforcement.py",
+      "returncode": 0,
+      "seconds": 0.85,
+      "tail": [
+        ".....s                                                                   [100%]",
+        "5 passed, 1 skipped in 0.72s"
+      ]
+    },
+    {
+      "file": "tests/test_p6_dns_seeder.py",
+      "returncode": 0,
+      "seconds": 0.57,
+      "tail": [
+        "....s                                                                    [100%]",
+        "4 passed, 1 skipped in 0.44s"
+      ]
+    },
+    {
+      "file": "tests/test_p7_stratum_pool.py",
+      "returncode": 0,
+      "seconds": 0.91,
+      "tail": [
+        "....s                                                                    [100%]",
+        "4 passed, 1 skipped in 0.78s"
+      ]
+    },
+    {
+      "file": "tests/test_p8_node_installer_rate_limit.py",
+      "returncode": 0,
+      "seconds": 1.47,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 1.34s"
+      ]
+    },
+    {
+      "file": "tests/test_p9_api_v1_openapi_sdk.py",
+      "returncode": 0,
+      "seconds": 3.18,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 3.05s"
+      ]
+    },
+    {
+      "file": "tests/test_paymenturi.py",
+      "returncode": 0,
+      "seconds": 0.72,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.57s"
+      ]
+    },
+    {
+      "file": "tests/test_peer_reputation.py",
+      "returncode": 0,
+      "seconds": 0.23,
+      "tail": [
+        ".........                                                                [100%]",
+        "9 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_persistent_utxo.py",
+      "returncode": 0,
+      "seconds": 2.98,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 2.84s"
+      ]
+    },
+    {
+      "file": "tests/test_phase7_app_layer.py",
+      "returncode": 0,
+      "seconds": 0.4,
+      "tail": [
+        ".                                                                        [100%]",
+        "1 passed in 0.27s"
+      ]
+    },
+    {
+      "file": "tests/test_phase7_hardening.py",
+      "returncode": 0,
+      "seconds": 1.32,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 1.18s"
+      ]
+    },
+    {
+      "file": "tests/test_phase_finish_completion.py",
+      "returncode": 0,
+      "seconds": 2.26,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 2.10s"
+      ]
+    },
+    {
+      "file": "tests/test_polymarket_style_markets.py",
+      "returncode": 0,
+      "seconds": 0.19,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.06s"
+      ]
+    },
+    {
+      "file": "tests/test_post_m5_engineering_backlog.py",
+      "returncode": 0,
+      "seconds": 1.29,
+      "tail": [
+        ".........                                                                [100%]",
+        "9 passed in 1.16s"
+      ]
+    },
+    {
+      "file": "tests/test_professional_code_upgrades.py",
+      "returncode": 0,
+      "seconds": 0.49,
+      "tail": [
+        "........                                                                 [100%]",
+        "8 passed in 0.36s"
+      ]
+    },
+    {
+      "file": "tests/test_professional_readiness.py",
+      "returncode": 0,
+      "seconds": 0.45,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.31s"
+      ]
+    },
+    {
+      "file": "tests/test_propagation.py",
+      "returncode": 0,
+      "seconds": 2.65,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 2.49s"
+      ]
+    },
+    {
+      "file": "tests/test_protocol_vectors.py",
+      "returncode": 0,
+      "seconds": 1.14,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 1.00s"
+      ]
+    },
+    {
+      "file": "tests/test_pruning.py",
+      "returncode": 0,
+      "seconds": 0.32,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.19s"
+      ]
+    },
+    {
+      "file": "tests/test_psbt_flow.py",
+      "returncode": 0,
+      "seconds": 9.95,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 9.82s"
+      ]
+    },
+    {
+      "file": "tests/test_remaining_code_upgrades.py",
+      "returncode": 0,
+      "seconds": 7.39,
+      "tail": [
+        ".........                                                                [100%]",
+        "9 passed in 7.18s"
+      ]
+    },
+    {
+      "file": "tests/test_reorg.py",
+      "returncode": 0,
+      "seconds": 1.32,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 1.14s"
+      ]
+    },
+    {
+      "file": "tests/test_script_vm.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "..........                                                               [100%]",
+        "10 passed in 0.03s"
+      ]
+    },
+    {
+      "file": "tests/test_sdk_packaging_functional.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_security_regressions.py",
+      "returncode": 0,
+      "seconds": 12.33,
+      "tail": [
+        "............................                                             [100%]",
+        "28 passed in 12.17s"
+      ]
+    },
+    {
+      "file": "tests/test_sighash.py",
+      "returncode": 0,
+      "seconds": 1.51,
+      "tail": [
+        ".........                                                                [100%]",
+        "9 passed in 1.37s"
+      ]
+    },
+    {
+      "file": "tests/test_site_asset_references.py",
+      "returncode": 0,
+      "seconds": 0.16,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.04s"
+      ]
+    },
+    {
+      "file": "tests/test_snapshot_multisig_logs.py",
+      "returncode": 0,
+      "seconds": 3.34,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 3.21s"
+      ]
+    },
+    {
+      "file": "tests/test_soak.py",
+      "returncode": 0,
+      "seconds": 3.97,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 3.82s"
+      ]
+    },
+    {
+      "file": "tests/test_spacing_v2.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_sqlite_backend.py",
+      "returncode": 0,
+      "seconds": 1.11,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.98s"
+      ]
+    },
+    {
+      "file": "tests/test_supply_emission_api_functional.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.03s"
+      ]
+    },
+    {
+      "file": "tests/test_sync_resilience.py",
+      "returncode": 0,
+      "seconds": 3.17,
+      "tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.03s"
+      ]
+    },
+    {
+      "file": "tests/test_taproot_scriptpath.py",
+      "returncode": 0,
+      "seconds": 1.72,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 1.58s"
+      ]
+    },
+    {
+      "file": "tests/test_taproot_segwit.py",
+      "returncode": 0,
+      "seconds": 1.36,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 1.22s"
+      ]
+    },
+    {
+      "file": "tests/test_thorough_rerate_fixes.py",
+      "returncode": 0,
+      "seconds": 1.58,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 1.45s"
+      ]
+    },
+    {
+      "file": "tests/test_tools.py",
+      "returncode": 0,
+      "seconds": 0.22,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 0.09s"
+      ]
+    },
+    {
+      "file": "tests/test_upgrade_batches.py",
+      "returncode": 0,
+      "seconds": 3.25,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 3.12s"
+      ]
+    },
+    {
+      "file": "tests/test_upgrade_layer_plus.py",
+      "returncode": 0,
+      "seconds": 0.27,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.14s"
+      ]
+    },
+    {
+      "file": "tests/test_utxo_addr_index.py",
+      "returncode": 0,
+      "seconds": 3.7,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 3.57s"
+      ]
+    },
+    {
+      "file": "tests/test_v016_product_reliability.py",
+      "returncode": 0,
+      "seconds": 0.86,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.72s"
+      ]
+    },
+    {
+      "file": "tests/test_v017_product_polish.py",
+      "returncode": 0,
+      "seconds": 3.21,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 3.05s"
+      ]
+    },
+    {
+      "file": "tests/test_v018_live_product_wiring.py",
+      "returncode": 0,
+      "seconds": 1.52,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 1.31s"
+      ]
+    },
+    {
+      "file": "tests/test_v019_architecture_space.py",
+      "returncode": 0,
+      "seconds": 1.78,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 1.64s"
+      ]
+    },
+    {
+      "file": "tests/test_v020_migration_foundation.py",
+      "returncode": 0,
+      "seconds": 0.4,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.28s"
+      ]
+    },
+    {
+      "file": "tests/test_v021_parity_bridge.py",
+      "returncode": 0,
+      "seconds": 0.16,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.03s"
+      ]
+    },
+    {
+      "file": "tests/test_v022_rust_ts_parity_expansion.py",
+      "returncode": 0,
+      "seconds": 0.27,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.15s"
+      ]
+    },
+    {
+      "file": "tests/test_v023_rust_consensus_parity.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.03s"
+      ]
+    },
+    {
+      "file": "tests/test_v024_rust_executable_consensus_parity.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_v025_rust_mempool_parity.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_v026_rust_wallet_core_parity.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_v027_rust_markets_core_parity.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_v028_rust_signer_core_parity.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_v029_rust_p2p_sync_parity.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_v030_rust_indexer_core_parity.py",
+      "returncode": 0,
+      "seconds": 0.2,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.08s"
+      ]
+    },
+    {
+      "file": "tests/test_v031_ts_openapi_codegen_parity.py",
+      "returncode": 0,
+      "seconds": 0.19,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.07s"
+      ]
+    },
+    {
+      "file": "tests/test_v033_hostile_p2p_soak.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_v034_indexer_db_integration.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.03s"
+      ]
+    },
+    {
+      "file": "tests/test_v035_ts_api_openapi_enforcement.py",
+      "returncode": 0,
+      "seconds": 0.18,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.06s"
+      ]
+    },
+    {
+      "file": "tests/test_v036_browser_e2e_matrix.py",
+      "returncode": 0,
+      "seconds": 0.18,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.05s"
+      ]
+    },
+    {
+      "file": "tests/test_v0374_wallet_ui_compact.py",
+      "returncode": 0,
+      "seconds": 0.15,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_v037_security_fuzz_audit_prep.py",
+      "returncode": 0,
+      "seconds": 0.18,
+      "tail": [
+        "..                                                                       [100%]",
+        "2 passed in 0.06s"
+      ]
+    },
+    {
+      "file": "tests/test_v0381_phase0_design_system.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_v0382_phase0_product_simplification.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_v0383_phase0_trust_interaction.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_v0384_phase0_product_coherence.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        ".......                                                                  [100%]",
+        "7 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_v0385_phase0_completion.py",
+      "returncode": 0,
+      "seconds": 0.16,
+      "tail": [
+        "........                                                                 [100%]",
+        "8 passed in 0.03s"
+      ]
+    },
+    {
+      "file": "tests/test_v038_phase0_product_architecture.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_v0391_phase1_strict_proof_execution.py",
+      "returncode": 0,
+      "seconds": 0.22,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.10s"
+      ]
+    },
+    {
+      "file": "tests/test_v0392_phase1_proof_evidence_bundle.py",
+      "returncode": 0,
+      "seconds": 0.24,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.11s"
+      ]
+    },
+    {
+      "file": "tests/test_v0393_phase1_local_proof_runner.py",
+      "returncode": 0,
+      "seconds": 0.39,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.27s"
+      ]
+    },
+    {
+      "file": "tests/test_v0394_phase1_proof_triage.py",
+      "returncode": 0,
+      "seconds": 0.16,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.03s"
+      ]
+    },
+    {
+      "file": "tests/test_v039_phase1_proof_hardening.py",
+      "returncode": 0,
+      "seconds": 0.22,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.09s"
+      ]
+    },
+    {
+      "file": "tests/test_v0401_browser_strict_fixes.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_v040_product_completion.py",
+      "returncode": 0,
+      "seconds": 0.22,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.10s"
+      ]
+    },
+    {
+      "file": "tests/test_v041_mainnet_readiness.py",
+      "returncode": 0,
+      "seconds": 0.16,
+      "tail": [
+        ".....                                                                    [100%]",
+        "5 passed in 0.04s"
+      ]
+    },
+    {
+      "file": "tests/test_v042_site_ui_polish.py",
+      "returncode": 0,
+      "seconds": 0.22,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 0.10s"
+      ]
+    },
+    {
+      "file": "tests/test_wallet_cli.py",
+      "returncode": 0,
+      "seconds": 2.0,
+      "tail": [
+        "........                                                                 [100%]",
+        "8 passed in 1.84s"
+      ]
+    },
+    {
+      "file": "tests/test_wallet_features.py",
+      "returncode": 0,
+      "seconds": 3.22,
+      "tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.08s"
+      ]
+    },
+    {
+      "file": "tests/test_wallet_migration.py",
+      "returncode": 0,
+      "seconds": 0.89,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.76s"
+      ]
+    },
+    {
+      "file": "tests/test_wallet_safety.py",
+      "returncode": 0,
+      "seconds": 1.41,
+      "tail": [
+        "........                                                                 [100%]",
+        "8 passed in 1.28s"
+      ]
+    },
+    {
+      "file": "tests/test_wave1_3_fuzz_accumulator.py",
+      "returncode": 0,
+      "seconds": 1.35,
+      "tail": [
+        "....                                                                     [100%]",
+        "4 passed in 1.22s"
+      ]
+    },
+    {
+      "file": "tests/test_wave1_4_chaos_drill.py",
+      "returncode": 0,
+      "seconds": 0.17,
+      "tail": [
+        "...ss                                                                    [100%]",
+        "3 passed, 2 skipped in 0.03s"
+      ]
+    },
+    {
+      "file": "tests/test_wave5_1_keyless_release.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_wave5_2_release_attestations.py",
+      "returncode": 0,
+      "seconds": 0.14,
+      "tail": [
+        "...                                                                      [100%]",
+        "3 passed in 0.02s"
+      ]
+    },
+    {
+      "file": "tests/test_wave5_3_reproducible_build_ci.py",
+      "returncode": 0,
+      "seconds": 0.16,
+      "tail": [
+        "......                                                                   [100%]",
+        "6 passed in 0.03s"
+      ]
+    },
+    {
+      "file": "tests/test_webhook_ssrf.py",
+      "returncode": 0,
+      "seconds": 0.18,
+      "tail": [
+        ".............                                                            [100%]",
+        "13 passed in 0.05s"
+      ]
+    },
+    {
+      "file": "tests/test_webwallet.py",
+      "returncode": 0,
+      "seconds": 1.48,
+      "tail": [
+        "........                                                                 [100%]",
+        "8 passed in 1.32s"
+      ]
+    }
+  ],
+  "passed": true
+}
