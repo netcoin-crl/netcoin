@@ -18,6 +18,10 @@ info:
 
     Networks filtered by Charter/CUJO-style DNS blocking can use the raw seed
     IP form, e.g. `http://18.220.89.128/api`.
+
+    Stable node API clients should call the `/v1/...` aliases. Unversioned node
+    routes remain available for compatibility and return `Deprecation: true`
+    plus `Link: </v1/...>; rel="successor-version"`.
   license:
     name: MIT
     url: https://github.com/netcoin-crl/netcoin/blob/main/LICENSE
@@ -28,6 +32,8 @@ servers:
     description: Raw-IP fallback for domain-filtered networks
   - url: http://127.0.0.1:28444
     description: Local node (no `/api` prefix)
+  - url: http://127.0.0.1:28444/v1
+    description: Local node stable v1 API prefix
 tags:
   - name: node
     description: Chain, block, transaction, and mempool data
@@ -228,23 +234,19 @@ paths:
       summary: Read-only public Polymarket discovery proxy
       responses:
         "200": { description: Public Gamma market metadata; never routes NetCoin orders externally. }
+  /:
+    get:
+      tags: [node]
+      summary: Alias for `/info`
+      responses:
+        "200": { description: Node and chain summary. }
   /info:
     get:
       tags: [node]
       summary: Node and chain summary
       responses:
         "200":
-          description: Height, tip hash, difficulty bits, mempool size, version.
-          content:
-            application/json:
-              example:
-                height: 3927
-                tip_hash: "0000abc..."
-                bits: 486604799
-                mempool_transactions: 0
-                version: "0.9.0"
-                target_spacing_seconds: 300
-                spacing_v2_activation_height: 5010
+          description: Height, tip hash, difficulty bits, mempool size, version, bandwidth mode, and service flags.
   /health:
     get:
       tags: [node]
@@ -257,26 +259,119 @@ paths:
       summary: Small status document for dashboards
       responses:
         "200": { description: Height, peers, version, uptime. }
-  /supply:
+  /metrics:
     get:
       tags: [node]
-      summary: Circulating supply and emission schedule status
+      summary: Prometheus-style metrics
       responses:
-        "200": { description: Minted supply, current subsidy, next reduction height. }
-  /fee-estimates:
+        "200": { description: Plain-text metric exposition. }
+  /relay:
+    get:
+      tags: [node]
+      summary: Relay queue state
+      responses:
+        "200": { description: Queue length, relay inventory count, and queued items. }
+    post:
+      tags: [node]
+      summary: Drain the relay queue now
+      responses:
+        "200": { description: Delivered count and remaining queue length. }
+  /events:
+    get:
+      tags: [node]
+      summary: Recent node propagation events
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, maximum: 500, default: 100 } }
+      responses:
+        "200": { description: Recent bounded event log. }
+  /events/stream:
+    get:
+      tags: [node]
+      summary: Server-sent events stream
+      responses:
+        "200": { description: "`text/event-stream` of chain events." }
+  /chain:
+    get:
+      tags: [node]
+      summary: Paginated block listing
+      parameters:
+        - { name: start, in: query, schema: { type: integer, default: 0 } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 200, default: 200 } }
+      responses:
+        "200": { description: "`{blocks, start, has_next, next_start, height}`" }
+  /headers:
+    get:
+      tags: [node]
+      summary: Block headers
+      parameters:
+        - { name: start, in: query, schema: { type: integer, default: 0 } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 2000, default: 2000 } }
+      responses:
+        "200": { description: Header list for light verification. }
+  /block/{hash}:
+    get:
+      tags: [node]
+      summary: Full block by hash
+      parameters:
+        - { name: hash, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Header, transactions, coinbase value, subsidy, fees, and weight. }
+        "404": { description: Unknown block. }
+  /cfilter/{hash}:
+    get:
+      tags: [node]
+      summary: Compact block filter for a block
+      parameters:
+        - { name: hash, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Filter bytes and filter hash. }
+        "404": { description: Unknown block. }
+  /compact-block-missing/{hash}:
+    get:
+      tags: [node]
+      summary: Missing transactions for compact-block reconstruction
+      parameters:
+        - { name: hash, in: path, required: true, schema: { type: string } }
+        - { name: have, in: query, schema: { type: string }, description: Comma-separated txids already held by the caller. }
+      responses:
+        "200": { description: Missing transaction payload. }
+        "404": { description: Unknown block. }
+  /compact-block/{hash}:
+    get:
+      tags: [node]
+      summary: Compact block announcement payload
+      parameters:
+        - { name: hash, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Short-id compact block payload. }
+        "404": { description: Unknown block. }
+  /tx/{txid}:
+    get:
+      tags: [node]
+      summary: Transaction by id
+      parameters:
+        - { name: txid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Inputs, outputs, witness, confirmations, and block location. }
+        "404": { description: Unknown transaction. }
+  /address/{address}:
     get:
       tags: [wallet]
-      summary: Fee presets (slow / normal / fast) from recent blocks and mempool
+      summary: Address activity summary
+      parameters:
+        - { name: address, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 500, default: 100 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
       responses:
-        "200":
-          description: Named presets with estimated fee in sats.
-          content:
-            application/json:
-              example:
-                presets:
-                  slow: { estimated_fee_sats: 1000 }
-                  normal: { estimated_fee_sats: 2000 }
-                  fast: { estimated_fee_sats: 5000 }
+        "200": { description: Balance, transaction count, and paginated transaction ids. }
+  /balance/{address}:
+    get:
+      tags: [wallet]
+      summary: Balance summary with coinbase-maturity countdown
+      parameters:
+        - { name: address, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Spendable / immature balances and maturity countdowns in blocks. }
   /latest:
     get:
       tags: [node]
@@ -289,117 +384,141 @@ paths:
     get:
       tags: [node]
       summary: Most recent transactions
+      parameters:
+        - { name: n, in: query, schema: { type: integer, maximum: 100, default: 20 } }
       responses:
-        "200": { description: Recent confirmed transactions. }
-  /chain:
+        "200": { description: Recent confirmed and mempool transactions. }
+  /supply:
     get:
       tags: [node]
-      summary: Paginated block listing
-      parameters:
-        - { name: start, in: query, schema: { type: integer, default: 0 } }
-        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
+      summary: Circulating supply and emission schedule status
       responses:
-        "200": { description: "`{blocks, start, has_next, next_start, height}`" }
-  /headers:
+        "200": { description: Minted supply, current subsidy, and next reduction height. }
+  /emission:
     get:
       tags: [node]
-      summary: Block headers (height range)
+      summary: Emission report at the current height
       responses:
-        "200": { description: Header list for light verification. }
-  /block/{hash}:
+        "200": { description: Era, subsidy, minted supply, and reduction schedule data. }
+  /p2p-hardening:
     get:
       tags: [node]
-      summary: Full block by hash
-      parameters:
-        - { name: hash, in: path, required: true, schema: { type: string } }
+      summary: Public P2P hardening status
       responses:
-        "200": { description: Header, transactions, and weight. }
-        "404": { description: Unknown block. }
-  /tx/{txid}:
+        "200": { description: Peer scoring, anti-eclipse, relay, and address-hardening status. }
+  /blocktemplate:
     get:
       tags: [node]
-      summary: Transaction by id
+      summary: Miner block template
       parameters:
-        - { name: txid, in: path, required: true, schema: { type: string } }
+        - { name: address, in: query, schema: { type: string }, description: Optional payout address. }
       responses:
-        "200": { description: Inputs, outputs, confirmations. }
-        "404": { description: Unknown transaction. }
-  /tx:
-    post:
-      tags: [wallet]
-      summary: Broadcast a signed transaction
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              description: Signed NetCoin transaction JSON (canonical form produced by the wallets/SDKs).
-      responses:
-        "200":
-          description: Accepted into the mempool.
-          content:
-            application/json:
-              example: { ok: true, txid: "ab12..." }
-        "400": { description: Rejected (bad signature, missing inputs, low fee, oversize). }
-  /address/{address}:
-    get:
-      tags: [wallet]
-      summary: Address activity summary
-      parameters:
-        - { name: address, in: path, required: true, schema: { type: string } }
-      responses:
-        "200": { description: "`{address, balance:{total,spendable,immature}, transaction_ids, transaction_count}`" }
-  /balance/{address}:
-    get:
-      tags: [wallet]
-      summary: Balance summary with coinbase-maturity countdown
-      parameters:
-        - { name: address, in: path, required: true, schema: { type: string } }
-      responses:
-        "200":
-          description: Spendable / immature balances and maturity countdowns in blocks.
-          content:
-            application/json:
-              example:
-                address: net1q...
-                total_sats: 5100000000
-                spendable_sats: 150000000
-                immature_sats: 4950000000
-                immature_next_mature_in_blocks: 12
-                immature_all_mature_in_blocks: 99
-  /utxos:
-    get:
-      tags: [wallet]
-      summary: Spendable UTXOs for an address
-      parameters:
-        - { name: address, in: query, required: true, schema: { type: string } }
-      responses:
-        "200": { description: "`{address, utxos: [{txid, vout, output:{amount, address}}]}`" }
+        "200": { description: Template consumed by `netcoin miner` and SDK clients. }
   /mempool:
     get:
       tags: [node]
       summary: Mempool contents and statistics
+      parameters:
+        - { name: transactions, in: query, schema: { type: boolean, default: true } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 500, default: 100 } }
       responses:
-        "200": { description: Pending transactions. }
+        "200": { description: Pending transactions, fee/expiry metadata, and summary stats. }
+  /fee-estimates:
+    get:
+      tags: [wallet]
+      summary: Fee presets from recent blocks and mempool
+      responses:
+        "200": { description: Slow, normal, and fast fee presets. }
   /peers:
     get:
       tags: [node]
       summary: Known peers and reputation
       responses:
         "200": { description: Peer list with scores and ban state. }
-  /metrics:
-    get:
+    post:
       tags: [node]
-      summary: Prometheus-style metrics
+      summary: Add one or more peers
+      requestBody:
+        content:
+          application/json:
+            example: { peers: ["http://127.0.0.1:28445"] }
       responses:
-        "200": { description: Plain-text metric exposition. }
-  /events/stream:
+        "200": { description: Updated peer list. }
+  /utxos:
     get:
-      tags: [node]
-      summary: Server-sent events stream (new blocks and transactions)
+      tags: [wallet]
+      summary: Spendable UTXOs for an address
+      parameters:
+        - { name: address, in: query, required: true, schema: { type: string } }
+        - { name: include_mempool_spent, in: query, schema: { type: boolean, default: false } }
       responses:
-        "200": { description: "`text/event-stream` of chain events." }
+        "200": { description: UTXO list and mempool-spent exclusion count. }
+  /tx:
+    post:
+      tags: [wallet]
+      summary: Broadcast a signed transaction
+      parameters:
+        - { name: private, in: query, schema: { type: boolean, default: false }, description: Accept locally without relay. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, description: Signed NetCoin transaction JSON. }
+      responses:
+        "200": { description: Accepted into the mempool. }
+        "400": { description: Rejected transaction. }
+        "429": { description: Rate limit exceeded; includes `Retry-After`. }
+  /package:
+    post:
+      tags: [wallet]
+      summary: Submit an ancestor/child transaction package
+      parameters:
+        - { name: private, in: query, schema: { type: boolean, default: false }, description: Accept locally without relay. }
+      responses:
+        "200": { description: Accepted package with txids and relay count. }
+        "400": { description: Rejected package. }
+  /block:
+    post:
+      tags: [node]
+      summary: Submit a solved block
+      responses:
+        "200": { description: Accepted block hash and relay count. }
+        "400": { description: Invalid block. }
+  /submitblock:
+    post:
+      tags: [node]
+      summary: Alias for `POST /block`
+      responses:
+        "200": { description: Accepted block hash and relay count. }
+        "400": { description: Invalid block. }
+  /compact-block:
+    post:
+      tags: [node]
+      summary: Submit a compact block plus optional missing transactions
+      responses:
+        "200": { description: Reconstructed and accepted block. }
+        "202": { description: More transactions are required; response lists missing ids. }
+        "400": { description: Invalid compact block. }
+  /mempool/clear:
+    post:
+      tags: [node]
+      summary: Clear local mempool (operator token required)
+      responses:
+        "200": { description: Count of cleared transactions. }
+        "401": { description: Operator token required. }
+  /mempool/prune:
+    post:
+      tags: [node]
+      summary: Evict expired mempool transactions (operator token required)
+      responses:
+        "200": { description: Count of evicted transactions. }
+        "401": { description: Operator token required. }
+  /sync:
+    post:
+      tags: [node]
+      summary: Trigger peer synchronization
+      responses:
+        "200": { description: Adopted-chain count and node info. }
   /keys/register:
     post:
       tags: [apps]

@@ -1,4 +1,4 @@
-.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check reproducible-build-check explorer-faucet-status-metrics-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check rust-consensus-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check full-suite-report devnet localnet-check nightly-fuzz-check chaos-drill-check fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean p2p-soak-check indexer-db-check ts-api-contract-check browser-e2e-matrix-check security-audit-prep-check product-architecture-check design-system-check product-simplification-check trust-interaction-check product-coherence-check v033-check v034-check v035-check v036-check v037-check v038-check v0381-check v0382-check v0383-check v0384-check
+.PHONY: install-dev test test-fast test-full test-report ci-local lint format typecheck coverage release-check provenance-check reproducible-build-check perf-benchmark-check versionbits-rehearsal-check genesis-rehearsal-check bandwidth-relay-check dns-seeder-check pool-mining-check rate-limit-loadtest-check node-installer-check api-v1-openapi-check explorer-faucet-status-metrics-check upgrade-healthcheck ops-bundle site-audit site-sync product-check arch-check migration-check rust-workspace-check ts-api-check parity-check rust-consensus-parity-check rust-wallet-parity-check rust-markets-parity-check rust-signer-parity-check rust-p2p-parity-check rust-indexer-parity-check ts-openapi-codegen-check full-suite-report devnet localnet-check nightly-fuzz-check chaos-drill-check fuzz browser-test browser-e2e browser-e2e-local openapi-contract security-check clean p2p-soak-check indexer-db-check ts-api-contract-check browser-e2e-matrix-check security-audit-prep-check product-architecture-check design-system-check product-simplification-check trust-interaction-check product-coherence-check v033-check v034-check v035-check v036-check v037-check v038-check v0381-check v0382-check v0383-check v0384-check
 
 PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
@@ -87,6 +87,40 @@ provenance-check:
 
 reproducible-build-check:
 	$(PYTHON) tools/verify_reproducible_build.py --out reports/reproducible_build_source_report.json
+
+perf-benchmark-check:
+	$(PYTHON) tools/run_perf_benchmark.py --out reports/perf/perf_benchmark_report.json
+
+versionbits-rehearsal-check:
+	NETCOIN_TESTNET_DEPLOYMENTS=1 $(PYTHON) tools/run_versionbits_rehearsal.py --out reports/versionbits_rehearsal_report.json
+
+genesis-rehearsal-check:
+	$(PYTHON) tools/generate_genesis.py --network regtest --out reports/genesis_rehearsal_report.json
+
+bandwidth-relay-check:
+	$(PYTHON) tools/run_bandwidth_relay_probe.py --mode home --out reports/bandwidth_relay_probe.json
+
+dns-seeder-check:
+	$(PYTHON) -m pytest tests/test_p6_dns_seeder.py -q
+
+pool-mining-check:
+	$(PYTHON) tools/run_pool_mining_probe.py --data-dir /tmp/netcoin-pool-probe --out reports/pool_mining_probe.json
+
+rate-limit-loadtest-check:
+	$(PYTHON) tools/run_rate_limit_loadtest.py --rate-limit-per-min 8 --requests 24 --workers 8 --out reports/rate_limit_loadtest.json
+
+node-installer-check:
+	sh -n tools/install_public_node.sh
+	sh -n tools/uninstall_public_node.sh
+	sh -n tools/upgrade_public_node.sh
+	sh tools/install_public_node.sh --dry-run --prefix /tmp/netcoin-public-node-check --advertise 127.0.0.1:28444
+	sh tools/uninstall_public_node.sh --dry-run --prefix /tmp/netcoin-public-node-check
+	sh tools/upgrade_public_node.sh --dry-run --prefix /tmp/netcoin-public-node-check
+	$(PYTHON) -m pytest tests/test_p8_node_installer_rate_limit.py -q
+
+api-v1-openapi-check:
+	$(PYTHON) tools/check_node_openapi_v1.py
+	$(PYTHON) -m pytest tests/test_p9_api_v1_openapi_sdk.py -q
 
 explorer-faucet-status-metrics-check:
 	$(PYTHON) -m pytest tests/test_p12_explorer_faucet_status_metrics.py -q

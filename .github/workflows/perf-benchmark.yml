@@ -1,0 +1,31 @@
+name: Performance Benchmark
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/run_perf_benchmark.py"
+      - "tests/test_p2_perf_benchmark.py"
+      - ".github/workflows/perf-benchmark.yml"
+      - "netcoin/**"
+
+jobs:
+  perf-benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run source performance benchmark
+        run: |
+          python tools/run_perf_benchmark.py \
+            --blocks 12 \
+            --bootstrap-blocks 101 \
+            --mempool-transactions 12 \
+            --out reports/perf/perf_benchmark_report.json
+      - name: Upload performance evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: netcoin-performance-benchmark
+          path: reports/perf/perf_benchmark_report.json

@@ -1,0 +1,24 @@
+{
+  "schema": "netcoin-genesis-rehearsal-manifest-v1",
+  "network": "regtest",
+  "status": "rehearsal",
+  "height": 0,
+  "version": 1,
+  "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "timestamp": 1750000000,
+  "bits": 545259519,
+  "coinbase_message": "NetCoin regtest genesis rehearsal - not mainnet",
+  "outputs": [
+    {
+      "name": "rehearsal-faucet",
+      "amount": 5000000000,
+      "script_pubkey": "OP_TRUE"
+    }
+  ],
+  "ceremony": {
+    "purpose": "offline rehearsal only",
+    "requires_nip_before_activation": true,
+    "operators": ["operator-a", "operator-b"],
+    "transcript_required": true
+  }
+}

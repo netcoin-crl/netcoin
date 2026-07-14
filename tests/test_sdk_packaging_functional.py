@@ -37,4 +37,17 @@ def test_python_sdk_pyproject_is_valid_and_versioned():
 def test_sdk_versions_match_each_other():
     js = json.loads((ROOT / "sdk" / "netcoin-js" / "package.json").read_text())["version"]
     py = tomllib.loads((ROOT / "sdk" / "netcoin-python" / "pyproject.toml").read_text())["project"]["version"]
-    assert js == py == _node_version()
+    rust = tomllib.loads((ROOT / "sdk" / "netcoin-rs" / "Cargo.toml").read_text())["package"]["version"]
+    assert js == py == rust == _node_version()
+
+
+def test_rust_sdk_manifest_is_publish_ready():
+    data = tomllib.loads((ROOT / "sdk" / "netcoin-rs" / "Cargo.toml").read_text())
+    package = data["package"]
+    assert package["name"] == "netcoin-rs"
+    assert package["edition"] == "2021"
+    assert package["license"] == "MIT"
+    assert package["readme"] == "README.md"
+    assert (ROOT / "sdk" / "netcoin-rs" / "README.md").exists()
+    assert (ROOT / "sdk" / "netcoin-rs" / "src" / "lib.rs").exists()
+    assert (ROOT / "sdk" / "netcoin-rs" / "tests" / "local_client.rs").exists()

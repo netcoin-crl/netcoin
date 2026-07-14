@@ -1,0 +1,43 @@
+name: Node Installer Smoke
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "docker-compose.node.yml"
+      - "tools/install_public_node.sh"
+      - "tools/uninstall_public_node.sh"
+      - "tools/upgrade_public_node.sh"
+      - ".github/workflows/node-installer-smoke.yml"
+  workflow_dispatch:
+
+jobs:
+  compose-node:
+    name: Compose node boots and mines
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start public-node compose stack
+        run: docker compose -f docker-compose.node.yml up -d --build
+      - name: Wait for /info
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:28444/info >/tmp/netcoin-info.json; then
+              cat /tmp/netcoin-info.json
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.node.yml logs
+          exit 1
+      - name: Mine one block through node API
+        run: |
+          PAYOUT="$(docker compose -f docker-compose.node.yml exec -T netcoin-node python -c 'from netcoin.wallet import Wallet; print(Wallet.create().segwit_address)')"
+          docker compose -f docker-compose.node.yml exec -T netcoin-node \
+            python -m netcoin miner --node http://127.0.0.1:28444 --address "$PAYOUT" --blocks 1
+          curl -fsS http://127.0.0.1:28444/info | tee /tmp/netcoin-after-mine.json
+          python -c 'import json; info=json.load(open("/tmp/netcoin-after-mine.json")); assert info["node"]["height"] >= 1, info'
+      - name: Tear down compose stack
+        if: always()
+        run: docker compose -f docker-compose.node.yml down -v

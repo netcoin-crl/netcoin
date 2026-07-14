@@ -60,27 +60,37 @@ if [ "$DRY_RUN" -eq 0 ]; then
   "$PREFIX/.venv/bin/python" -m pip install -e "$PREFIX/src"
 fi
 
-cat > "$PREFIX/netcoin-node.env" <<EOF
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "+ would write $PREFIX/netcoin-node.env"
+else
+  cat > "$PREFIX/netcoin-node.env" <<EOF
 NETCOIN_DATA_DIR=$PREFIX/data
 NETCOIN_ADVERTISE=$ADVERTISE
 NETCOIN_BANDWIDTH_MODE=$BANDWIDTH_MODE
 NETCOIN_P2P_PORT=28444
 EOF
+  echo "+ wrote $PREFIX/netcoin-node.env"
+fi
 
-echo "+ wrote $PREFIX/netcoin-node.env"
-
-cat > "$PREFIX/run-node.sh" <<EOF
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "+ would write $PREFIX/run-node.sh"
+else
+  cat > "$PREFIX/run-node.sh" <<EOF
 #!/bin/sh
 set -eu
 . "$PREFIX/netcoin-node.env"
 exec "$PREFIX/.venv/bin/python" -m netcoin --data "\$NETCOIN_DATA_DIR" node --host 0.0.0.0 --port "\$NETCOIN_P2P_PORT" --advertise "\$NETCOIN_ADVERTISE"
 EOF
-chmod +x "$PREFIX/run-node.sh"
-echo "+ wrote $PREFIX/run-node.sh"
+  chmod +x "$PREFIX/run-node.sh"
+  echo "+ wrote $PREFIX/run-node.sh"
+fi
 
 if [ "$WRITE_SYSTEMD" -eq 1 ]; then
   SERVICE="$PREFIX/netcoin-node.service"
-  cat > "$SERVICE" <<EOF
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "+ would write $SERVICE"
+  else
+    cat > "$SERVICE" <<EOF
 [Unit]
 Description=NetCoin public testnet node
 After=network-online.target
@@ -97,7 +107,8 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 EOF
-  echo "+ wrote $SERVICE"
+    echo "+ wrote $SERVICE"
+  fi
   echo "Review, then install manually: sudo cp $SERVICE /etc/systemd/system/netcoin-node.service"
 fi
 

@@ -91,6 +91,22 @@ class NetcoinClient:
     def burn_token(self, token: str, account: str, amount: str) -> dict:
         return self.post(f"/api/tokens/{quote(token)}/burn", {"from": account, "amount": amount})
 
+    # ----- Stable node API v1 helpers -----
+
+    def node_info(self) -> dict:
+        return self.get("/v1/info")
+
+    def node_health(self) -> dict:
+        return self.get("/v1/health")
+
+    def block_template(self, address: str = "") -> dict:
+        suffix = "?" + urlencode({"address": address}) if address else ""
+        return self.get(f"/v1/blocktemplate{suffix}")
+
+    def broadcast_transaction(self, transaction: dict, *, private: bool = False) -> dict:
+        suffix = "?private=1" if private else ""
+        return self.post(f"/v1/tx{suffix}", transaction)
+
 
 def payment_uri(address: str, amount: str = "", label: str = "", message: str = "") -> str:
     qs = {k: v for k, v in {"amount": amount, "label": label, "message": message}.items() if v}

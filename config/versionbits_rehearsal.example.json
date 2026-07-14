@@ -1,13 +1,13 @@
 {
-  "schema": "netcoin-versionbits-rehearsal-v1",
+  "network": "regtest",
+  "enabled": true,
+  "enforce_active_signal": true,
   "deployment": {
-    "name": "testnet-rehearsal-only",
-    "bit": 1,
-    "start_height": 20000,
-    "timeout_height": 50000,
-    "period": 144,
-    "threshold": 108
-  },
-  "consensus_integrated": false,
-  "requires_nip_before_activation": true
+    "name": "trivial-active-signal-rehearsal",
+    "bit": 0,
+    "start_height": 0,
+    "timeout_height": 20,
+    "period": 2,
+    "threshold": 2
+  }
 }

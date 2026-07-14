@@ -39,6 +39,8 @@ from .pool import run_pool
 from .psbt import PartiallySignedTransaction
 from .rpc import run_rpc
 from .script import describe_address, multisig_redeem_script, script_to_p2sh_address
+from .seeder import config_from_args as seeder_config_from_args
+from .seeder import run_dns_seeder
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .soak import SoakConfig, run_soak
 from .tx import Transaction, amount_to_sats, sats_to_amount
@@ -1154,6 +1156,7 @@ def cmd_node(args: argparse.Namespace) -> None:
     sync_interval = getattr(args, "sync_interval", 0)
     rate_limit_per_min = getattr(args, "rate_limit_per_min", 240)
     trust_proxy_headers = bool(getattr(args, "trust_proxy_headers", False))
+    bandwidth_mode = getattr(args, "bandwidth_mode", None)
     peers = list(args.peer or [])
     if getattr(args, "config", None):
         from .config import load_config
@@ -1170,6 +1173,8 @@ def cmd_node(args: argparse.Namespace) -> None:
             sync_interval = int(cfg["sync_interval"])
         if cfg.get("rate_limit_per_min") is not None and rate_limit_per_min == 240:
             rate_limit_per_min = int(cfg["rate_limit_per_min"])
+        if bandwidth_mode is None and cfg.get("bandwidth_mode"):
+            bandwidth_mode = str(cfg["bandwidth_mode"])
         trust_proxy_headers = trust_proxy_headers or bool(cfg.get("trust_proxy_headers", False))
         use_seeds = use_seeds or cfg.get("seeds", False)
     if use_seeds:
@@ -1184,7 +1189,12 @@ def cmd_node(args: argparse.Namespace) -> None:
         rate_limit_per_min=rate_limit_per_min,
         p2p_port=getattr(args, "p2p_port", DEFAULT_P2P_PORT),
         trust_proxy_headers=trust_proxy_headers,
+        bandwidth_mode=bandwidth_mode,
     )
+
+
+def cmd_seeder(args: argparse.Namespace) -> None:
+    run_dns_seeder(seeder_config_from_args(args))
 
 
 def cmd_rpc(args: argparse.Namespace) -> None:
@@ -1199,7 +1209,13 @@ def cmd_rpc_call(args: argparse.Namespace) -> None:
 
 def cmd_pool(args: argparse.Namespace) -> None:
     address = load_address(args.wallet, args.address, address_type=args.address_type, passphrase=args.passphrase)
-    run_pool(data_dir=args.data, payout_address=address, host=args.host, port=args.port)
+    run_pool(
+        data_dir=args.data,
+        payout_address=address,
+        host=args.host,
+        port=args.port,
+        stratum_port=args.stratum_port,
+    )
 
 
 def cmd_explorer(args: argparse.Namespace) -> None:
@@ -1804,11 +1820,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--rate-limit-per-min", type=int, default=240, help="per-IP/per-path HTTP request limit; 0 disables")
     p.add_argument(
+        "--bandwidth-mode",
+        choices=["normal", "home", "low"],
+        help="outbound relay byte-rate budget; defaults to NETCOIN_BANDWIDTH_MODE or normal",
+    )
+    p.add_argument(
         "--trust-proxy-headers",
         action="store_true",
         help="honor X-Forwarded-For only when behind a trusted reverse proxy",
     )
     p.set_defaults(func=cmd_node)
+
+    p = sub.add_parser("seeder", help="run UDP DNS seeder from the peer database")
+    p.add_argument("--peer-db", type=Path, required=True, help="PeerDatabase sqlite path")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=5353)
+    p.add_argument("--domain", default="seed.netcoin.local")
+    p.add_argument("--ttl", type=int, default=300)
+    p.add_argument("--max-answers", type=int, default=8)
+    p.add_argument("--min-score", type=int, default=-10)
+    p.set_defaults(func=cmd_seeder)
 
     p = sub.add_parser("rpc", help="run JSON-RPC server")
     p.add_argument("--host", default="127.0.0.1")
@@ -1829,6 +1860,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_POOL_PORT)
+    p.add_argument("--stratum-port", type=int, default=DEFAULT_POOL_PORT + 1)
     p.set_defaults(func=cmd_pool)
 
     p = sub.add_parser("explorer", help="generate a static HTML block explorer")

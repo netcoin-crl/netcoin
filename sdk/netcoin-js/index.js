@@ -58,6 +58,17 @@ export class NetcoinClient {
   mintToken(token, { minter, amount, to = "" }) { return this.post(`/api/tokens/${encodeURIComponent(token)}/mint`, { minter, amount, to: to || minter }); }
   transferToken(token, { from, to, amount }) { return this.post(`/api/tokens/${encodeURIComponent(token)}/transfer`, { from, to, amount }); }
   burnToken(token, { from, amount }) { return this.post(`/api/tokens/${encodeURIComponent(token)}/burn`, { from, amount }); }
+  // Stable node API v1 helpers
+  nodeInfo() { return this.get("/v1/info"); }
+  nodeHealth() { return this.get("/v1/health"); }
+  blockTemplate(address = "") {
+    const qs = new URLSearchParams();
+    if (address) qs.set("address", address);
+    return this.get(`/v1/blocktemplate${qs.toString() ? "?" + qs.toString() : ""}`);
+  }
+  broadcastTransaction(transaction, { privateRelay = false } = {}) {
+    return this.post(`/v1/tx${privateRelay ? "?private=1" : ""}`, transaction);
+  }
   buildPaymentURI(address, { amount = "", label = "", message = "" } = {}) {
     const qs = new URLSearchParams();
     if (amount) qs.set("amount", amount);

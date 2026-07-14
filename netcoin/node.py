@@ -8,6 +8,7 @@ compact block summaries, mempool exchange, block templates, and orphan handling.
 from __future__ import annotations
 
 import hmac
+import hashlib
 import json
 import os
 import time
@@ -15,12 +16,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Event, Thread
+from threading import Event, Lock, Thread
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
 from .apps import AppError, AppStore, route_app_get, route_app_post
+from .bandwidth import TokenBucket, budget_for_mode
 from .block import Block
 from .chain import Blockchain
 from .compact import (
@@ -55,26 +57,44 @@ class NodeError(ValueError):
     """Raised when node-level operations fail."""
 
 
+@dataclass(frozen=True)
+class RateLimitDecision:
+    allowed: bool
+    retry_after: int = 0
+
+
 class RateLimiter:
-    """Simple per-key sliding-window rate limiter (per IP + endpoint)."""
+    """Token-bucket rate limiter keyed by caller identity and endpoint."""
 
     def __init__(self, max_requests: int = 240, window_seconds: int = 60):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self._hits: dict[Any, list[float]] = {}
+        self.max_requests = max(0, int(max_requests))
+        self.window_seconds = max(1, int(window_seconds))
+        self._buckets: dict[Any, tuple[float, float]] = {}
+        self._lock = Lock()
+
+    @property
+    def refill_rate(self) -> float:
+        return self.max_requests / float(self.window_seconds)
+
+    def check(self, key: Any) -> RateLimitDecision:
+        if self.max_requests <= 0:
+            return RateLimitDecision(True, 0)
+        now = time.time()
+        capacity = float(self.max_requests)
+        refill_rate = self.refill_rate
+        with self._lock:
+            tokens, updated_at = self._buckets.get(key, (capacity, now))
+            elapsed = max(0.0, now - updated_at)
+            tokens = min(capacity, tokens + elapsed * refill_rate)
+            if tokens >= 1.0:
+                self._buckets[key] = (tokens - 1.0, now)
+                return RateLimitDecision(True, 0)
+            retry_after = max(1, int((1.0 - tokens) / refill_rate + 0.999))
+            self._buckets[key] = (tokens, now)
+            return RateLimitDecision(False, retry_after)
 
     def allow(self, key: Any) -> bool:
-        if self.max_requests <= 0:
-            return True
-        now = time.time()
-        cutoff = now - self.window_seconds
-        bucket = [t for t in self._hits.get(key, []) if t >= cutoff]
-        if len(bucket) >= self.max_requests:
-            self._hits[key] = bucket
-            return False
-        bucket.append(now)
-        self._hits[key] = bucket
-        return True
+        return self.check(key).allowed
 
 
 def client_ip_from_headers(headers: Any, client_address: Any, *, trust_proxy_headers: bool = False) -> str:
@@ -93,6 +113,28 @@ def client_ip_from_headers(headers: Any, client_address: Any, *, trust_proxy_hea
     if client_address:
         return str(client_address[0])
     return "unknown"
+
+
+def api_key_identity_from_headers(headers: Any) -> str:
+    """Return a stable, non-secret API-key identity for limiter bucketing."""
+    value = headers.get("X-Netcoin-Api-Key", "") or headers.get("X-API-Key", "")
+    authorization = headers.get("Authorization", "")
+    if not value and authorization.lower().startswith("bearer "):
+        value = authorization[7:].strip()
+    if not value:
+        return "anonymous"
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+    return f"key:{digest}"
+
+
+def versioned_api_path(path: str) -> tuple[str, bool]:
+    """Return the canonical node path plus whether the request used /v1."""
+    if path == "/v1":
+        return "/", True
+    if path.startswith("/v1/"):
+        stripped = path[3:]
+        return stripped or "/", True
+    return path, False
 
 
 @dataclass
@@ -121,6 +163,8 @@ class NetCoinNode:
         request_retries: int = 1,
         ban_threshold: int = -5,
         ban_ttl_seconds: int = 3600,
+        bandwidth_mode: str | None = None,
+        max_relay_bytes_per_second: int | None = None,
     ):
         self.chain = chain
         self.peers = set()
@@ -153,6 +197,13 @@ class NetCoinNode:
         self.rate_limiter = RateLimiter(max_requests=rate_limit_per_min, window_seconds=60)
         self.request_timeout = request_timeout
         self.request_retries = max(0, request_retries)
+        configured_bandwidth_mode = bandwidth_mode or os.environ.get("NETCOIN_BANDWIDTH_MODE", "normal")
+        self.bandwidth_budget = budget_for_mode(configured_bandwidth_mode)
+        override_bps = max_relay_bytes_per_second
+        if override_bps is None and os.environ.get("NETCOIN_MAX_RELAY_BYTES_PER_SECOND"):
+            override_bps = int(os.environ["NETCOIN_MAX_RELAY_BYTES_PER_SECOND"])
+        relay_bps = self.bandwidth_budget.max_bytes_per_second if override_bps is None else int(override_bps)
+        self.outbound_relay_bucket = TokenBucket(relay_bps)
         # Bounded event log for block-propagation visibility.
         self.event_log: list[dict[str, Any]] = []
         self.max_events = 500
@@ -464,6 +515,7 @@ class NetCoinNode:
                 "banned": len(self.banned),
                 "orphans": len(self.orphans),
                 "services": self.SERVICES,
+                "bandwidth": self.bandwidth_status(),
             }
         )
         return data
@@ -484,6 +536,14 @@ class NetCoinNode:
             "relay_queue": len(self._relay_queue),
             "uptime_seconds": self.uptime_seconds(),
             "services": self.SERVICES,
+            "bandwidth": self.bandwidth_status(),
+        }
+
+    def bandwidth_status(self) -> dict[str, Any]:
+        return {
+            "schema": "netcoin-bandwidth-runtime-v1",
+            "budget": self.bandwidth_budget.to_dict(),
+            "outbound_relay": self.outbound_relay_bucket.snapshot(),
         }
 
     def cached_response(self, key: str, ttl_seconds: float, builder: Any) -> dict[str, Any]:
@@ -527,6 +587,12 @@ class NetCoinNode:
             "# HELP netcoin_relay_queue_items Pending relay queue items.",
             "# TYPE netcoin_relay_queue_items gauge",
             f"netcoin_relay_queue_items {len(self._relay_queue)}",
+            "# HELP netcoin_outbound_relay_bytes_total Outbound JSON relay bytes sent by this node.",
+            "# TYPE netcoin_outbound_relay_bytes_total counter",
+            f"netcoin_outbound_relay_bytes_total {self.outbound_relay_bucket.total_bytes}",
+            "# HELP netcoin_outbound_relay_throttle_events_total Outbound relay throttle sleeps.",
+            "# TYPE netcoin_outbound_relay_throttle_events_total counter",
+            f"netcoin_outbound_relay_throttle_events_total {self.outbound_relay_bucket.throttle_events}",
             "# HELP netcoin_cumulative_work Cumulative chain work.",
             "# TYPE netcoin_cumulative_work gauge",
             f"netcoin_cumulative_work {info['cumulative_work']}",
@@ -565,6 +631,7 @@ class NetCoinNode:
     def post_json(self, url: str, payload: dict[str, Any], timeout: int | None = None) -> dict[str, Any]:
         timeout = self.request_timeout if timeout is None else timeout
         body = json.dumps(payload).encode("utf-8")
+        self.outbound_relay_bucket.consume(len(body))
         last_exc: Exception | None = None
         for attempt in range(self.request_retries + 1):
             try:
@@ -889,11 +956,26 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
             super().end_headers()
 
-        def send_json(self, payload: dict[str, Any], status: int = 200) -> None:
+        def request_version_headers(self) -> dict[str, str]:
+            if getattr(self, "_netcoin_v1_request", False):
+                return {"API-Version": "v1"}
+            raw_path = getattr(self, "_netcoin_raw_path", "")
+            successor = "/v1" + (raw_path if raw_path.startswith("/") else "/" + raw_path)
+            return {
+                "API-Version": "legacy",
+                "Deprecation": "true",
+                "Link": f"<{successor}>; rel=\"successor-version\"",
+            }
+
+        def send_json(self, payload: dict[str, Any], status: int = 200, headers: dict[str, str] | None = None) -> None:
             body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            for name, value in self.request_version_headers().items():
+                self.send_header(name, value)
+            for name, value in (headers or {}).items():
+                self.send_header(name, value)
             self.end_headers()
             self.wfile.write(body)
 
@@ -904,6 +986,8 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
+            for name, value in self.request_version_headers().items():
+                self.send_header(name, value)
             self.end_headers()
             self.wfile.write(body)
 
@@ -912,6 +996,8 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
             self.send_header("Connection", "keep-alive")
+            for name, value in self.request_version_headers().items():
+                self.send_header(name, value)
             self.end_headers()
             last = None
             for _ in range(30):
@@ -930,8 +1016,10 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     last = payload
                 time.sleep(5)
 
-        def send_error_json(self, message: str, status: int = 400) -> None:
-            self.send_json({"ok": False, "error": message}, status=status)
+        def send_error_json(
+            self, message: str, status: int = 400, headers: dict[str, str] | None = None
+        ) -> None:
+            self.send_json({"ok": False, "error": message}, status=status, headers=headers)
 
         def send_text(self, text: str, status: int = 200) -> None:
             body = str(text).encode("utf-8")
@@ -1014,10 +1102,30 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             except (ValueError, KeyError, IndexError) as exc:
                 return self.send_error_json(f"bad esplora request: {exc}", status=400)
 
-        def do_GET(self) -> None:
+        def canonical_parsed_url(self):
             parsed = urlparse(self.path)
-            if not node.rate_limiter.allow((self.client_ip(), "GET", parsed.path)):
-                self.send_error_json("rate limit exceeded", status=429)
+            canonical_path, is_v1 = versioned_api_path(parsed.path)
+            self._netcoin_raw_path = parsed.path
+            self._netcoin_v1_request = is_v1
+            return parsed._replace(path=canonical_path)
+
+        def rate_limit_key(self, method: str, path: str) -> tuple[str, str, str, str]:
+            return (self.client_ip(), api_key_identity_from_headers(self.headers), method, path)
+
+        def enforce_rate_limit(self, method: str, path: str) -> bool:
+            decision = node.rate_limiter.check(self.rate_limit_key(method, path))
+            if decision.allowed:
+                return True
+            self.send_error_json(
+                "rate limit exceeded",
+                status=429,
+                headers={"Retry-After": str(max(1, decision.retry_after))},
+            )
+            return False
+
+        def do_GET(self) -> None:
+            parsed = self.canonical_parsed_url()
+            if not self.enforce_rate_limit("GET", parsed.path):
                 return
             try:
                 if parsed.path == "/events/stream":
@@ -1320,10 +1428,9 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             return self.headers.get("X-Netcoin-Api-Key", "") or self.headers.get("X-API-Key", "")
 
         def do_POST(self) -> None:
-            parsed = urlparse(self.path)
+            parsed = self.canonical_parsed_url()
             # Per-IP, per-endpoint rate limiting for write/relay endpoints.
-            if not node.rate_limiter.allow((self.client_ip(), "POST", parsed.path)):
-                self.send_error_json("rate limit exceeded", status=429)
+            if not self.enforce_rate_limit("POST", parsed.path):
                 return
             try:
                 data = self.read_json()
@@ -1462,9 +1569,16 @@ def run_node(
     rate_limit_per_min: int = 240,
     p2p_port: int = DEFAULT_P2P_PORT,
     trust_proxy_headers: bool = False,
+    bandwidth_mode: str | None = None,
 ) -> None:
     chain = Blockchain(data_dir=data_dir)
-    node = NetCoinNode(chain, peers=peers or [], self_url=advertise, rate_limit_per_min=rate_limit_per_min)
+    node = NetCoinNode(
+        chain,
+        peers=peers or [],
+        self_url=advertise,
+        rate_limit_per_min=rate_limit_per_min,
+        bandwidth_mode=bandwidth_mode,
+    )
 
     # Bind and serve immediately, then bootstrap (announce + peer discovery +
     # initial sync) in a background thread. A slow or unreachable peer must never

@@ -1,0 +1,14 @@
+[package]
+name = "netcoin-rs"
+version = "0.42.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/netcoin/netcoin"
+description = "NetCoin Rust SDK with a thin v1 node client and signed-envelope helpers."
+readme = "README.md"
+keywords = ["netcoin", "cryptocurrency", "testnet", "sdk"]
+categories = ["api-bindings", "cryptography::cryptocurrencies"]
+
+[lib]
+name = "netcoin_rs"
+path = "src/lib.rs"
