@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: E402
 """Mine a deterministic regtest/testnet-rehearsal genesis block from a manifest."""
 
 from __future__ import annotations
@@ -15,9 +16,17 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.block import Block, BlockError, BlockHeader, bits_to_target, check_proof_of_work, merkle_root, mine_header  # noqa: E402
-from netcoin.params import INITIAL_BITS, MAX_MONEY, ZERO_HASH  # noqa: E402
-from netcoin.tx import Transaction, TxInput, TxOutput  # noqa: E402
+from netcoin.block import (
+    Block,
+    BlockError,
+    BlockHeader,
+    bits_to_target,
+    check_proof_of_work,
+    merkle_root,
+    mine_header,
+)
+from netcoin.params import INITIAL_BITS, MAX_MONEY, ZERO_HASH
+from netcoin.tx import Transaction, TxInput, TxOutput
 
 GENESIS_REHEARSAL_SCHEMA = "netcoin-genesis-rehearsal-manifest-v1"
 GENESIS_REHEARSAL_REPORT_SCHEMA = "netcoin-genesis-rehearsal-report-v1"

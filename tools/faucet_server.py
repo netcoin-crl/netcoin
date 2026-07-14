@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: E402
 """Small stdlib-only NetCoin testnet faucet.
 
 This is intentionally simple infrastructure glue. It validates a submitted
@@ -321,9 +322,7 @@ def autoscaled_pow_difficulty(state: dict, now: int | None = None) -> dict:
     configured = max(0, int(state.get("difficulty", POW_DIFFICULTY) or 0))
     if not POW_AUTOSCALE_ENABLED:
         return {"difficulty": configured, "configured": configured, "autoscaled": False, "reasons": []}
-    recent_abuse = [
-        item for item in state.get("abuse", []) or [] if now - int(item.get("timestamp", 0) or 0) < 60 * 60
-    ]
+    recent_abuse = [item for item in state.get("abuse", []) or [] if now - int(item.get("timestamp", 0) or 0) < 60 * 60]
     queued = [item for item in state.get("queue", []) or [] if item.get("status") == "queued"]
     bump = 0
     reasons: list[str] = []

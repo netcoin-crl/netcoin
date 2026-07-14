@@ -44,7 +44,7 @@ def test_v1_aliases_work_and_legacy_routes_are_deprecated(tmp_path: Path):
     with served(NetCoinNode(chain, persist=False)) as s:
         legacy_response, legacy = read_json_response(f"{s.url}/info")
         v1_response, v1 = read_json_response(f"{s.url}/v1/info")
-        root_response, root = read_json_response(f"{s.url}/v1")
+        _root_response, root = read_json_response(f"{s.url}/v1")
         health_response, health = read_json_response(f"{s.url}/v1/health")
     assert legacy["node"]["height"] == v1["node"]["height"] == root["node"]["height"]
     assert legacy_response.headers["API-Version"] == "legacy"
@@ -109,8 +109,7 @@ const info = await client.nodeInfo();
 const health = await client.nodeHealth();
 const template = await client.blockTemplate();
 console.log(JSON.stringify({ height: info.node.height, ok: health.ok, templateHeight: template.height }));
-"""
-        % (ROOT / "sdk" / "netcoin-js" / "index.js"),
+""" % (ROOT / "sdk" / "netcoin-js" / "index.js"),
         encoding="utf-8",
     )
     with served(NetCoinNode(chain, persist=False)) as s:

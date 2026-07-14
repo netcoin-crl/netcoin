@@ -7,20 +7,22 @@ compact block summaries, mempool exchange, block templates, and orphan handling.
 
 from __future__ import annotations
 
-import hmac
 import hashlib
+import hmac
 import json
 import os
 import time
 from collections.abc import Iterable
+from contextlib import suppress
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Event, Lock, Thread
-from typing import Any
+from typing import Any, ClassVar
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
+from . import esplora
 from .apps import AppError, AppStore, route_app_get, route_app_post
 from .bandwidth import TokenBucket, budget_for_mode
 from .block import Block
@@ -35,10 +37,9 @@ from .compact import (
 )
 from .crypto import _fast_crypto_enabled, crypto_backend_status, crypto_self_test
 from .emission import emission_report
-from . import esplora
-from .p2p_public_hardening import public_p2p_hardening_plan
 from .logsetup import emit
 from .p2p import PeerManager
+from .p2p_public_hardening import public_p2p_hardening_plan
 from .params import (
     DEFAULT_NODE_PORT,
     DEFAULT_P2P_PORT,
@@ -263,12 +264,10 @@ class NetCoinNode:
         if normalized not in self.peers and len(self.peers) >= self.max_peers:
             return
         self.peers.add(normalized)
-        try:
+        with suppress(Exception):
             self.peer_manager.add_peer(
                 self._peer_manager_address(normalized), direction="outbound", user_agent=USER_AGENT
             )
-        except Exception:
-            pass
         self._save_peers()
 
     def _load_banned(self) -> None:
@@ -355,12 +354,10 @@ class NetCoinNode:
         self.peer_scores.pop(normalized, None)
         self._save_peers()
         self._save_banned()
-        try:
+        with suppress(Exception):
             self.peer_manager.report_misbehavior(
                 self._peer_manager_address(normalized), abs(self.ban_threshold), reason or "manual ban"
             )
-        except Exception:
-            pass
         self.log_event("peer_banned", peer=normalized, reason=reason)
 
     def unban_peer(self, peer: str) -> bool:
@@ -485,7 +482,15 @@ class NetCoinNode:
         except OSError:
             pass
 
-    SERVICES = ["network", "headers", "compact-blocks", "mempool", "block-template", "explorer-api", "compact-filters"]
+    SERVICES: ClassVar[list[str]] = [
+        "network",
+        "headers",
+        "compact-blocks",
+        "mempool",
+        "block-template",
+        "explorer-api",
+        "compact-filters",
+    ]
 
     def uptime_seconds(self) -> int:
         return int(time.time() - self.started_at)
@@ -620,7 +625,7 @@ class NetCoinNode:
     def fetch_json(self, url: str, timeout: int | None = None) -> dict[str, Any]:
         timeout = self.request_timeout if timeout is None else timeout
         last_exc: Exception | None = None
-        for attempt in range(self.request_retries + 1):
+        for _attempt in range(self.request_retries + 1):
             try:
                 with urlopen(url, timeout=timeout) as response:
                     return json.loads(response.read().decode("utf-8"))
@@ -633,7 +638,7 @@ class NetCoinNode:
         body = json.dumps(payload).encode("utf-8")
         self.outbound_relay_bucket.consume(len(body))
         last_exc: Exception | None = None
-        for attempt in range(self.request_retries + 1):
+        for _attempt in range(self.request_retries + 1):
             try:
                 request = Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
                 with urlopen(request, timeout=timeout) as response:
@@ -653,9 +658,7 @@ class NetCoinNode:
         if remote_network and remote_network != NETWORK_NAME:
             return False
         remote_protocol = remote.get("protocol_version")
-        if remote_protocol is not None and int(remote_protocol) != PROTOCOL_VERSION:
-            return False
-        return True
+        return not (remote_protocol is not None and int(remote_protocol) != PROTOCOL_VERSION)
 
     def sync_from_peer(self, peer: str) -> bool:
         """Synchronize from a peer using headers first, then block bodies by hash.
@@ -715,9 +718,7 @@ class NetCoinNode:
             return False
         if self.chain.block_by_hash(block.hash()) is not None:
             return False
-        if block.header.height <= self.chain.height():
-            return False
-        return True
+        return not block.header.height <= self.chain.height()
 
     def remember_node_orphan(self, block: Block) -> None:
         self.orphans[block.hash()] = block
@@ -964,7 +965,7 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
             return {
                 "API-Version": "legacy",
                 "Deprecation": "true",
-                "Link": f"<{successor}>; rel=\"successor-version\"",
+                "Link": f'<{successor}>; rel="successor-version"',
             }
 
         def send_json(self, payload: dict[str, Any], status: int = 200, headers: dict[str, str] | None = None) -> None:
@@ -1016,18 +1017,8 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     last = payload
                 time.sleep(5)
 
-        def send_error_json(
-            self, message: str, status: int = 400, headers: dict[str, str] | None = None
-        ) -> None:
+        def send_error_json(self, message: str, status: int = 400, headers: dict[str, str] | None = None) -> None:
             self.send_json({"ok": False, "error": message}, status=status, headers=headers)
-
-        def send_text(self, text: str, status: int = 200) -> None:
-            body = str(text).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
 
         def _esplora_status_for_height(self, height: int | None) -> dict[str, Any]:
             if height is None or height < 0 or height > node.chain.height():
@@ -1040,7 +1031,7 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                 block_time=int(block.header.timestamp),
             )
 
-        def _handle_esplora(self, parsed: Any, node: "NetCoinNode") -> None:
+        def _handle_esplora(self, parsed: Any, node: NetCoinNode) -> None:
             # Blockstream-Esplora-compatible read API so BDK and other Bitcoin
             # tooling can point at a NetCoin node with only a URL change.
             parts = parsed.path.split("/")[2:]  # drop leading "", "esplora"
@@ -1362,22 +1353,25 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                         }
                     )
                 else:
-                    if os.environ.get("NETCOIN_APP_REQUIRE_ADMIN", "0") == "1" and parsed.path.startswith(
-                        (
-                            "/admin",
-                            "/api/admin",
-                            "/merchant",
-                            "/api/merchant",
-                            "/wallet",
-                            "/api/wallet",
-                            "/custody",
-                            "/api/custody",
-                            "/security",
-                            "/api/security",
+                    if (
+                        os.environ.get("NETCOIN_APP_REQUIRE_ADMIN", "0") == "1"
+                        and parsed.path.startswith(
+                            (
+                                "/admin",
+                                "/api/admin",
+                                "/merchant",
+                                "/api/merchant",
+                                "/wallet",
+                                "/api/wallet",
+                                "/custody",
+                                "/api/custody",
+                                "/security",
+                                "/api/security",
+                            )
                         )
+                        and not self.require_app_admin()
                     ):
-                        if not self.require_app_admin():
-                            return
+                        return
                     try:
                         status, payload, content_type = route_app_get(
                             app_store, node.chain, parsed.path, parse_qs(parsed.query), node=node

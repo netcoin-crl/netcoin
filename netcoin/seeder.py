@@ -88,7 +88,9 @@ class DNSSeeder:
     def handle_packet(self, data: bytes) -> bytes:
         self.query_count += 1
         try:
-            response = build_dns_response(data, self.select_answers(), ttl=self.config.ttl, allowed_domain=self.config.domain)
+            response = build_dns_response(
+                data, self.select_answers(), ttl=self.config.ttl, allowed_domain=self.config.domain
+            )
             self.answer_count += parse_answer_count(response)
             return response
         except Exception as exc:
@@ -225,7 +227,7 @@ def serve_dns(seeder: DNSSeeder, *, stop_event: Event | None = None) -> None:
         while stop_event is None or not stop_event.is_set():
             try:
                 data, addr = sock.recvfrom(2048)
-            except socket.timeout:
+            except TimeoutError:
                 continue
             response = seeder.handle_packet(data)
             sock.sendto(response, addr)

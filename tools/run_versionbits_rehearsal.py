@@ -18,8 +18,8 @@ if str(ROOT) not in sys.path:
 
 from netcoin.miner import solve_template  # noqa: E402
 from netcoin.versionbits import (  # noqa: E402
-    ENV_ENABLE_REHEARSAL,
     ACTIVE,
+    ENV_ENABLE_REHEARSAL,
     VersionBitsRehearsalConfig,
     evaluate_rehearsal_chain,
     extract_block_versions,
@@ -78,8 +78,7 @@ def run_localnet_rehearsal(
             localnet.start_all(topology="line", sync_interval=1)
             target_blocks = config.deployment.period * 3
             mined_blocks = [
-                mine_signaling_block(localnet, 0, miner.address, config.deployment.bit)
-                for _ in range(target_blocks)
+                mine_signaling_block(localnet, 0, miner.address, config.deployment.bit) for _ in range(target_blocks)
             ]
             convergence = localnet.wait_for_convergence(height=target_blocks, timeout=relay_timeout)
             versions = extract_block_versions(mined_blocks)

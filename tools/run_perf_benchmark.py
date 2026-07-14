@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import resource
 import statistics
 import sys
@@ -27,7 +26,6 @@ if str(ROOT) not in sys.path:
 from netcoin.chain import Blockchain  # noqa: E402
 from netcoin.tx import amount_to_sats  # noqa: E402
 from netcoin.wallet import Wallet  # noqa: E402
-
 
 DEFAULT_THRESHOLDS = {
     "block_validation_p50_ms_max": 250.0,
@@ -172,7 +170,7 @@ def run_benchmark(
 
     started = time.perf_counter()
     try:
-        source, miner = build_source_chain(root, blocks=blocks)
+        source, _miner = build_source_chain(root, blocks=blocks)
         block_validation = benchmark_block_validation(source, root)
         restart_replay = benchmark_restart_replay(source.data_dir, source.height())
         effective_bootstrap_blocks = max(bootstrap_blocks, 100 + mempool_transactions)

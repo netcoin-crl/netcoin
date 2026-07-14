@@ -22,7 +22,6 @@ from .chain import Blockchain
 from .params import DEFAULT_POOL_PORT, MAX_REQUEST_BODY_BYTES
 from .tx import SpendableOutput, Transaction, TxInput, TxOutput
 
-
 POOL_PROTOCOL = "netcoin-pool-stratum-lite-v1"
 
 
@@ -152,7 +151,9 @@ class MiningPool:
 
     def payout_plan(self, *, reward: int | None = None) -> dict[str, Any]:
         total_weight = sum(max(1, share.difficulty) for share in self.shares)
-        reward_value = int(reward if reward is not None else (self.accepted_blocks[-1]["reward"] if self.accepted_blocks else 0))
+        reward_value = int(
+            reward if reward is not None else (self.accepted_blocks[-1]["reward"] if self.accepted_blocks else 0)
+        )
         payouts: dict[str, int] = {}
         if total_weight > 0 and reward_value > 0:
             remaining = reward_value
@@ -173,7 +174,9 @@ class MiningPool:
         }
 
     def construct_payout_transaction(self, reward_utxo: SpendableOutput, payouts: dict[str, int]) -> Transaction:
-        outputs = [TxOutput(amount=int(amount), address=miner) for miner, amount in sorted(payouts.items()) if int(amount) > 0]
+        outputs = [
+            TxOutput(amount=int(amount), address=miner) for miner, amount in sorted(payouts.items()) if int(amount) > 0
+        ]
         return Transaction(
             inputs=[TxInput(txid=reward_utxo.txid, vout=reward_utxo.vout)],
             outputs=outputs,
