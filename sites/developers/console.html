@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Developer Console</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
+  <link rel="stylesheet" href="developers.css?v=20260715-console" />
+  <link rel="stylesheet" href="site-shell.css?v=20260710-widen" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="logo">N</div><div>NetCoin Developer Console<small>rewards, withdrawals, webhooks, and deposits for one developer_id</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
+    </header>
+
+    <section class="card">
+      <h2>Load a developer</h2>
+      <label>developer_id</label>
+      <div class="row">
+        <input id="developerId" class="mono" placeholder="game-studio" autocomplete="off" />
+        <button id="loadBtn" type="button">Load console</button>
+      </div>
+      <p id="loadMsg" class="muted"></p>
+    </section>
+
+    <section id="consoleBody" style="display:none">
+      <section class="card">
+        <h2>At a glance</h2>
+        <div class="stats" id="statsGrid"></div>
+      </section>
+
+      <section class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Funding policy</h2>
+        </div>
+        <div id="policyBody" class="muted">Loading…</div>
+      </section>
+
+      <section class="card">
+        <h2>Recent rewards</h2>
+        <div style="overflow-x:auto"><table id="rewardsTable"><thead><tr><th>Reward</th><th>Player</th><th>Address</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <h2>Recent withdrawals</h2>
+        <div style="overflow-x:auto"><table id="withdrawalsTable"><thead><tr><th>Withdrawal</th><th>Address</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <h2>Payment links</h2>
+        <div style="overflow-x:auto"><table id="linksTable"><thead><tr><th>Link</th><th>Title</th><th>Amount</th><th>Status</th><th>Checkout</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Webhook dead letters</h2>
+          <button id="refreshDeadLetters" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="muted">Deliveries that exhausted their retry budget. Retry sends just that one event.</p>
+        <div style="overflow-x:auto"><table id="deadLettersTable"><thead><tr><th>Event</th><th>Type</th><th>Attempts</th><th>Last error</th><th></th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Watched deposits</h2>
+          <button id="refreshDeposits" type="button" class="secondary">Refresh deposits</button>
+        </div>
+        <p class="muted">Refreshing also fires any pending deposit.detected webhooks that haven't been notified yet.</p>
+        <div style="overflow-x:auto"><table id="depositsTable"><thead><tr><th>Address</th><th>txid</th><th>Amount</th><th>Confirmations</th><th>Ready</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <h2>SDK &amp; quick actions</h2>
+        <pre id="sdkOut" class="mono"></pre>
+      </section>
+    </section>
+
+    <p class="footer">Read-only rendering of GET/POST /api/developer/*. No private keys are entered or stored on this page.</p>
+  </div>
+  <script src="console.js?v=20260715-console"></script>
+  <script src="site-shell.js?v=20260714-nav-groups"></script>
+</body>
+</html>

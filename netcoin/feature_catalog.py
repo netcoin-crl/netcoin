@@ -648,10 +648,10 @@ _FEATURES: tuple[FeatureRating, ...] = (
     FeatureRating(
         "Developer API",
         "Developer dashboard/console",
-        6.0,
-        "basic",
-        "GET /developer/dashboard and /developer/console return real aggregated JSON, but there is no dedicated HTML console UI — a developer reads raw JSON today.",
-        "Build a real sites/developers console page instead of JSON-only.",
+        7.0,
+        "solid",
+        "sites/developers/console.html is a real UI over GET /api/developer/console: counts, totals, funding policy, recent rewards/withdrawals/payment links, webhook dead letters with one-click retry, and watched deposits with a refresh button — not JSON-only anymore. Verified live against a real local devnet node with real rewards/withdrawals/payment-link/deposit data.",
+        "Add write actions (send a reward, register a webhook) directly from the console instead of read-only + links out to curl examples.",
     ),
     FeatureRating(
         "Developer API",
