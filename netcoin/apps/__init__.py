@@ -2011,6 +2011,12 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         return record
 
     def developer_deposits(self, chain: Any, developer_id: str | None = None) -> dict[str, Any]:
+        """List deposits to every watched address and, for any newly-ready
+        deposit this watch hasn't already notified about, queue a
+        deposit.detected webhook event — so a caller doesn't have to poll
+        forever to find out a deposit landed, the first read that sees it
+        fires the notification via the existing webhook queue/deliver path.
+        """
         data = self.load()
         watches = [
             w
@@ -2018,12 +2024,16 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             if w.get("active", True) and (not developer_id or w.get("developer_id") == developer_id)
         ]
         deposits: list[dict[str, Any]] = []
+        changed = False
         for watch in watches:
             required = int(watch.get("confirmations_required", 1) or 1)
+            notified = set(watch.get("notified_txids", []))
+            max_height_seen = int(watch.get("last_seen_height", 0) or 0)
             for receipt in self.scan_address_payments(chain, watch["address"]):
                 amount_sats = int(receipt.outputs_to_address_sats.get(watch["address"], 0) or 0)
                 if amount_sats <= 0:
                     continue
+                ready = receipt.confirmations >= required
                 row = receipt.to_dict() | {
                     "watch_id": watch["watch_id"],
                     "developer_id": watch["developer_id"],
@@ -2032,10 +2042,41 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
                     "amount_sats": amount_sats,
                     "amount": sats_to_amount(amount_sats),
                     "required_confirmations": required,
-                    "ready": receipt.confirmations >= required,
+                    "ready": ready,
                 }
                 deposits.append(row)
+                if ready and receipt.txid not in notified:
+                    notified.add(receipt.txid)
+                    data["webhook_events"].append(
+                        {
+                            "event_id": clean_id("evt"),
+                            "event": "deposit.detected",
+                            "merchant_id": watch["developer_id"],
+                            "payload": {
+                                "watch_id": watch["watch_id"],
+                                "address": watch["address"],
+                                "label": watch.get("label", ""),
+                                "txid": receipt.txid,
+                                "amount_sats": amount_sats,
+                                "confirmations": receipt.confirmations,
+                            },
+                            "created_at": now(),
+                            "delivered": False,
+                        }
+                    )
+                    changed = True
+                if receipt.block_height is not None:
+                    max_height_seen = max(max_height_seen, int(receipt.block_height))
+            if notified != set(watch.get("notified_txids", [])) or max_height_seen != int(
+                watch.get("last_seen_height", 0) or 0
+            ):
+                watch["notified_txids"] = list(notified)[-500:]
+                watch["last_seen_height"] = max_height_seen
+                changed = True
         deposits.sort(key=lambda item: (int(item.get("timestamp", 0) or 0), str(item.get("txid", ""))), reverse=True)
+        if changed:
+            data["webhook_events"] = data["webhook_events"][-500:]
+            self.save(data)
         return {"deposits": deposits[:200], "count": len(deposits), "watched_addresses": watches}
 
     def build_unsigned_transaction(self, chain: Any, payload: dict[str, Any]) -> dict[str, Any]:

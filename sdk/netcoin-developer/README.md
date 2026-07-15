@@ -39,6 +39,12 @@ console.log(reward.payout_plan); // unsigned — sign and broadcast yourself
 // Create a payment link a customer can pay at pay.netcoin.online.
 const link = await nc.createPaymentLink({ address: "net1q...", amount: "5.00", title: "Starter pack" });
 console.log(link.checkout_url);
+
+// Watch a player's deposit address. Register for "deposit.detected" and the
+// first read that sees a confirmed deposit fires the webhook — no need to
+// poll listDeposits() forever waiting for it.
+await nc.registerWebhook({ url: "https://your-server.example/webhooks/netcoin", events: ["deposit.detected"] });
+await nc.watchAddress({ address: "net1q...", label: "player-42 deposit" });
 ```
 
 ## Webhook signature verification

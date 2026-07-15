@@ -624,10 +624,10 @@ _FEATURES: tuple[FeatureRating, ...] = (
     FeatureRating(
         "Developer API",
         "Watch-addresses / deposit detection",
-        6.5,
-        "improving",
-        "GET /developer/deposits scans real chain UTXO data for registered addresses. Poll-only; no push/streaming.",
-        "Add a webhook-on-deposit path instead of requiring the caller to poll.",
+        7.0,
+        "solid",
+        "GET /developer/deposits scans real chain UTXO data for registered addresses, and now queues a deposit.detected webhook the first time each confirmed deposit is seen (tracked per-watch via notified_txids so it never re-fires on repeated polls) — a caller registered for that event no longer has to poll to find out a deposit landed.",
+        "Trigger the scan from block-connect instead of only on GET /developer/deposits reads, so it works even if nobody polls at all.",
     ),
     FeatureRating(
         "Developer API",
