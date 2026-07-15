@@ -1,0 +1,33 @@
+{
+  "name": "@netcoin/developer",
+  "version": "0.1.0",
+  "description": "NetCoin developer/app-layer SDK — rewards, withdrawals, payment links, webhooks, watch-addresses, and funding-policy spend limits for game studios and apps.",
+  "type": "module",
+  "main": "index.js",
+  "module": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "netcoin",
+    "cryptocurrency",
+    "testnet",
+    "sdk",
+    "developer",
+    "rewards",
+    "webhooks",
+    "bitcoin-family"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "scripts": {
+    "check": "node --check index.js"
+  }
+}

@@ -1914,29 +1914,28 @@ class AppStore:
                 {
                     "language": "typescript",
                     "package": "@netcoin/developer",
-                    "status": "reference-snippet",
-                    "install": "npm install @netcoin/developer",
+                    "status": "real",
+                    "install": "npm install github:netcoin-crl/netcoin#path:sdk/netcoin-developer",
+                    "source": "sdk/netcoin-developer/",
                     "snippet": (
-                        "await netcoin.rewards.send({ developer_id, player_id, address, "
-                        "amount_sats, idempotency_key });"
+                        "const nc = new NetcoinDeveloperClient(baseUrl, { developerId });\n"
+                        "await nc.sendReward({ playerId, address, amountSats, reason, idempotencyKey });"
                     ),
                 },
                 {
                     "language": "python",
                     "package": "netcoin-developer",
-                    "status": "reference-snippet",
-                    "install": "pip install netcoin-developer",
+                    "status": "planned",
                     "snippet": (
-                        "client.rewards.send(developer_id=developer_id, player_id=player_id, "
-                        "address=address, amount_sats=amount_sats, idempotency_key=key)"
+                        "# Not built yet — use the raw HTTP API directly:\n"
+                        "# requests.post(f'{base_url}/api/developer/rewards', json={...})"
                     ),
                 },
                 {
                     "language": "unity-csharp",
                     "package": "NetCoin.Developer",
-                    "status": "reference-snippet",
-                    "install": "Import the NetCoin.Developer Unity package",
-                    "snippet": "await client.Rewards.SendAsync(developerId, playerId, address, amountNetoshis);",
+                    "status": "planned",
+                    "snippet": "// Not built yet — call the raw HTTP API from UnityWebRequest in the meantime.",
                 },
             ],
             "endpoints": endpoints,

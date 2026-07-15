@@ -656,10 +656,10 @@ _FEATURES: tuple[FeatureRating, ...] = (
     FeatureRating(
         "Developer API",
         "SDK packages advertisement",
-        3.0,
-        "misleading",
-        "GET /developer/sdk currently tells callers to `npm install @netcoin/developer`, `pip install netcoin-developer`, and import a Unity `NetCoin.Developer` package — none of these exist anywhere, published or in-repo. Known gap, fix in progress.",
-        "Ship a real sdk/netcoin-developer JS package (or mark npm/pip/unity as status: planned with no install line) before advertising it again.",
+        6.5,
+        "improving",
+        "sdk/netcoin-developer is now a real JS package wrapping every /developer/* endpoint (rewards, batch rewards, withdrawals, funding-policy, payment links, webhooks, watch-addresses, tx builder, simulation) plus HMAC webhook verification; GET /developer/sdk marks it status: real with an installable github: URL. Python and Unity are honestly marked status: planned with no install line instead of a fake one.",
+        "Publish the JS package to npm for real (currently install-from-git only) and build the Python package next.",
     ),
     # Prediction markets (source-imported auto-resolution)
     FeatureRating(
