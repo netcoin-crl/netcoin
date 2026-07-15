@@ -1556,8 +1556,14 @@
   async function api(path, opts) {
     const r = await fetch(API + path, opts);
     const text = await r.text();
-    let data; try { data = JSON.parse(text); } catch { data = { error: text }; }
-    if (!r.ok || data.error) throw new Error(data.error || ("HTTP " + r.status));
+    let data; let parsed = true;
+    try { data = JSON.parse(text); } catch { parsed = false; data = {}; }
+    if (!r.ok || data.error) {
+      // A non-JSON body (nginx/proxy error pages, gateway timeouts) must never
+      // be shown to the user verbatim — it can be an entire raw HTML page.
+      const message = parsed ? (data.error || ("HTTP " + r.status)) : ("HTTP " + r.status + " (non-JSON response from node)");
+      throw new Error(message);
+    }
     return data;
   }
 

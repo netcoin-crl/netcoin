@@ -69,3 +69,18 @@ def test_wallet_app_sri_matches_site_html():
         "sha384-" + base64.b64encode(hashlib.sha384((SITE_WALLET / "wallet-app.js").read_bytes()).digest()).decode()
     )
     assert match.group(1) == actual
+
+
+def test_wallet_api_helper_never_surfaces_a_raw_non_json_response_body():
+    """Regression: a 502/504 from nginx returns a full raw HTML error page as
+    the response body. The shared api() helper must never hand that page to
+    the user as an error message (it previously did, via `data = { error: text }`
+    on a JSON.parse failure) — it must fall back to a short, bounded message."""
+    js = _read(SITE_WALLET / "wallet-app.js")
+    assert "data = { error: text }" not in js
+    assert "non-JSON response from node" in js
+    match = re.search(r"async function api\(path, opts\) \{(.*?)\n  \}", js, re.DOTALL)
+    assert match, "api() helper not found"
+    body = match.group(1)
+    assert "let parsed = true" in body
+    assert "parsed = false" in body
