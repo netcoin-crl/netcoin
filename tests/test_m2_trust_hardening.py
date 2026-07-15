@@ -69,7 +69,7 @@ def test_m2_manifest_and_public_security_pages_exist():
     assert "fee-bumping" in ids
     assert "signed-releases-sbom-provenance" in ids
     assert "Bug bounty" in (ROOT / "sites/security/bug-bounty.html").read_text()
-    assert "NetCoin release keys" in (ROOT / "sites/keys/index.html").read_text()
+    assert "NetCoin release keys" in (ROOT / "sites/security/index.html").read_text()
 
 
 def test_m2_readiness_source_gate_passes():

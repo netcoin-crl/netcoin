@@ -2,27 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="refresh" content="0; url=https://nodes.netcoin.online" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NetCoin Network</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="network.css?v=20260630-site-modes" />
+  <title>NetCoin Network moved to Nodes</title>
+  <link rel="canonical" href="https://nodes.netcoin.online" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'" />
   <link rel="stylesheet" href="site-shell.css?v=20260710-widen" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand"><div class="logo">N</div><div>NetCoin Network<small>nodes, seeds, status, and mining health</small></div></div>
+      <div class="brand"><div class="logo">N</div><div>NetCoin Network<small>moved to Nodes</small></div></div>
       <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
     </header>
-
-<section class="hero dashboard-hero"><div class="card"><span class="pill"><span class="dot ok"></span><span id="netState">Checking network</span></span><h1>Network health, nodes, seeds, and mining.</h1><p>Public seeds, block height, peer health, and fee signals.</p><div class="site-section-tabs"><a href="#overview">Overview</a><a href="#seeds">Public seeds</a><a href="#mining">Mining</a><a href="#run">Run a seed</a></div></div><div class="card"><h2>Live summary</h2><div class="stats"><div class="stat"><div class="k">Height</div><div class="v" id="height">—</div></div><div class="stat"><div class="k">Peers</div><div class="v" id="peers">—</div></div><div class="stat"><div class="k">Fast fee</div><div class="v" id="fastFee">—</div></div></div></div></section>
-<section class="grid" id="overview"><div class="card"><h2>Node vs seed</h2><p>A node validates and relays chain data. A seed is a public node that helps new nodes find the network. A miner is a node that tries to produce blocks.</p></div><div class="card" id="seeds"><h2>Public seed checklist</h2><ul><li>Run current NetCoin software.</li><li>Keep TCP port 28444 reachable.</li><li>Monitor uptime, peers, block height, and version skew.</li><li>Enable <code>NETCOIN_FAST_CRYPTO=1</code> when serving large wallet transactions.</li><li>Never expose private keys or wallet secrets.</li></ul></div><div class="card" id="mining"><h2>Mining</h2><p>Testnet mining helps validate blocks and test difficulty rules. It has no real-money value.</p></div></section>
-<section class="grid"><div class="card"><h2>Operator laptop check</h2><p class="muted">Run this before and after deploys. It checks public seed health, matching heights, versions, tips, and crypto backend reporting without SSH.</p><pre>python tools/check_public_network.py</pre></div><div class="card"><h2>Crypto backend visibility</h2><p class="muted">Node <code>/info</code> now reports whether ECDSA verification is pure Python or optional libsecp256k1/coincurve. Fast crypto changes speed only; consensus validity must match the pure path.</p><pre>curl https://api.netcoin.online/api/info</pre></div></section>
-<section class="split" id="run"><div class="card"><h2>Run a public seed</h2><pre>python -m netcoin --data ~/.netcoin-testnet node --host 0.0.0.0 --port 28444 --peer https://api.netcoin.online/api</pre><p class="muted">Open/forward port 28444 and test from outside your home network.</p></div><div class="card"><h2>Peer data</h2><pre id="peerData" class="compact-json">Loading…</pre></div></section>
-
-    <p class="footer">NetCoin Network is part of the NetCoin public ecosystem.</p>
+    <main class="card" style="max-width:640px;margin:80px auto;padding:24px;text-align:center">
+      <h1>Network moved to Nodes</h1>
+      <p class="muted">Public seeds, mining, and network health now live in one place at <a href="https://nodes.netcoin.online">nodes.netcoin.online</a>.</p>
+    </main>
   </div>
-  <script src="network.js?v=20260630-site-modes"></script>
   <script src="site-shell.js?v=20260714-nav-groups"></script>
 </body>
 </html>

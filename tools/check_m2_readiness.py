@@ -36,7 +36,7 @@ TOKEN_CHECKS = {
         "tools/verify_release.py": ["verify"],
         "tools/generate_sbom.py": ["netcoin-source-sbom-v1"],
         "tools/generate_slsa_provenance.py": ["slsa.dev/provenance"],
-        "sites/keys/index.html": ["NetCoin release keys", "minisign", "cosign"],
+        "sites/security/index.html": ["NetCoin release keys", "minisign", "cosign"],
     },
     "fuzz-corpus": {"docs/FUZZ_CORPUS_PLAN.md": ["100M", "consensus", "mempool", "tx parse"]},
     "bug-bounty-and-audit": {

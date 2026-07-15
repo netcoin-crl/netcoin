@@ -35,7 +35,7 @@
     {
       "id": "signed-releases-sbom-provenance",
       "label": "Signed artifacts, SBOM, and SLSA-style provenance",
-      "source_files": ["tools/sign_release.py", "tools/verify_release.py", "tools/generate_sbom.py", "tools/generate_slsa_provenance.py", "sites/keys/index.html"]
+      "source_files": ["tools/sign_release.py", "tools/verify_release.py", "tools/generate_sbom.py", "tools/generate_slsa_provenance.py", "sites/security/index.html"]
     },
     {
       "id": "fuzz-corpus",
