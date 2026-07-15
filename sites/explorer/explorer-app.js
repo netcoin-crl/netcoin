@@ -34,14 +34,14 @@
   }
   async function api(path) {
     const r = await fetch(API + path);
-    const txt = await r.text(); let d; try { d = JSON.parse(txt); } catch { d = { error: txt }; }
-    if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+    const txt = await r.text(); let d; let parsed = true; try { d = JSON.parse(txt); } catch { parsed = false; d = {}; }
+    if (!r.ok || d.error) throw new Error(parsed ? (d.error || ("HTTP " + r.status)) : ("HTTP " + r.status + " (non-JSON response)"));
     return d;
   }
   async function apiPost(path, body) {
     const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
-    const txt = await r.text(); let d; try { d = JSON.parse(txt); } catch { d = { error: txt }; }
-    if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+    const txt = await r.text(); let d; let parsed = true; try { d = JSON.parse(txt); } catch { parsed = false; d = {}; }
+    if (!r.ok || d.error) throw new Error(parsed ? (d.error || ("HTTP " + r.status)) : ("HTTP " + r.status + " (non-JSON response)"));
     return d;
   }
   const view = $("#view");

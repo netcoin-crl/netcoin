@@ -2,7 +2,7 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  async function get(path) { const r = await fetch('/api' + path); const text = await r.text(); let data; try { data = JSON.parse(text); } catch { data = { error: text }; } if (!r.ok || data.error) throw new Error(data.error || 'HTTP ' + r.status); return data; }
+  async function get(path) { const r = await fetch('/api' + path); const text = await r.text(); let data; let parsed = true; try { data = JSON.parse(text); } catch { parsed = false; data = {}; } if (!r.ok || data.error) throw new Error(parsed ? (data.error || 'HTTP ' + r.status) : 'HTTP ' + r.status + ' (non-JSON response)'); return data; }
   function pill(status) { return '<span class="pill ' + esc(status || 'partial') + '">' + esc(status || 'partial') + '</span>'; }
   function kv(k, v) { return '<div class="kv"><span>' + esc(k) + '</span><b>' + esc(v) + '</b></div>'; }
   function runbook(alert){ const key=String(alert.alert||alert.message||'').toLowerCase(); if(key.includes('peer')) return 'Check peerdb, rotate outbound slots, confirm seed reachability.'; if(key.includes('mempool')) return 'Inspect fee floor, spam score, and recent replacements.'; if(key.includes('chain')||key.includes('height')) return 'Compare checkpoints, block time, and public seed tips.'; return 'Open ops bundle, collect logs, and acknowledge incident.'; }

@@ -1,7 +1,7 @@
 'use strict';
 (() => {
   const $=(s)=>document.querySelector(s); const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  async function get(path){const r=await fetch('/api'+path);const text=await r.text();let d;try{d=JSON.parse(text)}catch{d={error:text}}; if(!r.ok||d.error) throw new Error(d.error||'HTTP '+r.status); return d;}
+  async function get(path){const r=await fetch('/api'+path);const text=await r.text();let d;let parsed=true;try{d=JSON.parse(text)}catch{parsed=false;d={}}; if(!r.ok||d.error) throw new Error(parsed?(d.error||'HTTP '+r.status):'HTTP '+r.status+' (non-JSON response)'); return d;}
   function card(label,value,note){return '<div class="card-mini"><span>'+esc(label)+'</span><b>'+esc(value)+'</b><small>'+esc(note||'')+'</small></div>'}
   function row(k,v,c=''){return '<div class="check"><span>'+esc(k)+'</span><b class="'+esc(c)+'">'+esc(v)+'</b></div>'}
   function table(rows, cols){rows=rows||[]; if(!rows.length) return '<p class="muted">No records yet.</p>'; return '<table class="mini-table"><thead><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+cols.map(c=>'<td>'+esc(typeof c[1]==='function'?c[1](r):r[c[1]])+'</td>').join('')+'</tr>').join('')+'</tbody></table>';}
