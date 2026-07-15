@@ -17,6 +17,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -59,6 +60,13 @@ class LocalNodeController:
         self.data_dir = data_dir or (Path.home() / ".netcoin-local-node")
         self.log_path = self.data_dir / "node.log"
         self.process: subprocess.Popen[str] | None = None
+        # The web wallet serves requests on a thread pool (ThreadingHTTPServer);
+        # without this, two overlapping start() calls (an impatient double
+        # click, a retried request) can both see "not running yet" and each
+        # spawn a subprocess. The second one fails at the OS level with
+        # "Address already in use" and overwrites self.process, so the request
+        # that actually launched the working node gets reported as a failure.
+        self._lock = threading.Lock()
 
     @property
     def url(self) -> str:
@@ -95,55 +103,57 @@ class LocalNodeController:
     def start(self) -> dict[str, Any]:
         if not self.enabled:
             raise ValueError("local node control is available only when the web wallet is bound to 127.0.0.1")
-        status = self.status()
-        if status["running"]:
-            return status | {"message": "node already running on this port"}
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        log = self.log_path.open("a", encoding="utf-8")
-        cmd = [
-            sys.executable,
-            "-m",
-            "netcoin",
-            "--data",
-            str(self.data_dir),
-            "node",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(self.port),
-            "--seeds",
-        ]
-        self.process = subprocess.Popen(
-            cmd,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            text=True,
-            close_fds=True,
-        )
-        deadline = time.time() + 8
-        while time.time() < deadline:
-            info = self._external_info()
-            if info:
-                break
-            if self.process.poll() is not None:
-                raise ValueError(f"node exited early; check {self.log_path}")
-            time.sleep(0.25)
-        return self.status() | {"message": "node started"}
+        with self._lock:
+            status = self.status()
+            if status["running"]:
+                return status | {"message": "node already running on this port"}
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            log = self.log_path.open("a", encoding="utf-8")
+            cmd = [
+                sys.executable,
+                "-m",
+                "netcoin",
+                "--data",
+                str(self.data_dir),
+                "node",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(self.port),
+                "--seeds",
+            ]
+            self.process = subprocess.Popen(
+                cmd,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                close_fds=True,
+            )
+            deadline = time.time() + 8
+            while time.time() < deadline:
+                info = self._external_info()
+                if info:
+                    break
+                if self.process.poll() is not None:
+                    raise ValueError(f"node exited early; check {self.log_path}")
+                time.sleep(0.25)
+            return self.status() | {"message": "node started"}
 
     def stop(self) -> dict[str, Any]:
         if not self.enabled:
             raise ValueError("local node control is available only when the web wallet is bound to 127.0.0.1")
-        if not self.process or self.process.poll() is not None:
+        with self._lock:
+            if not self.process or self.process.poll() is not None:
+                self.process = None
+                return self.status() | {"message": "no web-wallet-started node to stop"}
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=8)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait(timeout=3)
             self.process = None
-            return self.status() | {"message": "no web-wallet-started node to stop"}
-        self.process.terminate()
-        try:
-            self.process.wait(timeout=8)
-        except subprocess.TimeoutExpired:
-            self.process.kill()
-            self.process.wait(timeout=3)
-        self.process = None
-        return self.status() | {"message": "node stopped"}
+            return self.status() | {"message": "node stopped"}
 
 
 # --------------------------------------------------------------------------- #
