@@ -551,6 +551,61 @@ class NetCoinNode:
             "outbound_relay": self.outbound_relay_bucket.snapshot(),
         }
 
+    def memory_debug_snapshot(self) -> dict[str, Any]:
+        """Diagnostic snapshot for tracking down slow memory growth.
+
+        Reports process RSS, a GC object-count breakdown (the most useful
+        generic signal for "what is actually accumulating" when a specific
+        structure isn't the obvious culprit), and the size of every bounded
+        in-memory collection this node keeps, so a size that keeps climbing
+        across repeated snapshots points straight at the leak.
+        """
+        import gc
+        from collections import Counter
+
+        rss_kb: int | None = None
+        try:
+            with open("/proc/self/status", encoding="utf-8") as fh:
+                for line in fh:
+                    if line.startswith("VmRSS:"):
+                        rss_kb = int(line.split()[1])
+                        break
+        except OSError:
+            pass
+        if rss_kb is None:
+            try:
+                import resource
+
+                rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            except Exception:
+                rss_kb = None
+
+        objects = gc.get_objects()
+        type_counts = Counter(type(obj).__name__ for obj in objects)
+
+        return {
+            "schema": "netcoin-memory-debug-v1",
+            "uptime_seconds": self.uptime_seconds(),
+            "rss_kb": rss_kb,
+            "rss_mb": round(rss_kb / 1024, 1) if rss_kb is not None else None,
+            "gc_object_count": len(objects),
+            "gc_top_types": [{"type": name, "count": count} for name, count in type_counts.most_common(20)],
+            "collections": {
+                "peers": len(self.peers),
+                "banned": len(self.banned),
+                "trusted_peers": len(self.trusted_peers),
+                "peer_scores": len(self.peer_scores),
+                "ban_times": len(self.ban_times),
+                "orphans": len(self.orphans),
+                "event_log": len(self.event_log),
+                "relay_queue": len(self._relay_queue),
+                "relay_inventory": len(self._relay_inventory),
+                "broadcast_seen": len(self._broadcast_seen),
+                "response_cache": len(self._response_cache),
+                "mempool_transactions": len(self.chain.mempool),
+            },
+        }
+
     def cached_response(self, key: str, ttl_seconds: float, builder: Any) -> dict[str, Any]:
         now = time.time()
         cached = self._response_cache.get(key)
@@ -1127,6 +1182,8 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     self.send_json(node.cached_response("health", 2.0, node.health))
                 elif parsed.path == "/metrics":
                     self.send_text(node.metrics_text())
+                elif parsed.path == "/debug/memory":
+                    self.send_json(node.memory_debug_snapshot())
                 elif parsed.path == "/relay":
                     self.send_json(
                         {

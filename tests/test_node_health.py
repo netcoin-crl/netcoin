@@ -79,3 +79,44 @@ def test_compatible_peer_rejects_wrong_genesis_or_network(tmp_path: Path):
 def test_default_testnet_seeds_present():
     assert len(DEFAULT_TESTNET_SEEDS) == 3
     assert all(s.startswith("http://seed") for s in DEFAULT_TESTNET_SEEDS)
+
+
+def test_memory_debug_snapshot_reports_process_memory_and_bounded_collections(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    miner = Wallet.create()
+    chain.mine_block(miner.address)
+    node = NetCoinNode(chain, persist=False)
+    snapshot = node.memory_debug_snapshot()
+
+    assert snapshot["schema"] == "netcoin-memory-debug-v1"
+    assert isinstance(snapshot["gc_object_count"], int) and snapshot["gc_object_count"] > 0
+    assert isinstance(snapshot["gc_top_types"], list) and len(snapshot["gc_top_types"]) > 0
+    assert snapshot["gc_top_types"][0]["count"] >= snapshot["gc_top_types"][-1]["count"]
+    # On Linux this reads /proc/self/status; elsewhere it falls back to
+    # resource.getrusage. Either way it should resolve to a positive number.
+    assert snapshot["rss_kb"] is None or snapshot["rss_kb"] > 0
+    collections = snapshot["collections"]
+    for key in (
+        "peers",
+        "banned",
+        "trusted_peers",
+        "peer_scores",
+        "ban_times",
+        "orphans",
+        "event_log",
+        "relay_queue",
+        "relay_inventory",
+        "broadcast_seen",
+        "response_cache",
+        "mempool_transactions",
+    ):
+        assert key in collections
+        assert isinstance(collections[key], int)
+
+
+def test_debug_memory_endpoint_is_reachable(tmp_path: Path):
+    chain = Blockchain(tmp_path / "chain")
+    with served(NetCoinNode(chain, persist=False)) as s, urlopen(f"{s.url}/debug/memory", timeout=5) as r:
+        data = json.loads(r.read().decode())
+    assert data["schema"] == "netcoin-memory-debug-v1"
+    assert "collections" in data
