@@ -665,10 +665,10 @@ _FEATURES: tuple[FeatureRating, ...] = (
     FeatureRating(
         "Markets",
         "Polymarket-style import + auto-resolution queue",
-        7.0,
+        7.5,
         "solid",
-        "Imported markets carry a close_time-based queue that transitions queued -> awaiting_source_result -> resolved, and now settles through the same payout/collateral-release/order-cancel path as a manual operator resolve (fixed this session — it previously only flipped a status flag).",
-        "Add a scheduled job that actually polls the live Polymarket Gamma API for the real winner instead of requiring source_winning_outcome_label to be supplied manually.",
+        "Imported markets carry a close_time-based queue that transitions queued -> awaiting_source_result -> resolved, settling through the same payout/collateral-release/order-cancel path as a manual operator resolve. POST /markets/<id>/sync-source (and the bulk /markets/auto-resolution/sync + tools/sync_market_auto_resolution.py cron script) now actually polls the live Polymarket Gamma API for the real winner instead of requiring a human to type in source_winning_outcome_label.",
+        "Wire the cron script into a real deploy (systemd timer) instead of leaving it a manual/on-demand call.",
     ),
     # Esplora-compatible API
     FeatureRating(

@@ -3824,6 +3824,16 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
 
         return polymarket_markets_impl(self, query)
 
+    def sync_market_auto_resolution(self, market_id: str) -> dict[str, Any]:
+        from .markets import sync_market_auto_resolution_from_source_impl
+
+        return sync_market_auto_resolution_from_source_impl(self, market_id)
+
+    def sync_all_pending_auto_resolutions(self) -> dict[str, Any]:
+        from .markets import sync_all_pending_auto_resolutions_impl
+
+        return sync_all_pending_auto_resolutions_impl(self)
+
     def market_depth(self, market_id: str, depth: int = 25) -> dict[str, Any]:
         from .markets import market_depth_impl
 
@@ -4843,6 +4853,10 @@ def _route_app_post_uncached(
         return 200, store.dispute_market_resolution(path.split("/")[2], body)
     if path.startswith("/markets/") and path.endswith("/resolve"):
         return 200, store.resolve_prediction_market(path.split("/")[2], body)
+    if path.startswith("/markets/") and path.endswith("/sync-source"):
+        return 200, store.sync_market_auto_resolution(path.split("/")[2])
+    if path == "/markets/auto-resolution/sync":
+        return 200, store.sync_all_pending_auto_resolutions()
     if path == "/markets/oracles":
         return 200, store.register_market_oracle(body)
     if path.startswith("/markets/") and path.endswith("/evidence"):

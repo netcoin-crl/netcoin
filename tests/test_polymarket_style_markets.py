@@ -1,9 +1,33 @@
+import json
 from pathlib import Path
 
 import pytest
 
 from netcoin.apps import AppError, AppStore
 from netcoin.professional_upgrade import validate_upgrade_manifest
+
+
+class _FakeGammaResponse:
+    def __init__(self, payload):
+        self._body = json.dumps(payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self, *_args):
+        return self._body
+
+
+def _patch_gamma_api(monkeypatch, payload):
+    import netcoin.apps.markets as markets_module
+
+    def fake_urlopen(_req, timeout=6):
+        return _FakeGammaResponse(payload)
+
+    monkeypatch.setattr(markets_module.urllib.request, "urlopen", fake_urlopen)
 
 
 def test_polymarket_style_market_order_ticker_and_orderbook(tmp_path: Path):
@@ -226,3 +250,84 @@ def test_auto_resolution_pays_out_open_positions_like_a_manual_resolve(tmp_path:
     balance_after = int(positions_after["portfolios"][0]["wallet"]["balance_sats"])
     assert balance_after > balance_before, "auto-resolution must pay out winning positions, not just flip status"
     assert not any(order["status"] == "open" for order in resynced["orders"])
+
+
+def test_sync_market_auto_resolution_completes_when_the_live_source_has_a_winner(tmp_path: Path, monkeypatch):
+    store = AppStore(tmp_path)
+    market = store.create_prediction_market(
+        {
+            "question": "Will the live poller pick up a real winner?",
+            "outcomes": ["YES", "NO"],
+            "legal_acknowledged": True,
+            "external_source": "polymarket_gamma",
+            "external_id": "pm-live",
+            "condition_id": "cond-live",
+            "source_end_time": 1,
+            "auto_resolution": True,
+        }
+    )
+    mid = market["market_id"]
+    assert market["auto_resolution"]["status"] == "awaiting_source_result"
+
+    _patch_gamma_api(monkeypatch, [{"resolved": True, "winningOutcome": "YES"}])
+    synced = store.sync_market_auto_resolution(mid)
+
+    assert synced["status"] == "resolved"
+    assert synced["auto_resolution"]["status"] == "resolved"
+    assert synced["auto_resolution"]["last_source_check_ok"] is True
+    assert synced["winning_outcome_id"] == market["outcomes"][0]["outcome_id"]
+
+
+def test_sync_market_auto_resolution_leaves_market_open_when_source_not_yet_resolved(tmp_path: Path, monkeypatch):
+    store = AppStore(tmp_path)
+    market = store.create_prediction_market(
+        {
+            "question": "Will the live poller wait if Polymarket hasn't resolved yet?",
+            "outcomes": ["YES", "NO"],
+            "legal_acknowledged": True,
+            "external_source": "polymarket_gamma",
+            "external_id": "pm-pending-live",
+            "source_end_time": 1,
+            "auto_resolution": True,
+        }
+    )
+    mid = market["market_id"]
+
+    _patch_gamma_api(monkeypatch, [{"resolved": False}])
+    synced = store.sync_market_auto_resolution(mid)
+
+    assert synced["status"] == "open"
+    assert synced["auto_resolution"]["status"] == "awaiting_source_result"
+    assert synced["auto_resolution"]["last_source_check_ok"] is True
+
+
+def test_sync_market_auto_resolution_rejects_non_polymarket_sources(tmp_path: Path):
+    store = AppStore(tmp_path)
+    market = store.create_prediction_market(
+        {"question": "Manual market", "outcomes": ["YES", "NO"], "legal_acknowledged": True}
+    )
+    with pytest.raises(AppError, match="no auto-resolution source configured"):
+        store.sync_market_auto_resolution(market["market_id"])
+
+
+def test_sync_all_pending_auto_resolutions_only_touches_awaiting_markets(tmp_path: Path, monkeypatch):
+    store = AppStore(tmp_path)
+    pending = store.create_prediction_market(
+        {
+            "question": "Pending market",
+            "outcomes": ["YES", "NO"],
+            "legal_acknowledged": True,
+            "external_source": "polymarket_gamma",
+            "external_id": "pm-bulk-1",
+            "source_end_time": 1,
+            "auto_resolution": True,
+        }
+    )
+    store.create_prediction_market({"question": "Untouched manual market", "outcomes": ["YES", "NO"]})
+
+    _patch_gamma_api(monkeypatch, [{"resolved": True, "winningOutcome": "YES"}])
+    report = store.sync_all_pending_auto_resolutions()
+
+    assert report["checked"] == 1
+    assert report["results"][0]["market_id"] == pending["market_id"]
+    assert report["results"][0]["status"] == "resolved"

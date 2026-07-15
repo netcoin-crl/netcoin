@@ -1659,3 +1659,90 @@ def polymarket_markets_impl(store: Any, query: dict[str, list[str]] | None = Non
         "notice": "Read-only public market discovery. NetCoin Labs trading stays separate and play-money only.",
         "markets": normalized,
     }
+
+
+def _fetch_polymarket_condition_status(condition_id: str, external_id: str) -> dict[str, Any] | None:
+    """Query the live Polymarket Gamma API for one market's real-world result.
+
+    Returns None on any network/parse failure (never raises) so a poller can
+    safely skip a market this round and retry later rather than aborting a
+    whole sync pass over one bad lookup.
+    """
+    ident = str(condition_id or external_id or "").strip()
+    if not ident:
+        return None
+    params = urllib.parse.urlencode({"condition_ids": ident, "limit": 1})
+    url = f"https://gamma-api.polymarket.com/markets?{params}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "NetCoin-Labs/0.12"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            raw = resp.read(200_000).decode("utf-8")
+            payload = json.loads(raw)
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return None
+    items = payload if isinstance(payload, list) else payload.get("markets", []) if isinstance(payload, dict) else []
+    if not items or not isinstance(items[0], dict):
+        return None
+    item = items[0]
+    winner = item.get("winningOutcome") or item.get("winner") or item.get("resolvedBy")
+    return {
+        "resolved": bool(item.get("resolved") or item.get("archived") or item.get("closed")),
+        "winning_outcome_label": _normalize_winning_label(winner) if winner else "",
+    }
+
+
+def sync_market_auto_resolution_from_source_impl(store: Any, market_id: str) -> dict[str, Any]:
+    """Poll the live external source for one imported market's real result.
+
+    If the source now reports a winner, feed it into the same
+    _sync_auto_resolution_queue path used everywhere else so the market
+    settles through the normal payout/collateral-release/order-cancel flow —
+    this is the missing piece that turns "auto-resolution" from "wait for a
+    human to type in the label" into an actual automatic check against the
+    live source.
+    """
+    data = store.load()
+    m = data.get("prediction_markets", {}).get(market_id)
+    if not m:
+        raise AppError("prediction market not found")
+    queue = m.get("auto_resolution")
+    if not isinstance(queue, dict) or not queue.get("enabled"):
+        raise AppError("market has no auto-resolution source configured")
+    if queue.get("source") != "polymarket_gamma":
+        raise AppError("live source sync is only implemented for the polymarket_gamma source")
+    if m.get("status") != "resolved":
+        status = _fetch_polymarket_condition_status(m.get("condition_id", ""), m.get("external_id", ""))
+        queue["last_source_check_at"] = now()
+        queue["last_source_check_ok"] = status is not None
+        if status is not None and status["resolved"] and status["winning_outcome_label"]:
+            queue["source_winning_outcome_label"] = status["winning_outcome_label"]
+        m["auto_resolution"] = queue
+        _sync_auto_resolution_queue(store, data, m, market_id)
+    store.save(data)
+    return prediction_market_impl(store, market_id)
+
+
+def sync_all_pending_auto_resolutions_impl(store: Any) -> dict[str, Any]:
+    """Poll the live source for every market still waiting on a real-world
+    result. Meant to be run on a schedule (cron/tools script) since it makes
+    real outbound HTTP calls — not wired into every page read like the
+    time-based half of the queue.
+    """
+    data = store.load()
+    results = []
+    for market_id, market in list(data.get("prediction_markets", {}).items()):
+        queue = market.get("auto_resolution")
+        if not isinstance(queue, dict) or not queue.get("enabled"):
+            continue
+        if market.get("status") == "resolved":
+            continue
+        if queue.get("source") != "polymarket_gamma":
+            continue
+        if queue.get("status") not in {"awaiting_source_result", "needs_operator_review"}:
+            continue
+        try:
+            result = sync_market_auto_resolution_from_source_impl(store, market_id)
+            results.append({"market_id": market_id, "status": result.get("status")})
+        except AppError as exc:
+            results.append({"market_id": market_id, "error": str(exc)})
+    return {"checked": len(results), "results": results}
