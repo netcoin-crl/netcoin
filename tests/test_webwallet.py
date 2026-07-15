@@ -9,6 +9,8 @@ import subprocess
 import tempfile
 import threading
 from http.server import ThreadingHTTPServer
+from urllib.error import HTTPError
+from urllib.request import Request
 from urllib.request import urlopen
 
 import pytest
@@ -111,6 +113,45 @@ def test_server_serves_page_and_config():
         assert cfg["node"] == "http://node.example" and cfg["faucet"] == "http://faucet.example"
         current = json.loads(urlopen(base + "/api/wallet/current").read())
         assert current["address"] is None
+    finally:
+        server.shutdown()
+
+
+def test_local_node_control_is_disabled_unless_enabled():
+    server = ThreadingHTTPServer(("127.0.0.1", 0), ww.make_handler("http://node.example"))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        status = json.loads(urlopen(base + "/api/local-node/status").read())
+        assert status["enabled"] is False
+        req = Request(base + "/api/local-node/start", method="POST")
+        try:
+            urlopen(req).read()
+            assert False, "expected disabled local node control to reject start"
+        except HTTPError as exc:
+            body = json.loads(exc.read())
+            assert exc.code == 400
+            assert "local node control" in body["error"]
+    finally:
+        server.shutdown()
+
+
+def test_local_node_control_reports_external_running_node(monkeypatch):
+    monkeypatch.setattr(
+        ww,
+        "_node_get",
+        lambda url, path, timeout=15: {"node": {"height": 7, "peers": 2, "version": "test"}} if path == "/info" else {},
+    )
+    handler = ww.make_handler("http://node.example", allow_node_control=True)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        status = json.loads(urlopen(base + "/api/local-node/status").read())
+        assert status["enabled"] is True
+        assert status["running"] is True
+        assert status["external"] is True
+        assert status["height"] == 7
     finally:
         server.shutdown()
 

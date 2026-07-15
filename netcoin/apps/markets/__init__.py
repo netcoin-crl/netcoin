@@ -11,6 +11,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from typing import Any
 
 from ...crypto import validate_address
@@ -45,6 +46,89 @@ def _short_collateral_sats(price_bps: int, quantity: int, unit_payout_sats: int)
 
 def _price_decimal(price_bps: int) -> str:
     return f"{int(price_bps) / 10_000:.4f}".rstrip("0").rstrip(".")
+
+
+def _parse_source_time(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return int(text)
+    try:
+        return int(datetime.fromisoformat(text.replace("Z", "+00:00")).timestamp())
+    except ValueError:
+        return None
+
+
+def _normalize_winning_label(value: Any) -> str:
+    return str(value or "").strip().upper()
+
+
+def _sync_auto_resolution_queue(
+    store: Any, data: dict[str, Any], market: dict[str, Any], market_id: str, current: int | None = None
+) -> bool:
+    """Advance an imported market's auto-resolution queue.
+
+    Only decides *when* a market is due (close_time reached) and, once a
+    source winner label is known, delegates the actual payout/settlement to
+    ``_finalize_market_resolution`` so auto-resolved markets pay out exactly
+    like operator-resolved ones (positions, collateral release, open-order
+    cancellation) instead of only flipping a status flag.
+    """
+    queue = market.get("auto_resolution")
+    if not isinstance(queue, dict) or not queue.get("enabled"):
+        return False
+    current = current or now()
+    previous = json.dumps(queue, sort_keys=True)
+    end_time = int(queue.get("source_end_time") or market.get("close_time") or 0)
+    winner_label = _normalize_winning_label(
+        queue.get("source_winning_outcome_label") or queue.get("winning_outcome_label")
+    )
+    if market.get("status") == "resolved":
+        queue["status"] = "resolved"
+    elif end_time and current < end_time:
+        queue["status"] = "queued"
+        queue["next_check_at"] = end_time
+    elif winner_label:
+        match = next(
+            (
+                outcome
+                for outcome in market.get("outcomes", [])
+                if _normalize_winning_label(outcome.get("label")) == winner_label
+            ),
+            None,
+        )
+        if match:
+            _finalize_market_resolution(
+                store,
+                data,
+                market,
+                market_id,
+                match["outcome_id"],
+                {
+                    "resolution_note": "Auto-resolved from imported source metadata.",
+                    "resolution_source": queue.get("source_url") or "",
+                    "evidence_url": queue.get("source_url") or "",
+                    "operator_approved": False,
+                },
+            )
+            market.setdefault("resolution_workflow", {})["status"] = "auto_resolved_from_source"
+            queue["status"] = "resolved"
+            queue["resolved_at"] = current
+            queue["winning_outcome_id"] = match["outcome_id"]
+            _market_event(market, "market.auto_resolved", {"winning_outcome_id": match["outcome_id"]})
+        else:
+            queue["status"] = "needs_operator_review"
+            queue["reason"] = "source winner did not match a NetCoin outcome"
+    else:
+        queue["status"] = "awaiting_source_result"
+        queue["next_check_at"] = current + 3600
+    market["auto_resolution"] = queue
+    return json.dumps(queue, sort_keys=True) != previous
 
 
 def _market_event(market: dict[str, Any], event: str, payload: dict[str, Any]) -> None:
@@ -696,6 +780,32 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
     if unit_payout_sats <= 0:
         raise AppError("unit payout must be positive")
     sandbox_short_mode = bool(payload.get("sandbox_short_mode", True))
+    source_end_time = _parse_source_time(
+        payload.get("source_end_time")
+        or payload.get("auto_resolution_at")
+        or payload.get("external_end_date")
+        or payload.get("close_time")
+    )
+    source_winner = _normalize_winning_label(
+        payload.get("source_winning_outcome_label")
+        or payload.get("winning_outcome_label")
+        or payload.get("external_winner")
+    )
+    auto_resolution = (
+        {
+            "enabled": True,
+            "source": str(payload.get("external_source") or "external")[:80],
+            "external_id": str(payload.get("external_id") or "")[:160],
+            "source_url": str(payload.get("source_url") or payload.get("resolution_source") or "")[:500],
+            "source_end_time": source_end_time,
+            "source_end_date": str(payload.get("source_end_date") or payload.get("external_end_date") or "")[:80],
+            "source_winning_outcome_label": source_winner,
+            "status": "queued",
+            "next_check_at": source_end_time,
+        }
+        if payload.get("auto_resolution") or payload.get("external_source") == "polymarket_gamma"
+        else {}
+    )
     record = {
         "market_id": market_id,
         "question": question[:240],
@@ -761,8 +871,12 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
         },
         "audit_trail": [],
         "external_source": payload.get("external_source") or None,
+        "external_id": str(payload.get("external_id") or "")[:160],
+        "external_url": str(payload.get("source_url") or payload.get("external_url") or "")[:500],
+        "auto_resolution": auto_resolution,
     }
     data = store.load()
+    _sync_auto_resolution_queue(store, data, record, market_id)
     data.setdefault("prediction_markets", {})[market_id] = record
     data.setdefault("contracts", {})[market_id] = {
         "contract_id": market_id,
@@ -779,14 +893,22 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
 
 
 def prediction_market_impl(store: Any, market_id: str) -> dict[str, Any]:
-    m = store.load().get("prediction_markets", {}).get(market_id)
+    data = store.load()
+    m = data.get("prediction_markets", {}).get(market_id)
     if not m:
         raise AppError("prediction market not found")
+    if _sync_auto_resolution_queue(store, data, m, market_id):
+        store.save(data)
     return _hydrate_market(m)
 
 
 def list_prediction_markets_impl(store: Any) -> dict[str, Any]:
     data = store.load()
+    changed = False
+    for mid, market in data.get("prediction_markets", {}).items():
+        changed = _sync_auto_resolution_queue(store, data, market, mid) or changed
+    if changed:
+        store.save(data)
     markets = [_hydrate_market(x) for x in data.get("prediction_markets", {}).values()]
     markets.sort(key=lambda m: (m.get("status") != "open", -int(m.get("created_at", 0) or 0)))
     totals = {
@@ -1164,6 +1286,15 @@ def resolve_prediction_market_impl(store: Any, market_id: str, payload: dict[str
         winning = str(pending.get("winning_outcome_id") or "")
     if winning not in {o["outcome_id"] for o in m.get("outcomes", [])}:
         raise AppError("invalid winning outcome")
+    _finalize_market_resolution(store, data, m, market_id, winning, payload)
+    store.save(data)
+    return prediction_market_impl(store, market_id)
+
+
+def _finalize_market_resolution(
+    store: Any, data: dict[str, Any], m: dict[str, Any], market_id: str, winning: str, payload: dict[str, Any]
+) -> None:
+    pending = m.get("resolution_workflow", {}).get("pending_resolution") or {}
     payout_per_share_sats = parse_amount_sats(
         payload.get(
             "payout_per_share_sats",
@@ -1251,8 +1382,6 @@ def resolve_prediction_market_impl(store: Any, market_id: str, payload: dict[str
     m["updated_at"] = now()
     _market_event(m, "market.resolved", {"market_id": market_id, "winning_outcome_id": winning})
     store._record_contract_event(data, "market.resolved", {"market_id": market_id, "winning_outcome_id": winning})
-    store.save(data)
-    return prediction_market_impl(store, market_id)
 
 
 def market_orderbook_impl(store: Any, market_id: str, depth: int = 25) -> dict[str, Any]:
@@ -1512,6 +1641,9 @@ def polymarket_markets_impl(store: Any, query: dict[str, list[str]] | None = Non
                 "active": item.get("active"),
                 "closed": item.get("closed"),
                 "end_date": item.get("endDate") or item.get("end_date_iso"),
+                "end_time": _parse_source_time(item.get("endDate") or item.get("end_date_iso")),
+                "resolved": item.get("resolved") or item.get("archived") or item.get("closed"),
+                "winning_outcome": item.get("winningOutcome") or item.get("winner") or item.get("resolvedBy"),
                 "volume": item.get("volume") or item.get("volumeNum"),
                 "volume_24h": item.get("volume24hr") or item.get("volume24hrClob"),
                 "liquidity": item.get("liquidity") or item.get("liquidityNum"),

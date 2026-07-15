@@ -8,6 +8,7 @@
 
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
   const fmtTime = (ts) => { if (!ts) return "n/a"; const n = Number(ts); return Number.isFinite(n) ? new Date(n * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : esc(ts); };
+  const sourceEndTime = (m) => Number(m.end_time || (m.end_date ? Math.floor(new Date(m.end_date).getTime() / 1000) : 0)) || undefined;
 
   function log(msg, payload) {
     const box = $("#activityLog"); if (!box) return;
@@ -64,6 +65,7 @@
   function netcoinMarketFromPolymarket(m) {
     const labels = (m.outcomes || []).map((o) => String(o.label || "").trim()).filter(Boolean);
     const outcomes = labels.length >= 2 ? labels : ["YES", "NO"];
+    const endTime = sourceEndTime(m);
     return {
       question: String(m.question || m.slug || "Imported market idea").slice(0, 240),
       outcomes,
@@ -74,8 +76,14 @@
       resolution_source: m.url || "Polymarket public market discovery",
       legal_acknowledged: true,
       sandbox_short_mode: true,
+      close_time: endTime,
       external_source: "polymarket_gamma",
       external_id: m.external_id || m.condition_id || m.slug || "",
+      source_url: m.url || "",
+      source_end_time: endTime,
+      source_end_date: m.end_date || "",
+      source_winning_outcome_label: m.winning_outcome || "",
+      auto_resolution: true,
     };
   }
 
@@ -231,9 +239,12 @@
   }
   function rulesTab(m) {
     const wf = m.resolution_workflow || {};
+    const auto = m.auto_resolution || {};
     const evidence = (m.resolution_evidence || []).slice(-5).reverse();
     const ev = evidence.length ? evidence.map((e) => `<li><b>${esc(e.title || e.source_type || "evidence")}</b> — ${esc(e.url || e.statement || "manual note")} <span class="muted">${fmtTime(e.created_at || e.timestamp)}</span></li>`).join("") : `<li class="muted">No evidence yet.</li>`;
+    const queue = auto.enabled ? `<p class="muted">Auto-resolution queue: ${esc(auto.status || "queued")} · Source end: ${fmtTime(auto.source_end_time)}${auto.next_check_at ? ` · Next check: ${fmtTime(auto.next_check_at)}` : ""}</p>` : "";
     return `<p class="muted">Status: ${esc(wf.status || "unresolved")} · Oracle: ${esc(wf.optimistic_oracle_status || "unproposed")} · Source: ${esc(m.resolution_source || wf.evidence_url || "manual operator review")}</p>
+      ${queue}
       <p>${esc(m.rules || m.warning || "Testnet/play-money market. Resolves by manual operator review with an evidence trail.")}</p>
       <h4 style="margin:12px 0 6px">Evidence</h4><ul>${ev}</ul>`;
   }
@@ -342,7 +353,26 @@
     if ($("#resolveOutcome")) $("#resolveOutcome").innerHTML = opts || `<option value="">Select market</option>`;
   }
 
-  function renderAll(totals) { renderMetrics(totals); renderChips(); if (state.view === "grid") renderGrid(); else renderDetail(); }
+  function renderResolutionQueue() {
+    const queue = state.markets.filter((m) => (m.auto_resolution || {}).enabled).slice(0, 6);
+    const box = $("#resolutionQueue");
+    if (!box) return;
+    if (!queue.length) {
+      box.innerHTML = `<div class="poly-card"><h3>No imported markets queued</h3><p class="muted">Imported Polymarket ideas will appear here with their source end time.</p></div>`;
+      return;
+    }
+    box.innerHTML = queue.map((m) => {
+      const auto = m.auto_resolution || {};
+      return `<article class="poly-card queue-card" data-queue-market="${esc(m.market_id)}">
+        <h3>${esc(m.question)}</h3>
+        <div class="poly-meta">${esc(auto.status || "queued")} · ends ${fmtTime(auto.source_end_time || m.close_time)}</div>
+        <button type="button" data-open-market="${esc(m.market_id)}">Open</button>
+      </article>`;
+    }).join("");
+    box.querySelectorAll("[data-open-market]").forEach((button) => button.addEventListener("click", () => openDetail(button.getAttribute("data-open-market"))));
+  }
+
+  function renderAll(totals) { renderMetrics(totals); renderChips(); renderResolutionQueue(); if (state.view === "grid") renderGrid(); else renderDetail(); }
 
   /* ---------------- API actions (unchanged wiring) ---------------- */
   async function loadMarkets() {
@@ -361,6 +391,7 @@
       state.apiOk = false;
       $("#apiStatus").textContent = locals.length ? `API offline · ${locals.length} local draft${locals.length === 1 ? "" : "s"}` : `API offline`;
       renderMetrics({ count: locals.length, open: locals.filter((m) => m.status === "open").length, resolved: 0, volume: "0" });
+      renderResolutionQueue();
       renderGrid();
       log("Market load failed", { error: err.message });
     }

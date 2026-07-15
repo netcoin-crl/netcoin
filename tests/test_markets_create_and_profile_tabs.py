@@ -13,6 +13,7 @@ def test_markets_page_exposes_new_market_action_and_operator_drawer() -> None:
     assert ">New market<" in html
     assert 'id="operatorTools"' in html
     assert 'id="createMarketForm"' in html
+    assert 'id="resolutionQueue"' in html
 
 
 def test_markets_create_falls_back_to_local_browser_draft() -> None:
@@ -23,6 +24,9 @@ def test_markets_create_falls_back_to_local_browser_draft() -> None:
     assert "Saved local market draft" in js
     assert "API write unavailable · saved local draft" in js
     assert '$("#newMarketButton")?.addEventListener("click", openCreateMarket)' in js
+    assert "source_end_time" in js
+    assert "auto_resolution: true" in js
+    assert "function renderResolutionQueue" in js
 
 
 def test_site_profile_controls_are_hidden_from_public_shell() -> None:

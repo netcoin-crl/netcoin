@@ -14,7 +14,10 @@ expose it publicly — it is not a custodial/hosted wallet.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -25,6 +28,7 @@ from urllib.request import Request, urlopen
 from .params import (
     COIN,
     COINBASE_MATURITY,
+    DEFAULT_NODE_PORT,
     MAX_WALLET_SEND_INPUTS,
     MAX_WALLET_SEND_WEIGHT,
     NETWORK_NAME,
@@ -43,6 +47,103 @@ from .wallet import Wallet
 
 # SegWit first and default; legacy/p2sh-segwit kept only so existing coins stay spendable.
 ADDRESS_TYPES = ["segwit", "taproot", "legacy", "p2sh-segwit"]
+LOCAL_NODE_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+class LocalNodeController:
+    """Small local-only process supervisor for the desktop web wallet."""
+
+    def __init__(self, *, enabled: bool, port: int = DEFAULT_NODE_PORT, data_dir: Path | None = None) -> None:
+        self.enabled = enabled
+        self.port = int(port)
+        self.data_dir = data_dir or (Path.home() / ".netcoin-local-node")
+        self.log_path = self.data_dir / "node.log"
+        self.process: subprocess.Popen[str] | None = None
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self.port}"
+
+    def _external_info(self) -> dict[str, Any] | None:
+        try:
+            return _node_get(self.url, "/info", timeout=2).get("node", {})
+        except Exception:
+            return None
+
+    def status(self) -> dict[str, Any]:
+        if not self.enabled:
+            return {"enabled": False, "running": False, "reason": "local node control is available only on loopback"}
+        if self.process and self.process.poll() is not None:
+            self.process = None
+        info = self._external_info()
+        running = bool(info)
+        owned = bool(self.process and self.process.poll() is None)
+        return {
+            "enabled": True,
+            "running": running,
+            "owned": owned,
+            "external": running and not owned,
+            "url": self.url,
+            "port": self.port,
+            "pid": self.process.pid if owned else None,
+            "height": info.get("height") if info else None,
+            "peers": info.get("peers") if info else None,
+            "version": info.get("version") if info else None,
+            "log": str(self.log_path),
+        }
+
+    def start(self) -> dict[str, Any]:
+        if not self.enabled:
+            raise ValueError("local node control is available only when the web wallet is bound to 127.0.0.1")
+        status = self.status()
+        if status["running"]:
+            return status | {"message": "node already running on this port"}
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        log = self.log_path.open("a", encoding="utf-8")
+        cmd = [
+            sys.executable,
+            "-m",
+            "netcoin",
+            "--data",
+            str(self.data_dir),
+            "node",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(self.port),
+            "--seeds",
+        ]
+        self.process = subprocess.Popen(
+            cmd,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+            close_fds=True,
+        )
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            info = self._external_info()
+            if info:
+                break
+            if self.process.poll() is not None:
+                raise ValueError(f"node exited early; check {self.log_path}")
+            time.sleep(0.25)
+        return self.status() | {"message": "node started"}
+
+    def stop(self) -> dict[str, Any]:
+        if not self.enabled:
+            raise ValueError("local node control is available only when the web wallet is bound to 127.0.0.1")
+        if not self.process or self.process.poll() is not None:
+            self.process = None
+            return self.status() | {"message": "no web-wallet-started node to stop"}
+        self.process.terminate()
+        try:
+            self.process.wait(timeout=8)
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            self.process.wait(timeout=3)
+        self.process = None
+        return self.status() | {"message": "node stopped"}
 
 
 # --------------------------------------------------------------------------- #
@@ -420,6 +521,7 @@ PAGE = """<!doctype html>
   <button class="on" data-tab="wallet">Wallet</button>
   <button data-tab="faucet">Faucet</button>
   <button data-tab="explorer">Explorer</button>
+  <button data-tab="node">Node</button>
  </div>
 
  <section id="tab-wallet">
@@ -502,6 +604,19 @@ PAGE = """<!doctype html>
   </div>
   <div class="card"><h2>Latest blocks</h2><table id="latest"><tbody></tbody></table></div>
  </section>
+
+ <section id="tab-node" class="hide">
+  <div class="card"><h2>Local node</h2>
+   <p class="muted">Start or stop a NetCoin node on this computer. The button is available only when this page is served from the local install on 127.0.0.1.</p>
+   <div id="nodeStatus" class="muted">Checking local node control...</div>
+   <div class="row" style="margin-top:10px">
+    <button class="act" onclick="startLocalNode()">Start node</button>
+    <button class="ghost" onclick="stopLocalNode()">Stop node</button>
+    <button class="ghost" onclick="refreshLocalNode()">Refresh</button>
+   </div>
+   <div class="warn">If another NetCoin node is already using the default port, this page will connect to it but will not stop it.</div>
+  </div>
+ </section>
 </div>
 	<script>
 	let CFG={}, ADDRS={}, curType="segwit", BAL={};
@@ -517,13 +632,14 @@ PAGE = """<!doctype html>
   finally{clearTimeout(timer);}}
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
-  ['wallet','faucet','explorer'].forEach(t=>$('#tab-'+t).classList.toggle('hide',t!==b.dataset.tab));
+  ['wallet','faucet','explorer','node'].forEach(t=>$('#tab-'+t).classList.toggle('hide',t!==b.dataset.tab));
   if(b.dataset.tab==='explorer')loadLatest();
+  if(b.dataset.tab==='node')refreshLocalNode();
 });
 function nodeHelp(msg){return esc(msg)+'<div class="warn"><b>Node connection help</b><br>Use the public API proxy when home Wi-Fi blocks the seed port. If your network blocks api.netcoin.online, use the direct-IP API:<div class="mono">python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online</div><br>Configured node: <span class="mono">'+esc(CFG.node||'unknown')+'</span></div>';}
 async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG.network+' · node '+CFG.node;
   $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')search();});
-  const w=await api('/api/wallet/current');if(w.address)showWallet(w);}
+  const w=await api('/api/wallet/current');if(w.address)showWallet(w);refreshLocalNode();}
 function showWallet(w){ADDRS=w.addresses;const sel=$('#typeSel');sel.innerHTML='';
   Object.keys(ADDRS).forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
   $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');$('#historyCard').classList.remove('hide');
@@ -536,7 +652,7 @@ function switchType(){curType=$('#typeSel').value||'segwit';$('#addrType').textC
 	  refreshBalance();loadHistory();}
 function openTx(t){document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
   const eb=document.querySelector('.tabs button[data-tab="explorer"]');eb.classList.add('on');
-  ['wallet','faucet','explorer'].forEach(tb=>$('#tab-'+tb).classList.toggle('hide',tb!=='explorer'));
+  ['wallet','faucet','explorer','node'].forEach(tb=>$('#tab-'+tb).classList.toggle('hide',tb!=='explorer'));
   loadLatest();searchFor(t);}
 async function loadHistory(){const out=$('#historyOut');try{
   const d=await api('/api/history?address='+ADDRS[curType]);
@@ -546,6 +662,16 @@ async function loadHistory(){const out=$('#historyOut');try{
 async function newWallet(){try{const w=await api('/api/wallet/new',{method:'POST'});showWallet(w);}catch(e){alert(e.message)}}
 async function loadWallet(){try{const w=await api('/api/wallet/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({json:$('#loadJson').value,passphrase:$('#loadPass').value})});showWallet(w);}catch(e){alert(e.message)}}
 async function loadPrivateKey(){try{const w=await api('/api/wallet/private-key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({private_key_hex:$('#privHex').value})});showWallet(w);}catch(e){alert(e.message)}}
+function renderNodeStatus(d){const out=$('#nodeStatus');if(!out)return;
+  if(!d.enabled){out.innerHTML='<span class="err">Unavailable here.</span><div class="muted">'+esc(d.reason||'Open this through python -m netcoin web on 127.0.0.1.')+'</div>';return;}
+  const mode=d.external?'already running outside this page':(d.owned?'started by this page':'stopped');
+  out.innerHTML='<div class="rcard">'+kv('Status',d.running?'<b class="ok">running</b>':'<span class="muted">stopped</span>')+
+    kv('Mode',esc(mode))+kv('Node URL','<span class="mono">'+esc(d.url||'')+'</span>')+
+    kv('Height',esc(d.height??'n/a'))+kv('Peers',esc(d.peers??'n/a'))+
+    kv('Log','<span class="mono">'+esc(d.log||'')+'</span>')+'</div>';}
+async function refreshLocalNode(){try{renderNodeStatus(await api('/api/local-node/status',{},8000));}catch(e){$('#nodeStatus').innerHTML=nodeHelp(e.message);}}
+async function startLocalNode(){const out=$('#nodeStatus');out.textContent='Starting local node...';try{renderNodeStatus(await api('/api/local-node/start',{method:'POST'},15000));}catch(e){out.innerHTML=nodeHelp(e.message);}}
+async function stopLocalNode(){const out=$('#nodeStatus');out.textContent='Stopping local node...';try{renderNodeStatus(await api('/api/local-node/stop',{method:'POST'},15000));}catch(e){out.innerHTML=nodeHelp(e.message);}}
 function copyAddr(){navigator.clipboard.writeText(ADDRS[curType]);}
 async function refreshBalance(){try{const b=await api('/api/balance?address='+ADDRS[curType]);BAL=b;
 	  $('#balSpendable').innerHTML=esc(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+esc(CFG.ticker)+'</span>';
@@ -612,9 +738,10 @@ boot();
 # --------------------------------------------------------------------------- #
 
 
-def make_handler(node_url: str, faucet_url: str = ""):
+def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: bool = False):
     node_url = _normalize_node_url(node_url)
     state: dict[str, Wallet | None] = {"wallet": None}
+    local_node = LocalNodeController(enabled=allow_node_control)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args: Any) -> None:  # quiet
@@ -690,6 +817,8 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     from .paymenturi import parse_uri
 
                     self._send(parse_uri(parse_qs(parsed.query).get("uri", [""])[0]))
+                elif parsed.path == "/api/local-node/status":
+                    self._send(local_node.status())
                 else:
                     self._send({"error": "not found"}, status=404)
             except HTTPError as exc:
@@ -741,6 +870,10 @@ def make_handler(node_url: str, faucet_url: str = ""):
                     self._send(self._psbt_import(self._read()))
                 elif parsed.path == "/api/wallet/psbt/broadcast":
                     self._send(self._psbt_broadcast(self._read()))
+                elif parsed.path == "/api/local-node/start":
+                    self._send(local_node.start())
+                elif parsed.path == "/api/local-node/stop":
+                    self._send(local_node.stop())
                 else:
                     self._send({"error": "not found"}, status=404)
             except HTTPError as exc:
@@ -864,9 +997,14 @@ def make_handler(node_url: str, faucet_url: str = ""):
 
 def run_web_wallet(node_url: str, faucet_url: str = "", host: str = "127.0.0.1", port: int = 8088) -> None:
     node_url = _normalize_node_url(node_url)
-    server = ThreadingHTTPServer((host, int(port)), make_handler(node_url, faucet_url))
+    allow_node_control = host in LOCAL_NODE_HOSTS
+    server = ThreadingHTTPServer(
+        (host, int(port)), make_handler(node_url, faucet_url, allow_node_control=allow_node_control)
+    )
     print(f"NetCoin web wallet on http://{host}:{port}  (node: {node_url})")
     print("Local tool — keys stay on this machine. Do not expose this port publicly.")
+    if allow_node_control:
+        print("Local node button enabled. It can start/stop only the node launched by this web wallet.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -125,3 +125,104 @@ def test_professional_upgrade_manifest_is_valid():
     assert report["ok"] is True
     assert report["workstream_count"] >= 15
     assert report["production_claim"] is False
+
+
+def test_imported_polymarket_market_auto_resolution_queue(tmp_path: Path):
+    store = AppStore(tmp_path)
+    market = store.create_prediction_market(
+        {
+            "question": "Did the imported source resolve YES?",
+            "outcomes": ["YES", "NO"],
+            "legal_acknowledged": True,
+            "sandbox_short_mode": True,
+            "external_source": "polymarket_gamma",
+            "external_id": "pm-test",
+            "source_end_time": 1,
+            "source_winning_outcome_label": "YES",
+            "auto_resolution": True,
+        }
+    )
+    assert market["auto_resolution"]["status"] == "resolved"
+    assert market["status"] == "resolved"
+    assert market["winning_outcome_id"] == market["outcomes"][0]["outcome_id"]
+
+
+def test_imported_polymarket_market_waits_for_source_winner(tmp_path: Path):
+    store = AppStore(tmp_path)
+    market = store.create_prediction_market(
+        {
+            "question": "Did the imported source finish without a winner?",
+            "outcomes": ["YES", "NO"],
+            "legal_acknowledged": True,
+            "sandbox_short_mode": True,
+            "external_source": "polymarket_gamma",
+            "external_id": "pm-pending",
+            "source_end_time": 1,
+            "auto_resolution": True,
+        }
+    )
+    assert market["status"] == "open"
+    assert market["auto_resolution"]["status"] == "awaiting_source_result"
+
+
+def test_auto_resolution_pays_out_open_positions_like_a_manual_resolve(tmp_path: Path):
+    store = AppStore(tmp_path)
+    market = store.create_prediction_market(
+        {
+            "question": "Will the imported market pay out its winning side automatically?",
+            "outcomes": ["YES", "NO"],
+            "legal_acknowledged": True,
+            "sandbox_short_mode": True,
+            "external_source": "polymarket_gamma",
+            "external_id": "pm-payout",
+        }
+    )
+    mid = market["market_id"]
+    yes = market["outcomes"][0]["outcome_id"]
+    store.place_market_order(
+        mid,
+        {
+            "trader": "demo:maker",
+            "demo_wallet": True,
+            "side": "sell",
+            "outcome_id": yes,
+            "price_bps": 5000,
+            "quantity": 4,
+        },
+    )
+    store.place_market_order(
+        mid,
+        {
+            "trader": "demo:winner",
+            "demo_wallet": True,
+            "side": "buy",
+            "outcome_id": yes,
+            "order_type": "market",
+            "quantity": 4,
+        },
+    )
+    positions_before = store.market_positions(mid, "demo:winner")
+    balance_before = int(positions_before["portfolios"][0]["wallet"]["balance_sats"])
+
+    data = store.load()
+    m = data["prediction_markets"][mid]
+    m["auto_resolution"] = {
+        "enabled": True,
+        "source": "polymarket_gamma",
+        "source_end_time": 1,
+        "source_winning_outcome_label": "YES",
+        "status": "queued",
+    }
+    m["close_time"] = 1
+    store.save(data)
+
+    resynced = store.prediction_market(mid)
+    assert resynced["status"] == "resolved"
+    assert resynced["auto_resolution"]["status"] == "resolved"
+    assert resynced["resolution_workflow"]["status"] == "auto_resolved_from_source"
+    assert resynced["resolution_workflow"]["operator_approved"] is False
+
+    positions_after = store.market_positions(mid, "demo:winner")
+    balance_after = int(positions_after["portfolios"][0]["wallet"]["balance_sats"])
+    assert balance_after > balance_before, "auto-resolution must pay out winning positions, not just flip status"
+    assert not any(order["status"] == "open" for order in resynced["orders"])

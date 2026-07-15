@@ -2,17 +2,18 @@
   "version": "0.38.5",
   "phase": "phase-0-product-identity-ux-architecture",
   "product_statement": "NetCoin is a wallet-first public testnet cryptocurrency ecosystem: manage NET, understand the chain, participate in markets/community, operate infrastructure, and build on the protocol.",
-  "north_star": "A first-time user should understand Wallet -> Explorer -> Markets -> everything else in under 30 seconds.",
+  "north_star": "A first-time user should understand Core -> Network -> Build -> Ecosystem, with Explorer/Download/Home/Markets/Wallet in Core, in under 30 seconds.",
   "primary_product": "NetCoin Wallet",
   "primary_navigation": [
-    "Wallet",
-    "Explorer",
-    "Markets"
+    "Core",
+    "Network",
+    "Build",
+    "Ecosystem"
   ],
   "more_navigation_groups": [
     "Network",
-    "Community",
-    "Developers"
+    "Build",
+    "Ecosystem"
   ],
   "jobs": [
     {
@@ -280,7 +281,7 @@
     "complex-exchange-products"
   ],
   "phase0_acceptance_criteria": [
-    "Primary top navigation is limited to Wallet, Explorer, and Markets plus grouped More.",
+    "Primary top navigation is limited to Wallet, Explorer, and Markets plus grouped Ecosystem.",
     "Every public surface is assigned to one of the five user jobs.",
     "The design system defines one page template, card taxonomy, button taxonomy, status vocabulary, spacing scale and typography scale.",
     "The homepage explains Wallet, Explorer, Markets, Network, Community and Developers without listing every capability.",

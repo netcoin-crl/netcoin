@@ -5,34 +5,35 @@
   const modes = {
     user: {
       label: 'User',
-      detail: 'Wallet, Explorer, Markets, Faucet.',
-      groups: ['Core', 'Network', 'Governance', 'Build', 'More']
+      detail: 'Core tools, then network status.',
+      groups: ['Core', 'Network', 'Build', 'Ecosystem']
     },
     trader: {
       label: 'Trader',
       detail: 'Markets, portfolio, settlement.',
-      groups: ['Core', 'More', 'Governance', 'Network', 'Build']
+      groups: ['Core', 'Ecosystem', 'Network', 'Build']
     },
     operator: {
       label: 'Operator',
       detail: 'Health, nodes, custody, releases.',
-      groups: ['Network', 'Build', 'Core', 'Governance', 'More']
+      groups: ['Network', 'Build', 'Core', 'Ecosystem']
     },
     developer: {
       label: 'Developer',
       detail: 'Docs, API, design, downloads.',
-      groups: ['Build', 'Network', 'Core', 'Governance', 'More']
+      groups: ['Build', 'Network', 'Core', 'Ecosystem']
     }
   };
 
   const links = [
-    { href: 'https://wallet.netcoin.online', host: 'wallet.netcoin.online', label: 'Wallet', detail: 'send and receive', group: 'Core', primary: true },
     { href: 'https://explorer.netcoin.online', host: 'explorer.netcoin.online', label: 'Explorer', detail: 'verify activity', group: 'Core', primary: true },
+    { href: 'https://download.netcoin.online', host: 'download.netcoin.online', label: 'Download', detail: 'install files', group: 'Core', primary: true },
+    { href: 'https://netcoin.online', host: 'netcoin.online', label: 'Home', detail: 'testnet hub', group: 'Core', primary: true },
     { href: 'https://markets.netcoin.online', host: 'markets.netcoin.online', label: 'Markets', detail: 'trade test markets', group: 'Core', primary: true },
+    { href: 'https://wallet.netcoin.online', host: 'wallet.netcoin.online', label: 'Wallet', detail: 'send and receive', group: 'Core', primary: true },
 
-    { href: 'https://netcoin.online', host: 'netcoin.online', label: 'Home', detail: 'testnet hub', group: 'Core' },
-    { href: 'https://pay.netcoin.online', host: 'pay.netcoin.online', label: 'Pay', detail: 'payment links', group: 'More' },
-    { href: 'https://merchant.netcoin.online', host: 'merchant.netcoin.online', label: 'Merchant', detail: 'checkout tools', group: 'More' },
+    { href: 'https://pay.netcoin.online', host: 'pay.netcoin.online', label: 'Pay', detail: 'payment links', group: 'Ecosystem' },
+    { href: 'https://merchant.netcoin.online', host: 'merchant.netcoin.online', label: 'Merchant', detail: 'checkout tools', group: 'Ecosystem' },
 
     { href: 'https://faucet.netcoin.online', host: 'faucet.netcoin.online', label: 'Faucet', detail: 'claim NET', group: 'Network' },
     { href: 'https://nodes.netcoin.online', host: 'nodes.netcoin.online', label: 'Nodes', detail: 'seeds and mining', group: 'Network' },
@@ -41,37 +42,35 @@
     { href: 'https://exchange.netcoin.online', host: 'exchange.netcoin.online', label: 'Exchange', detail: 'custody', group: 'Network' },
     { href: 'https://security.netcoin.online', host: 'security.netcoin.online', label: 'Security', detail: 'release safety', group: 'Network' },
 
-    { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and votes', group: 'Governance' },
-    { href: 'https://governance.netcoin.online#treasury', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'grants and spending', group: 'Governance' },
-    { href: 'https://community.netcoin.online', host: 'community.netcoin.online', label: 'Community', detail: 'posts and bounties', group: 'More' },
-    { href: 'https://learn.netcoin.online', host: 'learn.netcoin.online', label: 'Learn', detail: 'guides', group: 'More' },
+    { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and votes', group: 'Ecosystem' },
+    { href: 'https://governance.netcoin.online#treasury', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem' },
+    { href: 'https://community.netcoin.online', host: 'community.netcoin.online', label: 'Community', detail: 'posts and bounties', group: 'Ecosystem' },
+    { href: 'https://learn.netcoin.online', host: 'learn.netcoin.online', label: 'Learn', detail: 'guides', group: 'Ecosystem' },
 
     { href: 'https://docs.netcoin.online', host: 'docs.netcoin.online', label: 'Docs', detail: 'reference', group: 'Build' },
     { href: 'https://api.netcoin.online', host: 'api.netcoin.online', label: 'API', detail: 'OpenAPI', group: 'Build' },
     { href: 'https://developers.netcoin.online', host: 'developers.netcoin.online', label: 'SDKs', detail: 'client libraries', group: 'Build' },
     { href: 'https://architecture.netcoin.online', host: 'architecture.netcoin.online', label: 'System Design', detail: 'architecture', group: 'Build' },
     { href: 'https://features.netcoin.online', host: 'features.netcoin.online', label: 'Capabilities', detail: 'feature status', group: 'Build' },
-    { href: 'https://download.netcoin.online', host: 'download.netcoin.online', label: 'Download', detail: 'install files', group: 'Build' },
     { href: 'https://download.netcoin.online/verify.html', host: 'download.netcoin.online', label: 'Verify Release', detail: 'release checks', group: 'Build' }
   ];
 
   const navGroups = [
-    { title: 'Core', detail: 'daily tools' },
+    { title: 'Core', detail: 'main tools' },
     { title: 'Network', detail: 'nodes and health' },
-    { title: 'Governance', detail: 'NIPs and treasury' },
     { title: 'Build', detail: 'docs and APIs' },
-    { title: 'More', detail: 'community and commerce' }
+    { title: 'Ecosystem', detail: 'governance, community, and commerce' }
   ];
 
   const featureGroups = [
     {
       title: 'Core',
       items: [
-        ['Wallet', 'https://wallet.netcoin.online'],
         ['Explorer', 'https://explorer.netcoin.online'],
+        ['Download', 'https://download.netcoin.online'],
+        ['Home', 'https://netcoin.online'],
         ['Markets', 'https://markets.netcoin.online'],
-        ['Pay', 'https://pay.netcoin.online'],
-        ['Merchant', 'https://merchant.netcoin.online']
+        ['Wallet', 'https://wallet.netcoin.online']
       ]
     },
     {
@@ -86,15 +85,6 @@
       ]
     },
     {
-      title: 'Governance',
-      items: [
-        ['Governance', 'https://governance.netcoin.online'],
-        ['Treasury', 'https://governance.netcoin.online#treasury'],
-        ['NIPs', 'https://governance.netcoin.online'],
-        ['Roadmap', 'https://governance.netcoin.online#roadmap']
-      ]
-    },
-    {
       title: 'Build',
       items: [
         ['Docs', 'https://docs.netcoin.online'],
@@ -102,13 +92,16 @@
         ['SDKs', 'https://developers.netcoin.online'],
         ['System Design', 'https://architecture.netcoin.online'],
         ['Capabilities', 'https://features.netcoin.online'],
-        ['Download', 'https://download.netcoin.online'],
         ['Verify Release', 'https://download.netcoin.online/verify.html']
       ]
     },
     {
-      title: 'More',
+      title: 'Ecosystem',
       items: [
+        ['Governance', 'https://governance.netcoin.online'],
+        ['Treasury', 'https://governance.netcoin.online#treasury'],
+        ['NIPs', 'https://governance.netcoin.online'],
+        ['Roadmap', 'https://governance.netcoin.online#roadmap'],
         ['Community', 'https://community.netcoin.online'],
         ['Ideas', 'https://community.netcoin.online#ideas'],
         ['Bounties', 'https://community.netcoin.online#bounties'],
@@ -151,13 +144,29 @@
     return false;
   }
 
-  function sortedLinks() {
+  function sortedGroups() {
     const order = modes[activeMode].groups;
-    const groupIndex = (group) => {
-      const index = order.indexOf(group);
+    return navGroups.slice().sort((a, b) => {
+      const ai = order.indexOf(a.title);
+      const bi = order.indexOf(b.title);
+      const left = ai === -1 ? order.length : ai;
+      const right = bi === -1 ? order.length : bi;
+      return left - right;
+    });
+  }
+
+  function sortedLinks(group) {
+    const groupLinks = links.filter((link) => link.group === group);
+    if (group === 'Core') {
+      const order = ['Explorer', 'Download', 'Home', 'Markets', 'Wallet'];
+      return groupLinks.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
+    }
+    const order = modes[activeMode].groups;
+    const groupIndex = (value) => {
+      const index = order.indexOf(value);
       return index === -1 ? order.length : index;
     };
-    return links.slice().sort((a, b) => {
+    return groupLinks.sort((a, b) => {
       const diff = groupIndex(a.group) - groupIndex(b.group);
       if (diff) return diff;
       return a.label.localeCompare(b.label);
@@ -165,13 +174,8 @@
   }
 
   function directoryHtml() {
-    const byGroup = sortedLinks().reduce((acc, link) => {
-      if (!acc[link.group]) acc[link.group] = [];
-      acc[link.group].push(link);
-      return acc;
-    }, {});
-    return navGroups.map((group) => {
-      const groupLinks = byGroup[group.title] || [];
+    return sortedGroups().map((group) => {
+      const groupLinks = sortedLinks(group.title);
       if (!groupLinks.length) return '';
       const activeGroup = groupLinks.some(isCurrent) ? ' active' : '';
       const items = groupLinks.map((link) => {
@@ -188,22 +192,35 @@
     return '';
   }
 
+  function coreTabsHtml() {
+    return sortedLinks('Core').map((link) => {
+      const active = isCurrent(link) ? ' class="active" aria-current="page"' : '';
+      return '<a href="' + link.href + '" data-group="Core"' + active + '>' + link.label + '</a>';
+    }).join('');
+  }
+
+  function categoryTabsHtml() {
+    return sortedGroups().filter((group) => group.title !== 'Core').map((group) => {
+      const groupLinks = sortedLinks(group.title);
+      if (!groupLinks.length) return '';
+      const activeGroup = groupLinks.some(isCurrent) ? ' open' : '';
+      const panel = groupLinks.map((link) => {
+        const active = isCurrent(link) ? ' class="active" aria-current="page"' : '';
+        return '<a href="' + link.href + '" data-group="' + link.group + '"' + active + '>' +
+          '<span>' + link.label + '</span><small>' + link.detail + '</small></a>';
+      }).join('');
+      const toggleClass = group.title === 'Ecosystem' ? ' class="ecosystem-toggle"' : '';
+      return '<details class="site-nav-group' + activeGroup + '"><summary' + toggleClass + '>' + group.title +
+        '</summary><div class="site-nav-panel"><section class="site-more-group' +
+        (activeGroup ? ' active' : '') + '"><h3>' + group.title + '<small>' + group.detail +
+        '</small></h3><div>' + panel + '</div></section></div></details>';
+    }).join('');
+  }
+
   function normalizeNav() {
     const nav = q('.site-nav');
     if (!nav) return;
-    const primary = links.filter((link) => link.primary);
-    const seen = new Set();
-    const items = primary.filter((link) => {
-      if (seen.has(link.label)) return false;
-      seen.add(link.label);
-      return true;
-    }).map((link) => {
-      const active = isCurrent(link) ? ' class="active" aria-current="page"' : '';
-      return '<a href="' + link.href + '"' + active + '>' + link.label + '</a>';
-    }).join('');
-    nav.innerHTML = items +
-      '<details class="site-tools-more"><summary>More</summary><div class="site-more-panel site-tools-more-panel">' + directoryHtml() + '</div></details>' +
-      settingsHtml();
+    nav.innerHTML = coreTabsHtml() + categoryTabsHtml() + settingsHtml();
   }
 
   function buildTools() {
@@ -297,7 +314,7 @@
 
   function closeFloatingPanelsOnOutside() {
     document.addEventListener('click', (ev) => {
-      qa('.site-tools-more[open], .site-more[open]').forEach((d) => {
+      qa('.site-nav-group[open], .site-tools-more[open], .site-more[open]').forEach((d) => {
         if (!d.contains(ev.target)) d.removeAttribute('open');
       });
     });

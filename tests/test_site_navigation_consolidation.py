@@ -10,15 +10,23 @@ def read(rel: str) -> str:
 def test_site_shell_groups_secondary_surfaces_under_clear_tabs():
     shell = read("sites/shared/site-shell.js")
     assert "const navGroups = [" in shell
-    assert "title: 'Governance', detail: 'NIPs and treasury'" in shell
-    assert "label: 'Treasury', detail: 'grants and spending', group: 'Governance'" in shell
+    assert "title: 'Core', detail: 'main tools'" in shell
+    assert "title: 'Ecosystem', detail: 'governance, community, and commerce'" in shell
+    assert "label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem'" in shell
     assert "https://governance.netcoin.online#treasury" in shell
     assert "title: 'Build', detail: 'docs and APIs'" in shell
     assert "label: 'API', detail: 'OpenAPI', group: 'Build'" in shell
     assert "label: 'SDKs', detail: 'client libraries', group: 'Build'" in shell
-    assert "label: 'Download', detail: 'install files', group: 'Build'" in shell
+    assert "label: 'Download', detail: 'install files', group: 'Core'" in shell
     assert "https://download.netcoin.online" in shell
     assert "https://learn.netcoin.online#download" not in shell
+
+
+def test_site_shell_core_tabs_render_flat_without_a_details_wrapper():
+    shell = read("sites/shared/site-shell.js")
+    assert "function coreTabsHtml()" in shell
+    assert "function categoryTabsHtml()" in shell
+    assert "filter((group) => group.title !== 'Core')" in shell
 
 
 def test_site_shell_copies_stay_in_sync_for_all_subdomains():
@@ -37,7 +45,8 @@ def test_site_shell_copies_stay_in_sync_for_all_subdomains():
 
 def test_homepage_presents_consolidated_navigation_buckets():
     html = read("sites/www/index.html")
-    assert "Secondary tools are grouped under Network, Governance, Build, and More." in html
-    assert "NIPs, votes, roadmap decisions, treasury records, and grants live together." in html
+    assert "Core tools are Explorer, Download, Home, Markets, and Wallet, always visible." in html
+    assert "Governance, treasury records, community, guides, pay, and merchant tools live together." in html
     assert 'href="https://governance.netcoin.online#treasury">Treasury</a>' in html
     assert "<h2>Build</h2>" in html
+    assert "<h2>Ecosystem</h2>" in html

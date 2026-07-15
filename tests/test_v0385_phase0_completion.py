@@ -23,7 +23,7 @@ def test_phase0_completion_spec_is_valid():
 def test_phase0_completion_locks_product_model():
     spec = load_phase0_completion()
     locked = spec["locked_product_decisions"]
-    assert locked["primary_navigation"] == ["Wallet", "Explorer", "Markets", "More"]
+    assert locked["primary_navigation"] == ["Core", "Network", "Build", "Ecosystem"]
     assert locked["product_lenses"] == ["NetCoin", "NetCoin Network", "NetCoin Studio"]
     assert locked["user_jobs"] == [
         "Manage money",

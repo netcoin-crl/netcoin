@@ -39,7 +39,7 @@ REQUIRED_CHECKERS = {
     "python tools/check_product_coherence.py",
     "python tools/check_phase0_complete.py",
 }
-REQUIRED_PRIMARY_NAVIGATION = ["Wallet", "Explorer", "Markets", "More"]
+REQUIRED_PRIMARY_NAVIGATION = ["Core", "Network", "Build", "Ecosystem"]
 REQUIRED_LENSES = {"NetCoin", "NetCoin Network", "NetCoin Studio"}
 REQUIRED_JOBS = {"Manage money", "Understand the blockchain", "Participate", "Operate infrastructure", "Build"}
 REQUIRED_STATUS = {"Healthy", "Warning", "Offline", "Maintenance"}
@@ -125,8 +125,8 @@ def validate_phase0_completion(
         issues.append("phase must be phase-0-complete")
     if data.get("completion_status") != "complete":
         issues.append("completion_status must be complete")
-    if "Wallet -> Explorer -> Markets" not in str(data.get("north_star", "")):
-        issues.append("north_star must keep Wallet -> Explorer -> Markets as the public mental model")
+    if "Core -> Network -> Build -> Ecosystem" not in str(data.get("north_star", "")):
+        issues.append("north_star must keep Core -> Network -> Build -> Ecosystem as the public mental model")
 
     layers = data.get("completed_layers", [])
     layer_ids = {str(item.get("id", "")) for item in layers if isinstance(item, dict)}
@@ -144,7 +144,7 @@ def validate_phase0_completion(
 
     locked = data.get("locked_product_decisions", {})
     if locked.get("primary_navigation") != REQUIRED_PRIMARY_NAVIGATION:
-        issues.append("locked primary navigation must be Wallet, Explorer, Markets, More")
+        issues.append("locked primary navigation must be Core, Network, Build, Ecosystem")
     if set(locked.get("product_lenses", [])) != REQUIRED_LENSES:
         issues.append("locked product lenses must be NetCoin, NetCoin Network, and NetCoin Studio")
     if set(locked.get("user_jobs", [])) != REQUIRED_JOBS:

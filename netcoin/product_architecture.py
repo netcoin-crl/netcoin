@@ -2,7 +2,7 @@
 
 This module intentionally stays lightweight. It gives docs, site tooling, and
 release checks one canonical place to validate the anti-sprawl product model:
-Wallet -> Explorer -> Markets -> grouped secondary surfaces.
+Core -> Network -> Build -> Ecosystem, with Explorer/Download/Home/Markets/Wallet in Core.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = ROOT / "architecture" / "product-ux-architecture.json"
-ALLOWED_TOP_NAV = ["Wallet", "Explorer", "Markets"]
+ALLOWED_TOP_NAV = ["Core", "Network", "Build", "Ecosystem"]
 REQUIRED_JOB_IDS = {
     "manage-money",
     "understand-chain",

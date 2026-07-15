@@ -13,7 +13,7 @@ def test_phase0_product_architecture_spec_is_valid():
     report = validate_product_architecture()
     assert report.ok, report.issues
     assert report.version == "0.38.5"
-    assert report.primary_navigation == ["Wallet", "Explorer", "Markets"]
+    assert report.primary_navigation == ["Core", "Network", "Build", "Ecosystem"]
     assert "wallet" in report.surfaces
     assert "explorer" in report.surfaces
     assert "markets" in report.surfaces
@@ -37,15 +37,17 @@ def test_shared_site_shell_uses_phase0_primary_nav_and_modes():
     assert "label: 'Developer'" in shell
     assert "label: 'Wallet', detail: 'send and receive', group: 'Core', primary: true" in shell
     assert "label: 'Explorer', detail: 'verify activity', group: 'Core', primary: true" in shell
+    assert "label: 'Download', detail: 'install files', group: 'Core', primary: true" in shell
+    assert "label: 'Home', detail: 'testnet hub', group: 'Core', primary: true" in shell
     assert "label: 'Markets', detail: 'trade test markets', group: 'Core', primary: true" in shell
     assert "const navGroups = [" in shell
-    assert "title: 'Governance', detail: 'NIPs and treasury'" in shell
-    assert "label: 'Treasury', detail: 'grants and spending', group: 'Governance'" in shell
+    assert "title: 'Core', detail: 'main tools'" in shell
+    assert "label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem'" in shell
     assert "title: 'Build', detail: 'docs and APIs'" in shell
     assert "label: 'SDKs', detail: 'client libraries', group: 'Build'" in shell
-    assert "label: 'Download', detail: 'install files', group: 'Build'" in shell
-    assert "<summary>More</summary>" in shell
-    assert "const primary = links.filter((link) => link.primary);" in shell
+    assert "site-nav-group" in shell
+    assert "<summary>More</summary>" not in shell
+    assert "const primary = links.filter((link) => link.primary);" not in shell
     assert "label: 'Features'," not in shell
     assert "label: 'Architecture'," not in shell
 
@@ -55,6 +57,7 @@ def test_homepage_is_wallet_first_and_grouped():
     assert "wallet-first public testnet" in html
     assert "Open Wallet" in html
     assert "Search Explorer" in html
+    assert "Download" in html
     assert "Browse Markets" in html
     assert "Network" in html
     assert "Governance" in html

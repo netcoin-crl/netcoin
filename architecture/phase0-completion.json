@@ -3,14 +3,14 @@
   "phase": "phase-0-complete",
   "name": "Phase 0 Product Coherence Completion and Phase 1 Handoff",
   "purpose": "Freeze NetCoin product identity, information architecture, design-system rules, simplification gates, trust/interaction standards, and no-dead-end workflow rules before proof hardening begins.",
-  "north_star": "A first-time user understands Wallet -> Explorer -> Markets -> everything else in under 30 seconds, while advanced tools remain available through modes, progressive disclosure, and Studio/Network lenses.",
+  "north_star": "A first-time user understands Core -> Network -> Build -> Ecosystem, with Explorer/Download/Home/Markets/Wallet in Core, in under 30 seconds, while advanced tools remain available through modes, progressive disclosure, and Studio/Network lenses.",
   "completion_status": "complete",
   "completed_layers": [
     {
       "id": "product-identity",
       "artifact": "architecture/product-ux-architecture.json",
       "checker": "python tools/check_product_architecture.py",
-      "locked_decision": "Wallet, Explorer, and Markets are the public top-level product surfaces; secondary systems move under More, Network, Community, or Developers."
+      "locked_decision": "Explorer, Download, Home, Markets, and Wallet are the public Core surfaces; secondary systems move under Network, Build, or Ecosystem."
     },
     {
       "id": "design-system",
@@ -45,10 +45,10 @@
   ],
   "locked_product_decisions": {
     "primary_navigation": [
-      "Wallet",
-      "Explorer",
-      "Markets",
-      "More"
+      "Core",
+      "Network",
+      "Build",
+      "Ecosystem"
     ],
     "product_lenses": [
       "NetCoin",
