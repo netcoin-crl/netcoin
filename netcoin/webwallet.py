@@ -52,14 +52,38 @@ LOCAL_NODE_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
 class LocalNodeController:
-    """Small local-only process supervisor for the desktop web wallet."""
+    """Process supervisor for a node launched by the desktop web wallet.
 
-    def __init__(self, *, enabled: bool, port: int = DEFAULT_NODE_PORT, data_dir: Path | None = None) -> None:
+    Two instances are used: a loopback-only "convenience node" (bind_host
+    127.0.0.1, the original "Node" tab) and an optional public "seed" node
+    (bind_host 0.0.0.0, reachable from the internet if the operator forwards
+    the port). Both are only ever controllable through this wallet's own
+    API when the wallet itself is bound to loopback — see allow_node_control
+    in run_web_wallet. Binding the *node* publicly is fine and intended
+    (that is the point of a seed); letting anyone reach the *control* API
+    would not be.
+    """
+
+    def __init__(
+        self,
+        *,
+        enabled: bool,
+        port: int = DEFAULT_NODE_PORT,
+        data_dir: Path | None = None,
+        bind_host: str = "127.0.0.1",
+        advertise: str = "",
+        bandwidth_mode: str = "",
+        p2p_port: int | None = None,
+    ) -> None:
         self.enabled = enabled
         self.port = int(port)
         self.data_dir = data_dir or (Path.home() / ".netcoin-local-node")
         self.log_path = self.data_dir / "node.log"
         self.process: subprocess.Popen[str] | None = None
+        self.bind_host = bind_host
+        self.advertise = advertise
+        self.bandwidth_mode = bandwidth_mode
+        self.p2p_port = p2p_port
         # The web wallet serves requests on a thread pool (ThreadingHTTPServer);
         # without this, two overlapping start() calls (an impatient double
         # click, a retried request) can both see "not running yet" and each
@@ -70,6 +94,10 @@ class LocalNodeController:
 
     @property
     def url(self) -> str:
+        # Always check via loopback even for a 0.0.0.0-bound seed — a node
+        # bound to 0.0.0.0 still answers on 127.0.0.1, and checking that way
+        # means status works the same regardless of any firewall/NAT state
+        # between this machine and the outside world.
         return f"http://127.0.0.1:{self.port}"
 
     def _external_info(self) -> dict[str, Any] | None:
@@ -92,7 +120,10 @@ class LocalNodeController:
             "owned": owned,
             "external": running and not owned,
             "url": self.url,
+            "bind_host": self.bind_host,
             "port": self.port,
+            "public": self.bind_host not in LOCAL_NODE_HOSTS,
+            "advertise": self.advertise,
             "pid": self.process.pid if owned else None,
             "height": info.get("height") if info else None,
             "peers": info.get("peers") if info else None,
@@ -117,11 +148,17 @@ class LocalNodeController:
                 str(self.data_dir),
                 "node",
                 "--host",
-                "127.0.0.1",
+                self.bind_host,
                 "--port",
                 str(self.port),
                 "--seeds",
             ]
+            if self.advertise:
+                cmd += ["--advertise", self.advertise]
+            if self.bandwidth_mode:
+                cmd += ["--bandwidth-mode", self.bandwidth_mode]
+            if self.p2p_port is not None:
+                cmd += ["--p2p-port", str(self.p2p_port)]
             self.process = subprocess.Popen(
                 cmd,
                 stdout=log,
@@ -532,6 +569,7 @@ PAGE = """<!doctype html>
   <button data-tab="faucet">Faucet</button>
   <button data-tab="explorer">Explorer</button>
   <button data-tab="node">Node</button>
+  <button data-tab="seed">Seed</button>
  </div>
 
  <section id="tab-wallet">
@@ -627,6 +665,31 @@ PAGE = """<!doctype html>
    <div class="warn">If another NetCoin node is already using the default port, this page will connect to it but will not stop it.</div>
   </div>
  </section>
+
+ <section id="tab-seed" class="hide">
+  <div class="card"><h2>Run a public seed</h2>
+   <p class="muted">A seed is a public node that helps other nodes find the network. This is a bigger commitment than the local Node tab: it listens on 0.0.0.0 and needs your router/firewall to forward the port to be reachable from the internet.</p>
+   <ul class="muted" style="margin:8px 0 14px;padding-left:18px">
+    <li>Use a machine that can stay on — a laptop that sleeps will drop off the network.</li>
+    <li>Forward TCP port 28444 (or your chosen port) on your router to this machine.</li>
+    <li>Set "Advertise" to the public IP or domain peers should use, e.g. 203.0.113.5:28444 — leave it blank to run for yourself only, without announcing it.</li>
+    <li>Pick "home" bandwidth mode on a home internet connection so relay traffic doesn't saturate your link.</li>
+    <li>Share the address with others only after it's stayed synced for a while.</li>
+   </ul>
+   <div class="row">
+    <div><label>Port</label><input id="seedPort" type="number" placeholder="28444"></div>
+    <div><label>Bandwidth mode</label><select id="seedBandwidth"><option value="">normal</option><option value="home">home</option><option value="low">low</option></select></div>
+   </div>
+   <label>Advertise (public host:port peers should use — optional)</label><input id="seedAdvertise" placeholder="203.0.113.5:28444" autocomplete="off">
+   <div id="seedStatus" class="muted" style="margin-top:10px">Checking seed node control...</div>
+   <div class="row" style="margin-top:10px">
+    <button class="act" onclick="startSeedNode()">Start seed</button>
+    <button class="ghost" onclick="stopSeedNode()">Stop seed</button>
+    <button class="ghost" onclick="refreshSeedNode()">Refresh</button>
+   </div>
+   <div class="warn">This opens your machine to inbound connections on the chosen port. Only run this if you understand what a public seed does; testnet only, never expose wallet/API-key ports this way.</div>
+  </div>
+ </section>
 </div>
 	<script>
 	let CFG={}, ADDRS={}, curType="segwit", BAL={};
@@ -642,9 +705,10 @@ PAGE = """<!doctype html>
   finally{clearTimeout(timer);}}
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
-  ['wallet','faucet','explorer','node'].forEach(t=>$('#tab-'+t).classList.toggle('hide',t!==b.dataset.tab));
+  ['wallet','faucet','explorer','node','seed'].forEach(t=>$('#tab-'+t).classList.toggle('hide',t!==b.dataset.tab));
   if(b.dataset.tab==='explorer')loadLatest();
   if(b.dataset.tab==='node')refreshLocalNode();
+  if(b.dataset.tab==='seed')refreshSeedNode();
 });
 function nodeHelp(msg){return esc(msg)+'<div class="warn"><b>Node connection help</b><br>Use the public API proxy when home Wi-Fi blocks the seed port. If your network blocks api.netcoin.online, use the direct-IP API:<div class="mono">python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online</div><br>Configured node: <span class="mono">'+esc(CFG.node||'unknown')+'</span></div>';}
 async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG.network+' · node '+CFG.node;
@@ -662,7 +726,7 @@ function switchType(){curType=$('#typeSel').value||'segwit';$('#addrType').textC
 	  refreshBalance();loadHistory();}
 function openTx(t){document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
   const eb=document.querySelector('.tabs button[data-tab="explorer"]');eb.classList.add('on');
-  ['wallet','faucet','explorer','node'].forEach(tb=>$('#tab-'+tb).classList.toggle('hide',tb!=='explorer'));
+  ['wallet','faucet','explorer','node','seed'].forEach(tb=>$('#tab-'+tb).classList.toggle('hide',tb!=='explorer'));
   loadLatest();searchFor(t);}
 async function loadHistory(){const out=$('#historyOut');try{
   const d=await api('/api/history?address='+ADDRS[curType]);
@@ -682,6 +746,19 @@ function renderNodeStatus(d){const out=$('#nodeStatus');if(!out)return;
 async function refreshLocalNode(){try{renderNodeStatus(await api('/api/local-node/status',{},8000));}catch(e){$('#nodeStatus').innerHTML=nodeHelp(e.message);}}
 async function startLocalNode(){const out=$('#nodeStatus');out.textContent='Starting local node...';try{renderNodeStatus(await api('/api/local-node/start',{method:'POST'},15000));}catch(e){out.innerHTML=nodeHelp(e.message);}}
 async function stopLocalNode(){const out=$('#nodeStatus');out.textContent='Stopping local node...';try{renderNodeStatus(await api('/api/local-node/stop',{method:'POST'},15000));}catch(e){out.innerHTML=nodeHelp(e.message);}}
+function renderSeedStatus(d){const out=$('#seedStatus');if(!out)return;
+  if(!d.enabled){out.innerHTML='<span class="err">Unavailable here.</span><div class="muted">'+esc(d.reason||'Open this through python -m netcoin web on 127.0.0.1.')+'</div>';return;}
+  const mode=d.external?'already running outside this page':(d.owned?'started by this page':'stopped');
+  out.innerHTML='<div class="rcard">'+kv('Status',d.running?'<b class="ok">running</b>':'<span class="muted">stopped</span>')+
+    kv('Mode',esc(mode))+kv('Bind address','<span class="mono">'+esc(d.bind_host||'')+':'+esc(d.port??'')+'</span>')+
+    kv('Advertise',d.advertise?('<span class="mono">'+esc(d.advertise)+'</span>'):'<span class="muted">not announced (local peers only)</span>')+
+    kv('Height',esc(d.height??'n/a'))+kv('Peers',esc(d.peers??'n/a'))+
+    kv('Log','<span class="mono">'+esc(d.log||'')+'</span>')+'</div>';}
+async function refreshSeedNode(){try{renderSeedStatus(await api('/api/seed-node/status',{},8000));}catch(e){$('#seedStatus').innerHTML=nodeHelp(e.message);}}
+async function startSeedNode(){const out=$('#seedStatus');out.textContent='Starting seed node...';
+  try{renderSeedStatus(await api('/api/seed-node/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({port:$('#seedPort').value||undefined,advertise:$('#seedAdvertise').value.trim(),bandwidth_mode:$('#seedBandwidth').value})},15000));}
+  catch(e){out.innerHTML=nodeHelp(e.message);}}
+async function stopSeedNode(){const out=$('#seedStatus');out.textContent='Stopping seed node...';try{renderSeedStatus(await api('/api/seed-node/stop',{method:'POST'},15000));}catch(e){out.innerHTML=nodeHelp(e.message);}}
 function copyAddr(){navigator.clipboard.writeText(ADDRS[curType]);}
 async function refreshBalance(){try{const b=await api('/api/balance?address='+ADDRS[curType]);BAL=b;
 	  $('#balSpendable').innerHTML=esc(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+esc(CFG.ticker)+'</span>';
@@ -752,6 +829,17 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
     node_url = _normalize_node_url(node_url)
     state: dict[str, Wallet | None] = {"wallet": None}
     local_node = LocalNodeController(enabled=allow_node_control)
+    # A public seed is a different animal from the loopback convenience node
+    # above: it binds 0.0.0.0 (reachable from the internet if the operator
+    # forwards the port) on the real network's default P2P port, not the
+    # wallet's local-only 18444. Its own data dir keeps it independent of
+    # the convenience node so both can run at once.
+    seed_node = LocalNodeController(
+        enabled=allow_node_control,
+        port=28444,
+        data_dir=Path.home() / ".netcoin-seed-node",
+        bind_host="0.0.0.0",
+    )
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args: Any) -> None:  # quiet
@@ -829,6 +917,8 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
                     self._send(parse_uri(parse_qs(parsed.query).get("uri", [""])[0]))
                 elif parsed.path == "/api/local-node/status":
                     self._send(local_node.status())
+                elif parsed.path == "/api/seed-node/status":
+                    self._send(seed_node.status())
                 else:
                     self._send({"error": "not found"}, status=404)
             except HTTPError as exc:
@@ -884,6 +974,22 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
                     self._send(local_node.start())
                 elif parsed.path == "/api/local-node/stop":
                     self._send(local_node.stop())
+                elif parsed.path == "/api/seed-node/start":
+                    body = self._read()
+                    advertise = str(body.get("advertise") or "").strip()
+                    bandwidth_mode = str(body.get("bandwidth_mode") or "").strip()
+                    port = body.get("port")
+                    if advertise and ":" not in advertise:
+                        raise ValueError("advertise must be host:port, e.g. 203.0.113.5:28444")
+                    if bandwidth_mode and bandwidth_mode not in {"normal", "home", "low"}:
+                        raise ValueError("bandwidth_mode must be normal, home, or low")
+                    seed_node.advertise = advertise
+                    seed_node.bandwidth_mode = bandwidth_mode
+                    if port:
+                        seed_node.port = int(port)
+                    self._send(seed_node.start())
+                elif parsed.path == "/api/seed-node/stop":
+                    self._send(seed_node.stop())
                 else:
                     self._send({"error": "not found"}, status=404)
             except HTTPError as exc:
