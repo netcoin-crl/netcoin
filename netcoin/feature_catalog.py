@@ -608,10 +608,10 @@ _FEATURES: tuple[FeatureRating, ...] = (
     FeatureRating(
         "Developer API",
         "Payment Links",
-        6.0,
-        "improving",
-        "POST /developer/payment-links creates a real invoice and checkout_url, but no hosted checkout page exists yet to render it for an end user.",
-        "Build the hosted checkout page (checkout.netcoin.online/pay/<id>) that renders these links.",
+        7.0,
+        "solid",
+        "POST /developer/payment-links creates a real invoice and checkout_url; pay.netcoin.online now renders it as a real hosted checkout view (amount, address, memo, offline-generated QR, wallet deep-link, and live polling) instead of requiring manual invoice lookup.",
+        "Add a real Playwright E2E for the paid/confirmed transition, not just the unpaid render.",
     ),
     FeatureRating(
         "Developer API",
