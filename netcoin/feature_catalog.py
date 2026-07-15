@@ -616,10 +616,10 @@ _FEATURES: tuple[FeatureRating, ...] = (
     FeatureRating(
         "Developer API",
         "Webhooks (register/queue/deliver)",
-        7.0,
+        7.5,
         "solid",
-        "Real HMAC-SHA256 signed delivery over raw JSON body, with register/queue/deliver endpoints and a verifier snippet at /developer/webhook-verifiers.",
-        "Add a dead-letter/retry-visibility UI for failed deliveries.",
+        "Real HMAC-SHA256 signed delivery over raw JSON body with exponential backoff, a per-hook max_attempts budget, and a verifier snippet at /developer/webhook-verifiers. GET /developer/webhook-events/dead-letters now lists exhausted deliveries with their full attempt history (not just a bare count), and POST /developer/webhook-events/deliver takes an event_id to retry one specific delivery without touching everything else pending.",
+        "Build an actual dashboard page for this instead of raw JSON — the data is there now, the UI isn't.",
     ),
     FeatureRating(
         "Developer API",

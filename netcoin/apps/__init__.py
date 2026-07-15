@@ -1178,9 +1178,21 @@ class AppStore:
         if self.merchant_requires_api_key(merchant_id):
             self.verify_api_key(str(payload.get("api_key") or ""), merchant_id=merchant_id, permission=permission)
 
+    def list_webhook_dead_letters(self, developer_id: str | None = None) -> dict[str, Any]:
+        """List dead-lettered webhook events (exhausted their retry budget)
+        with their full attempt history, so a developer can see *why*
+        deliveries failed instead of only a bare count on a dashboard."""
+        data = self.load()
+        events = [e for e in data.get("webhook_events", []) if e.get("dead_letter")]
+        if developer_id:
+            events = [e for e in events if e.get("merchant_id") == developer_id]
+        events.sort(key=lambda e: int(e.get("dead_letter_at", 0) or 0), reverse=True)
+        return {"dead_letters": events, "count": len(events)}
+
     def deliver_webhook_events(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         payload = payload or {}
         max_events = max(1, min(int(payload.get("max_events", 20) or 20), 200))
+        target_event_id = str(payload.get("event_id") or "").strip()
         data = self.load()
         delivered = 0
         failed = 0
@@ -1191,15 +1203,23 @@ class AppStore:
         for event in data.get("webhook_events", []):
             if delivered + failed >= max_events:
                 break
-            if event.get("delivered") and not payload.get("redeliver"):
-                skipped += 1
-                continue
-            if event.get("dead_letter") and not payload.get("redeliver"):
-                skipped += 1
-                continue
-            if int(event.get("next_attempt_at", 0) or 0) > current and not payload.get("force"):
-                skipped += 1
-                continue
+            if target_event_id:
+                # An explicit single-event retry (e.g. clicking "Retry" on one
+                # dead-lettered delivery) bypasses the dead_letter/delivered/
+                # backoff gates for that event only — the caller asked for it
+                # by id, so treat it like redeliver+force for just this row.
+                if event.get("event_id") != target_event_id:
+                    continue
+            else:
+                if event.get("delivered") and not payload.get("redeliver"):
+                    skipped += 1
+                    continue
+                if event.get("dead_letter") and not payload.get("redeliver"):
+                    skipped += 1
+                    continue
+                if int(event.get("next_attempt_at", 0) or 0) > current and not payload.get("force"):
+                    skipped += 1
+                    continue
             for hook in hooks:
                 if delivered + failed >= max_events:
                     break
@@ -1208,7 +1228,11 @@ class AppStore:
                 if event.get("event") not in set(hook.get("events", [])) and "*" not in set(hook.get("events", [])):
                     continue
                 max_attempts = int(hook.get("max_attempts", 8) or 8)
-                if int(event.get("attempt_count", 0) or 0) >= max_attempts and not payload.get("redeliver"):
+                if (
+                    int(event.get("attempt_count", 0) or 0) >= max_attempts
+                    and not payload.get("redeliver")
+                    and not target_event_id
+                ):
                     event["dead_letter"] = True
                     event["dead_letter_at"] = current
                     skipped += 1
@@ -1252,6 +1276,8 @@ class AppStore:
                     event["delivered"] = True
                     event["delivered_at"] = now()
                     event.pop("next_attempt_at", None)
+                    event["dead_letter"] = False
+                    event.pop("dead_letter_at", None)
                     delivered += 1
                 else:
                     failed += 1
@@ -4328,6 +4354,8 @@ def route_app_get(
             webhooks = [item for item in webhooks if item.get("merchant_id") == developer_id]
             events = [item for item in events if item.get("merchant_id") == developer_id]
         return 200, {"webhooks": webhooks, "events": events}, "application/json"
+    if path == "/developer/webhook-events/dead-letters":
+        return 200, store.list_webhook_dead_letters(q("developer_id") or q("app_id") or None), "application/json"
     if path == "/developer/watch-addresses":
         watches = list(store.load().get("watched_addresses", {}).values())
         developer_id = q("developer_id") or q("app_id")

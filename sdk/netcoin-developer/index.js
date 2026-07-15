@@ -108,6 +108,15 @@ export class NetcoinDeveloperClient {
     return this.post("/api/developer/webhook-events/deliver", {});
   }
 
+  listDeadLetterWebhookEvents({ developerId } = {}) {
+    const id = developerId || this.developerId;
+    return this.get(`/api/developer/webhook-events/dead-letters${id ? `?developer_id=${encodeURIComponent(id)}` : ""}`);
+  }
+
+  retryWebhookEvent({ eventId } = {}) {
+    return this.post("/api/developer/webhook-events/deliver", { event_id: eventId });
+  }
+
   getWebhookVerifiers() {
     return this.get("/api/developer/webhook-verifiers");
   }
