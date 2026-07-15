@@ -1637,6 +1637,80 @@ class AppStore:
         return data["refunds"][record["refund_id"]]
 
     # ----- developer rewards / withdrawals / payment links -----
+    def _developer_funding_policy_record(self, data: dict[str, Any], developer_id: str) -> dict[str, Any]:
+        policies = data.setdefault("developer_funding_policies", {})
+        policy = policies.setdefault(
+            developer_id,
+            {
+                "developer_id": developer_id,
+                "daily_cap_sats": 0,
+                "per_user_cap_sats": 0,
+                "allowlisted_addresses": [],
+                "paused": False,
+                "created_at": now(),
+                "updated_at": now(),
+            },
+        )
+        return policy
+
+    def developer_funding_policy(self, developer_id: str) -> dict[str, Any]:
+        developer_id = str(developer_id or "default")[:80]
+        data = self.load()
+        return self._developer_funding_policy_record(data, developer_id)
+
+    def set_developer_funding_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
+        developer_id = str(payload.get("developer_id") or payload.get("app_id") or "default")[:80]
+        data = self.load()
+        policy = self._developer_funding_policy_record(data, developer_id)
+        if "daily_cap_sats" in payload:
+            policy["daily_cap_sats"] = max(0, parse_amount_sats(payload.get("daily_cap_sats", 0), "daily cap"))
+        if "per_user_cap_sats" in payload:
+            policy["per_user_cap_sats"] = max(0, parse_amount_sats(payload.get("per_user_cap_sats", 0), "per-user cap"))
+        if "allowlisted_addresses" in payload:
+            raw = payload.get("allowlisted_addresses") or []
+            if not isinstance(raw, list):
+                raise AppError("allowlisted_addresses must be a list of addresses")
+            policy["allowlisted_addresses"] = [normalize_address(a) for a in raw]
+        if "paused" in payload:
+            policy["paused"] = bool(payload.get("paused"))
+        policy["updated_at"] = now()
+        self.save(data)
+        return policy
+
+    def _developer_spend_sats(
+        self, data: dict[str, Any], developer_id: str, *, player_id: str = "", window_seconds: int = 86400
+    ) -> int:
+        cutoff = now() - window_seconds
+        total = 0
+        for bucket in ("rewards", "withdrawals"):
+            for record in data.get(bucket, {}).values():
+                if record.get("developer_id") != developer_id:
+                    continue
+                if player_id and record.get("player_id") != player_id:
+                    continue
+                if int(record.get("created_at", 0) or 0) < cutoff:
+                    continue
+                total += int(record.get("amount_sats", 0) or 0)
+        return total
+
+    def _enforce_developer_funding_policy(
+        self, data: dict[str, Any], developer_id: str, player_id: str, address: str, amount_sats: int
+    ) -> None:
+        policy = self._developer_funding_policy_record(data, developer_id)
+        if policy.get("paused"):
+            raise AppError(f"developer funding is paused for {developer_id}")
+        allowlist = policy.get("allowlisted_addresses") or []
+        if allowlist and address not in allowlist:
+            raise AppError(f"payout address is not allowlisted for developer {developer_id}")
+        daily_cap = int(policy.get("daily_cap_sats", 0) or 0)
+        if daily_cap and self._developer_spend_sats(data, developer_id) + amount_sats > daily_cap:
+            raise AppError(f"daily spend cap exceeded for developer {developer_id}")
+        per_user_cap = int(policy.get("per_user_cap_sats", 0) or 0)
+        if player_id and per_user_cap:
+            spent = self._developer_spend_sats(data, developer_id, player_id=player_id)
+            if spent + amount_sats > per_user_cap:
+                raise AppError(f"per-user daily cap exceeded for player {player_id} of developer {developer_id}")
+
     def create_developer_reward(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Create a developer-funded reward plan for games and apps.
 
@@ -1646,6 +1720,10 @@ class AppStore:
         """
         developer_id = str(payload.get("developer_id") or payload.get("app_id") or "default")[:80]
         player_id = str(payload.get("player_id") or payload.get("user_id") or "")[:120]
+        address = normalize_address(payload.get("address"))
+        amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "reward amount")
+        data = self.load()
+        self._enforce_developer_funding_policy(data, developer_id, player_id, address, amount_sats)
         reward_payload = dict(payload)
         reward_payload.setdefault("reason", payload.get("event") or payload.get("reason") or "developer reward")
         reward = self.create_reward(reward_payload)
@@ -1693,10 +1771,13 @@ class AppStore:
         if amount_sats <= 0:
             raise AppError("withdrawal amount must be greater than zero")
         fee_sats = parse_amount_sats(payload.get("fee_sats", payload.get("fee", 0)), "withdrawal fee")
+        player_id = str(payload.get("player_id") or payload.get("user_id") or "")[:120]
+        data = self.load()
+        self._enforce_developer_funding_policy(data, developer_id, player_id, address, amount_sats)
         record = {
             "withdrawal_id": withdrawal_id,
             "developer_id": developer_id,
-            "player_id": str(payload.get("player_id") or payload.get("user_id") or "")[:120],
+            "player_id": player_id,
             "address": address,
             "amount_sats": amount_sats,
             "amount": sats_to_amount(amount_sats),
@@ -1714,7 +1795,6 @@ class AppStore:
                 [{"address": address, "amount_sats": amount_sats}],
                 memo=record["reason"],
             )
-        data = self.load()
         data["withdrawals"][withdrawal_id] = record
         data["webhook_events"].append(
             {
@@ -1825,6 +1905,8 @@ class AppStore:
             "deposits": "GET /api/developer/deposits",
             "unsigned_tx": "POST /api/developer/transactions/build",
             "simulate_rewards": "POST /api/developer/simulate/rewards",
+            "get_funding_policy": "GET /api/developer/funding-policy",
+            "set_funding_policy": "POST /api/developer/funding-policy",
         }
         return {
             "schema": "netcoin-developer-sdk-packages-v1",
@@ -1995,6 +2077,16 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             raise AppError("rewards list is required")
         batch_id = str(payload.get("batch_id") or clean_id("batch"))
         reason = str(payload.get("reason") or "batch developer reward")[:250]
+        data = self.load()
+        policy = self._developer_funding_policy_record(data, developer_id)
+        if policy.get("paused"):
+            raise AppError(f"developer funding is paused for {developer_id}")
+        allowlist = policy.get("allowlisted_addresses") or []
+        daily_cap = int(policy.get("daily_cap_sats", 0) or 0)
+        per_user_cap = int(policy.get("per_user_cap_sats", 0) or 0)
+        spent_developer = self._developer_spend_sats(data, developer_id)
+        spent_by_player: dict[str, int] = {}
+        pending_developer_total = 0
         rows = []
         outputs = []
         total_sats = 0
@@ -2005,12 +2097,25 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             )
             if amount_sats <= 0:
                 raise AppError("reward amount must be greater than zero")
+            if allowlist and address not in allowlist:
+                raise AppError(f"payout address is not allowlisted for developer {developer_id}")
+            player_id = str(item.get("player_id") or item.get("user_id") or "")[:120]
+            pending_developer_total += amount_sats
+            if daily_cap and spent_developer + pending_developer_total > daily_cap:
+                raise AppError(f"daily spend cap exceeded for developer {developer_id}")
+            if player_id and per_user_cap:
+                spent_by_player.setdefault(
+                    player_id, self._developer_spend_sats(data, developer_id, player_id=player_id)
+                )
+                spent_by_player[player_id] += amount_sats
+                if spent_by_player[player_id] > per_user_cap:
+                    raise AppError(f"per-user daily cap exceeded for player {player_id} of developer {developer_id}")
             reward_id = str(item.get("reward_id") or f"{batch_id}_{idx}")
             row = {
                 "reward_id": reward_id,
                 "batch_id": batch_id,
                 "developer_id": developer_id,
-                "player_id": str(item.get("player_id") or item.get("user_id") or "")[:120],
+                "player_id": player_id,
                 "address": address,
                 "amount_sats": amount_sats,
                 "amount": sats_to_amount(amount_sats),
@@ -2022,7 +2127,6 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             outputs.append({"address": address, "amount_sats": amount_sats})
             total_sats += amount_sats
         plan = self.plan_payout("batch_reward", outputs, memo=reason)
-        data = self.load()
         batch = {
             "batch_id": batch_id,
             "developer_id": developer_id,
@@ -4178,6 +4282,8 @@ def route_app_get(
         return 200, store.developer_console(chain, q("developer_id") or q("app_id") or None), "application/json"
     if path == "/developer/sdk":
         return 200, store.developer_sdk_packages(), "application/json"
+    if path == "/developer/funding-policy":
+        return 200, store.developer_funding_policy(q("developer_id") or q("app_id") or "default"), "application/json"
     if path == "/developer/webhook-verifiers":
         return 200, store.webhook_verifier_packages(), "application/json"
     if path == "/developer/rewards":
@@ -4596,6 +4702,8 @@ def _route_app_post_uncached(
         return 200, store.create_batch_rewards(body)
     if path == "/developer/withdrawals":
         return 200, store.create_developer_withdrawal(body)
+    if path == "/developer/funding-policy":
+        return 200, store.set_developer_funding_policy(body)
     if path == "/developer/watch-addresses":
         return 200, store.register_watch_address(body)
     if path == "/developer/transactions/build":
