@@ -277,8 +277,26 @@ class Blockchain:
             return
         if self.store is not None:
             if self.store.has_chain():
-                self.chain = [Block.from_dict(item) for item in self.store.load_chain()]
-                self.assert_valid_chain(self.chain)
+                try:
+                    self.chain = [Block.from_dict(item) for item in self.store.load_chain()]
+                    self.assert_valid_chain(self.chain)
+                except (ChainError, BlockError, TransactionError, ValueError, KeyError, TypeError) as exc:
+                    # The SQLite chain store failed to load or validate — almost
+                    # always because a hard kill (OOM) caught it mid-write and left
+                    # a structurally broken block. Historically this crash-looped
+                    # the node forever and needed manual surgery. Instead, self-heal:
+                    # recover from the JSON chain snapshot if one exists (the node
+                    # then resyncs the tip from peers), else fall back to genesis and
+                    # resync the whole chain. Either way the node comes back on its
+                    # own instead of refusing to start.
+                    print(f"chain store load failed ({exc}); recovering from backup/peers", flush=True)
+                    if self._chain_files_exist():
+                        self.chain = self._load_chain_with_recovery()
+                    else:
+                        self.chain = [create_genesis_block(self._genesis_allocation)]
+                    # Rebuild the SQLite store from the recovered chain so the bad
+                    # state is replaced, not re-read on the next start.
+                    self.store.save_chain(self.chain)
             else:
                 self.chain = [create_genesis_block(self._genesis_allocation)]
                 self.save_chain()
