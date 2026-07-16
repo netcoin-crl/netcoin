@@ -112,11 +112,16 @@ echo "==> Restarting $SERVICE"
 systemctl daemon-reload || true
 systemctl start "$SERVICE"
 
-# The node replays the whole chain before serving HTTP, so give it up to two
-# minutes to come up instead of failing (and rolling back) after one probe.
-echo "==> Health check http://127.0.0.1:$PORT/info (up to 120s)"
+# The node replays the whole chain before serving HTTP. On a small,
+# memory-pressured seed (1-2 GB, also hosting nginx + the sites) that cold
+# replay of a long chain can take several minutes, so the window is generous
+# (600s) — a deploy that rolls back only because the box was slow to replay is
+# a false negative that causes a needless outage. Override with
+# NETCOIN_HEALTHCHECK_TRIES if a box needs even longer.
+HEALTHCHECK_TRIES="${NETCOIN_HEALTHCHECK_TRIES:-300}"
+echo "==> Health check http://127.0.0.1:$PORT/info (up to $((HEALTHCHECK_TRIES * 2))s)"
 HEALTHY=""
-for _ in $(seq 1 60); do
+for _ in $(seq 1 "$HEALTHCHECK_TRIES"); do
   sleep 2
   if curl -fsS "http://127.0.0.1:$PORT/info" >/dev/null 2>&1; then
     HEALTHY=1
