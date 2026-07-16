@@ -672,7 +672,7 @@ PAGE = """<!doctype html>
    <ul class="muted" style="margin:8px 0 14px;padding-left:18px">
     <li>Use a machine that can stay on — a laptop that sleeps will drop off the network.</li>
     <li>Forward TCP port 28444 (or your chosen port) on your router to this machine.</li>
-    <li>Set "Advertise" to the public IP or domain peers should use, e.g. 203.0.113.5:28444 — leave it blank to run for yourself only, without announcing it.</li>
+    <li>Set "Advertise" to <b>your own</b> real, reachable public IP or domain and port, like 198.51.100.10:28444 (that number is just a format example — use your actual address). Leave it blank to run for yourself only, without announcing it.</li>
     <li>Pick "home" bandwidth mode on a home internet connection so relay traffic doesn't saturate your link.</li>
     <li>Share the address with others only after it's stayed synced for a while.</li>
    </ul>

@@ -1179,6 +1179,12 @@ def cmd_node(args: argparse.Namespace) -> None:
         use_seeds = use_seeds or cfg.get("seeds", False)
     if use_seeds:
         peers.extend(s for s in DEFAULT_TESTNET_SEEDS if s not in peers)
+    # Peers are dialed as http:// URLs, so a bare host:port advertise (which is
+    # exactly what the wallet's Seed tab collects and documents, e.g.
+    # 203.0.113.5:28444) must be normalized to a URL — otherwise the node would
+    # refuse to start with "peer must start with http:// or https://".
+    if advertise and "://" not in advertise:
+        advertise = "http://" + advertise
     run_node(
         data_dir=args.data,
         host=host,
