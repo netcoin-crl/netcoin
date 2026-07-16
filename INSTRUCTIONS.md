@@ -23,9 +23,30 @@ You don't have to install anything to try it — use the public sites:
 
 ## Going further
 
+- **Run a node**: install, sync, mine, and troubleshoot in one place —
+  **[docs/NODES.md](docs/NODES.md)**
 - **Run everything yourself** (your own node, become a public seed, use NetCoin
-  fully offline with no reliance on the public sites): **[docs/RUN_YOUR_OWN.md](docs/RUN_YOUR_OWN.md)**
-- **Public-seed hosting options**: [docs/PUBLIC_SEED_HOSTING.md](docs/PUBLIC_SEED_HOSTING.md)
+  fully offline with no reliance on the public sites): [docs/RUN_YOUR_OWN.md](docs/RUN_YOUR_OWN.md)
+- **Public-seed hosting options** (tunnels, VPS, dynamic IPs): [docs/PUBLIC_SEED_HOSTING.md](docs/PUBLIC_SEED_HOSTING.md)
+
+## Become a public seed
+
+A public seed is a NetCoin node reachable from the internet that other people
+list as a `--peer`. Quick path (simplest on a small VPS with a real public IP;
+tunnel options for home hardware behind a router are in
+[docs/PUBLIC_SEED_HOSTING.md](docs/PUBLIC_SEED_HOSTING.md)):
+
+```bash
+sudo ufw allow 28444/tcp && sudo ufw allow 18447/tcp
+python -m netcoin --data ~/.netcoin-testnet node --host 0.0.0.0 --port 28444 \
+  --advertise http://YOUR_PUBLIC_IP:28444 \
+  --peer http://seed1.netcoin.online:28444 \
+  --peer http://seed2.netcoin.online:28444
+```
+
+`--advertise` must be a real, reachable public address — a private LAN IP or
+a placeholder gets your node banned by peers that try to dial back and fail.
+Full walkthrough: [docs/NODES.md#become-a-public-seed](docs/NODES.md#become-a-public-seed).
 
 ## Safety reminders
 

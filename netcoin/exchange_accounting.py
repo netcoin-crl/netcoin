@@ -121,6 +121,75 @@ class AccountingLedger:
             memo="customer withdrawal broadcast",
         )
 
+    def has_reference(self, reference: str) -> bool:
+        """True if any posting already exists under this reference. Callers use
+        this to make crediting a deposit (or any other event) idempotent."""
+        with self.connect() as conn:
+            row = conn.execute("SELECT 1 FROM ledger_entries WHERE reference=? LIMIT 1", (reference,)).fetchone()
+        return row is not None
+
+    def reverse_reference(self, reference: str, *, reason: str = "") -> dict[str, Any]:
+        """Post an exact compensating entry (debit/credit swapped) for every
+        posting under `reference`. Idempotent: calling twice is a no-op the
+        second time, so a retried reorg-drill or crash-recovery pass can't
+        double-reverse the same event."""
+        reversal_ref = f"reversal:{reference}"
+        if self.has_reference(reversal_ref):
+            return {"ok": True, "already_reversed": True, "reference": reversal_ref, "entry_ids": []}
+        with self.connect() as conn:
+            rows = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT account, debit_sats, credit_sats FROM ledger_entries WHERE reference=?", (reference,)
+                ).fetchall()
+            ]
+        if not rows:
+            raise ValueError(f"no ledger entries found for reference {reference!r}; nothing to reverse")
+        postings = [
+            {"account": r["account"], "debit_sats": r["credit_sats"], "credit_sats": r["debit_sats"]} for r in rows
+        ]
+        return self.post(postings, reference=reversal_ref, memo=f"reversal: {reason}" if reason else "reversal")
+
+    def customer_liability_sats(self, customer_id: str) -> int:
+        """Amount owed to this customer. Positive = we owe them; liability
+        accounts are credit-normal, so this is credits minus debits (the
+        inverse of account_balances' generic debit-minus-credit convention,
+        which is written for asset-account readability)."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(credit_sats),0) c, COALESCE(SUM(debit_sats),0) d FROM ledger_entries WHERE account=?",
+                (f"liability:customer:{customer_id}",),
+            ).fetchone()
+        return int(row["c"]) - int(row["d"])
+
+    def invariant_check(self) -> dict[str, Any]:
+        """The two invariants every write must preserve: (1) the ledger as a
+        whole balances (debit==credit is already enforced per-post, but a
+        drifted/tampered file would show up here too), and (2) no customer
+        liability account is negative (we can never owe a customer less than
+        zero, i.e. they can never have spent more than they were credited)."""
+        balances = self.account_balances()
+        with self.connect() as conn:
+            rows = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT account, COALESCE(SUM(credit_sats),0) c, COALESCE(SUM(debit_sats),0) d "
+                    "FROM ledger_entries WHERE account LIKE 'liability:customer:%' GROUP BY account"
+                ).fetchall()
+            ]
+        negative = [
+            {"account": r["account"], "balance_sats": int(r["c"]) - int(r["d"])}
+            for r in rows
+            if int(r["c"]) - int(r["d"]) < 0
+        ]
+        return {
+            "ok": balances["balanced"] and not negative,
+            "balanced": balances["balanced"],
+            "negative_customer_liabilities": negative,
+            "total_debits_sats": balances["total_debits_sats"],
+            "total_credits_sats": balances["total_credits_sats"],
+        }
+
 
 def reconcile_hot_wallet(ledger: AccountingLedger, *, observed_hot_wallet_sats: int) -> dict[str, Any]:
     balances = ledger.account_balances()

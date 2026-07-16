@@ -36,7 +36,7 @@ from .params import (
     TICKER,
 )
 from .pool import run_pool
-from .psbt import PartiallySignedTransaction
+from .psbt import PartiallySignedTransaction, combine_psbts
 from .rpc import run_rpc
 from .script import describe_address, multisig_redeem_script, script_to_p2sh_address
 from .seeder import config_from_args as seeder_config_from_args
@@ -1372,10 +1372,37 @@ def cmd_devnet(args: argparse.Namespace) -> None:
 def cmd_psbt_sign(args: argparse.Namespace) -> None:
     wallet = Wallet.load(args.wallet, passphrase=args.passphrase)
     psbt = PartiallySignedTransaction.from_base64(Path(args.psbt).read_text().strip())
-    psbt.sign(wallet)
+    if args.redeem_script:
+        # Multisig cosigner path: add this wallet's signature to a P2SH
+        # multisig input rather than the single-signer sign(). Each cosigner
+        # runs this independently on their own copy; psbt-combine merges the
+        # partial signatures once enough have been collected.
+        if args.redeem_script not in psbt.redeem_scripts.values():
+            psbt.set_multisig_input(args.input_index, args.redeem_script)
+        psbt.sign_multisig_input(args.input_index, wallet)
+    else:
+        psbt.sign(wallet)
     if args.out:
         Path(args.out).write_text(psbt.to_base64())
     print_json({"ok": True, "fully_signed": psbt.is_fully_signed(), "psbt": None if args.out else psbt.to_base64()})
+
+
+def cmd_psbt_combine(args: argparse.Namespace) -> None:
+    texts = [Path(path).read_text().strip() for path in args.psbt]
+    combined = combine_psbts(texts)
+    psbt = PartiallySignedTransaction.from_base64(combined)
+    if args.out:
+        Path(args.out).write_text(combined)
+    result: dict[str, object] = {"ok": True, "fully_signed": psbt.is_fully_signed()}
+    if args.out:
+        result["out"] = args.out
+    else:
+        result["psbt"] = combined
+    if args.extract and psbt.is_fully_signed():
+        tx = psbt.extract()
+        result["txid"] = tx.txid()
+        result["raw_tx"] = tx.raw_hex()
+    print_json(result)
 
 
 def cmd_professional_check(args: argparse.Namespace) -> None:
@@ -1975,7 +2002,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passphrase")
     p.add_argument("--psbt", required=True)
     p.add_argument("--out")
+    p.add_argument(
+        "--redeem-script",
+        help="P2SH multisig redeem script (from `multisig-address`); "
+        "adds this wallet's signature as one cosigner instead of single-signer signing",
+    )
+    p.add_argument("--input-index", type=int, default=0, help="which input is the multisig spend (default 0)")
     p.set_defaults(func=cmd_psbt_sign)
+
+    p = sub.add_parser("psbt-combine", help="merge two or more partially-signed NetCoin PSBT files")
+    p.add_argument("--psbt", action="append", required=True, help="a PSBT file to merge (repeatable, order-independent)")
+    p.add_argument("--out")
+    p.add_argument("--extract", action="store_true", help="also extract and print the final tx if fully signed")
+    p.set_defaults(func=cmd_psbt_combine)
 
     return parser
 

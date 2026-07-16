@@ -96,6 +96,12 @@ else
 fi
 rm -rf "$SRC_DIR"
 cp -a "$NEW" "$SRC_DIR"
+# Zip archives don't reliably carry correct Unix permission bits (some
+# tooling omits them entirely), and cp -a preserves whatever unzip produced.
+# Force sane, service-readable permissions regardless of what the archive
+# claimed, so a bad zip can't leave the source dir root-only and crash-loop
+# the service (which runs as an unprivileged user).
+chmod -R a+rX "$SRC_DIR"
 
 install_venv
 configure_fast_crypto

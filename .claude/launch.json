@@ -12,6 +12,18 @@
         "sites/wallet"
       ],
       "port": 8899
+    },
+    {
+      "name": "sites-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8898",
+        "--directory",
+        "sites"
+      ],
+      "port": 8898
     }
   ]
 }

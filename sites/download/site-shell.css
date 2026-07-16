@@ -559,3 +559,13 @@ table{font-size:14px!important}th,td{padding:8px 10px!important}pre{max-height:2
 @media (min-width:1180px){.shell,.wrap{max-width:min(1480px,calc(100vw - 64px))!important}.hero,.dashboard-hero{grid-template-columns:minmax(0,1fr) minmax(280px,360px)!important}.grid,.dashboard-grid,.cards{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))!important}}
 @media (max-width:860px){.shell,.wrap{max-width:100%!important;padding:14px 12px 48px!important}.topbar{grid-template-columns:1fr!important;grid-template-areas:"brand" "nav" "tools"!important}.site-nav{justify-content:flex-start!important}.site-tools,.site-tools.site-tools-compact{grid-template-columns:1fr!important}.hero,.dashboard-hero,.split{grid-template-columns:1fr!important}.grid,.dashboard-grid,.cards{grid-template-columns:1fr!important}.row{display:grid!important;grid-template-columns:1fr!important}.actions a,.actions button{flex:0 1 auto!important}.site-more-panel,.site-more-group>div{grid-template-columns:1fr!important}}
 @media (max-width:520px){body{font-size:14px!important}.hero h1,.dashboard-hero h1{font-size:28px!important}.card,.panel,.hero-card,.nc-card{padding:14px!important}.kv{grid-template-columns:1fr!important}th,td{padding:7px 6px!important}}
+
+/* Nav clarity fix: the clean-shell pass above made every nav item look
+   identical, but direct links (Explorer, Wallet, ...) and disclosure groups
+   (Network, Build, Ecosystem -- <details><summary> that open a row of related
+   links) behave differently. A small caret is the minimum signal a user needs
+   to know a nav item expands instead of navigating. */
+.site-nav-group>summary{position:relative!important;padding-right:24px!important}
+.site-nav-group>summary::after{content:'\25BE';position:absolute!important;right:9px!important;top:50%!important;transform:translateY(-50%)!important;font-size:10px!important;color:var(--mut)!important}
+.site-nav-group[open]>summary::after{content:'\25B4'!important;color:var(--accent)!important}
+.site-nav-group[open]>summary{border-color:var(--accent)!important;color:var(--accent)!important;background:rgba(61,220,151,.10)!important}
