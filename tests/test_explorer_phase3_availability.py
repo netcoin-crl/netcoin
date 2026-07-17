@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -38,6 +39,8 @@ def test_phase3_explorer_static_pages_surface_available_tools() -> None:
 
 
 def test_phase3_explorer_js_syntax() -> None:
+    if not shutil.which("node"):
+        return  # syntax-check only; environments without Node.js (e.g. seed servers) skip it
     proc = subprocess.run(
         ["node", "--check", str(EXPLORER / "explorer-pro.js")], cwd=ROOT, text=True, capture_output=True
     )
