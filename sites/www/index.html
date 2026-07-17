@@ -5,71 +5,113 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="ui-polish.css?v=20260710-v0377-widen" />
-  <link rel="stylesheet" href="site-shell.css?v=20260716-nav-caret" />
+  <link rel="stylesheet" href="ui-polish.css?v=20260716-sleek" />
+  <link rel="stylesheet" href="site-shell.css?v=20260716-sleek" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand"><div class="logo">N</div><div>NetCoin<small>wallet-first public testnet</small></div></div>
+      <div class="brand"><div class="logo">N</div><div>NetCoin<small>minimal public testnet</small></div></div>
       <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
     </header>
 
-    <section class="hero dashboard-hero">
+    <section class="hero dashboard-hero use-hub-hero">
       <div class="card lead">
-        <span class="pill">Phase 0 product architecture</span>
-        <h1>Manage NET, verify the chain, download releases, and use markets from one focused hub.</h1>
-        <p>Core tools are Explorer, Download, Home, Markets, and Wallet, always visible. Network, Build, and Ecosystem are tabs that open their own row of related tools when clicked.</p>
+        <span class="pill">Public testnet hub</span><span class="pill">No real-money value</span>
+        <h1>NetCoin public testnet.</h1>
+        <p>Wallet, Explorer, Developer, Operator, and Localnet tools in one clean hub. Testnet only; no real-money value.</p>
         <div class="actions">
+          <a class="pill" href="https://wallet.netcoin.online">Open Wallet</a>
+          <a class="pill" href="https://developers.netcoin.online/console.html">Console</a>
           <a class="pill" href="https://explorer.netcoin.online">Search Explorer</a>
+          <a class="pill" href="https://docs.netcoin.online/localnet.html">Localnet</a>
           <a class="pill" href="https://download.netcoin.online">Download</a>
           <a class="pill" href="https://markets.netcoin.online">Browse Markets</a>
-          <a class="pill" href="https://wallet.netcoin.online">Open Wallet</a>
         </div>
       </div>
-      <div class="card">
-        <h2>Start in 4 steps</h2>
+      <div class="card availability-card">
+        <h2>Live tools</h2>
         <ol class="compact-list">
-          <li>Create or import a wallet.</li>
-          <li>Back it up before using larger balances.</li>
-          <li>Claim faucet NET and send a test payment.</li>
-          <li>Verify the transaction in Explorer.</li>
+          <li>Send, receive, and fee-preview testnet NET.</li>
+          <li>Create payment links, keys, and webhooks.</li>
+          <li>Inspect addresses, UTXOs, tx risk, and mempool.</li>
+          <li>Check operator readiness safely.</li>
         </ol>
       </div>
     </section>
 
-    <section class="grid dashboard-grid" aria-label="Primary NetCoin workflows">
-      <a class="biglink card" href="https://explorer.netcoin.online"><b>Explorer</b><span>Search addresses, transactions, blocks, mempool, and active-chain status.</span></a>
-      <a class="biglink card" href="https://download.netcoin.online"><b>Download</b><span>Install files and release verification links for local testnet users.</span></a>
-      <a class="biglink card" href="https://markets.netcoin.online"><b>Markets</b><span>Use play-money prediction markets with wallet and portfolio context.</span></a>
-      <a class="biglink card" href="https://wallet.netcoin.online"><b>Wallet</b><span>Send, receive, label activity, manage contacts, and protect backups.</span></a>
+    <section class="grid dashboard-grid use-hub-grid" id="available-now" aria-label="Available NetCoin workflows">
+      <a class="biglink card" href="https://wallet.netcoin.online" data-surface="wallet">
+        <b>Wallet</b>
+        <span>Fees, RBF preview, PSBT, multisig, history.</span>
+        <small>UI + API + wallet tests</small>
+      </a>
+      <a class="biglink card" href="https://developers.netcoin.online/console.html" data-surface="developer">
+        <b>Developer Console</b>
+        <span>Payment links, API keys, webhooks, simulations.</span>
+        <small>UI + API + developer tests</small>
+      </a>
+      <a class="biglink card" href="https://explorer.netcoin.online" data-surface="explorer">
+        <b>Explorer</b>
+        <span>Addresses, UTXOs, tx risk, mempool.</span>
+        <small>UI + API + explorer tests</small>
+      </a>
+      <a class="biglink card" href="https://operator.netcoin.online" data-surface="operator">
+        <b>Operator</b>
+        <span>Audit, chainstate, peers, maintenance status.</span>
+        <small>Read-only status API</small>
+      </a>
+      <a class="biglink card" href="https://docs.netcoin.online/localnet.html" data-surface="localnet">
+        <b>Localnet</b>
+        <span>Copy commands and verify services.</span>
+        <small>Guide + status API</small>
+      </a>
+      <a class="biglink card" href="https://features.netcoin.online" data-surface="features">
+        <b>Feature status</b>
+        <span>UI/API/CLI/tests labels.</span>
+        <small>Availability, not production claims</small>
+      </a>
+    </section>
+
+    <section class="grid dashboard-grid use-paths" aria-label="Recommended paths">
+      <div class="card compact-path">
+        <h2>Use</h2>
+        <div class="actions"><a class="pill" href="https://wallet.netcoin.online">Wallet</a><a class="pill" href="https://faucet.netcoin.online">Faucet</a><a class="pill" href="https://explorer.netcoin.online">Explorer</a></div>
+      </div>
+      <div class="card compact-path">
+        <h2>Build</h2>
+        <div class="actions"><a class="pill" href="https://developers.netcoin.online/console.html">Console</a><a class="pill" href="https://api.netcoin.online">OpenAPI</a><a class="pill" href="https://docs.netcoin.online/localnet.html">Localnet</a></div>
+      </div>
+      <div class="card compact-path">
+        <h2>Operate</h2>
+        <div class="actions"><a class="pill" href="https://operator.netcoin.online">Operator</a><a class="pill" href="https://status.netcoin.online">Status</a><a class="pill" href="https://nodes.netcoin.online">Nodes</a></div>
+      </div>
     </section>
 
     <section class="grid dashboard-grid" id="directory" aria-label="Grouped secondary tools">
       <div class="card">
         <h2>Network</h2>
-        <p class="muted">Network, nodes, faucet, status, operator health, exchange/custody, and security checks.</p>
         <div class="actions"><a class="pill" href="https://nodes.netcoin.online">Nodes</a><a class="pill" href="https://faucet.netcoin.online">Faucet</a><a class="pill" href="https://status.netcoin.online">Status</a></div>
       </div>
       <div class="card">
         <h2>Build</h2>
-        <p class="muted">Docs, OpenAPI, SDKs, system design, capabilities, downloads, and release verification.</p>
-        <div class="actions"><a class="pill" href="https://docs.netcoin.online">Docs</a><a class="pill" href="https://api.netcoin.online">API</a><a class="pill" href="https://developers.netcoin.online">SDKs</a></div>
+        <div class="actions"><a class="pill" href="https://docs.netcoin.online">Docs</a><a class="pill" href="https://architecture.netcoin.online">Architecture</a><a class="pill" href="https://download.netcoin.online">Download</a></div>
       </div>
       <div class="card">
         <h2>Ecosystem</h2>
-        <p class="muted">Governance, treasury records, community, guides, pay, and merchant tools live together.</p>
-        <div class="actions"><a class="pill" href="https://governance.netcoin.online">Governance</a><a class="pill" href="https://governance.netcoin.online#treasury">Treasury</a><a class="pill" href="https://community.netcoin.online">Community</a></div>
+        <div class="actions"><a class="pill" href="https://governance.netcoin.online">Governance</a><a class="pill" href="https://pay.netcoin.online">Pay</a><a class="pill" href="https://community.netcoin.online">Community</a></div>
       </div>
     </section>
 
-    <section class="card" aria-label="Product identity">
-      <h2>Product rule</h2>
-      <p class="muted">Every new NetCoin capability must improve an existing workflow, remove a hard ceiling, increase trust/safety/clarity, or reduce complexity. If it does not, it should not be added yet.</p>
+    <section class="card" aria-label="Product rule"><h2>Product rule</h2><p class="muted">Every capability should improve a workflow.</p></section>
+
+    <section class="card not-ready-card" aria-label="Gated capabilities">
+      <h2>Gated</h2>
+      <p class="muted">Hardware evidence, production custody, mainnet launch, external audit, and real-money exchange behavior stay locked until proven.</p>
     </section>
 
     <p class="footer">Public testnet. NET has no real-money value.</p>
   </div>
-  <script src="site-shell.js?v=20260714-nav-groups"></script>
+  <script src="site-shell.js?v=20260716-sleek"></script>
 </body>
 </html>

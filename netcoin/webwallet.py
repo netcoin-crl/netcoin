@@ -41,7 +41,9 @@ from .offline_signing import (
     export_unsigned_psbt_bundle,
     import_signed_psbt,
 )
+from .fee_bump import DEFAULT_RBF_SEQUENCE, create_rbf_replacement, transaction_fee
 from .psbt import PartiallySignedTransaction
+from .script import script_to_p2sh_address
 from .serialization import transaction_weight
 from .tx import SpendableOutput, Transaction, TxInput, TxOutput, amount_to_sats
 from .wallet import Wallet
@@ -128,6 +130,8 @@ class LocalNodeController:
             "height": info.get("height") if info else None,
             "peers": info.get("peers") if info else None,
             "version": info.get("version") if info else None,
+            "advertise_unreachable": bool(info.get("advertise_unreachable")) if info else False,
+            "advertise_unreachable_error": info.get("advertise_unreachable_error", "") if info else "",
             "log": str(self.log_path),
         }
 
@@ -295,6 +299,8 @@ def build_and_broadcast(
     fee_sats: int,
     from_type: str,
     node_url: str,
+    *,
+    rbf: bool = False,
 ) -> dict[str, Any]:
     """Build, sign locally, and broadcast a transaction using a remote node's UTXOs."""
     if amount_sats <= 0:
@@ -362,7 +368,10 @@ def build_and_broadcast(
     change = sel_total - needed
     if change > 0:
         outputs.append(TxOutput(amount=change, address=from_address))
-    tx = Transaction(inputs=[TxInput(txid=s.txid, vout=s.vout) for s in selected], outputs=outputs, locktime=0)
+    sequence = DEFAULT_RBF_SEQUENCE if rbf else 0xFFFFFFFF
+    tx = Transaction(
+        inputs=[TxInput(txid=s.txid, vout=s.vout, sequence=sequence) for s in selected], outputs=outputs, locktime=0
+    )
     for index, utxo in enumerate(selected):
         tx.sign_input(index, wallet.private_key, utxo)
 
@@ -375,7 +384,9 @@ def build_and_broadcast(
         change = sel_total - needed
         if change > 0:
             outputs.append(TxOutput(amount=change, address=from_address))
-        tx = Transaction(inputs=[TxInput(txid=s.txid, vout=s.vout) for s in selected], outputs=outputs, locktime=0)
+        tx = Transaction(
+            inputs=[TxInput(txid=s.txid, vout=s.vout, sequence=sequence) for s in selected], outputs=outputs, locktime=0
+        )
         for index, utxo in enumerate(selected):
             tx.sign_input(index, wallet.private_key, utxo)
         weight = transaction_weight(tx)
@@ -394,8 +405,77 @@ def build_and_broadcast(
         "input_count": len(selected),
         "weight": weight,
         "change": change / COIN,
+        "signals_rbf": tx.signals_rbf,
+        "tx": tx.to_dict(),
+        "prevouts": [item.to_dict() for item in selected],
         "node_response": response,
     }
+
+
+def build_unsigned_multisig_psbt(
+    redeem_script: str,
+    to_address: str,
+    amount_sats: int,
+    fee_sats: int,
+    node_url: str,
+) -> PartiallySignedTransaction:
+    if amount_sats <= 0:
+        raise ValueError("amount must be positive")
+    if fee_sats < 0:
+        raise ValueError("fee cannot be negative")
+    from_address = script_to_p2sh_address(redeem_script)
+    data = _node_get(node_url, f"/utxos?address={from_address}")
+    spendables = [SpendableOutput.from_dict(item) for item in data.get("utxos", [])]
+    if not spendables:
+        raise ValueError("no spendable coins at this multisig address yet")
+    needed = amount_sats + fee_sats
+    selected: list[SpendableOutput] = []
+    total = 0
+    for utxo in sorted(spendables, key=lambda s: s.output.amount, reverse=True):
+        selected.append(utxo)
+        total += utxo.output.amount
+        if total >= needed:
+            break
+    if total < needed:
+        raise ValueError(f"insufficient multisig balance: have {total / COIN:.8f}, need {needed / COIN:.8f} {TICKER}")
+    outputs = [TxOutput(amount=amount_sats, address=to_address)]
+    change = total - needed
+    if change > 0:
+        outputs.append(TxOutput(amount=change, address=from_address))
+    psbt = PartiallySignedTransaction.create(selected, outputs)
+    for index in range(len(selected)):
+        psbt.set_multisig_input(index, redeem_script)
+    return psbt
+
+
+def multisig_psbt_progress(psbt: PartiallySignedTransaction) -> dict[str, Any]:
+    inputs = []
+    ready = True
+    total_required = 0
+    total_collected = 0
+    for index in range(len(psbt.tx.inputs)):
+        redeem_script = psbt.redeem_scripts.get(index)
+        if not redeem_script:
+            inputs.append({"index": index, "multisig": False, "ready": bool(psbt.tx.inputs[index].script_sig)})
+            continue
+        required = PartiallySignedTransaction._multisig_required(redeem_script)
+        pubkeys = set(PartiallySignedTransaction._multisig_pubkeys(redeem_script))
+        collected = sorted(pk for pk in psbt.partial_sigs.get(index, {}) if pk in pubkeys)
+        input_ready = len(collected) >= required
+        ready = ready and input_ready
+        total_required += required
+        total_collected += min(len(collected), required)
+        inputs.append(
+            {
+                "index": index,
+                "multisig": True,
+                "required": required,
+                "collected": len(collected),
+                "ready": input_ready,
+                "signers": collected,
+            }
+        )
+    return {"ready": ready, "required": total_required, "collected": total_collected, "inputs": inputs}
 
 
 def build_unsigned_psbt_for_send(
@@ -615,9 +695,28 @@ PAGE = """<!doctype html>
     <div><label>Amount (NET)</label><input id="sendAmt" type="number" step="0.00000001" placeholder="1.0"></div>
     <div><label>Fee (NET)</label><input id="sendFee" type="number" step="0.00000001" value="0.01"></div>
    </div>
+	   <label>Fee selector</label><select id="feePreset" onchange="applyFeePreset()"><option value="normal">Normal</option><option value="fast">Fast</option><option value="economy">Economy</option><option value="custom">Custom</option></select>
+	   <label><input id="rbfSend" type="checkbox" checked> Make this send fee-bumpable with opt-in RBF</label>
    <button class="act" onclick="send()">Send</button>
+	   <button class="ghost" onclick="bumpLastFee()">Bump fee on pending send</button>
    <div id="sendOut" style="margin-top:10px"></div>
   </div>
+
+	  <div class="card hide" id="multisigCard">
+	   <h2>Multisig wallet</h2>
+	   <p class="muted">Create an M-of-N P2SH multisig address, then build/export PSBTs for cosigners until enough signatures are collected.</p>
+	   <div class="row"><div><label>Required signatures</label><input id="msRequired" type="number" value="2" min="1"></div><div><label>Cosigner public keys</label><input id="msPubkeys" placeholder="02abc..., 03def..."></div></div>
+	   <button class="ghost" onclick="createMultisigWallet()">Create multisig wallet</button>
+	   <div id="msCreateOut" class="mono muted" style="margin-top:8px"></div>
+	   <div class="row"><div><label>Redeem script</label><input id="msRedeem" class="mono" placeholder="OP_2 ... OP_CHECKMULTISIG"></div><div><label>Destination</label><input id="msTo" placeholder="Nc... / net1..."></div></div>
+	   <div class="row"><div><label>Amount (NET)</label><input id="msAmount" type="number" step="0.00000001"></div><div><label>Fee (NET)</label><input id="msFee" type="number" step="0.00000001" value="0.01"></div></div>
+	   <button class="ghost" onclick="createMultisigPsbt()">Create multisig spend PSBT</button>
+	   <button class="ghost" onclick="signMultisigPsbt()">Sign with loaded wallet</button>
+	   <button class="ghost" onclick="extractMultisigPsbt()">Extract when ready</button>
+	   <label>PSBT exchange box</label><input id="msPsbt" class="mono" placeholder="netpsbt:...">
+	   <div id="msProgress" class="muted" style="margin-top:8px">0 of 0 collected</div>
+	   <div id="msSpendOut" class="mono muted" style="margin-top:8px"></div>
+	  </div>
 
   <div class="card hide" id="receiveCard">
    <h2>Request payment</h2>
@@ -680,7 +779,7 @@ PAGE = """<!doctype html>
     <div><label>Port</label><input id="seedPort" type="number" placeholder="28444"></div>
     <div><label>Bandwidth mode</label><select id="seedBandwidth"><option value="">normal</option><option value="home">home</option><option value="low">low</option></select></div>
    </div>
-   <label>Advertise (public host:port peers should use — optional)</label><input id="seedAdvertise" placeholder="203.0.113.5:28444" autocomplete="off">
+   <label>Advertise (public host:port peers should use — optional)</label><input id="seedAdvertise" placeholder="your.public.ip:28444" autocomplete="off">
    <div id="seedStatus" class="muted" style="margin-top:10px">Checking seed node control...</div>
    <div class="row" style="margin-top:10px">
     <button class="act" onclick="startSeedNode()">Start seed</button>
@@ -692,7 +791,7 @@ PAGE = """<!doctype html>
  </section>
 </div>
 	<script>
-	let CFG={}, ADDRS={}, curType="segwit", BAL={};
+		let CFG={}, ADDRS={}, curType="segwit", BAL={}, FEE_ESTIMATES=null, LAST_SENT=null;
 	const $=s=>document.querySelector(s);
 	const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 	const jsq=s=>JSON.stringify(String(s??''));
@@ -713,12 +812,15 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
 function nodeHelp(msg){return esc(msg)+'<div class="warn"><b>Node connection help</b><br>Use the public API proxy when home Wi-Fi blocks the seed port. If your network blocks api.netcoin.online, use the direct-IP API:<div class="mono">python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online</div><br>Configured node: <span class="mono">'+esc(CFG.node||'unknown')+'</span></div>';}
 async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG.network+' · node '+CFG.node;
   $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')search();});
-  const w=await api('/api/wallet/current');if(w.address)showWallet(w);refreshLocalNode();}
+	  await loadFeeEstimates();const w=await api('/api/wallet/current');if(w.address)showWallet(w);refreshLocalNode();}
 function showWallet(w){ADDRS=w.addresses;const sel=$('#typeSel');sel.innerHTML='';
   Object.keys(ADDRS).forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
-  $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');$('#historyCard').classList.remove('hide');
+	  $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');$('#historyCard').classList.remove('hide');$('#multisigCard').classList.remove('hide');
 	  if(w.mnemonic){$('#mnemonicBox').innerHTML='<div class="warn"><b>Recovery phrase (shown once):</b><div class="mono">'+esc(w.mnemonic)+'</div>Write it down. <a href="data:application/json,'+encodeURIComponent(JSON.stringify(w.wallet_file))+'" download="wallet.json">Download wallet.json</a></div>';}
-	  switchType();}
+		  switchType();applyFeePreset();}
+	async function loadFeeEstimates(){try{FEE_ESTIMATES=await api('/api/fee-estimates',{},8000);applyFeePreset();}catch(e){FEE_ESTIMATES=null;}}
+	function presetFeeNet(name){const presets=(FEE_ESTIMATES&&FEE_ESTIMATES.presets)||{};const mapped={economy:'slow',normal:'normal',fast:'fast'}[name]||name;const entry=presets[mapped]||{};const sats=Number(entry.estimated_fee_sats||0);return sats>0?(sats/100000000).toFixed(8):'';}
+	function applyFeePreset(){const sel=$('#feePreset');if(!sel||sel.value==='custom')return;const fee=presetFeeNet(sel.value);if(fee)$('#sendFee').value=fee;}
 function switchType(){curType=$('#typeSel').value||'segwit';$('#addrType').textContent=curType;
   $('#addr').textContent=ADDRS[curType];$('#faucetAddr').textContent=ADDRS[curType];
 	  const faucet=safeUrl(CFG.faucet);
@@ -752,6 +854,7 @@ function renderSeedStatus(d){const out=$('#seedStatus');if(!out)return;
   out.innerHTML='<div class="rcard">'+kv('Status',d.running?'<b class="ok">running</b>':'<span class="muted">stopped</span>')+
     kv('Mode',esc(mode))+kv('Bind address','<span class="mono">'+esc(d.bind_host||'')+':'+esc(d.port??'')+'</span>')+
     kv('Advertise',d.advertise?('<span class="mono">'+esc(d.advertise)+'</span>'):'<span class="muted">not announced (local peers only)</span>')+
+    (d.advertise_unreachable?kv('Advertise check','<span class="err">unreachable — check public IP and port forwarding</span><div class="muted">'+esc(d.advertise_unreachable_error||'self-dial failed')+'</div>'):'')+
     kv('Height',esc(d.height??'n/a'))+kv('Peers',esc(d.peers??'n/a'))+
     kv('Log','<span class="mono">'+esc(d.log||'')+'</span>')+'</div>';}
 async function refreshSeedNode(){try{renderSeedStatus(await api('/api/seed-node/status',{},8000));}catch(e){$('#seedStatus').innerHTML=nodeHelp(e.message);}}
@@ -782,10 +885,28 @@ async function send(){const out=$('#sendOut'),btn=$('#sendBtn');
   if(spendable>0&&(amount+fee)>spendable*0.9&&!confirm('This sends more than 90% of your spendable balance. Continue?'))return;
   if(btn){btn.disabled=true;btn.textContent='Sending…';}out.textContent='Preparing and broadcasting transaction…';try{
   const j=await api('/api/wallet/send',{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType})},45000);
-	  out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+esc(j.txid)+'</span><div class="muted">inputs '+esc(j.input_count||'?')+' · weight '+esc(j.weight||'?')+' · change '+esc(j.change||0)+' '+esc(CFG.ticker)+'</div>';refreshBalance();loadHistory();}
+	   body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType,rbf:$('#rbfSend').checked})},45000);
+		  LAST_SENT=j;
+		  out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+esc(j.txid)+'</span><div class="muted">inputs '+esc(j.input_count||'?')+' · weight '+esc(j.weight||'?')+' · change '+esc(j.change||0)+' '+esc(CFG.ticker)+' · RBF '+(j.signals_rbf?'enabled':'off')+'</div>';refreshBalance();loadHistory();}
 	  catch(e){out.innerHTML=nodeHelp(e.message)+'<div class="warn">If this timed out after a large send, check the mempool and mine one block before trying again.</div>';}
   finally{if(btn){btn.disabled=false;btn.textContent='Send';}}}
+	async function bumpLastFee(){const out=$('#sendOut');try{if(!LAST_SENT||!LAST_SENT.tx||!LAST_SENT.prevouts)throw new Error('send an opt-in-RBF transaction first');
+	  const current=Number(LAST_SENT.fee||0);const next=(current>0?current*2:0.02).toFixed(8);
+	  const wanted=prompt('New replacement fee in NET',next);if(!wanted)return;
+	  const bumped=await api('/api/wallet/rbf-bump',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({original_tx:LAST_SENT.tx,prevouts:LAST_SENT.prevouts,new_fee:wanted,change_address:ADDRS[curType],broadcast:true})},45000);
+	  LAST_SENT={tx:bumped.replacement_tx,prevouts:LAST_SENT.prevouts,fee:bumped.new_fee_net,txid:bumped.txid};
+	  out.innerHTML='<span class="ok">Fee bumped!</span> replacement txid <span class="mono">'+esc(bumped.txid||bumped.replacement_txid)+'</span><div class="muted">old fee '+esc(bumped.old_fee_net)+' NET · new fee '+esc(bumped.new_fee_net)+' NET</div>';}
+	  catch(e){out.innerHTML=nodeHelp(e.message);}}
+	function msSetProgress(progress){const p=progress||{};$('#msProgress').textContent=`${p.collected||0} of ${p.required||0} collected${p.ready?' · ready to extract':''}`;}
+	async function createMultisigWallet(){const out=$('#msCreateOut');try{const d=await api('/api/wallet/multisig/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({required:$('#msRequired').value,pubkeys:$('#msPubkeys').value})});
+	  $('#msRedeem').value=d.redeem_script;out.innerHTML='Address: '+esc(d.address)+'\\nRedeem script: '+esc(d.redeem_script);}catch(e){out.innerHTML=nodeHelp(e.message);}}
+	async function createMultisigPsbt(){const out=$('#msSpendOut');try{const d=await api('/api/wallet/multisig/psbt/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({redeem_script:$('#msRedeem').value,to:$('#msTo').value,amount:$('#msAmount').value,fee:$('#msFee').value})},45000);
+	  $('#msPsbt').value=d.unsigned_psbt;msSetProgress(d.progress);out.textContent='Unsigned multisig PSBT created for '+d.multisig_address+'. Export/import this box between cosigners.';}catch(e){out.innerHTML=nodeHelp(e.message);}}
+	async function signMultisigPsbt(){const out=$('#msSpendOut');try{const d=await api('/api/wallet/multisig/psbt/sign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({psbt:$('#msPsbt').value,redeem_script:$('#msRedeem').value})},45000);
+	  $('#msPsbt').value=d.signed_psbt;msSetProgress(d.progress);out.textContent='Signature added. Share the updated PSBT with the next cosigner, or extract if ready.';}catch(e){out.innerHTML=nodeHelp(e.message);}}
+	async function extractMultisigPsbt(){const out=$('#msSpendOut');try{const d=await api('/api/wallet/psbt/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({psbt:$('#msPsbt').value})},45000);
+	  msSetProgress(d.progress);out.innerHTML='<span class="ok">Ready transaction extracted.</span> txid <span class="mono">'+esc(d.txid)+'</span>';}
+	  catch(e){out.innerHTML=nodeHelp(e.message);}}
 function fmtTime(ts){return ts?new Date(ts*1000).toLocaleString():'';}
 function short(h){return h?(h.length>26?h.slice(0,14)+'…'+h.slice(-8):h):'';}
 	function card(t,b){return '<div class="rcard"><div class="rtitle">'+esc(t)+'</div>'+b+'</div>';}
@@ -895,6 +1016,8 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
                 elif parsed.path == "/api/latest":
                     n = parse_qs(parsed.query).get("n", ["15"])[0]
                     self._send(_node_get(node_url, f"/latest?n={int(n)}"))
+                elif parsed.path == "/api/fee-estimates":
+                    self._send(_node_get(node_url, "/fee-estimates"))
                 elif parsed.path == "/api/search":
                     self._send(self._search(parse_qs(parsed.query).get("q", [""])[0]))
                 elif parsed.path == "/api/payment-uri":
@@ -962,6 +1085,18 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
                     self._send({"address": wallet.address_for("segwit"), "addresses": _wallet_addresses(wallet)})
                 elif parsed.path == "/api/wallet/send":
                     self._send(self._send_tx(self._read()))
+                elif parsed.path == "/api/wallet/rbf-bump":
+                    self._send(self._rbf_bump(self._read()))
+                elif parsed.path == "/api/wallet/multisig/create":
+                    self._send(self._multisig_create(self._read()))
+                elif parsed.path == "/api/wallet/multisig/psbt/create":
+                    self._send(self._multisig_psbt_create(self._read()))
+                elif parsed.path == "/api/wallet/multisig/psbt/sign":
+                    self._send(self._multisig_psbt_sign(self._read()))
+                elif parsed.path == "/api/wallet/psbt/combine":
+                    self._send(self._psbt_combine(self._read()))
+                elif parsed.path == "/api/wallet/psbt/extract":
+                    self._send(self._psbt_extract(self._read()))
                 elif parsed.path == "/api/wallet/psbt/export":
                     self._send(self._psbt_export(self._read()))
                 elif parsed.path == "/api/wallet/psbt/sign":
@@ -980,7 +1115,7 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
                     bandwidth_mode = str(body.get("bandwidth_mode") or "").strip()
                     port = body.get("port")
                     if advertise and ":" not in advertise:
-                        raise ValueError("advertise must be host:port, e.g. 203.0.113.5:28444")
+                        raise ValueError("advertise must be host:port, e.g. your.public.ip:28444")
                     if bandwidth_mode and bandwidth_mode not in {"normal", "home", "low"}:
                         raise ValueError("bandwidth_mode must be normal, home, or low")
                     seed_node.advertise = advertise
@@ -1032,7 +1167,102 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
             amount_sats = amount_to_sats(str(body.get("amount", "")))
             fee_sats = amount_to_sats(str(body.get("fee", "0") or "0"))
             from_type = str(body.get("from_type") or "segwit")
-            return build_and_broadcast(wallet, to, amount_sats, fee_sats, from_type, node_url)
+            rbf = bool(body.get("rbf"))
+            return build_and_broadcast(wallet, to, amount_sats, fee_sats, from_type, node_url, rbf=rbf)
+
+        def _rbf_bump(self, body: dict[str, Any]) -> dict[str, Any]:
+            wallet = state["wallet"]
+            if wallet is None:
+                raise ValueError("no wallet loaded")
+            original = Transaction.from_dict(body.get("original_tx") or {})
+            prevouts = [SpendableOutput.from_dict(item) for item in body.get("prevouts") or []]
+            if not prevouts:
+                raise ValueError("prevouts are required to bump a fee")
+            new_fee = amount_to_sats(str(body.get("new_fee", "")))
+            change_address = str(body.get("change_address") or wallet.address_for("segwit")).strip()
+            old_fee = transaction_fee(original, prevouts)
+            plan = create_rbf_replacement(wallet, original, prevouts, new_fee=new_fee, change_address=change_address)
+            payload: dict[str, Any] = {
+                **plan.to_dict(),
+                "old_fee": old_fee,
+                "old_fee_net": old_fee / COIN,
+                "new_fee_net": new_fee / COIN,
+                "replacement_tx": plan.replacement.to_dict(),
+            }
+            if body.get("broadcast"):
+                response = _node_post(node_url, "/tx", plan.replacement.to_dict(), timeout=30)
+                payload["txid"] = response.get("txid") or plan.replacement.txid()
+                payload["node_response"] = response
+            return payload
+
+        def _multisig_create(self, body: dict[str, Any]) -> dict[str, Any]:
+            wallet = state["wallet"]
+            if wallet is None:
+                raise ValueError("no wallet loaded")
+            raw_pubkeys = body.get("pubkeys") or body.get("public_keys") or []
+            if isinstance(raw_pubkeys, str):
+                pubkeys = [item.strip() for item in raw_pubkeys.replace(",", "\n").splitlines() if item.strip()]
+            else:
+                pubkeys = [str(item).strip() for item in raw_pubkeys if str(item).strip()]
+            required = int(body.get("required") or 0)
+            if not pubkeys:
+                raise ValueError("at least one cosigner public key is required")
+            result = wallet.create_multisig_address(required, pubkeys)
+            return {**result, "required": required, "cosigners": len(pubkeys), "public_keys": pubkeys}
+
+        def _multisig_psbt_create(self, body: dict[str, Any]) -> dict[str, Any]:
+            redeem_script = str(body.get("redeem_script") or "").strip()
+            if not redeem_script:
+                raise ValueError("redeem_script is required")
+            to = str(body.get("to", "")).strip()
+            if not to:
+                raise ValueError("destination address required")
+            amount_sats = amount_to_sats(str(body.get("amount", "")))
+            fee_sats = amount_to_sats(str(body.get("fee", "0") or "0"))
+            psbt = build_unsigned_multisig_psbt(redeem_script, to, amount_sats, fee_sats, node_url)
+            text = "netpsbt:" + psbt.to_base64()
+            return {
+                "unsigned_psbt": text,
+                "multisig_address": script_to_p2sh_address(redeem_script),
+                "progress": multisig_psbt_progress(psbt),
+            }
+
+        def _multisig_psbt_sign(self, body: dict[str, Any]) -> dict[str, Any]:
+            wallet = state["wallet"]
+            if wallet is None:
+                raise ValueError("no wallet loaded")
+            psbt_text = str(body.get("psbt") or body.get("unsigned_psbt") or "").strip()
+            if not psbt_text:
+                raise ValueError("psbt is required")
+            psbt = PartiallySignedTransaction.from_base64(psbt_text)
+            redeem_script = str(body.get("redeem_script") or "").strip()
+            for index in range(len(psbt.tx.inputs)):
+                if redeem_script and index not in psbt.redeem_scripts:
+                    psbt.set_multisig_input(index, redeem_script)
+                psbt.sign_multisig_input(index, wallet)
+            return {"signed_psbt": "netpsbt:" + psbt.to_base64(), "progress": multisig_psbt_progress(psbt)}
+
+        def _psbt_combine(self, body: dict[str, Any]) -> dict[str, Any]:
+            texts = [str(item).strip() for item in body.get("psbts") or [] if str(item).strip()]
+            if not texts:
+                raise ValueError("psbts are required")
+            combined = PartiallySignedTransaction.from_base64(texts[0])
+            for text in texts[1:]:
+                combined.combine(PartiallySignedTransaction.from_base64(text))
+            return {"combined_psbt": "netpsbt:" + combined.to_base64(), "progress": multisig_psbt_progress(combined)}
+
+        def _psbt_extract(self, body: dict[str, Any]) -> dict[str, Any]:
+            psbt_text = str(body.get("psbt") or body.get("signed_psbt") or "").strip()
+            if not psbt_text:
+                raise ValueError("psbt is required")
+            psbt = PartiallySignedTransaction.from_base64(psbt_text)
+            tx = psbt.extract()
+            payload: dict[str, Any] = {"txid": tx.txid(), "tx": tx.to_dict(), "progress": multisig_psbt_progress(psbt)}
+            if body.get("broadcast"):
+                response = _node_post(node_url, "/tx", tx.to_dict(), timeout=30)
+                payload["txid"] = response.get("txid") or tx.txid()
+                payload["node_response"] = response
+            return payload
 
         def _psbt_export(self, body: dict[str, Any]) -> dict[str, Any]:
             """Build an unsigned PSBT for offline/hardware signing (no keys used)."""

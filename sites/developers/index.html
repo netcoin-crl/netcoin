@@ -6,7 +6,7 @@
   <title>NetCoin Developers</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
   <link rel="stylesheet" href="developers.css?v=20260630-site-modes" />
-  <link rel="stylesheet" href="site-shell.css?v=20260716-nav-caret" />
+  <link rel="stylesheet" href="site-shell.css?v=20260716-sleek" />
 </head>
 <body>
   <div class="shell">
@@ -15,10 +15,10 @@
       <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
     </header>
 
-<section class="hero dashboard-hero"><div class="card"><span class="pill"><span class="dot ok"></span><span id="apiState">Checking API</span></span><h1>Build with NetCoin.</h1><p>API docs, SDKs, webhooks, and examples. Machine API at api.netcoin.online.</p><div class="site-section-tabs"><a href="#api">API</a><a href="#sdks">SDKs</a><a href="#webhooks">Webhooks</a><a href="#local">Local dev</a><a href="console.html">Console</a></div></div><div class="card"><h2>Quick API check</h2><pre>curl https://api.netcoin.online/api/latest
-curl https://api.netcoin.online/api/fee-estimates</pre></div></section>
+<section class="hero dashboard-hero"><div class="card"><span class="pill"><span class="dot ok"></span><span id="apiState">Checking API</span></span><h1>Build with NetCoin.</h1><p>API docs, SDKs, webhooks, and testnet developer tools for payment links, API keys, and reward simulations.</p><div class="site-section-tabs"><a href="#api">API</a><a href="#sdks">SDKs</a><a href="#webhooks">Webhooks</a><a href="#local">Local dev</a><a href="console.html">Console</a></div></div><div class="card"><h2>Quick API check</h2><pre>curl https://api.netcoin.online/api/latest
+curl https://api.netcoin.online/api/developer/console?developer_id=game-studio</pre></div></section>
 <section class="grid"><div class="card" id="api"><h2>API reference</h2><p>Use the API for blocks, fees, invoices, community posts, merchant tools, and validation checks.</p><a class="biglink" href="https://api.netcoin.online"><b>Machine API host</b><span>Same-origin JSON endpoints for apps.</span></a></div><div class="card" id="sdks"><h2>SDKs</h2><p>JavaScript and Python SDK starters are included in the repository.</p><pre>sdk/netcoin-js/
-sdk/netcoin-python/</pre></div><div class="card" id="builder"><h2>Builder platform</h2><p>Prototype app-layer features without touching consensus: invoices, receipts, usernames, bounties, webhooks, token records, reports, and manually reviewed payout plans.</p></div><div class="card" id="webhooks"><h2>Webhooks</h2><p>Merchant webhooks use HMAC signatures. Keep webhook secrets private and rotate them if exposed.</p></div><div class="card"><h2>Console</h2><p>Live rewards, withdrawals, payment links, webhook dead letters, and watched deposits for one developer_id.</p><a class="biglink" href="console.html"><b>Open developer console</b><span>Real data from GET /api/developer/console, not a mockup.</span></a></div><div class="card" id="local"><h2>Local development</h2><pre>git clone https://github.com/netcoin-crl/netcoin.git
+sdk/netcoin-python/</pre></div><div class="card" id="builder"><h2>Builder platform</h2><p>Prototype app-layer features without touching consensus: invoices, receipts, usernames, bounties, webhooks, token records, reports, and manually reviewed payout plans.</p></div><div class="card" id="webhooks"><h2>Webhooks</h2><p>Merchant webhooks use HMAC signatures. Keep webhook secrets private and rotate them if exposed.</p></div><div class="card"><h2>Console</h2><p>Live rewards, withdrawals, payment links, API keys, webhook dead letters, and watched deposits for one developer_id.</p><a class="biglink" href="console.html"><b>Open developer console</b><span>Create testnet payment links, register webhooks, manage API keys, and simulate rewards.</span></a></div><div class="card" id="local"><h2>Local development</h2><pre>git clone https://github.com/netcoin-crl/netcoin.git
 cd netcoin
 python -m venv .venv
 source .venv/bin/activate
@@ -28,6 +28,6 @@ python -m netcoin web</pre></div></section>
     <p class="footer">NetCoin Developers is part of the NetCoin public ecosystem.</p>
   </div>
   <script src="developers.js?v=20260630-site-modes"></script>
-  <script src="site-shell.js?v=20260714-nav-groups"></script>
+  <script src="site-shell.js?v=20260716-sleek"></script>
 </body>
 </html>

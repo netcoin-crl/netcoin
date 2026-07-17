@@ -3,6 +3,6 @@
   "independent_builder_required_for_strict_m2": true,
   "ok": true,
   "schema": "netcoin-reproducible-build-source-v1",
-  "second_sha256": "477ffc5964620679e3afe50c688856e268cc003b1a535c6f18399f22fc715fce",
-  "sha256": "477ffc5964620679e3afe50c688856e268cc003b1a535c6f18399f22fc715fce"
+  "second_sha256": "4a22a3dbd62e3a72c8f2acab8c69e18826b4dc5d3ab6ba04e3ccb7a4a05e8c52",
+  "sha256": "4a22a3dbd62e3a72c8f2acab8c69e18826b4dc5d3ab6ba04e3ccb7a4a05e8c52"
 }

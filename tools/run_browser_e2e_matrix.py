@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MATRIX_PATH = ROOT / "architecture" / "browser-e2e-matrix.json"
 SPEC_PATH = ROOT / "sites" / "tests" / "e2e" / "netcoin-product-matrix.spec.ts"
 M1_WALLET_SPEC_PATH = ROOT / "sites" / "tests" / "e2e" / "m1-wallet-workflow.spec.js"
+PHASE10_SPEC_PATH = ROOT / "sites" / "tests" / "e2e" / "phase10-mobile-accessibility.spec.js"
 
 
 def playwright_cmd() -> list[str]:
@@ -27,10 +28,13 @@ def source_check() -> dict[str, object]:
     matrix = json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
     spec = SPEC_PATH.read_text(encoding="utf-8") if SPEC_PATH.exists() else ""
     m1_wallet_spec = M1_WALLET_SPEC_PATH.read_text(encoding="utf-8") if M1_WALLET_SPEC_PATH.exists() else ""
+    phase10_spec = PHASE10_SPEC_PATH.read_text(encoding="utf-8") if PHASE10_SPEC_PATH.exists() else ""
     if not SPEC_PATH.exists():
         issues.append(f"missing {SPEC_PATH.relative_to(ROOT)}")
     if not M1_WALLET_SPEC_PATH.exists():
         issues.append(f"missing {M1_WALLET_SPEC_PATH.relative_to(ROOT)}")
+    if not PHASE10_SPEC_PATH.exists():
+        issues.append(f"missing {PHASE10_SPEC_PATH.relative_to(ROOT)}")
     for surface in matrix.get("surfaces", []):
         name = str(surface.get("surface", ""))
         path = ROOT / str(surface.get("path", ""))
@@ -52,10 +56,20 @@ def source_check() -> dict[str, object]:
         "btnConfirmSend",
         "btnLock",
         "walletTabs",
+        "walletFlowGuide",
+        "sendChecklist",
+        "feePresetCards",
+        "speedUpCard",
+        "psbtToolsCard",
+        "multisigToolsCard",
+        "Confirm testnet send",
     ]
     for token in required_wallet_tokens:
         if token not in m1_wallet_spec:
             issues.append(f"M1 wallet workflow spec missing token: {token}")
+    for token in ["Phase 10 mobile", "expectNoHorizontalOverflow", "wallet mobile surface", "operator and localnet", "featureSearch"]:
+        if token not in phase10_spec:
+            issues.append(f"Phase 10 mobile spec missing token: {token}")
     return {
         "ok": not issues,
         "mode": "source",
@@ -74,7 +88,7 @@ def main() -> int:
     if args.run_playwright and result["ok"]:
         try:
             proc = subprocess.run(
-                playwright_cmd() + ["test", str(SPEC_PATH), str(M1_WALLET_SPEC_PATH)],
+                playwright_cmd() + ["test", str(SPEC_PATH), str(M1_WALLET_SPEC_PATH), str(PHASE10_SPEC_PATH)],
                 cwd=ROOT,
                 text=True,
                 capture_output=True,

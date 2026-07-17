@@ -59,6 +59,12 @@ paths:
       summary: Alias for the NetCoin product health-center payload
       responses:
         "200": { description: Unified product health status. }
+  /features:
+    get:
+      tags: [apps]
+      summary: Feature catalog with readiness ratings and availability labels
+      responses:
+        "200": { description: Feature groups, UI/API/CLI availability, test coverage labels, and testnet-only production-readiness disclaimers. }
   /feature-status:
     get:
       tags: [apps]
@@ -723,6 +729,17 @@ paths:
       summary: Explorer watchlist activity cards
       responses:
         "200": { description: Watched address activity summaries. }
+    post:
+      tags: [explorer]
+      summary: Add an address, transaction, or block to the explorer watchlist
+      responses:
+        "200": { description: Persisted watch item. }
+  /explorer/watchlist/remove:
+    post:
+      tags: [explorer]
+      summary: Deactivate an explorer watchlist item
+      responses:
+        "200": { description: Deactivated watch item. }
   /wallet/workflow:
     get:
       tags: [wallet]
@@ -741,12 +758,25 @@ paths:
       summary: Live operator control-room payload
       responses:
         "200": { description: Height, peers, mempool, runbook actions, and diagnostic bundle link. }
+  /localnet/status:
+    get:
+      tags: [localnet]
+      summary: Localnet onboarding status for the browser guide
+      responses:
+        "200": { description: Local node, wallet, faucet, explorer, and command readiness. }
   /exchange/live:
     get:
       tags: [exchange]
       summary: Live exchange custody dashboard payload
       responses:
         "200": { description: Deposits, withdrawals, approvals, custody, reserve attestations, and risk alerts. }
+  /exchange/listing-readiness:
+    get:
+      tags: [exchange]
+      summary: Code-side exchange/listing readiness checklist
+      description: Read-only testnet checklist. Does not claim a real listing, production custody, legal approval, liquidity, or real-money value.
+      responses:
+        "200": { description: Code gates, external blockers, live testnet counts, and readiness commands. }
   /release/verify:
     get:
       tags: [release]

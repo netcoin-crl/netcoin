@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .tx import sats_to_amount
+from .tx import Transaction, sats_to_amount
 
 
 def _short(value: Any, n: int = 12) -> str:
@@ -88,12 +88,32 @@ def explorer_address_live(chain: Any, address: str, *, limit: int = 100) -> dict
     except Exception as exc:
         balance = {"address": address, "error": str(exc), "total_sats": 0, "spendable_sats": 0, "immature_sats": 0}
     try:
-        utxos = [
+        raw_utxos = [
             u.to_dict() if hasattr(u, "to_dict") else dict(u)
             for u in chain.utxos_for_address(address, include_immature=True)
         ]
     except Exception:
-        utxos = []
+        raw_utxos = []
+    current_height = int(balance.get("height") or getattr(chain, "height", lambda: 0)() or 0)
+    utxos = []
+    for item in raw_utxos:
+        output = item.get("output") or {}
+        amount_sats = int(item.get("amount_sats") or output.get("amount") or item.get("amount") or 0)
+        height = item.get("height")
+        confirmations = max(0, current_height - int(height) + 1) if height is not None else 0
+        coinbase = bool(item.get("coinbase", False))
+        immature = bool(coinbase and balance.get("height") is not None and confirmations < 100)
+        utxos.append(
+            {
+                **item,
+                "outpoint": item.get("outpoint") or f"{item.get('txid', '')}:{item.get('vout', 0)}",
+                "address": output.get("address") or item.get("address") or address,
+                "amount_sats": amount_sats,
+                "amount": sats_to_amount(amount_sats),
+                "confirmations": confirmations,
+                "spend_status": "immature" if immature else "unspent",
+            }
+        )
     txids = []
     try:
         txids = sorted(getattr(chain, "address_index", {}).get(address, set()), reverse=True)[:limit]
@@ -102,12 +122,16 @@ def explorer_address_live(chain: Any, address: str, *, limit: int = 100) -> dict
     history = []
     for txid in txids:
         txp = _tx_payload(chain, txid) or {"txid": txid}
+        height = txp.get("height") or txp.get("block_height")
+        confirmations = txp.get("confirmations")
+        if confirmations is None and height is not None:
+            confirmations = max(0, current_height - int(height) + 1)
         history.append(
             {
                 "txid": txid,
                 "short_txid": _short(txid, 16),
-                "height": txp.get("height") or txp.get("block_height"),
-                "confirmations": txp.get("confirmations"),
+                "height": height,
+                "confirmations": confirmations,
                 "mempool": bool(txp.get("mempool", False)),
             }
         )
@@ -133,12 +157,71 @@ def explorer_address_live(chain: Any, address: str, *, limit: int = 100) -> dict
     }
 
 
+def explorer_tx_risk(chain: Any, tx_payload: dict[str, Any]) -> dict[str, Any]:
+    confirmed = bool(tx_payload.get("confirmed"))
+    tx_data = tx_payload.get("tx") or tx_payload.get("transaction") or {}
+    warnings: list[dict[str, Any]] = []
+    risk_score = 0
+    if not confirmed:
+        warnings.append({"code": "unconfirmed", "severity": "medium", "message": "Transaction is not confirmed yet."})
+        risk_score += 35
+    try:
+        tx = Transaction.from_dict(tx_data)
+        if tx.signals_rbf:
+            warnings.append({"code": "rbf", "severity": "medium", "message": "Transaction signals opt-in Replace-By-Fee."})
+            risk_score += 20
+        try:
+            from .tx_simulator import simulate_transaction
+
+            preview = simulate_transaction(chain, tx)
+            for warning in preview.get("warnings", []):
+                if hasattr(warning, "to_dict"):
+                    warnings.append(warning.to_dict())
+                elif isinstance(warning, dict):
+                    warnings.append(warning)
+            risk_score = max(risk_score, int(preview.get("risk_score", 0)))
+        except Exception:
+            pass
+    except Exception:
+        tx = None
+    mempool = {}
+    try:
+        mempool = next(
+            (entry for entry in chain.mempool_info().get("entries", []) if entry.get("txid") == tx_payload.get("txid")),
+            {},
+        )
+    except Exception:
+        mempool = {}
+    if mempool:
+        risk_score = max(risk_score, 25)
+    risk_level = "low"
+    if risk_score >= 75:
+        risk_level = "critical"
+    elif risk_score >= 50:
+        risk_level = "high"
+    elif risk_score >= 25:
+        risk_level = "medium"
+    return {
+        "status": "confirmed" if confirmed else "unconfirmed",
+        "confirmed": confirmed,
+        "risk_level": risk_level,
+        "risk_score": risk_score,
+        "warnings": warnings,
+        "mempool": mempool,
+        "rbf": bool(mempool.get("rbf")) or any(w.get("code") == "rbf" for w in warnings),
+        "fee_sats": mempool.get("fee", 0),
+        "fee_rate_per_kvb": mempool.get("fee_rate_per_kvb", 0),
+        "policy": "testnet explorer risk summary; not a final settlement guarantee",
+    }
+
+
 def explorer_tx_live(chain: Any, txid: str) -> dict[str, Any]:
     txid = str(txid or "").strip()
     payload = _tx_payload(chain, txid)
     if payload is None:
         return {"ok": False, "txid": txid, "error": "transaction not found", "mempool": False}
-    return {"ok": True, "txid": txid, "short_txid": _short(txid, 16), **payload}
+    risk = explorer_tx_risk(chain, payload)
+    return {"ok": True, "txid": txid, "short_txid": _short(txid, 16), "risk": risk, **payload}
 
 
 def explorer_block_live(chain: Any, block_id: str) -> dict[str, Any]:
@@ -169,24 +252,73 @@ def explorer_mempool_live(chain: Any, *, limit: int = 200) -> dict[str, Any]:
     return {"summary": info, "transactions": txs, "count": len(txs), "generated_at": int(time.time())}
 
 
+def _explorer_watch_store(store: Any) -> Any:
+    from .explorer_watch import ExplorerWatchStore
+
+    base = Path(getattr(store, "data_dir", "."))
+    return ExplorerWatchStore(base / "explorer_watch.sqlite3")
+
+
 def explorer_watchlist_live(store: Any, chain: Any, query: dict[str, list[str]] | None = None) -> dict[str, Any]:
-    addresses = []
+    watches = _explorer_watch_store(store).list_watches(active_only=True)
+    addresses = [w["value"] for w in watches if w.get("watch_type") == "address"]
     if query:
         raw = query.get("address", []) + query.get("addresses", [])
         for item in raw:
             addresses.extend(a.strip() for a in str(item).split(",") if a.strip())
+    seen: set[str] = set()
     cards = []
     for address in addresses[:50]:
+        if address in seen:
+            continue
+        seen.add(address)
         item = explorer_address_live(chain, address, limit=10)
+        watch = next((w for w in watches if w.get("watch_type") == "address" and w.get("value") == address), {})
         cards.append(
             {
                 "address": address,
+                "label": watch.get("label", ""),
+                "item_id": watch.get("item_id", ""),
                 "activity_count": item["history_count"],
+                "utxo_count": item["profile"]["utxo_count"],
                 "total": item["profile"]["total"],
                 "latest": item["history"][:3],
             }
         )
-    return {"watchlist": cards, "count": len(cards), "generated_at": int(time.time())}
+    return {
+        "watchlist": cards,
+        "watches": watches,
+        "summary": _explorer_watch_store(store).summary(),
+        "count": len(cards),
+        "generated_at": int(time.time()),
+    }
+
+
+def explorer_watchlist_add(store: Any, chain: Any, body: dict[str, Any]) -> dict[str, Any]:
+    watch_type = str(body.get("watch_type") or body.get("type") or "address").lower().strip()
+    value = str(body.get("value") or body.get("address") or body.get("txid") or body.get("block") or "").strip()
+    label = str(body.get("label") or "").strip()[:120]
+    if watch_type == "address":
+        from .crypto import validate_address
+
+        if not validate_address(value):
+            raise ValueError("address is not a valid NetCoin address")
+    elif watch_type == "transaction":
+        if len(value) != 64 or any(c not in "0123456789abcdefABCDEF" for c in value):
+            raise ValueError("transaction watch value must be a txid")
+    elif watch_type == "block":
+        if not value:
+            raise ValueError("block watch value is required")
+    watch = _explorer_watch_store(store).add_watch(watch_type, value, label=label)
+    return {"ok": True, "watch": watch, "watchlist": explorer_watchlist_live(store, chain, {})["watchlist"]}
+
+
+def explorer_watchlist_remove(store: Any, body: dict[str, Any]) -> dict[str, Any]:
+    item_id = str(body.get("item_id") or "").strip()
+    if not item_id:
+        raise ValueError("item_id is required")
+    watch = _explorer_watch_store(store).deactivate_watch(item_id)
+    return {"ok": bool(watch), "watch": watch}
 
 
 def explorer_address_csv(chain: Any, address: str) -> str:
@@ -250,7 +382,106 @@ def faucet_admin_status(state: dict[str, Any] | None = None) -> dict[str, Any]:
     }
 
 
-def operator_live_controls(chain: Any, node: Any | None = None) -> dict[str, Any]:
+def _read_json_file(path: Path) -> dict[str, Any] | None:
+    try:
+        if not path.exists():
+            return None
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _latest_ledger_audit(root: Path | None, chain_dir: Path | None) -> dict[str, Any]:
+    candidates: list[Path] = []
+    if chain_dir is not None:
+        candidates.extend(
+            [
+                chain_dir / "ledger_audit_report.json",
+                chain_dir / "reports" / "ledger_audit_report.json",
+                chain_dir / "reports" / "ledger-audit.json",
+            ]
+        )
+    if root is not None:
+        candidates.extend(
+            [
+                root / "reports" / "ledger_audit_report.json",
+                root / "reports" / "ledger-audit.json",
+            ]
+        )
+    existing = [p for p in candidates if p.exists()]
+    report_path = max(existing, key=lambda p: p.stat().st_mtime) if existing else None
+    report = _read_json_file(report_path) if report_path else None
+    rows_checked = 0
+    if report:
+        rows_checked = len(report.get("independent", {}).get("accounts", []) or [])
+    ledger_hint = chain_dir / "accounting.sqlite" if chain_dir is not None else Path("accounting.sqlite")
+    return {
+        "status": "available" if report else "missing-report",
+        "ok": bool(report.get("ok")) if report else None,
+        "drift_detected": bool(report and (not report.get("ok") or report.get("mismatches"))),
+        "rows_checked": rows_checked,
+        "report_path": str(report_path) if report_path else "",
+        "command": f"python3 tools/run_ledger_audit.py --ledger {ledger_hint} --out reports/ledger_audit_report.json",
+    }
+
+
+def _maintenance_status(chain: Any, chain_dir: Path | None) -> dict[str, Any]:
+    backend = str(getattr(chain, "backend", "unknown"))
+    sqlite_path = chain_dir / "netcoin.sqlite" if chain_dir is not None else None
+    json_path = chain_dir / "chain.json" if chain_dir is not None else None
+    backup_candidates: list[Path] = []
+    if chain_dir is not None:
+        backup_candidates.extend(chain_dir.glob("*.bak"))
+        backup_candidates.extend((chain_dir / "backups").glob("*"))
+    latest_backup = max(backup_candidates, key=lambda p: p.stat().st_mtime) if backup_candidates else None
+    return {
+        "backend": backend,
+        "data_dir": str(chain_dir or ""),
+        "sqlite_present": bool(sqlite_path and sqlite_path.exists()),
+        "json_present": bool(json_path and json_path.exists()),
+        "backup_available": bool(latest_backup),
+        "latest_backup": str(latest_backup) if latest_backup else "",
+        "reindex_command": "python3 -m netcoin.cli reindex",
+        "backup_command": "python3 -m netcoin.cli backup --out backups/$(date +%Y%m%d-%H%M%S)",
+        "restore_note": "Restore stays manual until an operator-run restore drill report exists.",
+        "destructive_actions_enabled": False,
+    }
+
+
+def _advertise_status(node: Any | None) -> dict[str, Any]:
+    if node is None:
+        return {
+            "advertise": "",
+            "status": "not-configured",
+            "unreachable": False,
+            "error": "",
+            "last_check": "live node unavailable",
+        }
+    info: dict[str, Any] = {}
+    try:
+        if hasattr(node, "info"):
+            info = node.info()
+    except Exception:
+        info = {}
+    advertised = str(info.get("advertise") or getattr(node, "self_url", "") or "")
+    unreachable = bool(info.get("advertise_unreachable", getattr(node, "advertise_unreachable", False)))
+    error = str(info.get("advertise_unreachable_error", getattr(node, "advertise_unreachable_error", "")) or "")
+    if not advertised:
+        status = "not-configured"
+    elif unreachable:
+        status = "unreachable"
+    else:
+        status = "reachable"
+    return {
+        "advertise": advertised,
+        "status": status,
+        "unreachable": unreachable,
+        "error": error,
+        "last_check": "startup self-dial" if advertised else "not announced",
+    }
+
+
+def operator_live_controls(chain: Any, node: Any | None = None, root: str | Path | None = None) -> dict[str, Any]:
     peers = []
     try:
         pm = getattr(node, "peer_manager", None)
@@ -264,13 +495,93 @@ def operator_live_controls(chain: Any, node: Any | None = None) -> dict[str, Any
         mempool = chain.mempool_info()
     except Exception:
         height, tip, mempool = 0, "", {}
+    try:
+        chainstate = chain.chainstate_commitment()
+    except Exception as exc:
+        chainstate = {"ok": False, "error": str(exc) or exc.__class__.__name__}
+    chain_dir = Path(getattr(chain, "data_dir", "")) if getattr(chain, "data_dir", None) else None
+    root_path = Path(root) if root is not None else None
     return {
         "height": height,
         "tip": tip,
         "mempool": mempool,
         "peers": peers,
+        "chainstate": chainstate,
+        "ledger_audit": _latest_ledger_audit(root_path, chain_dir),
+        "peer_advertise": _advertise_status(node),
+        "maintenance": _maintenance_status(chain, chain_dir),
         "runbook_actions": ["verify-db", "ops-bundle", "reindex", "backup", "release-verify"],
         "diagnostic_bundle": "/api/operator/diagnostics/bundle",
+    }
+
+
+def localnet_onboarding_status(chain: Any, store: Any | None = None, node: Any | None = None) -> dict[str, Any]:
+    try:
+        height = int(chain.height())
+        tip = str(chain.tip_hash())
+    except Exception:
+        height, tip = 0, ""
+    try:
+        mempool = chain.mempool_info()
+    except Exception:
+        mempool = {}
+    try:
+        wallet_payload = wallet_workflow_status(store) if store is not None else {}
+    except Exception:
+        wallet_payload = {}
+    faucet_status = "unknown"
+    if store is not None:
+        try:
+            data = store.load()
+            faucet_state = data.get("faucet_state", {})
+            faucet_status = "paused" if faucet_state.get("paused") else "available"
+        except Exception:
+            faucet_status = "unknown"
+    node_status = "available" if tip else "unknown"
+    if node is not None:
+        try:
+            health = node.health() if hasattr(node, "health") else {}
+            node_status = "available" if health.get("ok", True) else "degraded"
+        except Exception:
+            node_status = "unknown"
+    return {
+        "schema": "netcoin-localnet-status-v1",
+        "status": "available" if tip else "setup-required",
+        "generated_at": int(time.time()),
+        "height": height,
+        "tip": tip,
+        "services": {
+            "node_api": {
+                "status": node_status,
+                "height": height,
+                "tip": tip,
+                "health_endpoint": "/health",
+                "info_endpoint": "/info",
+            },
+            "wallet": {
+                "status": "available" if wallet_payload else "guide-only",
+                "endpoint": "/api/wallet/workflow",
+                "fee_presets": wallet_payload.get("fee_presets", {}),
+            },
+            "faucet": {
+                "status": faucet_status,
+                "endpoint": "/api/faucet/status",
+            },
+            "explorer": {
+                "status": "available",
+                "endpoint": "/api/explorer/mempool",
+                "mempool": mempool,
+            },
+        },
+        "commands": {
+            "install": "python3 -m venv .venv && . .venv/bin/activate && python3 -m pip install -e .",
+            "localnet_harness": "PYTHONPATH=. python3 tools/run_localnet.py --nodes 3 --bootstrap-blocks 101 --topology line",
+            "single_node": "python3 -m netcoin --data ~/.netcoin-local node --host 127.0.0.1 --port 28444",
+            "wallet": "python3 -m netcoin web --node http://127.0.0.1:28444 --faucet http://127.0.0.1:8000/api",
+            "mine": "python3 -m netcoin miner --node http://127.0.0.1:28444 --wallet local-wallet.json --blocks 1 --sync-after",
+        },
+        "testnet_only": True,
+        "real_money_value": False,
     }
 
 
@@ -288,6 +599,62 @@ def exchange_live_status(store: Any) -> dict[str, Any]:
         "custody": data.get("exchange_custody", {"hot": 0, "warm": 0, "cold": 0}),
         "reserve_attestations": reserve[-10:],
         "risk_alerts": data.get("exchange_risk_alerts", []),
+    }
+
+
+def exchange_listing_readiness(store: Any, root: str | Path | None = None) -> dict[str, Any]:
+    """Return the code-side exchange/listing readiness state.
+
+    This deliberately does not claim that NetCoin is listed anywhere. Real listings
+    require external counterparties, legal review, liquidity, custody operations,
+    and market-maker/compliance work outside the repository.
+    """
+    base = Path(root) if root is not None else Path(__file__).resolve().parents[1]
+    live = exchange_live_status(store)
+    files = {
+        "exchange_dashboard": base / "sites" / "exchange" / "index.html",
+        "exchange_ledger": base / "netcoin" / "exchange.py",
+        "deposit_reorg_drill": base / "tests" / "test_exchange_deposit_reorg_drill.py",
+        "proof_of_reserves": base / "netcoin" / "exchange_reserves.py",
+        "accounting_ledger": base / "netcoin" / "exchange_accounting.py",
+        "readiness_doc": base / "docs" / "EXCHANGE_READINESS.md",
+    }
+    code_gates = [
+        {"id": "deposit-withdrawal-state-machine", "label": "Deposit and withdrawal state machine", "status": "available" if files["exchange_ledger"].exists() else "missing", "evidence": "netcoin/exchange.py"},
+        {"id": "reorg-safe-deposit-drill", "label": "Reorg-safe deposit drill", "status": "available" if files["deposit_reorg_drill"].exists() else "missing", "evidence": "tests/test_exchange_deposit_reorg_drill.py"},
+        {"id": "proof-of-reserves-tooling", "label": "Proof-of-reserves tooling", "status": "available" if files["proof_of_reserves"].exists() else "missing", "evidence": "netcoin/exchange_reserves.py"},
+        {"id": "accounting-reconciliation", "label": "Accounting reconciliation helpers", "status": "available" if files["accounting_ledger"].exists() else "missing", "evidence": "netcoin/exchange_accounting.py"},
+        {"id": "operator-dashboard", "label": "Operator exchange dashboard", "status": "available" if files["exchange_dashboard"].exists() else "missing", "evidence": "sites/exchange/index.html"},
+        {"id": "readiness-doc", "label": "Exchange readiness documentation", "status": "available" if files["readiness_doc"].exists() else "recommended", "evidence": "docs/EXCHANGE_READINESS.md"},
+    ]
+    external_blockers = [
+        {"id": "legal-review", "label": "Legal/entity/compliance review", "status": "external"},
+        {"id": "exchange-counterparty", "label": "Exchange or broker counterparty approval", "status": "external"},
+        {"id": "liquidity-market-maker", "label": "Liquidity and market-maker agreement", "status": "external"},
+        {"id": "independent-security-audit", "label": "Independent security audit", "status": "external"},
+        {"id": "production-custody-ops", "label": "Production custody operations and insurance decision", "status": "external"},
+    ]
+    return {
+        "status": "code-side-testnet-readiness",
+        "real_listing_available": False,
+        "production_ready": False,
+        "testnet_only": True,
+        "real_money_value": False,
+        "summary": "Code-side exchange integration tooling is visible for testnet operators, but NetCoin is not listed and this is not production exchange readiness.",
+        "code_gates": code_gates,
+        "external_blockers": external_blockers,
+        "live_counts": {
+            "deposits": len(live.get("deposits", [])),
+            "withdrawals": len(live.get("withdrawals", [])),
+            "reserve_attestations": len(live.get("reserve_attestations", [])),
+            "risk_alerts": len(live.get("risk_alerts", [])),
+        },
+        "commands": {
+            "audit_package": "python3 tools/generate_external_audit_package.py --out reports/external-audit-package",
+            "mainnet_readiness": "python3 tools/run_mainnet_readiness.py --strict --timeout 300 --out reports/mainnet_readiness_report.json",
+            "ledger_audit": "python3 tools/run_ledger_audit.py --db <exchange-ledger.sqlite> --out reports/ledger_audit_report.json",
+            "reserve_attestation": "python3 -m netcoin.exchange_reserves --help",
+        },
     }
 
 

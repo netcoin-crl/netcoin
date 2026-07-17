@@ -824,6 +824,8 @@ class AppStore:
             "scopes": payload.get("scopes", ["merchant", "write"]),
             "created_at": now(),
             "last_used_at": None,
+            "active": True,
+            "revoked_at": None,
         }
         data["merchants"].setdefault(merchant_id, {"merchant_id": merchant_id, "created_at": now()})
         self.save(data)
@@ -833,6 +835,34 @@ class AppStore:
             "api_key": raw,
             "warning": "Store this API key now. Only its hash is saved.",
         }
+
+    def list_api_keys(self, merchant_id: str | None = None) -> dict[str, Any]:
+        merchant_id = str(merchant_id or "")[:80]
+        keys = []
+        for item in self.load().get("api_keys", {}).values():
+            if merchant_id and item.get("merchant_id") != merchant_id:
+                continue
+            public = {k: v for k, v in item.items() if k != "key_hash"}
+            public["active"] = public.get("active", True) and not public.get("revoked_at")
+            keys.append(public)
+        keys.sort(key=lambda row: int(row.get("created_at", 0) or 0), reverse=True)
+        return {"api_keys": keys, "count": len(keys)}
+
+    def revoke_api_key(self, payload: dict[str, Any]) -> dict[str, Any]:
+        key_id = str(payload.get("key_id") or "").strip()
+        if not key_id:
+            raise AppError("key_id is required")
+        merchant_id = str(payload.get("merchant_id") or payload.get("developer_id") or payload.get("app_id") or "")[:80]
+        data = self.load()
+        record = data.get("api_keys", {}).get(key_id)
+        if not record:
+            raise AppError("api key not found")
+        if merchant_id and record.get("merchant_id") != merchant_id:
+            raise AppError("api key does not belong to this developer")
+        record["active"] = False
+        record["revoked_at"] = now()
+        self.save(data)
+        return {k: v for k, v in record.items() if k != "key_hash"}
 
     def register_public_api_key(self, payload: dict[str, Any], client_ip: str) -> dict[str, Any]:
         """Free self-service developer key (NIP-0004 auth). Public reads stay
@@ -872,13 +902,21 @@ class AppStore:
         }
 
     def check_api_key(self, raw: Any) -> bool:
-        """True if the presented key matches any stored key hash (self-service
-        or merchant). Does not persist last-used to avoid a disk write per request."""
+        """True if the presented key matches any active stored key hash.
+
+        The check avoids a disk write per request, so it does not update
+        last_used_at here. Revoked keys are ignored.
+        """
         candidate = str(raw or "")
         if not candidate:
             return False
         digest = hashlib.sha256(candidate.encode()).hexdigest()
-        return any(hmac.compare_digest(rec.get("key_hash", ""), digest) for rec in self.load()["api_keys"].values())
+        return any(
+            rec.get("active", True)
+            and not rec.get("revoked_at")
+            and hmac.compare_digest(rec.get("key_hash", ""), digest)
+            for rec in self.load()["api_keys"].values()
+        )
 
     def _hash_idempotent_payload(self, action: str, payload: dict[str, Any]) -> str:
         clean = {
@@ -4386,6 +4424,8 @@ def route_app_get(
         if developer_id:
             links = [item for item in links if item.get("developer_id") == developer_id]
         return 200, {"payment_links": links, "count": len(links)}, "application/json"
+    if path == "/developer/api-keys":
+        return 200, store.list_api_keys(q("developer_id") or q("app_id") or None), "application/json"
     if path == "/developer/webhooks":
         data = store.load()
         developer_id = q("developer_id") or q("app_id")
@@ -4474,7 +4514,12 @@ def route_app_get(
     if path == "/operator/live":
         from ..live_product import operator_live_controls
 
-        return 200, operator_live_controls(chain, node=node), "application/json"
+        return 200, operator_live_controls(chain, node=node, root=Path(__file__).resolve().parents[2]), "application/json"
+
+    if path == "/localnet/status":
+        from ..live_product import localnet_onboarding_status
+
+        return 200, localnet_onboarding_status(chain, store=store, node=node), "application/json"
 
     if path == "/operator/diagnostics/bundle":
         from ..health_center import build_health_center
@@ -4484,7 +4529,7 @@ def route_app_get(
             "health": build_health_center(
                 root=Path(__file__).resolve().parents[2], chain=chain, node=node, store=store
             ),
-            "operator": operator_live_controls(chain, node=node),
+            "operator": operator_live_controls(chain, node=node, root=Path(__file__).resolve().parents[2]),
             "generated_at": now(),
         }
         payload["bundle_hash"] = digest_payload(payload)
@@ -4502,6 +4547,10 @@ def route_app_get(
         from ..live_product import exchange_live_status
 
         return 200, exchange_live_status(store), "application/json"
+    if path == "/exchange/listing-readiness":
+        from ..live_product import exchange_listing_readiness
+
+        return 200, exchange_listing_readiness(store, root=Path(__file__).resolve().parents[2]), "application/json"
     if path == "/release/verify":
         from ..live_product import release_verify_payload
 
@@ -4765,6 +4814,14 @@ def _route_app_post_uncached(
         from ..live_product import save_wallet_draft
 
         return 200, save_wallet_draft(store, body)
+    if path == "/explorer/watchlist":
+        from ..live_product import explorer_watchlist_add
+
+        return 200, explorer_watchlist_add(store, chain, body)
+    if path == "/explorer/watchlist/remove":
+        from ..live_product import explorer_watchlist_remove
+
+        return 200, explorer_watchlist_remove(store, body)
     if path == "/release/verify":
         from ..live_product import release_verify_payload
 
@@ -4774,6 +4831,12 @@ def _route_app_post_uncached(
         return 200, store.create_invoice(chain, body)
     if path == "/developer/payment-links":
         return 200, store.create_payment_link(chain, body)
+    if path == "/developer/api-keys":
+        payload = dict(body)
+        payload["merchant_id"] = str(body.get("developer_id") or body.get("app_id") or body.get("merchant_id") or "default")[:80]
+        return 200, store.create_api_key(payload)
+    if path == "/developer/api-keys/revoke":
+        return 200, store.revoke_api_key(body)
     if path == "/developer/rewards":
         return 200, store.create_developer_reward(body)
     if path == "/developer/rewards/batch":

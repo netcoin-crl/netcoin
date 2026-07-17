@@ -54,7 +54,7 @@
     faucet: { title: "Faucet", note: "Testnet coin claims and faucet health.", route: "#/faucet", nav: ["navFaucet", "navStats"] },
     status: { title: "Status", note: "Service and network health: node status, peers, faucet, mempool, and sync state.", route: "#/stats", nav: ["navStats", "navPeers", "navFaucet"] },
     community: { title: "Community", note: "Community tools: bounties, gifts, rewards, leaderboards, names, and profiles.", route: "#/community", nav: ["navCommunity", "navNames"] },
-    markets: { title: "Markets", note: "Phase 7 testnet/demo area: polls, escrow, recurring agreements, contracts, and prediction-market demos.", route: "#/phase7", nav: ["navPhase7"] },
+    markets: { title: "Markets", note: "Testnet demo area: polls, escrow, recurring agreements, contracts, and prediction-market demos.", route: "#/phase7", nav: ["navPhase7"] },
     docs: { title: "Docs", note: "User, merchant, developer, and operator documentation links.", route: "#/api", nav: ["navApi"] },
     api: { title: "API", note: "API reference and SDK entry point for developers.", route: "#/api", nav: ["navApi"] },
   };
@@ -569,7 +569,7 @@
 
 
   async function phase7Page() {
-    setView(el(`<div class="card muted">Loading Phase 7 app-layer contracts…</div>`));
+    setView(el(`<div class="card muted">Loading app-layer contracts…</div>`));
     let templates = {}, recurring = [], escrows = [], polls = [], markets = [];
     try {
       const [tpl, rec, escrowsResp, pollsResp, marketsResp] = await Promise.all([
@@ -577,7 +577,7 @@
       ]);
       templates = tpl.templates || {}; recurring = rec.agreements || []; escrows = escrowsResp.escrows || []; polls = pollsResp.polls || []; markets = marketsResp.markets || [];
     } catch (e) {
-      setView(el(`<div class="card err">Could not load Phase 7 data: ${esc(e.message)}</div>`)); return;
+      setView(el(`<div class="card err">Could not load app-layer data: ${esc(e.message)}</div>`)); return;
     }
     const tplRows = Object.values(templates).map((t) => `<tr><td>${esc(t.type)}</td><td>${esc(t.title)}</td><td>${esc(t.description)}</td></tr>`).join("");
     const recRows = recurring.map((r) => `<tr><td>${esc(r.label || r.agreement_id)}</td><td>${esc(r.amount)} NET</td><td>${esc(r.interval)}</td><td>${esc(r.status)}</td><td>${new Date((r.next_due_at || 0) * 1000).toLocaleString()}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No recurring agreements yet.</td></tr>`;
@@ -585,7 +585,7 @@
     const pollRows = polls.map((p) => `<tr><td>${esc(p.title)}</td><td>${esc(p.status)}</td><td>${p.vote_count || 0}</td><td><pre>${esc(JSON.stringify(p.results || {}, null, 2))}</pre></td></tr>`).join("") || `<tr><td colspan="4" class="muted">No polls yet.</td></tr>`;
     const marketRows = markets.map((m) => `<tr><td>${esc(m.question)}</td><td>${esc(m.mode)}</td><td>${esc(m.status)}</td><td>${(m.trades || []).length}</td><td>${esc(m.winning_outcome_id || "")}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No prediction markets yet.</td></tr>`;
     setView(el(`<div>
-      <div class="card"><h2>Phase 7: smart-contract templates</h2><p class="muted">These are app-layer templates first: they create descriptors, payout plans, agreements, votes, and market state without changing consensus rules.</p><table><thead><tr><th>Type</th><th>Name</th><th>Purpose</th></tr></thead><tbody>${tplRows}</tbody></table></div>
+      <div class="card"><h2>App-layer contract templates</h2><p class="muted">These are app-layer templates first: they create descriptors, payout plans, agreements, votes, and market state without changing consensus rules.</p><table><thead><tr><th>Type</th><th>Name</th><th>Purpose</th></tr></thead><tbody>${tplRows}</tbody></table></div>
       <div class="card"><h2>Create timelock or multisig template</h2><input id="tlPub" class="mono" placeholder="public key for timelock" /><input id="tlHeight" placeholder="unlock height" /><input id="tlAmount" placeholder="amount NET" /><button id="btnTimelock" type="button">Create timelock</button><hr><input id="msPubs" class="mono" placeholder="comma-separated public keys" /><input id="msReq" placeholder="required signatures, e.g. 2" /><button id="btnMultisig" type="button">Create multisig</button><pre id="contractOut"></pre></div>
       <div class="card"><h2>Recurring payment agreements</h2><input id="rpPayer" class="mono" placeholder="payer address" /><input id="rpRecipient" class="mono" placeholder="recipient address" /><input id="rpAmount" placeholder="amount NET" /><select id="rpInterval"><option>monthly</option><option>weekly</option><option>daily</option><option>yearly</option></select><input id="rpMemo" placeholder="memo" /><button id="btnRecurring" type="button">Create agreement</button><table><thead><tr><th>Label</th><th>Amount</th><th>Interval</th><th>Status</th><th>Next due</th></tr></thead><tbody>${recRows}</tbody></table><pre id="recurringOut"></pre></div>
       <div class="card"><h2>2-of-3 escrow contracts</h2><input id="escBuyerPub" class="mono" placeholder="buyer public key" /><input id="escSellerPub" class="mono" placeholder="seller public key" /><input id="escMediatorPub" class="mono" placeholder="mediator public key" /><input id="escBuyerAddr" class="mono" placeholder="buyer refund address" /><input id="escSellerAddr" class="mono" placeholder="seller payout address" /><input id="escAmount" placeholder="amount NET" /><textarea id="escTerms" placeholder="deal terms"></textarea><button id="btnEscrow" type="button">Create escrow</button><table><thead><tr><th>ID</th><th>Escrow address</th><th>Amount</th><th>Status</th></tr></thead><tbody>${escrowRows}</tbody></table><pre id="escrowOut"></pre></div>
@@ -630,7 +630,7 @@
       <tr><td class="mono">/api/merchant/webhooks</td><td>Merchant webhook subscriptions and event log.</td></tr>
       <tr><td class="mono">/api/community/gifts</td><td>Gift-link creation and claim status.</td></tr>
       <tr><td class="mono">/api/wallet/statement</td><td>Wallet accounting statement by address.</td></tr>
-      <tr><td class="mono">/api/contracts/templates</td><td>Phase 7 contract template registry.</td></tr>
+      <tr><td class="mono">/api/contracts/templates</td><td>Contract template registry.</td></tr>
       <tr><td class="mono">/api/recurring</td><td>Recurring payment agreements and due invoices.</td></tr>
       <tr><td class="mono">/api/escrows</td><td>2-of-3 escrow contract records and payout plans.</td></tr>
       <tr><td class="mono">/api/polls</td><td>Signed-message polls and vote results.</td></tr>

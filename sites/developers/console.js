@@ -2,8 +2,22 @@
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+function getDeveloperId() {
+  return ($('#developerId') && $('#developerId').value.trim()) || currentDeveloperId || '';
+}
+
+function authHeaders(base = {}) {
+  const headers = { ...base };
+  const keyInput = $('#developerApiKey');
+  const apiKey = keyInput ? keyInput.value.trim() : '';
+  if (apiKey) headers['X-Netcoin-Api-Key'] = apiKey;
+  return headers;
+}
+
 async function api(path, options = {}) {
-  const r = await fetch('/api' + path, options);
+  const opts = { ...options };
+  opts.headers = authHeaders(opts.headers || {});
+  const r = await fetch('/api' + path, opts);
   const t = await r.text();
   let d;
   try {
@@ -13,6 +27,25 @@ async function api(path, options = {}) {
   }
   if (!r.ok || d.error) throw new Error(d.error || 'HTTP ' + r.status);
   return d;
+}
+
+async function postApi(path, payload) {
+  return api(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+function developerPayload(extra = {}) {
+  const developerId = getDeveloperId() || 'default';
+  return { developer_id: developerId, ...extra };
+}
+
+function setResult(selector, value) {
+  const el = $(selector);
+  if (!el) return;
+  el.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 }
 
 function statCard(label, value) {
@@ -77,6 +110,52 @@ function renderLinks(dashboard) {
     .join('') || '<tr><td colspan="5" class="muted">No payment links yet.</td></tr>';
 }
 
+async function loadApiKeys(developerId) {
+  const result = await api('/developer/api-keys' + (developerId ? '?developer_id=' + encodeURIComponent(developerId) : ''));
+  const body = $('#apiKeysTable tbody');
+  if (!body) return;
+  body.innerHTML = result.api_keys
+    .map((k) => {
+      const active = k.active !== false && !k.revoked_at;
+      const action = active ? `<button type="button" class="secondary" data-revoke-key="${esc(k.key_id)}">Revoke</button>` : '';
+      return row([
+        `<span class="mono">${esc(k.key_id)}</span>`,
+        active ? '<span class="ok">active</span>' : '<span class="muted">revoked</span>',
+        esc(k.created_at || '—'),
+        action,
+      ]);
+    })
+    .join('') || '<tr><td colspan="4" class="muted">No API keys yet.</td></tr>';
+  body.querySelectorAll('[data-revoke-key]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Revoking…';
+      try {
+        const result = await postApi('/developer/api-keys/revoke', developerPayload({ key_id: btn.dataset.revokeKey }));
+        setResult('#apiKeyOut', { revoked: result.key_id, active: result.active });
+      } catch (e) {
+        setResult('#apiKeyOut', 'Failed to revoke key: ' + e.message);
+      }
+      await loadApiKeys(getDeveloperId());
+    });
+  });
+}
+
+async function loadWebhooks(developerId) {
+  const result = await api('/developer/webhooks' + (developerId ? '?developer_id=' + encodeURIComponent(developerId) : ''));
+  const body = $('#webhooksTable tbody');
+  if (!body) return;
+  body.innerHTML = result.webhooks
+    .map((h) =>
+      row([
+        `<span class="mono">${esc(h.webhook_id)}</span><br><span class="muted">${esc(h.url)}</span>`,
+        esc((h.events || []).join(', ')),
+        h.active === false ? '<span class="muted">inactive</span>' : '<span class="ok">active</span>',
+      ])
+    )
+    .join('') || '<tr><td colspan="3" class="muted">No webhooks registered yet.</td></tr>';
+}
+
 async function loadDeadLetters(developerId) {
   const result = await api('/developer/webhook-events/dead-letters' + (developerId ? '?developer_id=' + encodeURIComponent(developerId) : ''));
   $('#deadLettersTable tbody').innerHTML = result.dead_letters
@@ -98,13 +177,9 @@ async function loadDeadLetters(developerId) {
         btn.disabled = true;
         btn.textContent = 'Retrying…';
         try {
-          await api('/developer/webhook-events/deliver', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event_id: btn.dataset.retry }),
-          });
+          await postApi('/developer/webhook-events/deliver', { event_id: btn.dataset.retry });
         } catch (e) {
-          /* fall through — reload shows current state either way */
+          /* reload shows current state either way */
         }
         await loadDeadLetters(currentDeveloperId);
       });
@@ -141,32 +216,113 @@ async function loadPolicy(developerId) {
   }
 }
 
+async function createPaymentLink() {
+  try {
+    const result = await postApi('/developer/payment-links', developerPayload({
+      address: $('#paymentAddress').value.trim(),
+      amount: $('#paymentAmount').value.trim(),
+      title: $('#paymentTitle').value.trim() || 'NetCoin payment',
+      memo: $('#paymentMemo').value.trim(),
+    }));
+    setResult('#paymentLinkOut', { link_id: result.link_id, checkout_url: result.checkout_url, payment_uri: result.payment_uri, status: result.status });
+    await loadConsole();
+  } catch (e) {
+    setResult('#paymentLinkOut', 'Failed to create payment link: ' + e.message);
+  }
+}
+
+async function createApiKey() {
+  try {
+    const result = await postApi('/developer/api-keys', developerPayload({ permissions: ['app:write', 'merchant:write', 'webhooks:deliver'] }));
+    setResult('#apiKeyOut', { key_id: result.key_id, api_key: result.api_key, warning: result.warning });
+    await loadApiKeys(getDeveloperId());
+  } catch (e) {
+    setResult('#apiKeyOut', 'Failed to create API key: ' + e.message);
+  }
+}
+
+function parseEvents(value) {
+  return String(value || '')
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function createWebhook() {
+  try {
+    const payload = developerPayload({
+      url: $('#webhookUrl').value.trim(),
+      events: parseEvents($('#webhookEvents').value),
+    });
+    const secret = $('#webhookSecret').value.trim();
+    if (secret) payload.secret = secret;
+    const result = await postApi('/developer/webhooks', payload);
+    setResult('#webhookOut', { webhook_id: result.webhook_id, url: result.url, events: result.events, secret: result.secret, warning: result.warning });
+    await Promise.all([loadWebhooks(getDeveloperId()), loadConsole()]);
+  } catch (e) {
+    setResult('#webhookOut', 'Failed to register webhook: ' + e.message);
+  }
+}
+
+async function simulateRewards() {
+  try {
+    const result = await postApi('/developer/simulate/rewards', developerPayload({
+      count: Number($('#rewardCount').value || 1),
+      amount_sats: Number($('#rewardAmountSats').value || 0),
+      withdrawal_threshold_sats: Number($('#withdrawalThresholdSats').value || 0),
+    }));
+    setResult('#rewardSimOut', {
+      simulation_id: result.simulation_id,
+      reward_count: result.reward_count,
+      total_sats: result.total_sats,
+      dust_risk: result.dust_risk,
+      estimated_batch_fee_sats: result.estimated_batch_fee_sats,
+      recommendation: result.recommendation,
+    });
+  } catch (e) {
+    setResult('#rewardSimOut', 'Failed to simulate rewards: ' + e.message);
+  }
+}
+
 async function loadConsole() {
-  const developerId = $('#developerId').value.trim();
+  const developerId = getDeveloperId();
   currentDeveloperId = developerId;
   $('#loadMsg').textContent = 'Loading…';
   try {
     const consoleData = await api('/developer/console' + (developerId ? '?developer_id=' + encodeURIComponent(developerId) : ''));
-    $('#consoleBody').style.display = '';
+    $('#consoleBody').hidden = false;
     $('#loadMsg').textContent = '';
     renderStats(consoleData.dashboard);
     renderRewards(consoleData.dashboard);
     renderWithdrawals(consoleData.dashboard);
     renderLinks(consoleData.dashboard);
     $('#sdkOut').textContent = JSON.stringify({ sdk: consoleData.sdk, quick_actions: consoleData.quick_actions }, null, 2);
-    await Promise.all([loadDeadLetters(developerId), loadDeposits(developerId), loadPolicy(developerId)]);
+    await Promise.all([
+      loadDeadLetters(developerId),
+      loadDeposits(developerId),
+      loadPolicy(developerId),
+      loadApiKeys(developerId),
+      loadWebhooks(developerId),
+    ]);
   } catch (e) {
     $('#loadMsg').textContent = 'Failed to load console: ' + e.message;
-    $('#consoleBody').style.display = 'none';
+    $('#consoleBody').hidden = true;
   }
 }
 
 $('#loadBtn').addEventListener('click', loadConsole);
+$('#refreshAllBtn').addEventListener('click', loadConsole);
 $('#developerId').addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter') loadConsole();
 });
 $('#refreshDeadLetters').addEventListener('click', () => loadDeadLetters(currentDeveloperId));
 $('#refreshDeposits').addEventListener('click', () => loadDeposits(currentDeveloperId));
+$('#createPaymentLinkBtn').addEventListener('click', createPaymentLink);
+$('#createApiKeyBtn').addEventListener('click', createApiKey);
+$('#refreshApiKeysBtn').addEventListener('click', () => loadApiKeys(getDeveloperId()));
+$('#createWebhookBtn').addEventListener('click', createWebhook);
+$('#refreshWebhooksBtn').addEventListener('click', () => loadWebhooks(getDeveloperId()));
+$('#simulateRewardsBtn').addEventListener('click', simulateRewards);
 
 const params = new URLSearchParams(location.search);
 const initialDeveloperId = params.get('developer_id') || params.get('id') || '';

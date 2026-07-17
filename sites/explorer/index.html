@@ -86,7 +86,7 @@
     }
   </style>
   <link rel="stylesheet" href="ui-polish.css?v=20260710-v0377-widen" />
-    <link rel="stylesheet" href="site-shell.css?v=20260716-nav-caret" />
+    <link rel="stylesheet" href="site-shell.css?v=20260716-sleek" />
 
 <style id="explorer-v016-polish">.explorer-pro-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:0 0 16px}.pro-card{display:block;border:1px solid var(--line,var(--bd));border-radius:12px;padding:14px;background:rgba(255,255,255,.035);text-decoration:none;color:inherit}.pro-card:hover{border-color:var(--accent,var(--acc));text-decoration:none}.pro-card b{display:block;font-size:18px;margin-bottom:4px}.pro-card span{display:block;color:var(--mut);font-size:13px}</style>
 </head>
@@ -98,9 +98,9 @@
     </header>
     <div class="search"><input id="q" type="search" placeholder="Search height, block hash, txid, or address - Enter" autocomplete="off" /></div>
     <section class="explorer-pro-grid" id="explorerProGrid">
-      <a class="pro-card" href="#/mempool"><b>Mempool</b><span>Pending txs, fee pressure, relay state</span></a>
-      <a class="pro-card" href="#/latest"><b>Latest blocks</b><span>Recent blocks and rewards</span></a>
-      <a class="pro-card" href="#/address"><b>Address lookup</b><span>Balances, UTXOs, labels, history</span></a>
+      <a class="pro-card" href="mempool.html"><b>Mempool</b><span>Pending tx count, total fees, fee range</span></a>
+      <a class="pro-card" href="#/latest"><b>Latest blocks</b><span>Recent blocks and rewards</span></a><a class="pro-card" href="tx.html"><b>Transaction risk</b><span>Confirmations, RBF, fees, policy warnings</span></a>
+      <a class="pro-card" href="address.html"><b>Address lookup</b><span>Balances, UTXO viewer, watchlist, history</span></a>
       <a class="pro-card" href="#/stats"><b>Reorg watch</b><span>Orphans, chain events, and CSV exports</span></a>
       <a class="pro-card" href="https://operator.netcoin.online"><b>Operator health</b><span>Sync, alerts, release trust</span></a>
     </section>
@@ -108,6 +108,6 @@
     <p class="muted" id="footer"></p>
   </div>
   <script src="explorer-app.js?v=20260630-reward-schedule"></script>
-<script src="site-shell.js?v=20260714-nav-groups"></script>
+<script src="site-shell.js?v=20260716-sleek"></script>
 </body>
 </html>

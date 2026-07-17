@@ -95,7 +95,7 @@ def test_nightly_fuzz_accumulator_source_smoke(tmp_path: Path):
     assert proc.returncode == 0, proc.stdout + proc.stderr
     payload = json.loads((tmp_path / "nightly.json").read_text(encoding="utf-8"))
     assert payload["ok"] is True
-    assert payload["fuzz_total_cases"] == 2 * 5
+    assert payload["fuzz_total_cases"] == 2 * 7
     assert payload["history_total_cases"] >= payload["fuzz_total_cases"]
     assert payload["rust_consensus_parity_ok"] is True
 
@@ -105,4 +105,15 @@ def test_nightly_fuzz_workflow_is_wired():
     assert "schedule:" in workflow
     assert "tools/run_nightly_fuzz_accumulator.py" in workflow
     assert "reports/fuzz_history" in workflow
+    assert "actions/cache@v4" in workflow
+    assert "actions/upload-artifact@v4" in workflow
     assert "dtolnay/rust-toolchain" in workflow
+
+
+def test_fuzz_all_includes_p2p_and_psbt_targets():
+    from netcoin.fuzz import FuzzConfig, run_fuzz
+
+    report = run_fuzz(FuzzConfig(target="all", iterations=1, max_bytes=16, seed=7))
+    targets = {item["target"] for item in report["targets"]}
+    assert {"p2p-message", "psbt"}.issubset(targets)
+    assert report["total_cases"] == len(report["targets"])

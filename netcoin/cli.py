@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import os
 import shutil
@@ -11,7 +12,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from .block import Block
@@ -47,6 +48,36 @@ from .tx import Transaction, amount_to_sats, sats_to_amount
 from .wallet import AutoLockWalletSession, Wallet, WalletError, confirm_seed_phrase, verify_seed_phrase
 from .webwallet import run_web_wallet
 
+
+
+def normalize_advertise_url(advertise: str | None) -> str | None:
+    if not advertise:
+        return None
+    normalized = advertise if "://" in advertise else "http://" + advertise
+    parsed = urlparse(normalized)
+    host = parsed.hostname or ""
+    if not host:
+        raise ValueError("advertise URL must include a host")
+    if host.lower() == "localhost":
+        raise ValueError("advertise URL must use a public IP or DNS name, not localhost")
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return normalized
+    blocked = [
+        ipaddress.ip_network("10.0.0.0/8"),
+        ipaddress.ip_network("172.16.0.0/12"),
+        ipaddress.ip_network("192.168.0.0/16"),
+        ipaddress.ip_network("127.0.0.0/8"),
+        ipaddress.ip_network("169.254.0.0/16"),
+        ipaddress.ip_network("203.0.113.0/24"),
+        ipaddress.ip_network("::1/128"),
+        ipaddress.ip_network("fc00::/7"),
+        ipaddress.ip_network("fe80::/10"),
+    ]
+    if any(ip in network for network in blocked):
+        raise ValueError("advertise URL must be a publicly reachable IP/DNS name with port forwarding, not a private, loopback, or documentation address")
+    return normalized
 
 def print_json(data: Any) -> None:
     print(json.dumps(data, indent=2, sort_keys=True))
@@ -1180,11 +1211,13 @@ def cmd_node(args: argparse.Namespace) -> None:
     if use_seeds:
         peers.extend(s for s in DEFAULT_TESTNET_SEEDS if s not in peers)
     # Peers are dialed as http:// URLs, so a bare host:port advertise (which is
-    # exactly what the wallet's Seed tab collects and documents, e.g.
-    # 203.0.113.5:28444) must be normalized to a URL — otherwise the node would
+    # exactly what the wallet's Seed tab collects and documents) must be
+    # normalized to a URL — otherwise the node would
     # refuse to start with "peer must start with http:// or https://".
-    if advertise and "://" not in advertise:
-        advertise = "http://" + advertise
+    try:
+        advertise = normalize_advertise_url(advertise)
+    except ValueError as exc:
+        raise SystemExit(f"invalid --advertise: {exc}") from exc
     run_node(
         data_dir=args.data,
         host=host,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import subprocess
@@ -148,6 +149,92 @@ class FileHardwareTransport:
             raise WalletError("hardware response file is not valid JSON") from exc
 
 
+
+
+def _qr_json_encode(payload: dict[str, Any]) -> str:
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _qr_json_decode(text: str) -> dict[str, Any]:
+    padded = text + ("=" * (-len(text) % 4))
+    try:
+        return json.loads(base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
+    except Exception as exc:
+        raise WalletError("hardware QR payload is not valid JSON") from exc
+
+
+@dataclass
+class QrAirgapHardwareTransport:
+    """QR text transport for air-gapped hardware signers.
+
+    The wallet emits a compact request string for camera/QR transfer and accepts
+    a signed response string scanned back from the device or companion app.
+    """
+
+    request_path: str | Path | None = None
+    response_path: str | Path | None = None
+    response_text: str = ""
+    name: str = "qr-airgap-hardware-transport"
+    request_prefix: str = "netcoin-hw-qr:"
+    response_prefix: str = "netcoin-hw-qr-signed:"
+
+    def available(self) -> bool:
+        return True
+
+    def encode_request(self, request: dict[str, Any]) -> str:
+        envelope = {"protocol": "netcoin-qr-hardware-signer-v1", "request": request}
+        return self.request_prefix + _qr_json_encode(envelope)
+
+    def decode_request(self, text: str) -> dict[str, Any]:
+        if not text.startswith(self.request_prefix):
+            raise WalletError("hardware QR request has an unknown prefix")
+        envelope = _qr_json_decode(text[len(self.request_prefix) :])
+        if envelope.get("protocol") != "netcoin-qr-hardware-signer-v1":
+            raise WalletError("hardware QR request protocol mismatch")
+        request = envelope.get("request")
+        if not isinstance(request, dict):
+            raise WalletError("hardware QR request is missing request payload")
+        return request
+
+    def encode_response(self, response: dict[str, Any]) -> str:
+        envelope = {"protocol": "netcoin-qr-hardware-signer-v1-response", "response": response}
+        return self.response_prefix + _qr_json_encode(envelope)
+
+    def decode_response(self, text: str) -> dict[str, Any]:
+        text = text.strip()
+        if text.startswith(self.response_prefix):
+            envelope = _qr_json_decode(text[len(self.response_prefix) :])
+            if envelope.get("protocol") != "netcoin-qr-hardware-signer-v1-response":
+                raise WalletError("hardware QR response protocol mismatch")
+            response = envelope.get("response")
+            if not isinstance(response, dict):
+                raise WalletError("hardware QR response is missing response payload")
+            return response
+        try:
+            response = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise WalletError("hardware QR response is not valid JSON") from exc
+        if not isinstance(response, dict):
+            raise WalletError("hardware QR response must be an object")
+        return response
+
+    def sign_psbt(self, request: dict[str, Any]) -> dict[str, Any]:
+        request_text = self.encode_request(request)
+        if self.request_path is not None:
+            path = Path(self.request_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(request_text, encoding="utf-8")
+        response_text = self.response_text.strip()
+        if not response_text and self.response_path is not None:
+            response_path = Path(self.response_path)
+            if response_path.exists():
+                response_text = response_path.read_text(encoding="utf-8").strip()
+        if not response_text:
+            location = f" at {self.response_path}" if self.response_path is not None else ""
+            raise WalletError(f"hardware QR request exported; scan the response back{location}")
+        return self.decode_response(response_text)
+
 @dataclass
 class SimulatedHardwareTransport:
     """Test/dev transport that delegates signing to a Wallet.
@@ -207,7 +294,7 @@ class HardwareSigner:
         if self.transport is None:
             raise WalletError(
                 "hardware signer transport is not configured; attach CommandHardwareTransport, "
-                "FileHardwareTransport, or a vendor adapter"
+                "FileHardwareTransport, QrAirgapHardwareTransport, or a vendor adapter"
             )
         if self.require_real_device and bool(getattr(self.transport, "simulated", False)):
             raise WalletError("simulated hardware transport is disabled for this signer")
@@ -263,6 +350,18 @@ def hardware_signer_from_env(prefix: str = "NETCOIN_HARDWARE_SIGNER") -> Hardwar
         import shlex
 
         return HardwareSigner(device_id=device_id, transport=CommandHardwareTransport(shlex.split(command)))
+    qr_request_path = os.environ.get(f"{prefix}_QR_REQUEST", "").strip()
+    qr_response_path = os.environ.get(f"{prefix}_QR_RESPONSE", "").strip()
+    qr_response_text = os.environ.get(f"{prefix}_QR_RESPONSE_TEXT", "").strip()
+    if qr_request_path or qr_response_path or qr_response_text:
+        return HardwareSigner(
+            device_id=device_id,
+            transport=QrAirgapHardwareTransport(
+                request_path=qr_request_path or None,
+                response_path=qr_response_path or None,
+                response_text=qr_response_text,
+            ),
+        )
     request_path = os.environ.get(f"{prefix}_REQUEST", "").strip()
     response_path = os.environ.get(f"{prefix}_RESPONSE", "").strip()
     if request_path and response_path:

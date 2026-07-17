@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Localnet Guide</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
+  <link rel="stylesheet" href="docs.css?v=20260716-cleanup" />
+  <link rel="stylesheet" href="site-shell.css?v=20260716-sleek" />
+</head>
+<body class="localnet-guide-page">
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="logo">N</div><div>NetCoin Localnet<small>launch, verify, and explore a local test network</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
+    </header>
+
+    <section class="hero dashboard-hero">
+      <div class="card lead">
+        <span class="pill">testnet only</span>
+        <h1>Launch a local NetCoin testnet.</h1>
+        <p>Use this page to start a node, mine blocks, open the wallet, request test coins, and verify activity in Explorer without searching through scattered commands.</p>
+        <div class="actions">
+          <a class="pill" href="#launch">Launch</a>
+          <a class="pill" href="#status">Status</a>
+          <a class="pill" href="#commands">Commands</a>
+        </div>
+      </div>
+      <div class="card notice warn">
+        <h2>Safety label</h2>
+        <p>Localnet and public-testnet coins have no real-money value.</p>
+      </div>
+    </section>
+
+    <section class="grid localnet-steps" id="launch" aria-label="Localnet launch path">
+      <div class="card"><span class="pill">1</span><h2>Install</h2><p>Create the Python environment.</p></div>
+      <div class="card"><span class="pill">2</span><h2>Start localnet</h2><p>Start localnet or a single node.</p></div>
+      <div class="card"><span class="pill">3</span><h2>Open wallet</h2><p>Point the browser wallet at your local API and keep all keys local.</p></div>
+      <div class="card"><span class="pill">4</span><h2>Mine and inspect</h2><p>Mine test blocks, then verify height, transactions, UTXOs, and mempool in Explorer.</p></div>
+    </section>
+
+    <section class="grid" id="status">
+      <div class="card">
+        <div class="section-head"><h2>Local service status</h2><button class="secondary" type="button" id="btnRefreshLocalnet">Refresh</button></div>
+        <p class="muted">When this page is served by a local NetCoin app server, these cards read <code>/api/localnet/status</code>. Static hosting shows setup guidance instead.</p>
+        <div class="localnet-status-grid" role="status" aria-live="polite" aria-atomic="false">
+          <div class="stat"><div class="k">Node API</div><div class="v" id="localnetNodeStatus">—</div></div>
+          <div class="stat"><div class="k">Wallet</div><div class="v" id="localnetWalletStatus">—</div></div>
+          <div class="stat"><div class="k">Faucet</div><div class="v" id="localnetFaucetStatus">—</div></div>
+          <div class="stat"><div class="k">Explorer</div><div class="v" id="localnetExplorerStatus">—</div></div>
+        </div>
+        <pre id="localnetStatusJson" class="compact-json" role="status" aria-live="polite">Loading local status…</pre>
+      </div>
+      <div class="card">
+        <h2>What success looks like</h2>
+        <ul class="compact-list">
+          <li>Node API returns a height and tip hash.</li>
+          <li>Wallet opens against the local node URL.</li>
+          <li>Faucet status returns a testnet-only state.</li>
+          <li>Explorer shows mempool and latest block information.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="grid" id="commands">
+      <div class="card command-card">
+        <h2>Install locally</h2>
+        <pre id="cmdInstall">python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install -e .</pre>
+        <button class="secondary" type="button" data-copy-target="cmdInstall">Copy install</button>
+      </div>
+      <div class="card command-card">
+        <h2>Run the localnet harness</h2>
+        <pre id="cmdHarness">PYTHONPATH=. python3 tools/run_localnet.py --nodes 3 --bootstrap-blocks 101 --topology line</pre>
+        <button class="secondary" type="button" data-copy-target="cmdHarness">Copy harness</button>
+      </div>
+      <div class="card command-card">
+        <h2>Start one local node</h2>
+        <pre id="cmdNode">python3 -m netcoin --data ~/.netcoin-local node --host 127.0.0.1 --port 28444</pre>
+        <button class="secondary" type="button" data-copy-target="cmdNode">Copy node</button>
+      </div>
+      <div class="card command-card">
+        <h2>Open local wallet</h2>
+        <pre id="cmdWallet">python3 -m netcoin web --node http://127.0.0.1:28444 --faucet http://127.0.0.1:8000/api</pre>
+        <button class="secondary" type="button" data-copy-target="cmdWallet">Copy wallet</button>
+      </div>
+      <div class="card command-card">
+        <h2>Create wallet and mine</h2>
+        <pre id="cmdMine">python3 -m netcoin wallet-new --out local-wallet.json --mnemonic
+python3 -m netcoin miner --node http://127.0.0.1:28444 --wallet local-wallet.json --blocks 1 --sync-after</pre>
+        <button class="secondary" type="button" data-copy-target="cmdMine">Copy mining</button>
+      </div>
+      <div class="card command-card">
+        <h2>Verify from CLI</h2>
+        <pre id="cmdVerify">curl http://127.0.0.1:28444/health
+curl http://127.0.0.1:28444/info
+python3 -m netcoin mempool-info --node http://127.0.0.1:28444 --summary</pre>
+        <button class="secondary" type="button" data-copy-target="cmdVerify">Copy verify</button>
+      </div>
+    </section>
+
+    <section class="card notice warn">
+      <h2>Not a mainnet launch page</h2>
+      <p>This guide is for localnet and public-testnet learning only. It does not create production custody, legal readiness, public liquidity, external audit evidence, or mainnet launch authority.</p>
+    </section>
+
+    <p class="footer">NetCoin Localnet is for educational testnet development. Never share private keys or seed phrases.</p>
+  </div>
+  <script src="localnet.js?v=20260716-cleanup"></script>
+  <script src="site-shell.js?v=20260716-sleek"></script>
+</body>
+</html>

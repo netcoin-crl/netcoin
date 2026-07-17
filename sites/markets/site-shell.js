@@ -40,6 +40,7 @@
     { href: 'https://status.netcoin.online', host: 'status.netcoin.online', label: 'Status', detail: 'health', group: 'Network' },
     { href: 'https://operator.netcoin.online', host: 'operator.netcoin.online', label: 'Operator', detail: 'ops health', group: 'Network' },
     { href: 'https://exchange.netcoin.online', host: 'exchange.netcoin.online', label: 'Exchange', detail: 'custody', group: 'Network' },
+    { href: 'https://exchange.netcoin.online/listing.html', host: 'exchange.netcoin.online', label: 'Listing Readiness', detail: 'gated checklist', group: 'Network' },
     { href: 'https://security.netcoin.online', host: 'security.netcoin.online', label: 'Security', detail: 'release safety', group: 'Network' },
 
     { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and votes', group: 'Ecosystem' },
@@ -48,6 +49,7 @@
     { href: 'https://learn.netcoin.online', host: 'learn.netcoin.online', label: 'Learn', detail: 'guides', group: 'Ecosystem' },
 
     { href: 'https://docs.netcoin.online', host: 'docs.netcoin.online', label: 'Docs', detail: 'reference', group: 'Build' },
+    { href: 'https://docs.netcoin.online/localnet.html', host: 'docs.netcoin.online', label: 'Localnet', detail: 'launch guide', group: 'Build' },
     { href: 'https://api.netcoin.online', host: 'api.netcoin.online', label: 'API', detail: 'OpenAPI', group: 'Build' },
     { href: 'https://developers.netcoin.online', host: 'developers.netcoin.online', label: 'SDKs', detail: 'client libraries', group: 'Build' },
     { href: 'https://architecture.netcoin.online', host: 'architecture.netcoin.online', label: 'System Design', detail: 'architecture', group: 'Build' },
@@ -81,6 +83,7 @@
         ['Status', 'https://status.netcoin.online'],
         ['Operator', 'https://operator.netcoin.online'],
         ['Exchange', 'https://exchange.netcoin.online'],
+        ['Listing Readiness', 'https://exchange.netcoin.online/listing.html'],
         ['Security', 'https://security.netcoin.online']
       ]
     },
@@ -88,6 +91,7 @@
       title: 'Build',
       items: [
         ['Docs', 'https://docs.netcoin.online'],
+        ['Localnet', 'https://docs.netcoin.online/localnet.html'],
         ['API', 'https://api.netcoin.online'],
         ['SDKs', 'https://developers.netcoin.online'],
         ['System Design', 'https://architecture.netcoin.online'],
@@ -173,9 +177,14 @@
     });
   }
 
-  function directoryHtml() {
+  const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets'];
+
+  function directoryHtml(includePrimaryCore = true) {
     return sortedGroups().map((group) => {
-      const groupLinks = sortedLinks(group.title);
+      let groupLinks = sortedLinks(group.title);
+      if (!includePrimaryCore && group.title === 'Core') {
+        groupLinks = groupLinks.filter((link) => primaryNavLabels.indexOf(link.label) === -1);
+      }
       if (!groupLinks.length) return '';
       const activeGroup = groupLinks.some(isCurrent) ? ' active' : '';
       const items = groupLinks.map((link) => {
@@ -193,28 +202,18 @@
   }
 
   function coreTabsHtml() {
-    return sortedLinks('Core').map((link) => {
+    return sortedLinks('Core').filter((link) => primaryNavLabels.indexOf(link.label) !== -1).map((link) => {
       const active = isCurrent(link) ? ' class="active" aria-current="page"' : '';
       return '<a href="' + link.href + '" data-group="Core"' + active + '>' + link.label + '</a>';
     }).join('');
   }
 
   function categoryTabsHtml() {
-    return sortedGroups().filter((group) => group.title !== 'Core').map((group) => {
-      const groupLinks = sortedLinks(group.title);
-      if (!groupLinks.length) return '';
-      const activeGroup = groupLinks.some(isCurrent) ? ' open' : '';
-      const panel = groupLinks.map((link) => {
-        const active = isCurrent(link) ? ' class="active" aria-current="page"' : '';
-        return '<a href="' + link.href + '" data-group="' + link.group + '"' + active + '>' +
-          '<span>' + link.label + '</span><small>' + link.detail + '</small></a>';
-      }).join('');
-      const toggleClass = group.title === 'Ecosystem' ? ' class="ecosystem-toggle"' : '';
-      return '<details class="site-nav-group' + activeGroup + '"><summary' + toggleClass + '>' + group.title +
-        '</summary><div class="site-nav-panel"><section class="site-more-group' +
-        (activeGroup ? ' active' : '') + '"><h3>' + group.title + '<small>' + group.detail +
-        '</small></h3><div>' + panel + '</div></section></div></details>';
-    }).join('');
+    const groupedPanels = sortedGroups().filter((group) => group.title !== 'Core');
+    if (!groupedPanels.length) return '';
+    const activeExtra = links.some((link) => isCurrent(link) && primaryNavLabels.indexOf(link.label) === -1) ? ' open' : '';
+    return '<details class="site-nav-group site-nav-more' + activeExtra + '"><summary>More</summary>' +
+      '<div class="site-nav-panel site-nav-panel-wide">' + directoryHtml(false) + '</div></details>';
   }
 
   function normalizeNav() {
@@ -274,18 +273,22 @@
     let url = 'https://explorer.netcoin.online/?q=' + encodeURIComponent(s);
     const routes = [
       [/feature|rating|score|catalog|all tools|directory/, 'https://features.netcoin.online'],
-      [/wallet|private key|seed phrase|backup|send|receive|contact/, 'https://wallet.netcoin.online'],
+      [/wallet|private key|seed phrase|backup|send|receive|contact|rbf|speed up|fee preset|psbt|multisig/, 'https://wallet.netcoin.online'],
       [/start|basic|beginner|home|community basic|pay basic/, 'https://netcoin.online'],
       [/invoice|checkout|pay|payment|receipt/, 'https://pay.netcoin.online'],
       [/merchant|pos|webhook|api key|refund|report/, 'https://merchant.netcoin.online'],
+      [/listing readiness|real listing|exchange listing|exchange readiness/, 'https://exchange.netcoin.online/listing.html'],
       [/exchange|custody|reserve|withdrawal|deposit|hot wallet|cold wallet/, 'https://exchange.netcoin.online'],
       [/faucet|test coin/, 'https://faucet.netcoin.online'],
       [/community|discuss|idea|bounty|roadmap/, 'https://community.netcoin.online'],
-      [/operator|runbook|incident|health center|ops/, 'https://operator.netcoin.online'],
+      [/operator|runbook|incident|health center|ops|ledger audit|chainstate|peer advertise|maintenance/, 'https://operator.netcoin.online'],
       [/node|seed|peer|mining|status|network/, 'https://nodes.netcoin.online'],
       [/download|install|windows|mac|linux/, 'https://download.netcoin.online'],
       [/learn|guide|how/, 'https://learn.netcoin.online'],
-      [/api|developer|sdk|webhook|endpoint/, 'https://api.netcoin.online'],
+      [/developer console|payment link|api key|webhook|reward simulation/, 'https://developers.netcoin.online/console.html'],
+      [/localnet|local testnet|launch local|copyable command/, 'https://docs.netcoin.online/localnet.html'],
+      [/availability|available now|feature status|test coverage/, 'https://features.netcoin.online'],
+      [/api|developer|sdk|endpoint/, 'https://api.netcoin.online'],
       [/security|audit|checksum|release|verify|bug/, 'https://security.netcoin.online'],
       [/governance|proposal|treasury|vote|nip/, 'https://governance.netcoin.online'],
       [/market|prediction|lab|phase 7|poll/, 'https://markets.netcoin.online']
@@ -382,6 +385,8 @@
   var NOTE_KEY = 'nc.localNotes.v1';
   var NOTIFY_KEY = 'nc.notifications.v1';
   var MODE_KEY = 'nc.completionMode.v1';
+  var paletteReturnFocus = null;
+  var notificationReturnFocus = null;
   function qs(s, r) { return (r || document).querySelector(s); }
   function qsa(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -404,19 +409,48 @@
   }
   function commandLinks() {
     var base = [
-      ['Wallet','https://wallet.netcoin.online','send, receive, backup','User'],
-      ['Explorer','https://explorer.netcoin.online','address, tx, block, mempool','User'],
+      ['Wallet','https://wallet.netcoin.online','send, receive, backup, fees, RBF, PSBT','User'],
+      ['Explorer','https://explorer.netcoin.online','address, UTXOs, tx risk, mempool','User'],
       ['Markets','https://markets.netcoin.online','orderbook, trades, settlement','Trader'],
       ['Faucet','https://faucet.netcoin.online','claim, challenge, status','User'],
       ['Community','https://community.netcoin.online','posts, bounties, moderation','User'],
       ['Exchange','https://exchange.netcoin.online','deposits, withdrawals, custody','Operator'],
-      ['Operator','https://operator.netcoin.online','health, diagnostics, bundle, alerts','Operator'],
+      ['Listing Readiness','https://exchange.netcoin.online/listing.html','code-side exchange checklist','Operator'],
+      ['Operator','https://operator.netcoin.online','ledger audit, chainstate, peer health','Operator'],
       ['Verify release','https://download.netcoin.online/verify.html','checksums and signatures','Developer'],
+      ['Developer Console','https://developers.netcoin.online/console.html','payment links, API keys, webhooks','Developer'],
       ['API','https://api.netcoin.online','OpenAPI contract','Developer'],
+      ['Localnet','https://docs.netcoin.online/localnet.html','copyable testnet launch commands','Developer'],
+      ['Feature status','https://features.netcoin.online','availability labels and test coverage','Developer'],
       ['Architecture','https://architecture.netcoin.online','Rust, TS, Python lanes','Developer']
     ];
     return base.map(function(row){ return { label: row[0], href: row[1], detail: row[2], mode: row[3] }; });
   }
+  function buildSkipLink() {
+    if (qs('.nc-skip-link')) return;
+    var main = qs('main') || qs('.wrap') || qs('.shell') || document.body;
+    if (!main.id) main.id = 'netcoin-main';
+    if (!main.getAttribute('tabindex')) main.setAttribute('tabindex', '-1');
+    var link = document.createElement('a');
+    link.className = 'nc-skip-link';
+    link.href = '#' + main.id;
+    link.textContent = 'Skip to main content';
+    document.body.insertBefore(link, document.body.firstChild);
+  }
+
+  function buildReadinessBanner() {
+    if (qs('[data-nc-readiness-banner]')) return;
+    var topbar = qs('.topbar');
+    var root = shellRoot();
+    if (!root) return;
+    var banner = document.createElement('section');
+    banner.className = 'nc-readiness-banner';
+    banner.dataset.ncReadinessBanner = '';
+    banner.innerHTML = '<strong>Public testnet.</strong><span>NET has no real-money value. Availability labels are not production claims.</span><a href="https://features.netcoin.online">Feature status</a>';
+    if (topbar && topbar.parentNode) topbar.insertAdjacentElement('afterend', banner);
+    else root.insertBefore(banner, root.firstChild);
+  }
+
   function buildCommandPalette() {
     if (qs('#ncCommandPalette')) return;
     var panel = document.createElement('div');
@@ -424,7 +458,9 @@
     panel.className = 'nc-command-palette';
     panel.setAttribute('role','dialog');
     panel.setAttribute('aria-modal','true');
-    panel.innerHTML = '<div class="nc-command-box"><div class="nc-command-head"><h2>Jump to…</h2><button class="nc-close" type="button" data-nc-close="palette">Close</button></div><input class="nc-command-input" type="search" placeholder="Wallet, txid, market, docs…" aria-label="Search NetCoin"><div class="nc-command-results"></div><p class="muted">Ctrl/⌘ K opens this.</p></div>';
+    panel.setAttribute('aria-labelledby','ncCommandTitle');
+    panel.setAttribute('aria-describedby','ncCommandHelp');
+    panel.innerHTML = '<div class="nc-command-box"><div class="nc-command-head"><h2 id="ncCommandTitle">Jump to…</h2><button class="nc-close" type="button" data-nc-close="palette" aria-label="Close command palette">Close</button></div><input class="nc-command-input" type="search" placeholder="Wallet, txid, market, docs…" aria-label="Search NetCoin" aria-controls="ncCommandResults" aria-describedby="ncCommandHelp"><div id="ncCommandResults" class="nc-command-results" role="listbox" aria-label="Command results"></div><p id="ncCommandHelp" class="muted">Ctrl/⌘ K opens this. Escape closes it.</p></div>';
     document.body.appendChild(panel);
     var input = qs('.nc-command-input', panel);
     var results = qs('.nc-command-results', panel);
@@ -434,13 +470,26 @@
       if (query && /^([a-f0-9]{32,}|net[0-9a-z]+)/i.test(query)) {
         links.unshift({ label: 'Search pasted value in Explorer', href: 'https://explorer.netcoin.online?search=' + encodeURIComponent(filter), detail: 'Open address/transaction/block search', mode: 'User' });
       }
-      results.innerHTML = links.map(function(item){ return '<a class="nc-command-item" href="'+esc(item.href)+'"><span><b>'+esc(item.label)+'</b><small>'+esc(item.detail)+'</small></span><small>'+esc(item.mode)+'</small></a>'; }).join('') || '<div class="nc-notice-item"><strong>No match</strong><small>Try wallet, explorer, market, faucet, or docs.</small></div>';
+      results.innerHTML = links.map(function(item){ return '<a class="nc-command-item" role="option" href="'+esc(item.href)+'"><span><b>'+esc(item.label)+'</b><small>'+esc(item.detail)+'</small></span><small>'+esc(item.mode)+'</small></a>'; }).join('') || '<div class="nc-notice-item" role="status"><strong>No match</strong><small>Try wallet, explorer, market, faucet, or docs.</small></div>';
     }
     input.addEventListener('input', function(){ render(input.value); });
     render('');
   }
-  function openPalette() { buildCommandPalette(); qs('#ncCommandPalette').classList.add('open'); var input = qs('#ncCommandPalette .nc-command-input'); if (input) { input.focus(); input.select(); } }
-  function closePalette() { var p = qs('#ncCommandPalette'); if (p) p.classList.remove('open'); }
+  function openPalette() {
+    buildCommandPalette();
+    var p = qs('#ncCommandPalette');
+    if (!p) return;
+    paletteReturnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
+    p.classList.add('open');
+    var input = qs('#ncCommandPalette .nc-command-input');
+    if (input) { input.focus(); input.select(); }
+  }
+  function closePalette() {
+    var p = qs('#ncCommandPalette');
+    if (p) p.classList.remove('open');
+    if (paletteReturnFocus && paletteReturnFocus.focus) paletteReturnFocus.focus();
+    paletteReturnFocus = null;
+  }
   function buildNotificationCenter() {
     if (qs('#ncNotificationCenter')) return;
     var panel = document.createElement('div');
@@ -448,7 +497,9 @@
     panel.className = 'nc-notification-center';
     panel.setAttribute('role','dialog');
     panel.setAttribute('aria-modal','true');
-    panel.innerHTML = '<div class="nc-notification-box"><div class="nc-notification-head"><h2>Alerts</h2><button class="nc-close" type="button" data-nc-close="notifications">Close</button></div><div class="nc-notification-list"></div><div class="nc-next-step"><b>Local only.</b> Saved in this browser.</div></div>';
+    panel.setAttribute('aria-labelledby','ncNotificationTitle');
+    panel.setAttribute('aria-describedby','ncNotificationHelp');
+    panel.innerHTML = '<div class="nc-notification-box"><div class="nc-notification-head"><h2 id="ncNotificationTitle">Alerts</h2><button class="nc-close" type="button" data-nc-close="notifications" aria-label="Close alerts">Close</button></div><div class="nc-notification-list" role="log" aria-live="polite" aria-relevant="additions text"></div><div id="ncNotificationHelp" class="nc-next-step"><b>Local only.</b> Saved in this browser.</div></div>';
     document.body.appendChild(panel);
   }
   function renderNotifications() {
@@ -461,8 +512,21 @@
     }).join('');
   }
   function updateNotifyButton(){ var b=qs('#ncNotifyButton'); if(b){ var n=readJson(NOTIFY_KEY, []).length; b.textContent='Alerts '+(n?'('+n+')':''); } }
-  function openNotifications(){ buildNotificationCenter(); renderNotifications(); qs('#ncNotificationCenter').classList.add('open'); }
-  function closeNotifications(){ var p=qs('#ncNotificationCenter'); if(p) p.classList.remove('open'); }
+  function openNotifications(){
+    buildNotificationCenter();
+    renderNotifications();
+    notificationReturnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
+    var p = qs('#ncNotificationCenter');
+    if (p) p.classList.add('open');
+    var close = qs('#ncNotificationCenter [data-nc-close="notifications"]');
+    if (close) close.focus();
+  }
+  function closeNotifications(){
+    var p=qs('#ncNotificationCenter');
+    if(p) p.classList.remove('open');
+    if (notificationReturnFocus && notificationReturnFocus.focus) notificationReturnFocus.focus();
+    notificationReturnFocus = null;
+  }
   function recordLocalNote(surface, text) {
     var notes = readJson(NOTE_KEY, {});
     var key = surface || hostKey();
@@ -511,7 +575,7 @@
   }
   function exchangePanel(){
     return panel('Custody safety','Make deposits, withdrawals, custody, reserves, and approvals visible.',
-      statusStrip([['Custody scaffold','warning'],['Audit trail','warning'],['Reserves visible','healthy']])+'<div class="nc-upgrade-grid">'+card('Custody risk','Hot balance, cold reserve, limits, approvals.')+card('Withdrawals','Requested → approved → signed → confirmed.')+card('Cold signing','Checklist before cold-to-hot movement.')+card('Ledger checks','Imbalance blocks readiness.')+'</div>'+timeline([['Deposit','Watch confirmations.'],['Credit','Apply policy.'],['Withdraw','Run checks and approvals.'],['Broadcast','Track confirmation.']]) );
+      statusStrip([['Custody scaffold','warning'],['Audit trail','warning'],['Reserves visible','healthy']])+'<div class="nc-upgrade-grid">'+card('Custody risk','Hot balance, cold reserve, limits, approvals.')+card('Listing readiness','Code-side checklist only; no real listing claim.')+card('Withdrawals','Requested → approved → signed → confirmed.')+card('Cold signing','Checklist before cold-to-hot movement.')+card('Ledger checks','Imbalance blocks readiness.')+'</div>'+timeline([['Deposit','Watch confirmations.'],['Credit','Apply policy.'],['Withdraw','Run checks and approvals.'],['Broadcast','Track confirmation.']]) );
   }
   function operatorPanel(){
     return panel('Operator center','Health alerts, diagnostics bundle, runbooks, release blockers, and proof evidence in one place.',
@@ -543,7 +607,7 @@
     if (target && target.parentNode === root) root.insertBefore(wrap.firstElementChild, target); else root.appendChild(wrap.firstElementChild);
     wireCompletionControls();
   }
-  function buildNotifyButton(){ if(qs('#ncNotifyButton')) return; var b=document.createElement('button'); b.id='ncNotifyButton'; b.className='nc-notify-button'; b.type='button'; b.textContent='Alerts'; document.body.appendChild(b); updateNotifyButton(); }
+  function buildNotifyButton(){ if(qs('#ncNotifyButton')) return; var b=document.createElement('button'); b.id='ncNotifyButton'; b.className='nc-notify-button'; b.type='button'; b.setAttribute('aria-haspopup','dialog'); b.setAttribute('aria-controls','ncNotificationCenter'); b.setAttribute('aria-label','Open local alerts'); b.textContent='Alerts'; document.body.appendChild(b); updateNotifyButton(); }
   function wireCompletionControls(){
     qsa('[data-nc-save-note]').forEach(function(btn){ if(btn.dataset.wired) return; btn.dataset.wired='1'; btn.addEventListener('click', function(){ var area = btn.parentNode.querySelector('[data-nc-note-input]'); recordLocalNote(btn.getAttribute('data-nc-save-note'), area ? area.value : ''); if(area) area.value=''; }); });
     var preview = qs('[data-nc-market-preview]');
@@ -551,8 +615,22 @@
     qsa('[data-nc-market-stake],[data-nc-market-price],[data-nc-market-fee]').forEach(function(el){ el.addEventListener('input', calcPreview); }); calcPreview();
     qsa('[data-nc-market-mode] button').forEach(function(btn){ btn.addEventListener('click', function(){ qsa('[data-nc-market-mode] button').forEach(function(b){b.classList.remove('active')}); btn.classList.add('active'); addNotification('Market mode changed', 'Switched to '+btn.getAttribute('data-mode')+' market controls.', 'Healthy'); }); });
   }
+  function trapFloatingFocus(panel, ev) {
+    if (!panel || !panel.classList.contains('open') || ev.key !== 'Tab') return;
+    var focusable = qsa('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])', panel).filter(function(el){ return el.offsetParent !== null || el === document.activeElement; });
+    if (!focusable.length) return;
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+  }
   function wireGlobalEvents(){
-    document.addEventListener('keydown', function(ev){ if ((ev.ctrlKey || ev.metaKey) && String(ev.key).toLowerCase()==='k') { ev.preventDefault(); openPalette(); } if(ev.key==='Escape'){ closePalette(); closeNotifications(); } });
+    document.addEventListener('keydown', function(ev){
+      trapFloatingFocus(qs('#ncCommandPalette'), ev);
+      trapFloatingFocus(qs('#ncNotificationCenter'), ev);
+      if ((ev.ctrlKey || ev.metaKey) && String(ev.key).toLowerCase()==='k') { ev.preventDefault(); openPalette(); }
+      if(ev.key==='Escape'){ closePalette(); closeNotifications(); }
+    });
     document.addEventListener('click', function(ev){ var t=ev.target; if(!t) return; if(t.id==='ncNotifyButton') openNotifications(); if(t.getAttribute && t.getAttribute('data-nc-close')==='palette') closePalette(); if(t.getAttribute && t.getAttribute('data-nc-close')==='notifications') closeNotifications(); if(t.id==='ncCommandPalette' && t===ev.target) closePalette(); if(t.id==='ncNotificationCenter' && t===ev.target) closeNotifications(); });
   }
   function guidedOnboarding(){
@@ -563,6 +641,6 @@
     writeJson('nc.onboarding.v1', { dismissed: true, at: new Date().toISOString() });
   }
   window.NetCoinProductCompletion = { buildCommandPalette: buildCommandPalette, buildNotificationCenter: buildNotificationCenter, mountSurfaceCompletion: mountSurfaceCompletion, recordLocalNote: recordLocalNote, addNotification: addNotification };
-  buildCommandPalette(); buildNotificationCenter(); buildNotifyButton(); wireGlobalEvents();
+  buildSkipLink(); buildReadinessBanner(); buildCommandPalette(); buildNotificationCenter(); buildNotifyButton(); wireGlobalEvents();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ mountSurfaceCompletion(); guidedOnboarding(); }); else { mountSurfaceCompletion(); guidedOnboarding(); }
 })();

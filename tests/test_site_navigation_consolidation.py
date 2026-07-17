@@ -26,7 +26,9 @@ def test_site_shell_core_tabs_render_flat_without_a_details_wrapper():
     shell = read("sites/shared/site-shell.js")
     assert "function coreTabsHtml()" in shell
     assert "function categoryTabsHtml()" in shell
+    assert "const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets']" in shell
     assert "filter((group) => group.title !== 'Core')" in shell
+    assert "<summary>More</summary>" in shell
 
 
 def test_site_shell_copies_stay_in_sync_for_all_subdomains():
@@ -45,8 +47,10 @@ def test_site_shell_copies_stay_in_sync_for_all_subdomains():
 
 def test_homepage_presents_consolidated_navigation_buckets():
     html = read("sites/www/index.html")
-    assert "Core tools are Explorer, Download, Home, Markets, and Wallet, always visible." in html
-    assert "Governance, treasury records, community, guides, pay, and merchant tools live together." in html
-    assert 'href="https://governance.netcoin.online#treasury">Treasury</a>' in html
+    assert "NetCoin public testnet." in html
+    assert "https://community.netcoin.online" in html
+    assert 'href="https://governance.netcoin.online">Governance</a>' in html
     assert "<h2>Build</h2>" in html
     assert "<h2>Ecosystem</h2>" in html
+    assert "https://developers.netcoin.online/console.html" in html
+    assert "https://docs.netcoin.online/localnet.html" in html

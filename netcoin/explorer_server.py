@@ -64,12 +64,15 @@ def transaction_payload(chain: Blockchain, txid: str) -> dict[str, Any] | None:
     if found is None:
         return None
     tx, block = found
+    block_height = block.header.height if block else None
     return {
         "txid": tx.txid(),
         "wtxid": tx.wtxid(),
         "confirmed": block is not None,
+        "mempool": block is None,
         "block_hash": block.hash() if block else None,
-        "block_height": block.header.height if block else None,
+        "block_height": block_height,
+        "confirmations": max(0, chain.height() - block_height + 1) if block_height is not None else 0,
         "tx": tx.to_dict(include_scripts=True, include_witness=True),
     }
 

@@ -96,14 +96,14 @@ def test_seed_node_start_passes_through_valid_config(monkeypatch):
     )
     with _wallet_server() as srv:
         status, body = _post(
-            srv.url, "/api/seed-node/start", {"advertise": "203.0.113.5:28444", "bandwidth_mode": "home", "port": 28450}
+            srv.url, "/api/seed-node/start", {"advertise": "seed.netcoin.example:28444", "bandwidth_mode": "home", "port": 28450}
         )
     assert status == 200
     assert body["message"] == "node started"
-    assert body["advertise"] == "203.0.113.5:28444"
+    assert body["advertise"] == "seed.netcoin.example:28444"
     assert body["port"] == 28450
     assert popen_calls, "expected the seed node to actually spawn a subprocess"
     assert "--advertise" in popen_calls[0]
-    assert "203.0.113.5:28444" in popen_calls[0]
+    assert "seed.netcoin.example:28444" in popen_calls[0]
     assert "--bandwidth-mode" in popen_calls[0]
     assert "home" in popen_calls[0]

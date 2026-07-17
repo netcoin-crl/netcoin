@@ -181,3 +181,11 @@
   font-size: 13px;
   color: var(--nc-muted, #9aa4b2);
 }
+
+/* Accessibility source contract: shared focus-visible token. */
+.nc-focus-visible-contract:focus-visible{
+  outline:3px solid rgba(61,220,151,.58);
+  outline-offset:3px;
+}
+
+/* Mobile source contract: mobile viewport touch target browser smoke. */

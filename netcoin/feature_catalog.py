@@ -23,6 +23,79 @@ class FeatureRating:
     next_fix: str = ""
 
 
+
+AVAILABILITY_KEYS = (
+    "availability",
+    "ui",
+    "api",
+    "cli",
+    "test_coverage",
+    "production_ready",
+    "badge",
+    "availability_notes",
+)
+
+DEFAULT_AVAILABILITY: dict[str, Any] = {
+    "availability": "Internal/testnet",
+    "ui": "Not exposed",
+    "api": "Not exposed",
+    "cli": "Not exposed",
+    "test_coverage": "Targeted tests",
+    "production_ready": False,
+    "badge": "Testnet only",
+    "availability_notes": "Internal readiness rating only; not externally audited, mainnet-ready, or real-money production software.",
+}
+
+_CATEGORY_DEFAULTS: dict[str, dict[str, Any]] = {
+    "Core chain": {"cli": "Available", "test_coverage": "Full targeted consensus tests", "badge": "Testnet core"},
+    "Crypto": {"cli": "Available", "test_coverage": "Targeted crypto/script tests", "badge": "Advanced/testnet"},
+    "Storage": {"cli": "Available", "test_coverage": "Targeted storage tests", "badge": "Operator/testnet"},
+    "Wallet": {"ui": "Available", "api": "Available", "cli": "Available", "test_coverage": "Targeted wallet tests", "badge": "Testnet wallet"},
+    "Node/API": {"api": "Available", "cli": "Available", "test_coverage": "Targeted API/node tests", "badge": "Testnet API"},
+    "Security": {"api": "Partial", "cli": "Available", "test_coverage": "Targeted security tests", "badge": "Safety tool"},
+    "Sites": {"ui": "Available", "api": "Partial", "test_coverage": "Site/product regression tests", "badge": "Browser available"},
+    "Architecture": {"ui": "Available", "cli": "Available", "test_coverage": "Architecture checks", "badge": "Planning/status"},
+    "Markets": {"ui": "Partial", "api": "Available", "test_coverage": "Targeted market tests", "badge": "Play-money/testnet"},
+    "Mining": {"cli": "Available", "api": "Available", "test_coverage": "Localnet mining probes", "badge": "Testnet mining"},
+    "Exchange": {"ui": "Partial", "api": "Partial", "cli": "Available", "test_coverage": "Targeted accounting tests", "badge": "Operator-only"},
+    "Faucet": {"ui": "Available", "api": "Available", "test_coverage": "Targeted faucet tests", "badge": "Testnet faucet"},
+    "Developer API": {"ui": "Available", "api": "Available", "cli": "Partial", "test_coverage": "Targeted developer API tests", "badge": "Testnet developer"},
+}
+
+_SURFACE_OVERRIDES: dict[tuple[str, str], dict[str, Any]] = {
+    ("Crypto", "Schnorr/Taproot-style support"): {"ui": "Not exposed", "api": "Partial", "badge": "Experimental"},
+    ("Crypto", "Script VM"): {"ui": "Not exposed", "api": "Internal", "badge": "Consensus-sensitive"},
+    ("Wallet", "Hardware signer"): {"ui": "Experimental", "api": "Adapter-backed", "cli": "Available", "badge": "Experimental", "availability_notes": "Adapter paths exist, but there is no physical hardware-wallet transcript yet."},
+    ("Wallet", "Coin control"): {"ui": "Partial", "api": "Available", "cli": "Available", "badge": "Advanced"},
+    ("Wallet", "Dynamic fee / RBF"): {"ui": "Available", "api": "Available", "cli": "Partial", "test_coverage": "wallet regressions", "badge": "Available"},
+    ("Crypto", "Multisig and timelocks"): {"ui": "Available", "api": "Available", "cli": "Available", "test_coverage": "wallet regressions and CLI flow tests", "badge": "Advanced"},
+    ("Storage", "JSON legacy backend"): {"availability": "Legacy/demo", "badge": "Legacy/demo", "availability_notes": "Kept for fixtures and demos; not recommended for public nodes."},
+    ("Storage", "Backup/restore/reindex"): {"ui": "Status-only", "cli": "Available", "test_coverage": "operator regressions", "badge": "Operator-only"},
+    ("Storage", "Explorer watchlists"): {"ui": "Available", "api": "Available", "test_coverage": "explorer regressions", "badge": "Available"},
+    ("Node/API", "JSON-RPC"): {"ui": "Not exposed", "api": "Available", "test_coverage": "RPC compatibility matrix", "badge": "Testnet API"},
+    ("Node/API", "DNS seeder"): {"ui": "Status-only", "api": "Internal", "cli": "Available", "badge": "Operator-only", "availability_notes": "Code is usable, but independent domains/operators are required before production decentralization claims."},
+    ("Node/API", "Localnet harness + chaos drill"): {"ui": "Guide/status available", "api": "Read-only status", "cli": "Available", "test_coverage": "localnet regressions", "badge": "Available"},
+    ("Security", "API keys / RBAC"): {"ui": "Available", "api": "Available", "test_coverage": "developer console regressions", "badge": "Available"},
+    ("Security", "Professional readiness/audit"): {"availability": "Readiness evidence", "ui": "Status-only", "cli": "Available", "badge": "Not audited", "availability_notes": "Internal audit/readiness tooling exists, but this is not an external audit."},
+    ("Sites", "Operator dashboard"): {"ui": "Available", "api": "Read-only status", "test_coverage": "operator regressions", "badge": "Operator-only"},
+    ("Sites", "Explorer UI"): {"ui": "Available", "api": "Available", "test_coverage": "explorer regressions", "badge": "Available"},
+    ("Sites", "Wallet UI"): {"ui": "Available", "api": "Available", "test_coverage": "wallet UX and browser E2E source checks", "badge": "Available"},
+    ("Sites", "Docs/Learn"): {"ui": "Available", "api": "Static", "test_coverage": "Site/product regression tests", "badge": "Available"},
+    ("Exchange", "Production custody"): {"availability": "Internal/testnet only", "ui": "Status/demo only", "api": "Internal", "cli": "Available", "badge": "Not production", "availability_notes": "Do not present as production custody until cold-signer process, ops controls, legal review, and audit evidence exist."},
+    ("Sites", "Exchange dashboard"): {"ui": "Available", "api": "Available", "cli": "Available", "test_coverage": "exchange listing-readiness checks", "badge": "Operator-only", "availability_notes": "Includes code-side exchange/listing readiness labels, but does not claim a real listing or production custody."},
+    ("Exchange", "Proof of reserves"): {"ui": "Partial/viewer only", "api": "Partial", "cli": "Available", "badge": "Operator-only"},
+    ("Markets", "Market-maker tools"): {"ui": "Not exposed", "api": "Partial", "cli": "Available", "badge": "Internal"},
+    ("Faucet", "Faucet hardening"): {"ui": "Available", "api": "Available", "test_coverage": "Targeted faucet/security tests", "badge": "Available"},
+    ("Developer API", "Payment Links"): {"ui": "Available", "api": "Available", "test_coverage": "developer console regressions", "badge": "Available"},
+    ("Developer API", "Webhooks (register/queue/deliver)"): {"ui": "Available", "api": "Available", "test_coverage": "developer console regressions", "badge": "Available"},
+    ("Developer API", "Unsigned transaction builder / reward simulation"): {"ui": "Simulation available", "api": "Available", "test_coverage": "developer console regressions", "badge": "Available"},
+    ("Developer API", "Developer dashboard/console"): {"ui": "Available", "api": "Available", "test_coverage": "developer console regressions", "badge": "Available"},
+    ("Developer API", "SDK packages advertisement"): {"ui": "Available", "api": "Available", "cli": "Install-from-git only", "badge": "Not published", "availability_notes": "JS SDK can be installed from git; npm/PyPI publication is not complete."},
+}
+
+_FORBIDDEN_READY_WORDS = ("production-ready", "mainnet-ready", "fully production")
+
+
 _FEATURES: tuple[FeatureRating, ...] = (
     # Chain / consensus
     FeatureRating(
@@ -212,15 +285,15 @@ _FEATURES: tuple[FeatureRating, ...] = (
         7.0,
         "solid",
         "Address, mempool, graph, and integrity helpers exist.",
-        "Wire more indexer data into explorer pages.",
+        "Add deeper graph queries and long-list pagination to the Explorer UI.",
     ),
     FeatureRating(
         "Storage",
         "Explorer watchlists",
-        7.0,
-        "solid",
-        "Watch/notification layer exists.",
-        "Add browser notification UI.",
+        7.5,
+        "available",
+        "Address watchlists are now exposed in the Explorer UI and persisted through the app-layer watch store.",
+        "Add browser notifications and notification-history controls.",
     ),
     # Wallet
     FeatureRating(
@@ -464,24 +537,24 @@ _FEATURES: tuple[FeatureRating, ...] = (
         "Operator dashboard",
         7.5,
         "solid",
-        "Dedicated health-center UI summarizes sites, API coverage, release trust, node metrics, and alerts.",
-        "Add live log tail and backup restore drills.",
+        "Dedicated health-center UI summarizes sites, API coverage, release trust, node metrics, alerts, ledger audit status, chainstate hash, peer advertise health, and maintenance readiness.",
+        "Add live log tail and automated restore-drill evidence.",
     ),
     FeatureRating(
         "Sites",
         "Exchange dashboard",
-        7.0,
+        7.3,
         "solid",
-        "Dedicated custody UI explains deposit/withdrawal states and reserve readiness.",
-        "Connect to live deposit/withdrawal tables.",
+        "Dedicated custody UI explains deposit/withdrawal states, reserve readiness, and code-side listing readiness without claiming a real listing.",
+        "Collect legal, liquidity, custody, and external-audit evidence before any real listing claim.",
     ),
     FeatureRating(
         "Sites",
         "Wallet UI",
-        7.5,
+        7.8,
         "solid",
-        "Browser wallet has profile unlock, recovery, private-key sign-in, address-type balances, PSBT/QR tools, and cleaner shell without the extra safety panel.",
-        "Build the account switcher and persist send-review approvals.",
+        "Browser wallet has profile unlock, recovery, private-key sign-in, address-type balances, fee presets, RBF/PSBT/multisig tools, clearer send confirmation, activity explorer links, and workflow shortcuts.",
+        "Run full Playwright wallet-to-faucet-to-explorer E2E outside the sandbox and polish account switching.",
     ),
     FeatureRating(
         "Sites",
@@ -610,7 +683,7 @@ _FEATURES: tuple[FeatureRating, ...] = (
         "Payment Links",
         7.0,
         "solid",
-        "POST /developer/payment-links creates a real invoice and checkout_url; pay.netcoin.online now renders it as a real hosted checkout view (amount, address, memo, offline-generated QR, wallet deep-link, and live polling) instead of requiring manual invoice lookup.",
+        "POST /developer/payment-links creates a real invoice and checkout_url; pay.netcoin.online renders it as a hosted checkout view, and sites/developers/console.html now exposes a browser payment-link creator for testnet developers.",
         "Add a real Playwright E2E for the paid/confirmed transition, not just the unpaid render.",
     ),
     FeatureRating(
@@ -618,8 +691,8 @@ _FEATURES: tuple[FeatureRating, ...] = (
         "Webhooks (register/queue/deliver)",
         7.5,
         "solid",
-        "Real HMAC-SHA256 signed delivery over raw JSON body with exponential backoff, a per-hook max_attempts budget, and a verifier snippet at /developer/webhook-verifiers. GET /developer/webhook-events/dead-letters now lists exhausted deliveries with their full attempt history (not just a bare count), and POST /developer/webhook-events/deliver takes an event_id to retry one specific delivery without touching everything else pending.",
-        "Build an actual dashboard page for this instead of raw JSON — the data is there now, the UI isn't.",
+        "Real HMAC-SHA256 signed delivery over raw JSON body with exponential backoff, a per-hook max_attempts budget, and a verifier snippet at /developer/webhook-verifiers. The Developer Console now lists webhooks, registers new ones, shows dead letters, and retries one exhausted event at a time.",
+        "Add webhook delivery-history filters and a safe test-delivery button in the console.",
     ),
     FeatureRating(
         "Developer API",
@@ -642,16 +715,16 @@ _FEATURES: tuple[FeatureRating, ...] = (
         "Unsigned transaction builder / reward simulation",
         6.5,
         "improving",
-        "POST /developer/transactions/build and /developer/simulate/rewards are real and give dust-risk guidance, but have narrower test coverage than the core reward/withdrawal paths.",
-        "Add simulate-then-build round-trip tests.",
+        "POST /developer/transactions/build and /developer/simulate/rewards are real; reward simulation is now exposed in the Developer Console with dust-risk and batch-fee guidance.",
+        "Add simulate-then-build round-trip tests and expose unsigned transaction building in the console when funding-source UX is ready.",
     ),
     FeatureRating(
         "Developer API",
         "Developer dashboard/console",
-        7.0,
+        7.5,
         "solid",
-        "sites/developers/console.html is a real UI over GET /api/developer/console: counts, totals, funding policy, recent rewards/withdrawals/payment links, webhook dead letters with one-click retry, and watched deposits with a refresh button — not JSON-only anymore. Verified live against a real local devnet node with real rewards/withdrawals/payment-link/deposit data.",
-        "Add write actions (send a reward, register a webhook) directly from the console instead of read-only + links out to curl examples.",
+        "sites/developers/console.html is a real UI over GET/POST /api/developer/*: counts, totals, funding policy, payment-link creation, API-key list/create/revoke, webhook registration/listing, reward simulation, dead-letter retry, and watched-deposit refresh.",
+        "Add send-reward and build-unsigned-transaction actions after the funding-source UX is clearer.",
     ),
     FeatureRating(
         "Developer API",
@@ -685,7 +758,7 @@ _FEATURES: tuple[FeatureRating, ...] = (
         "Localnet harness + chaos drill",
         7.0,
         "solid",
-        "tools/run_localnet.py runs real multi-node subprocesses with dynamic ports for mining/relay/PEX/compact-block/restart-replay assertions; tools/run_chaos_drill.py adds hard-kill restart, corrupted-mempool recovery, dead-peer drain, and partition/rejoin with real competing-tip evidence.",
+        "tools/run_localnet.py runs real multi-node subprocesses with dynamic ports for mining/relay/PEX/compact-block/restart-replay assertions; tools/run_chaos_drill.py adds hard-kill restart, corrupted-mempool recovery, dead-peer drain, and partition/rejoin with real competing-tip evidence. The browser guide exposes docs/localnet.html plus /api/localnet/status so testers can launch and verify local services from the browser.",
         "Run both on a scheduled CI cadence instead of on-demand only.",
     ),
     # Site information architecture
@@ -763,8 +836,26 @@ _TOP_FIXES: tuple[dict[str, Any], ...] = (
 )
 
 
+def _availability_for(feature: FeatureRating) -> dict[str, Any]:
+    surface = dict(DEFAULT_AVAILABILITY)
+    surface.update(_CATEGORY_DEFAULTS.get(feature.category, {}))
+    surface.update(_SURFACE_OVERRIDES.get((feature.category, feature.name), {}))
+    if feature.status in {"available", "strong", "solid"} and surface["availability"] == "Internal/testnet":
+        surface["availability"] = "Available on testnet"
+    if feature.status in {"experimental", "testnet", "basic", "improving"}:
+        surface.setdefault("badge", "Testnet only")
+    surface["production_ready"] = False
+    return surface
+
+
+def _public_feature(feature: FeatureRating) -> dict[str, Any]:
+    data = asdict(feature)
+    data.update(_availability_for(feature))
+    return data
+
+
 def all_features() -> list[dict[str, Any]]:
-    return [asdict(f) for f in _FEATURES]
+    return [_public_feature(f) for f in _FEATURES]
 
 
 def grouped_features() -> dict[str, list[dict[str, Any]]]:
@@ -802,7 +893,14 @@ def top_impact_fixes() -> list[dict[str, Any]]:
 def feature_catalog() -> dict[str, Any]:
     return {
         "schema": "netcoin-feature-catalog-v1",
-        "scale": "1 skeletal, 5 usable testnet/demo, 7 strong, 10 audited/professional",
+        "scale": "1 skeletal, 5 usable testnet/demo, 7 strong, 10 externally audited/professional",
+        "availability_scale": {
+            "ui": "Available, Partial, Status-only, Experimental, or Not exposed",
+            "api": "Available, Partial, Read-only status, Internal, or Not exposed",
+            "cli": "Available, Partial, Internal, or Not exposed",
+            "production_ready": "Always false until external audit, public soak, independent operators, and production ops evidence exist.",
+        },
+        "disclaimer": "NetCoin is educational public-testnet software. Testnet NET has no real-money value, and catalog ratings are not production readiness claims.",
         "summary": rating_summary(),
         "groups": grouped_features(),
         "top_impact_fixes": top_impact_fixes(),

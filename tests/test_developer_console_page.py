@@ -15,10 +15,15 @@ def test_developers_index_links_to_the_console():
 def test_console_page_has_the_expected_structure():
     html = read("sites/developers/console.html")
     assert 'id="developerId"' in html
+    assert 'id="developerApiKey"' in html
     assert 'id="statsGrid"' in html
     assert 'id="policyBody"' in html
     assert 'id="deadLettersTable"' in html
     assert 'id="depositsTable"' in html
+    assert 'id="paymentLinkCreator"' in html
+    assert 'id="apiKeyManager"' in html
+    assert 'id="webhookManager"' in html
+    assert 'id="rewardSimulator"' in html
     assert "<script>" not in html
     assert "Content-Security-Policy" in html
     assert "script-src 'self'" in html
@@ -27,10 +32,16 @@ def test_console_page_has_the_expected_structure():
 def test_console_js_calls_the_real_developer_endpoints_only():
     js = read("sites/developers/console.js")
     assert "/developer/console" in js
+    assert "/developer/payment-links" in js
+    assert "/developer/api-keys" in js
+    assert "/developer/api-keys/revoke" in js
+    assert "/developer/webhooks" in js
+    assert "/developer/simulate/rewards" in js
     assert "/developer/webhook-events/dead-letters" in js
     assert "/developer/webhook-events/deliver" in js
     assert "/developer/deposits" in js
     assert "/developer/funding-policy" in js
+    assert "X-Netcoin-Api-Key" in js
     assert "event_id" in js
 
 

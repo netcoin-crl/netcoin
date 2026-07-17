@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import random
 import string
@@ -18,6 +19,8 @@ from urllib.request import Request, urlopen
 from .block import Block, BlockError
 from .chain import Blockchain
 from .node import NetCoinNode, make_handler
+from .p2p import Message, P2PError
+from .psbt import PSBTError, PartiallySignedTransaction
 from .script import ScriptContext, classify_script, verify_script
 from .serialization import SerializationError, decode_raw_transaction
 from .tx import Transaction, TransactionError
@@ -31,6 +34,8 @@ EXPECTED_PARSE_ERRORS = (
     TransactionError,
     BlockError,
     SerializationError,
+    P2PError,
+    PSBTError,
     ValueError,
     KeyError,
     TypeError,
@@ -38,7 +43,7 @@ EXPECTED_PARSE_ERRORS = (
     UnicodeDecodeError,
 )
 
-TARGETS = ("tx-dict", "block-dict", "rawtx", "script", "node-http")
+TARGETS = ("tx-dict", "block-dict", "rawtx", "script", "node-http", "p2p-message", "psbt")
 
 
 @dataclass
@@ -199,6 +204,61 @@ def fuzz_node_http(rng: random.Random, iterations: int, max_bytes: int) -> dict[
     return result
 
 
+
+def fuzz_p2p_message(rng: random.Random, iterations: int, max_bytes: int) -> dict[str, Any]:
+    result = {"target": "p2p-message", "cases": 0, "accepted": 0, "rejected": 0}
+    commands = ["version", "verack", "ping", "addr", "tx", "block", "getheaders", "bad" * 8]
+    for _ in range(iterations):
+        if rng.random() < 0.35:
+            payload = bytes(rng.randint(0, 255) for _ in range(rng.randint(0, max_bytes)))
+            command = rng.choice(commands)
+            try:
+                data = Message(command[:12], payload).serialize()
+            except EXPECTED_PARSE_ERRORS:
+                data = payload
+            if rng.random() < 0.5 and data:
+                index = rng.randrange(len(data))
+                data = data[:index] + bytes([data[index] ^ 0xFF]) + data[index + 1 :]
+        else:
+            data = bytes(rng.randint(0, 255) for _ in range(rng.randint(0, max_bytes + 32)))
+        try:
+            Message.parse(data)
+        except EXPECTED_PARSE_ERRORS:
+            _record(result, rejected=True)
+        except Exception as exc:
+            raise FuzzError(f"unexpected p2p-message crash: {type(exc).__name__}: {exc}") from exc
+        else:
+            _record(result, accepted=True)
+    return result
+
+
+def fuzz_psbt(rng: random.Random, iterations: int, max_bytes: int) -> dict[str, Any]:
+    result = {"target": "psbt", "cases": 0, "accepted": 0, "rejected": 0}
+    for _ in range(iterations):
+        if rng.random() < 0.5:
+            raw = bytes(rng.randint(0, 255) for _ in range(rng.randint(0, max_bytes)))
+            text = base64.b64encode(raw).decode("ascii")
+        else:
+            payload = {
+                "magic": rng.choice(["netcoin-psbt-v1", "wrong", None]),
+                "tx": random_json_value(rng),
+                "prevouts": random_json_value(rng),
+                "redeem_scripts": random_json_value(rng),
+                "partial_sigs": random_json_value(rng),
+            }
+            text = base64.b64encode(json.dumps(payload, sort_keys=True).encode("utf-8")).decode("ascii")
+        if rng.random() < 0.5:
+            text = "netpsbt:" + text
+        try:
+            PartiallySignedTransaction.from_base64(text)
+        except EXPECTED_PARSE_ERRORS:
+            _record(result, rejected=True)
+        except Exception as exc:
+            raise FuzzError(f"unexpected psbt crash: {type(exc).__name__}: {exc}") from exc
+        else:
+            _record(result, accepted=True)
+    return result
+
 def run_fuzz(config: FuzzConfig) -> dict[str, Any]:
     if config.iterations < 0:
         raise FuzzError("iterations must be non-negative")
@@ -223,6 +283,10 @@ def run_fuzz(config: FuzzConfig) -> dict[str, Any]:
             results.append(fuzz_script(rng, config.iterations))
         elif target == "node-http":
             results.append(fuzz_node_http(rng, config.iterations, config.max_bytes))
+        elif target == "p2p-message":
+            results.append(fuzz_p2p_message(rng, config.iterations, config.max_bytes))
+        elif target == "psbt":
+            results.append(fuzz_psbt(rng, config.iterations, config.max_bytes))
 
     total_cases = sum(item["cases"] for item in results)
     return {

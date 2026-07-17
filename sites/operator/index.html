@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Operator</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'" />
-  <link rel="stylesheet" href="site-shell.css?v=20260716-nav-caret" />
-  <link rel="stylesheet" href="operator.css?v=20260708-v016" />
+  <link rel="stylesheet" href="site-shell.css?v=20260716-sleek" />
+  <link rel="stylesheet" href="operator.css?v=20260716-cleanup" />
 </head>
 <body data-site="operator">
   <div class="shell">
@@ -28,13 +28,21 @@
         <article class="panel"><h2>Public sites</h2><div id="sites"></div></article>
         <article class="panel"><h2>Release trust</h2><div id="release"></div></article>
       </section>
+      <section class="split operator-status-grid">
+        <article class="panel"><h2>Ledger audit</h2><div id="ledgerAudit"></div></article>
+        <article class="panel"><h2>Chainstate hash</h2><div id="chainstateHash"></div></article>
+      </section>
+      <section class="split operator-status-grid">
+        <article class="panel"><h2>Peer advertise health</h2><div id="peerAdvertise"></div></article>
+        <article class="panel"><h2>Backup and reindex</h2><div id="maintenance"></div></article>
+      </section>
       <section class="panel"><h2>Live feature wiring</h2><div id="liveFeatures" class="mini-list"></div></section><section class="panel"><h2>Runbook shortcuts</h2><div class="shortcut-grid">
         <a href="https://status.netcoin.online">Status page</a><a href="https://nodes.netcoin.online">Node map</a><a href="https://security.netcoin.online">Security</a><a href="https://features.netcoin.online">Feature catalog</a><a href="https://api.netcoin.online">API docs</a><a href="https://download.netcoin.online">Downloads</a>
       </div></section>
       <p class="footer">Read-only operator dashboard. Public-testnet software, not audited production infrastructure.</p>
     </main>
   </div>
-  <script src="site-shell.js?v=20260714-nav-groups"></script>
-  <script src="operator.js?v=20260708-v016"></script>
+  <script src="site-shell.js?v=20260716-sleek"></script>
+  <script src="operator.js?v=20260716-cleanup"></script>
 </body>
 </html>

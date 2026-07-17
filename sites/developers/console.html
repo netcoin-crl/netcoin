@@ -5,70 +5,155 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Developer Console</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="developers.css?v=20260715-console" />
-  <link rel="stylesheet" href="site-shell.css?v=20260716-nav-caret" />
+  <link rel="stylesheet" href="developers.css?v=20260716-phase2" />
+  <link rel="stylesheet" href="site-shell.css?v=20260716-sleek" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand"><div class="logo">N</div><div>NetCoin Developer Console<small>rewards, withdrawals, webhooks, and deposits for one developer_id</small></div></div>
+      <div class="brand"><div class="logo">N</div><div>NetCoin Developer Console<small>payment links, API keys, webhooks, and reward simulations</small></div></div>
       <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
     </header>
 
+    <section class="card console-intro">
+      <span class="pill"><span class="dot ok"></span>Testnet only</span>
+      <h1>Developer tools that are safe to use now.</h1>
+      <p class="muted">Create testnet payment links, manage developer API keys, register webhooks, and simulate reward payouts. No private keys are entered or stored here, and payout tools only produce reviewable plans.</p>
+    </section>
+
     <section class="card">
       <h2>Load a developer</h2>
-      <label>developer_id</label>
-      <div class="row">
-        <input id="developerId" class="mono" placeholder="game-studio" autocomplete="off" />
+      <div class="split compact-split">
+        <div>
+          <label for="developerId">developer_id</label>
+          <input id="developerId" class="mono" placeholder="game-studio" autocomplete="off" />
+        </div>
+        <div>
+          <label for="developerApiKey">Write API key, optional</label>
+          <input id="developerApiKey" class="mono" placeholder="nck_… only needed when write auth is enabled" autocomplete="off" />
+        </div>
+      </div>
+      <div class="actions">
         <button id="loadBtn" type="button">Load console</button>
+        <button id="refreshAllBtn" type="button" class="secondary">Refresh all</button>
       </div>
       <p id="loadMsg" class="muted"></p>
     </section>
 
-    <section id="consoleBody" style="display:none">
+    <section id="consoleBody" hidden>
       <section class="card">
         <h2>At a glance</h2>
         <div class="stats" id="statsGrid"></div>
       </section>
 
       <section class="card">
-        <div class="row" style="justify-content:space-between">
-          <h2 style="margin:0">Funding policy</h2>
+        <div class="section-head">
+          <h2>Funding policy</h2>
         </div>
         <div id="policyBody" class="muted">Loading…</div>
       </section>
 
+      <section class="grid phase2-actions" aria-label="Developer quick actions">
+        <article class="card action-card" id="paymentLinkCreator">
+          <h2>Create payment link</h2>
+          <p class="muted">Generate a hosted testnet checkout link for a recipient address.</p>
+          <label for="paymentAddress">Recipient address</label>
+          <input id="paymentAddress" class="mono" placeholder="netcoin testnet address" autocomplete="off" />
+          <div class="split compact-split">
+            <div>
+              <label for="paymentAmount">Amount</label>
+              <input id="paymentAmount" inputmode="decimal" placeholder="0.25" />
+            </div>
+            <div>
+              <label for="paymentTitle">Title</label>
+              <input id="paymentTitle" placeholder="Starter pack" />
+            </div>
+          </div>
+          <label for="paymentMemo">Memo</label>
+          <input id="paymentMemo" placeholder="Optional checkout note" />
+          <button id="createPaymentLinkBtn" type="button">Create payment link</button>
+          <pre id="paymentLinkOut" class="mono result-box">No link created yet.</pre>
+        </article>
+
+        <article class="card action-card" id="apiKeyManager">
+          <h2>API keys</h2>
+          <p class="muted">Create testnet write keys and revoke old keys. Secrets are shown once.</p>
+          <div class="actions">
+            <button id="createApiKeyBtn" type="button">Create API key</button>
+            <button id="refreshApiKeysBtn" type="button" class="secondary">Refresh keys</button>
+          </div>
+          <pre id="apiKeyOut" class="mono result-box">No key created in this session.</pre>
+          <div class="table-scroll"><table id="apiKeysTable"><thead><tr><th>Key</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody></tbody></table></div>
+        </article>
+
+        <article class="card action-card" id="webhookManager">
+          <h2>Webhooks</h2>
+          <p class="muted">Register HTTPS event callbacks. Local/private URLs are blocked unless the dev server opts in.</p>
+          <label for="webhookUrl">Endpoint URL</label>
+          <input id="webhookUrl" placeholder="https://example.com/netcoin/webhook" />
+          <label for="webhookEvents">Events</label>
+          <input id="webhookEvents" value="payment.confirmed,reward.created,deposit.detected" />
+          <label for="webhookSecret">Secret, optional</label>
+          <input id="webhookSecret" placeholder="auto-generated when blank" autocomplete="off" />
+          <div class="actions">
+            <button id="createWebhookBtn" type="button">Register webhook</button>
+            <button id="refreshWebhooksBtn" type="button" class="secondary">Refresh webhooks</button>
+          </div>
+          <pre id="webhookOut" class="mono result-box">No webhook registered in this session.</pre>
+          <div class="table-scroll"><table id="webhooksTable"><thead><tr><th>Webhook</th><th>Events</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        </article>
+
+        <article class="card action-card" id="rewardSimulator">
+          <h2>Reward simulator</h2>
+          <p class="muted">Preview payout size and dust risk before creating real reward records.</p>
+          <div class="split compact-split">
+            <div>
+              <label for="rewardCount">Reward count</label>
+              <input id="rewardCount" type="number" min="1" value="10" />
+            </div>
+            <div>
+              <label for="rewardAmountSats">Amount per reward, sats</label>
+              <input id="rewardAmountSats" type="number" min="1" value="50" />
+            </div>
+          </div>
+          <label for="withdrawalThresholdSats">Withdrawal threshold, sats</label>
+          <input id="withdrawalThresholdSats" type="number" min="1" value="100000" />
+          <button id="simulateRewardsBtn" type="button">Simulate rewards</button>
+          <pre id="rewardSimOut" class="mono result-box">No simulation run yet.</pre>
+        </article>
+      </section>
+
       <section class="card">
         <h2>Recent rewards</h2>
-        <div style="overflow-x:auto"><table id="rewardsTable"><thead><tr><th>Reward</th><th>Player</th><th>Address</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <div class="table-scroll"><table id="rewardsTable"><thead><tr><th>Reward</th><th>Player</th><th>Address</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table></div>
       </section>
 
       <section class="card">
         <h2>Recent withdrawals</h2>
-        <div style="overflow-x:auto"><table id="withdrawalsTable"><thead><tr><th>Withdrawal</th><th>Address</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <div class="table-scroll"><table id="withdrawalsTable"><thead><tr><th>Withdrawal</th><th>Address</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table></div>
       </section>
 
       <section class="card">
         <h2>Payment links</h2>
-        <div style="overflow-x:auto"><table id="linksTable"><thead><tr><th>Link</th><th>Title</th><th>Amount</th><th>Status</th><th>Checkout</th></tr></thead><tbody></tbody></table></div>
+        <div class="table-scroll"><table id="linksTable"><thead><tr><th>Link</th><th>Title</th><th>Amount</th><th>Status</th><th>Checkout</th></tr></thead><tbody></tbody></table></div>
       </section>
 
       <section class="card">
-        <div class="row" style="justify-content:space-between">
-          <h2 style="margin:0">Webhook dead letters</h2>
+        <div class="section-head">
+          <h2>Webhook dead letters</h2>
           <button id="refreshDeadLetters" type="button" class="secondary">Refresh</button>
         </div>
         <p class="muted">Deliveries that exhausted their retry budget. Retry sends just that one event.</p>
-        <div style="overflow-x:auto"><table id="deadLettersTable"><thead><tr><th>Event</th><th>Type</th><th>Attempts</th><th>Last error</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div class="table-scroll"><table id="deadLettersTable"><thead><tr><th>Event</th><th>Type</th><th>Attempts</th><th>Last error</th><th></th></tr></thead><tbody></tbody></table></div>
       </section>
 
       <section class="card">
-        <div class="row" style="justify-content:space-between">
-          <h2 style="margin:0">Watched deposits</h2>
+        <div class="section-head">
+          <h2>Watched deposits</h2>
           <button id="refreshDeposits" type="button" class="secondary">Refresh deposits</button>
         </div>
-        <p class="muted">Refreshing also fires any pending deposit.detected webhooks that haven't been notified yet.</p>
-        <div style="overflow-x:auto"><table id="depositsTable"><thead><tr><th>Address</th><th>txid</th><th>Amount</th><th>Confirmations</th><th>Ready</th></tr></thead><tbody></tbody></table></div>
+        <p class="muted">Refreshing also fires any pending deposit.detected webhooks that have not been notified yet.</p>
+        <div class="table-scroll"><table id="depositsTable"><thead><tr><th>Address</th><th>txid</th><th>Amount</th><th>Confirmations</th><th>Ready</th></tr></thead><tbody></tbody></table></div>
       </section>
 
       <section class="card">
@@ -77,9 +162,9 @@
       </section>
     </section>
 
-    <p class="footer">Read-only rendering of GET/POST /api/developer/*. No private keys are entered or stored on this page.</p>
+    <p class="footer">Developer Console writes are testnet-only. API keys and webhook secrets are sensitive; copy them once and store them outside the browser.</p>
   </div>
-  <script src="console.js?v=20260715-console"></script>
-  <script src="site-shell.js?v=20260714-nav-groups"></script>
+  <script src="console.js?v=20260716-phase2"></script>
+  <script src="site-shell.js?v=20260716-sleek"></script>
 </body>
 </html>

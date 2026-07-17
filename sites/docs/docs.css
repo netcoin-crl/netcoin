@@ -178,3 +178,14 @@ body{letter-spacing:-.01em}
 .testnet-pilot-grid ul,.testnet-pilot-grid ol{margin:0;padding-left:18px}.testnet-pilot-grid li+li{margin-top:6px}
 .testnet-pilot-page table{font-size:14px}.testnet-pilot-page b{color:var(--fg)}
 @media(max-width:760px){.testnet-pilot-page .pilot-checklist{padding-left:18px}.testnet-pilot-page table{font-size:13px}}
+
+
+/* Localnet onboarding: compact launch path and read-only status cards. */
+.localnet-guide-page .localnet-steps .card{position:relative}
+.localnet-guide-page .localnet-status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.localnet-guide-page .command-card pre{max-height:none!important}
+.localnet-guide-page .command-card button{width:auto;min-width:120px}
+.localnet-guide-page .compact-json{max-height:260px!important;font-size:12px}
+.localnet-guide-page .notice.warn{border-left-color:var(--warn);background:rgba(255,209,102,.08)}
+.localnet-guide-page .compact-list{margin:0;padding-left:18px}.localnet-guide-page .compact-list li+li{margin-top:6px}
+@media(max-width:760px){.localnet-guide-page .command-card button{width:100%}}

@@ -3,6 +3,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,3 +86,91 @@ def test_wallet_api_helper_never_surfaces_a_raw_non_json_response_body():
     body = match.group(1)
     assert "let parsed = true" in body
     assert "parsed = false" in body
+
+
+
+def test_wallet_rbf_and_multisig_controls_are_exposed():
+    html = _read(SITE_WALLET / "index.html")
+    js = _read(SITE_WALLET / "wallet-app.js")
+    for token in [
+        'id="feePreset"',
+        'id="feePresetCards"',
+        'data-fee-preset="slow"',
+        'data-fee-preset="normal"',
+        'data-fee-preset="fast"',
+        'id="rbfOptIn"',
+        'id="speedUpCard"',
+        'id="rbfOriginalTx"',
+        'id="rbfPrevouts"',
+        'id="rbfBroadcastNow" type="checkbox" /> Broadcast replacement immediately',
+        'id="btnPreviewRbfBump"',
+        'id="btnBumpFee"',
+        'id="psbtToolsCard"',
+        'id="btnMakePsbt"',
+        'id="signedPsbtOut"',
+        'id="multisigToolsCard"',
+        'id="btnCreateMultisig"',
+        'id="multisigSpendPsbt"',
+        'id="multisigProgress"',
+    ]:
+        assert token in html
+    for token in [
+        'api("/fee-estimates")',
+        'function updateFeePresetCards(tiers)',
+        'function chooseFeePreset(presetName)',
+        'api("/wallet/rbf-bump"',
+        'broadcast = Boolean($("rbfBroadcastNow")?.checked)',
+        'function hydrateRbfBumpCard()',
+        'function bumpFeeFromCard()',
+        'api("/wallet/multisig/create"',
+        'api("/wallet/multisig/psbt/create"',
+        'api("/wallet/multisig/psbt/sign"',
+        'api("/wallet/psbt/extract"',
+        'function setMultisigProgress(progress)',
+        'rbf: Boolean($("rbfOptIn")?.checked)',
+    ]:
+        assert token in js
+
+
+def test_phase1_wallet_tools_are_available_on_normal_wallet_tab():
+    html = _read(SITE_WALLET / "index.html")
+    js = _read(SITE_WALLET / "wallet-app.js")
+    assert 'class="card wallet-availability-card" id="speedUpCard"' in html
+    assert 'class="card wallet-availability-card" id="psbtToolsCard"' in html
+    assert 'class="card wallet-availability-card" id="multisigToolsCard"' in html
+    assert 'card.classList.contains("wallet-availability-card")' in js
+    assert 'tab = "wallet"' in js[js.index('card.classList.contains("wallet-availability-card")') : js.index('else if (card.querySelector("#contactsImportFile"))')]
+    assert "Preview is non-broadcast by default" in html
+    assert 'id="rbfBroadcastNow" type="checkbox" /> Broadcast replacement immediately' in html
+
+
+def test_wallet_browser_bundle_sets_rbf_sequence_when_requested():
+    node = shutil.which("node")
+    if not node:
+        return
+    script = """
+const fs = require("fs");
+const vm = require("vm");
+const code = fs.readFileSync("sites/wallet/netcoin-wallet.js", "utf8");
+const ctx = { crypto: require("crypto").webcrypto, TextEncoder, TextDecoder };
+vm.createContext(ctx);
+vm.runInContext(code + ";this.NCW=NCW;", ctx);
+const W = ctx.NCW;
+const priv = W.newRandomPrivateKey();
+const wallet = W.walletFromPrivateKey(priv, "segwit");
+const recipient = W.walletFromPrivateKey(W.newRandomPrivateKey(), "segwit").address;
+const common = {
+  privHex: priv,
+  utxos: [{ txid: "00".repeat(32), vout: 0, amount: 100000, address: wallet.address }],
+  toAddress: recipient,
+  amount: 50000,
+  fee: 1000,
+  changeAddress: wallet.address,
+};
+const finalTx = W.buildSignedPayment({ ...common, rbf: false });
+const rbfTx = W.buildSignedPayment({ ...common, rbf: true });
+if (finalTx.inputs[0].sequence !== 0xffffffff) throw new Error("non-RBF send should keep final sequence");
+if (rbfTx.inputs[0].sequence !== 0xfffffffd) throw new Error("RBF send should use an opt-in sequence");
+"""
+    result = subprocess.run([node, "-e", script], cwd=ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

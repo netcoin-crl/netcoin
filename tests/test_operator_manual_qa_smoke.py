@@ -2,7 +2,7 @@
 
 This deliberately exercises the flows a human operator would click through before
 publishing a testnet build: wallet funding/sending, invoices, receipts, merchant
-webhooks, manual payout review, Phase 7 contracts, SQLite persistence, and admin
+webhooks, manual payout review, contract demos, SQLite persistence, and admin
 route protection.
 """
 

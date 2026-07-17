@@ -173,6 +173,9 @@ class NetCoinNode:
         self.persist = persist
         self.max_peers = max_peers
         self.self_url = self._normalize_peer(self_url) if self_url else None
+        self.advertise_unreachable = False
+        self.advertise_unreachable_error = ""
+        self._advertise_reachability_checked = False
         # Peer reputation: scores adjust on good/bad behavior; reaching the ban
         # threshold bans the peer. Bans persist to banned_peers.json.
         self.peer_scores: dict[str, int] = {}
@@ -415,10 +418,38 @@ class NetCoinNode:
                     learned += 1
         return learned
 
+
+    def ensure_advertise_reachable(self) -> bool:
+        if not self.self_url:
+            return True
+        if self._advertise_reachability_checked:
+            return not self.advertise_unreachable
+        self._advertise_reachability_checked = True
+        try:
+            self.fetch_json(f"{self.self_url}/peers/echo-addr")
+        except Exception as exc:
+            self.advertise_unreachable = True
+            self.advertise_unreachable_error = str(exc) or exc.__class__.__name__
+            self.log_event("advertise_unreachable", self_url=self.self_url, error=self.advertise_unreachable_error)
+            return False
+        self.advertise_unreachable = False
+        self.advertise_unreachable_error = ""
+        return True
+
     def announce_self(self) -> int:
         """Gossip push: tell known peers our advertised URL so they can dial back."""
         if not self.self_url:
             return 0
+        # Advisory only: populates advertise_unreachable/_error for /info so an
+        # operator can see a problem, but does not block announcing. Many home
+        # routers don't support NAT hairpinning, so a node legitimately cannot
+        # reach its own forwarded public address from inside its own LAN even
+        # though outside peers reach it fine -- blocking on this self-check
+        # would silently stop exactly the correctly-configured home seeds it's
+        # meant to help. The static --advertise format validation in cli.py
+        # (normalize_advertise_url) is the real defense against placeholder or
+        # private-range addresses.
+        self.ensure_advertise_reachable()
         delivered = 0
         for peer in list(self.peers):
             try:
@@ -516,6 +547,9 @@ class NetCoinNode:
                 "crypto_backend": crypto_backend_status(),
                 "crypto_self_test": crypto_self_test(),
                 "peers": sorted(self.peers),
+                "advertise": self.self_url or "",
+                "advertise_unreachable": self.advertise_unreachable,
+                "advertise_unreachable_error": self.advertise_unreachable_error,
                 "peer_manager": {"active": self.peer_manager.active_peers(), "banned": self.peer_manager.banlist()},
                 "banned": len(self.banned),
                 "orphans": len(self.orphans),
@@ -1385,6 +1419,8 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     self.send_json(payload)
                 elif parsed.path == "/fee-estimates":
                     self.send_json(fee_estimates_payload(node.chain))
+                elif parsed.path == "/peers/echo-addr":
+                    self.send_json({"ok": True, "observed_ip": self.client_ip()})
                 elif parsed.path == "/peers":
                     self.send_json(
                         {

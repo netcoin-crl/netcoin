@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Features</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="site-shell.css?v=20260716-nav-caret" />
-  <link rel="stylesheet" href="features.css?v=20260708-audit" />
+  <link rel="stylesheet" href="site-shell.css?v=20260716-sleek" />
+  <link rel="stylesheet" href="features.css?v=20260716-availability" />
 </head>
 <body>
   <div class="shell features-shell">
@@ -18,23 +18,25 @@
       <div>
         <span class="status-chip"><span id="featureDot" class="dot"></span><span id="featureStatus">Loading catalog</span></span>
         <h1>Feature map</h1>
-        <p>Everything in NetCoin, grouped by product area with ratings and the next best fix.</p>
+        <p>Everything in NetCoin, grouped by product area with readiness ratings, availability labels, and the next best fix.</p>
       </div>
       <div id="featureStats" class="feature-stats"></div>
     </section>
+    <section class="card availability-disclaimer"><h2>Availability, not production readiness</h2><p id="catalogDisclaimer">Public-testnet ratings only. Not a production readiness claim.</p><div id="availabilityScale" class="availability-scale"></div></section>
     <section class="card feature-controls">
-      <input id="featureSearch" type="search" placeholder="Search wallet, markets, P2P, explorer..." />
+      <input id="featureSearch" type="search" placeholder="Search wallet, markets, P2P, explorer..." aria-label="Search feature catalog" />
       <select id="featureCategory"><option value="">All categories</option></select>
       <select id="featureMinimum"><option value="0">Any rating</option><option value="7">7+ strong</option><option value="6">6+ improving</option><option value="0">Show all</option></select>
+      <select id="featureSurface"><option value="">All surfaces</option><option value="ui">UI available</option><option value="api">API available</option><option value="cli">CLI available</option></select>
     </section>
     <section class="card"><h2>Live wiring</h2><div id="liveFeatureStatus" class="impact-list">Loading live probes…</div></section><main id="featureCatalog" class="feature-catalog"></main>
     <section class="card">
       <h2>10 biggest impact fixes</h2>
       <div id="impactFixes" class="impact-list"></div>
     </section>
-    <p class="footer">Ratings are internal readiness ratings, not an external audit.</p>
+    <p class="footer">Ratings are internal readiness ratings, not an external audit, not mainnet readiness, and not real-money safety.</p>
   </div>
-  <script src="features.js?v=20260708-audit"></script>
-  <script src="site-shell.js?v=20260714-nav-groups"></script>
+  <script src="features.js?v=20260716-availability"></script>
+  <script src="site-shell.js?v=20260716-sleek"></script>
 </body>
 </html>

@@ -169,7 +169,7 @@ body{letter-spacing:-.01em}
 
 </style>
   <link rel="stylesheet" href="ui-polish.css?v=20260710-v0377-widen" />
-    <link rel="stylesheet" href="site-shell.css?v=20260716-nav-caret" />
+    <link rel="stylesheet" href="site-shell.css?v=20260716-sleek" />
 
 
   <style>
@@ -210,11 +210,11 @@ body{letter-spacing:-.01em}
   <div class="wrap">
     <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
 <h1 class="wallet-page-title">Net<span>Coin</span> Wallet <span class="pill testnet-pill" id="netpill">testnet</span></h1>
-    <p class="sub">Non-custodial · encrypted vault · keys stay in your browser</p>
+    <p class="sub">Non-custodial testnet wallet. Keys stay in your browser.</p>
 
     <!-- WELCOME -->
     <div id="welcome" class="card hide">
-      <p>Create a new wallet, restore a recovery phrase, or sign in with an existing private key.</p>
+      <p>Create, restore, or unlock a wallet.</p>
       <button id="btnCreate">Create new wallet</button>
       <button id="btnRestore" class="secondary">Restore from recovery phrase</button>
       <button id="btnPrivateKey">Sign in with private key</button>
@@ -222,7 +222,7 @@ body{letter-spacing:-.01em}
 
     <!-- CREATE: show phrase -->
     <div id="create" class="card hide">
-      <p>Your recovery phrase. <strong>Write it down</strong> — it is the only way to restore this wallet, and we never see it.</p>
+      <p>Write down this recovery phrase. It is the only restore path.</p>
       <div class="warn mono" id="newPhrase"></div>
       <label>Wallet profile name</label>
       <input id="createProfileName" placeholder="Default" autocomplete="off" />
@@ -230,7 +230,7 @@ body{letter-spacing:-.01em}
       <input id="createPw" type="password" placeholder="password" autocomplete="new-password" />
       <button id="btnCreateConfirm">I saved it — continue</button>
       <div id="backupQuiz" class="hide">
-        <p class="warn">Quick check that your backup is written down correctly. Enter the requested words from your recovery phrase.</p>
+        <p class="warn">Backup check: enter the requested words.</p>
         <label id="quizWordLabel1">Word #</label>
         <input id="quizWord1" class="mono" placeholder="net___" autocomplete="off" autocapitalize="off" spellcheck="false" />
         <label id="quizWordLabel2">Word #</label>
@@ -258,7 +258,7 @@ body{letter-spacing:-.01em}
 
     <!-- PRIVATE KEY IMPORT -->
     <div id="privateKey" class="card hide">
-      <p>Import an existing NetCoin private key. The key is encrypted locally if you save it as a profile and never leaves your browser.</p>
+      <p>Import a private key. Saved profiles are encrypted in this browser.</p>
       <label>Private key hex</label>
       <textarea id="privateKeyInput" placeholder="64-character private key hex" autocomplete="off" spellcheck="false"></textarea>
       <label>Wallet profile name</label>
@@ -277,7 +277,7 @@ body{letter-spacing:-.01em}
       <button id="btnPrivateKeyConfirm">Unlock and save encrypted profile</button>
       <button id="btnPrivateKeySession" class="secondary" type="button">Unlock for this session only</button>
       <button id="btnPrivateKeyBack" class="secondary">Back</button>
-      <p class="muted">Session-only unlock does not save the key. Saved profiles are encrypted with your password in this browser.</p>
+      <p class="muted">Session-only does not save the key.</p>
       <p class="err" id="privateKeyErr"></p>
     </div>
 
@@ -340,7 +340,7 @@ body{letter-spacing:-.01em}
             </details>
           </section>
         </div>
-        <div class="statusbar wallet-status-inline"><span class="dot" id="statusDot"></span><span id="walletStatus" class="muted">Checking node status…</span><span class="pill" id="activeProfilePill">Profile</span></div>
+        <div class="statusbar wallet-status-inline"><span class="dot" id="statusDot"></span><span id="walletStatus" class="muted" role="status" aria-live="polite" aria-atomic="true">Checking node status…</span><span class="pill" id="activeProfilePill">Profile</span></div>
         <details id="walletSetupWizard" class="setup-wizard">
           <summary>New here? Follow the 4-step wallet setup</summary>
           <ol>
@@ -350,15 +350,25 @@ body{letter-spacing:-.01em}
             <li>Send a tiny test payment and verify it in Explorer.</li>
           </ol>
         </details>
+        <section id="walletFlowGuide" class="wallet-flow-guide" aria-label="Wallet workflow shortcuts">
+          <a href="#wallet-receive"><span>1</span><b>Receive testnet NET</b><small>Copy address or payment link</small></a>
+          <a href="#wallet-send"><span>2</span><b>Send safely</b><small>Review amount, fee, and warnings first</small></a>
+          <a href="#wallet-activity"><span>3</span><b>Check activity</b><small>Open txs in Explorer</small></a>
+          <a href="#psbtToolsCard"><span>4</span><b>Advanced tools</b><small>RBF, PSBT, multisig</small></a>
+        </section>
       </div>
       <div class="card">
         <h2>Receive</h2>
         <p class="muted">Create a payment request link for your address.</p>
         <div class="row">
-          <input id="requestAmount" inputmode="decimal" placeholder="Amount, optional" />
-          <input id="requestLabel" placeholder="Label, optional" autocomplete="off" />
+          <input id="requestAmount" inputmode="decimal" placeholder="Amount, optional" aria-label="Payment request amount" />
+          <input id="requestLabel" placeholder="Label, optional" autocomplete="off" aria-label="Payment request label" />
         </div>
         <button id="btnMakePaymentLink" class="secondary" type="button">Create payment link</button>
+        <div class="receive-shortcuts" aria-label="Receive shortcuts">
+          <a href="https://faucet.netcoin.online/" target="_blank" rel="noreferrer">Open testnet faucet</a>
+          <a href="https://explorer.netcoin.online/" target="_blank" rel="noreferrer">Open Explorer</a>
+        </div>
         <div id="receiveOut" class="review hide">
           <div class="muted">Payment URI</div>
           <div id="paymentUri" class="mono"></div>
@@ -374,13 +384,13 @@ body{letter-spacing:-.01em}
         <h2>Send</h2>
         <label>Recipient</label>
         <div class="send-recipient-row">
-          <input id="toAddr" class="mono" placeholder="net1q... or netcoin:net1q...?amount=1" autocomplete="off" />
+          <input id="toAddr" class="mono" placeholder="net1q... or netcoin:net1q...?amount=1" autocomplete="off" aria-label="Recipient address or payment link" />
           <button id="btnScanQr" class="secondary inline" type="button">Scan QR</button>
         </div>
-        <p id="addrValidation" class="muted">Enter an address or paste a NetCoin payment link.</p>
+        <p id="addrValidation" class="muted">Address or payment link.</p>
         <div id="scanBox" class="hide">
           <video id="scanVideo" playsinline muted></video>
-          <p id="scanMsg" class="muted">Point the camera at a NetCoin payment QR code.</p>
+          <p id="scanMsg" class="muted">Scan a NetCoin QR.</p>
         </div>
         <details class="send-contacts-panel">
           <summary>Contacts</summary>
@@ -394,22 +404,29 @@ body{letter-spacing:-.01em}
             <button id="btnSaveContact" class="secondary inline" type="button">Save</button>
           </div>
           <button id="btnDeleteContact" class="secondary smallbtn" type="button">Delete selected contact</button>
-          <p class="muted" id="contactMsg">Contacts are saved only in this browser.</p>
+          <p class="muted" id="contactMsg">Saved in this browser.</p>
         </details>
         <label>Amount (NET)</label>
         <div class="send-amount-row">
-          <input id="amount" inputmode="decimal" placeholder="0.0" />
+          <input id="amount" inputmode="decimal" placeholder="0.0" aria-label="Amount to send in NET" />
           <button id="btnMax" class="secondary" type="button">Max</button>
+        </div>
+        <div id="feePresetCards" class="fee-preset-cards" aria-label="Fee speed">
+          <button class="fee-preset-card" type="button" data-fee-preset="slow"><span>Economy</span><b id="feeSlowLabel">Auto</b></button>
+          <button class="fee-preset-card active" type="button" data-fee-preset="normal"><span>Standard</span><b id="feeNormalLabel">Auto</b></button>
+          <button class="fee-preset-card" type="button" data-fee-preset="fast"><span>Fast</span><b id="feeFastLabel">Auto</b></button>
         </div>
         <div class="send-quick-row">
           <select id="feePreset" aria-label="Fee preset">
-            <option value="slow">Slow — minimum</option>
-            <option value="normal" selected>Normal — recommended</option>
+            <option value="slow">Economy — minimum</option>
+            <option value="normal" selected>Standard — recommended</option>
             <option value="fast">Fast</option>
             <option value="custom">Custom</option>
           </select>
           <button id="btnConsolidateSelf" class="secondary" type="button">Consolidate self</button>
         </div>
+        <p id="feePresetStatus" class="muted">Standard fee selected. Fee estimates refresh from the node when available.</p>
+        <label class="wallet-option-check"><input id="rbfOptIn" type="checkbox" checked /> Enable speed-up support for this send</label>
         <details class="send-advanced-panel">
           <summary>Fee &amp; coin control</summary>
           <label>Network fee (NET)</label>
@@ -439,7 +456,16 @@ body{letter-spacing:-.01em}
             <div class="k">Total</div><div class="v" id="reviewTotal"></div>
             <div class="k">Coin control</div><div class="v" id="reviewUtxos"></div>
           </div>
-          <p id="reviewWarning" class="err hide"></p>
+          <p id="reviewWarning" class="err hide" role="alert" aria-live="assertive" aria-atomic="true"></p>
+          <div id="sendChecklist" class="send-confirmation-checklist" aria-live="polite">
+            <strong>Before you send</strong>
+            <ul>
+              <li id="checkRecipient">Verify the full recipient address.</li>
+              <li id="checkAmountFee">Confirm amount plus fee.</li>
+              <li id="checkRisk">Review wallet risk warnings.</li>
+              <li id="checkTestnet">Testnet only. No real-money value.</li>
+            </ul>
+          </div>
           <div id="riskPanel" class="card soft hide">
             <h2 style="font-size:14px;margin:0 0 8px">Risk simulator</h2>
             <div class="kv">
@@ -452,23 +478,42 @@ body{letter-spacing:-.01em}
             <ul id="riskWarnings" class="muted"></ul>
           </div>
           <div class="row">
-            <button id="btnConfirmSend" type="button">Send now</button>
+            <button id="btnConfirmSend" type="button">Confirm testnet send</button>
+            <button id="btnBumpFee" class="secondary" type="button">Bump fee</button>
             <button id="btnSaveDraft" class="secondary" type="button">Save draft</button>
             <button id="btnExportUnsigned" class="secondary" type="button">Export unsigned</button>
             <button id="btnCancelSend" class="secondary" type="button">Cancel</button>
           </div>
-          <p id="walletWorkflowMsg" class="muted"></p>
+          <p id="walletWorkflowMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
-        <p id="sendMsg"></p>
+        <p id="sendMsg" role="status" aria-live="polite" aria-atomic="true"></p>
+      </div>
+      <div class="card wallet-availability-card" id="speedUpCard">
+        <h2>Speed up transaction</h2>
+        <p class="muted">Bump the fee on a pending send that was created with speed-up support enabled. Preview is non-broadcast by default.</p>
+        <label>Original transaction JSON</label>
+        <textarea id="rbfOriginalTx" class="mono" placeholder="Paste original transaction JSON, or send with speed-up enabled to fill this automatically"></textarea>
+        <label>Previous outputs JSON</label>
+        <textarea id="rbfPrevouts" class="mono" placeholder="Paste prevouts JSON from the original spend"></textarea>
+        <div class="row compact-row">
+          <input id="rbfNewFee" inputmode="decimal" placeholder="New fee, e.g. 0.00150000" aria-label="Replacement transaction fee in NET" />
+          <input id="rbfChangeAddress" class="mono" placeholder="Change address, defaults to this wallet" autocomplete="off" aria-label="Replacement transaction change address" />
+        </div>
+        <label class="wallet-option-check"><input id="rbfBroadcastNow" type="checkbox" /> Broadcast replacement immediately</label>
+        <div class="row compact-row">
+          <button id="btnUseLastRbfCandidate" class="secondary inline" type="button">Use last RBF send</button>
+          <button id="btnPreviewRbfBump" class="secondary inline" type="button">Preview fee bump</button>
+        </div>
+        <pre id="rbfBumpOut" class="mono muted" role="status" aria-live="polite" aria-atomic="true">Replacement preview appears here. Broadcast stays off unless you explicitly check the box.</pre>
       </div>
       <div class="card">
         <h2>Transactions &amp; labels</h2>
-        <p class="muted">Labels are saved only in this browser and never sent to the node.</p>
+        <p class="muted">Local labels only.</p>
         <div id="txHistory" class="muted">Unlock wallet to load recent activity.</div>
       </div>
       <div class="card">
         <h2>Reports, alerts &amp; safety</h2>
-        <p class="muted">Optional app-layer tools. These use the same-origin API when available; your private key still never leaves this browser.</p>
+        <p class="muted">Optional reports and limits. Keys stay local.</p>
         <div class="row">
           <button id="btnWalletStatement" class="secondary inline" type="button">Create statement</button>
           <button id="btnWalletStatementCsv" class="secondary inline" type="button">Download CSV</button>
@@ -495,9 +540,9 @@ body{letter-spacing:-.01em}
         <button id="btnMarkBackupDone" class="secondary" type="button">Mark backup verified</button>
         <p id="walletToolsMsg" class="muted"></p>
       </div>
-      <div class="card">
-        <h2>Descriptors &amp; offline signing</h2>
-        <p class="muted">Export a watch-only descriptor for this wallet, import simple wpkh() descriptors into the watchlist, or create a NetCoin PSBT for offline review/signing workflows.</p>
+      <div class="card wallet-availability-card" id="psbtToolsCard">
+        <h2>PSBT import/export</h2>
+        <p class="muted">Inspect, sign, import, and broadcast testnet PSBTs.</p>
         <label>Your wallet descriptor</label>
         <textarea id="walletDescriptor" class="mono" readonly></textarea>
         <button id="btnCopyDescriptor" class="secondary" type="button">Copy descriptor</button>
@@ -514,7 +559,7 @@ body{letter-spacing:-.01em}
         </div>
 
         <h3 style="margin-top:16px">Airgap transfer</h3>
-        <p class="muted">Move the PSBT to and from an offline signer by file or by camera. The animated QR carries a large PSBT across an airgap in frames.</p>
+        <p class="muted">Move PSBTs by file or animated QR.</p>
         <canvas id="psbtQrCanvas" width="320" height="320" style="width:220px;height:220px;max-width:100%;background:#fff;border-radius:8px"></canvas>
         <p id="psbtQrLabel" class="muted"></p>
 
@@ -522,16 +567,34 @@ body{letter-spacing:-.01em}
         <textarea id="signedPsbtOut" class="mono" placeholder="netpsbt-signed:... appears here after offline signing, or paste one to import"></textarea>
         <div class="row">
           <button id="btnDownloadSignedPsbt" class="secondary inline" type="button" disabled>Download signed .psbt</button>
-          <input id="signedPsbtFile" class="file" type="file" accept=".psbt,text/plain" />
+          <input id="signedPsbtFile" class="file" type="file" accept=".psbt,text/plain" aria-label="Import signed PSBT file" />
           <button id="btnImportSignedPsbt" class="secondary inline" type="button">Import signed PSBT</button>
         </div>
         <div id="psbtReview" class="review hide"></div>
         <button id="btnBroadcastSignedPsbt" type="button" disabled>Broadcast signed transaction</button>
-        <p id="descriptorMsg" class="muted"></p>
+        <p id="descriptorMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>
+      </div>
+      <div class="card wallet-availability-card" id="multisigToolsCard">
+        <h2>Multisig wallet tools</h2>
+        <p class="muted">Create M-of-N multisig and collect PSBT signatures.</p>
+        <div class="row compact-row">
+          <input id="multisigRequired" inputmode="numeric" value="2" aria-label="Required signatures" />
+          <input id="multisigPubkeys" class="mono" placeholder="Cosigner pubkeys, comma or newline separated" autocomplete="off" />
+        </div>
+        <button id="btnCreateMultisig" class="secondary inline" type="button">Create multisig wallet</button>
+        <pre id="multisigCreateOut" class="mono muted">Address and redeem script appear here.</pre>
+        <label>Multisig spend PSBT</label>
+        <textarea id="multisigSpendPsbt" class="mono" placeholder="netpsbt:..."></textarea>
+        <div class="row compact-row">
+          <button id="btnCreateMultisigSpend" class="secondary inline" type="button">Create multisig spend</button>
+          <button id="btnSignMultisigSpend" class="secondary inline" type="button">Add this cosigner signature</button>
+          <button id="btnExtractMultisigSpend" class="secondary inline" type="button">Extract when ready</button>
+        </div>
+        <p id="multisigProgress" class="muted">0 of 0 collected.</p>
       </div>
       <div class="card">
         <h2>Watch-only addresses</h2>
-        <p class="muted">Monitor balances without importing a private key. These labels are saved only in this browser.</p>
+        <p class="muted">Monitor addresses without importing keys.</p>
         <label>Address to watch</label>
         <input id="watchAddress" class="mono" placeholder="net1q..." autocomplete="off" />
         <label>Label</label>
@@ -545,7 +608,7 @@ body{letter-spacing:-.01em}
       </div>
       <div class="card">
         <h2>Settings · Backups</h2>
-        <p class="muted">Backup and restore saved contacts. Encrypted export protects the contact file with a password.</p>
+        <p class="muted">Export or restore saved contacts.</p>
         <div class="row">
           <button id="btnExportContacts" class="secondary" type="button">Export contacts</button>
           <button id="btnExportContactsEncrypted" class="secondary" type="button">Export encrypted</button>
@@ -559,13 +622,63 @@ body{letter-spacing:-.01em}
     </div>
   </div>
 
-  <script src="netcoin-wallet.js?v=20260707-cap500" integrity="sha384-f2rfd5w+8CoOw7hqpFx1tEJNdaahCW+OeVInr/33yCnqqJKmAfMfQ1GeU4vSIMuJ" crossorigin="anonymous"></script>
-  <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260715-safe-error-text" integrity="sha384-S7Y7B9mLIakfy0YBARV93nOC9fy98GGNPG3uGYAS2L/RNiv6f1wUNDnIm5oDX9et" crossorigin="anonymous"></script>
-<script src="site-shell.js?v=20260714-nav-groups"></script>
-</body>
-</html>
 
+<style id="wallet-availability-styles">
+  .fee-preset-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0 10px}
+  .fee-preset-card{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;margin:0!important;padding:10px 12px!important;background:rgba(255,255,255,.025)!important;color:var(--fg)!important;border:1px solid var(--bd)!important;text-align:left!important;min-height:64px!important}
+  .fee-preset-card span{font-size:12px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+  .fee-preset-card b{font-size:13px;color:var(--fg);font-weight:800;line-height:1.25}
+  .fee-preset-card.active{border-color:rgba(61,220,151,.72)!important;background:rgba(61,220,151,.12)!important;box-shadow:0 0 0 1px rgba(61,220,151,.1) inset!important}
+  .wallet-option-check{display:flex!important;align-items:flex-start!important;gap:8px!important;margin:10px 0!important;color:var(--mut)!important;font-size:12.5px!important;line-height:1.45!important}
+  .wallet-option-check input{width:auto!important;margin-top:3px!important;padding:0!important}
+  #speedUpCard,#psbtToolsCard,#multisigToolsCard{border-color:rgba(61,220,151,.2)!important;background:linear-gradient(180deg,rgba(61,220,151,.045),rgba(255,255,255,.012))!important}
+  #rbfBumpOut{white-space:pre-wrap;max-height:260px;overflow:auto}
+  @media(max-width:720px){.fee-preset-cards{grid-template-columns:1fr}.fee-preset-card{min-height:0!important}}
+</style>
+
+
+<style id="wallet-ux-hardening">
+  .wallet-flow-guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+  .wallet-flow-guide a{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;border:1px solid var(--bd);border-radius:14px;background:rgba(255,255,255,.025);padding:12px;color:var(--fg);text-decoration:none}
+  .wallet-flow-guide a:hover{border-color:rgba(61,220,151,.65)}
+  .wallet-flow-guide span{grid-row:1/3;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:999px;background:rgba(61,220,151,.14);color:var(--acc);font-weight:850}
+  .wallet-flow-guide b{font-size:13px}.wallet-flow-guide small{color:var(--mut);font-size:12px}
+  .receive-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}.receive-shortcuts a{border:1px solid var(--bd);border-radius:999px;padding:7px 10px;text-decoration:none;color:var(--fg);font-size:12px;font-weight:750;background:rgba(255,255,255,.025)}
+  .send-confirmation-checklist{border:1px solid rgba(61,220,151,.25);border-radius:14px;background:rgba(61,220,151,.055);padding:12px;margin:12px 0}.send-confirmation-checklist strong{font-size:13px}.send-confirmation-checklist ul{margin:8px 0 0 18px;color:var(--mut);padding:0}.send-confirmation-checklist li.ok{color:var(--acc)}.send-confirmation-checklist li.warn{color:var(--warn,#ffd166)}
+  .tx-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.tx-actions a,.tx-actions button{width:auto!important;margin:0!important;border:1px solid var(--bd)!important;border-radius:999px!important;padding:7px 10px!important;background:transparent!important;color:var(--fg)!important;font-size:12px!important;text-decoration:none!important}
+  .wallet-error-help{display:block;margin-top:4px;color:var(--mut);font-size:12px}
+  @media(max-width:720px){.wallet-flow-guide{grid-template-columns:1fr}.tx-actions a,.tx-actions button{width:100%!important}}
+</style>
+
+  <script src="netcoin-wallet.js?v=20260716-rbf-sequence" integrity="sha384-khM5FWIgWnMvrxYuUUVmpQcEEcQxVp4paoWOFhxaiEhf4ZLYIigDpmCHbE0cBIZ9" crossorigin="anonymous"></script>
+  <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260716-cleanup-wallet" integrity="sha384-q2qyzN2xXgYArGdryIa26ygAJgS1uj/DD9ENLnZPZpxYhXVFtkj+Ea/fvBfKETKe" crossorigin="anonymous"></script>
+<script src="site-shell.js?v=20260716-sleek"></script>
+
+<style id="wallet-mobile-hardening">
+  .send-recipient-row,.send-amount-row,.send-quick-row,.compact-row{min-width:0}
+  .tx-actions{display:flex;flex-wrap:wrap;gap:8px}.tx-actions a,.tx-actions button{min-height:44px}
+  @media(max-width:720px){
+    .wrap{max-width:100%!important;padding-left:10px!important;padding-right:10px!important}
+    .wallet-tabs{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;overflow:visible!important}
+    .wallet-tabs button{width:100%!important;min-height:44px!important;white-space:normal!important}
+    .wallet-flow-guide{grid-template-columns:1fr!important}
+    .wallet-flow-guide a{min-height:58px!important}
+    .send-recipient-row,.send-amount-row,.send-quick-row,.compact-row,.overview-actions,.receive-shortcuts{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+    .send-recipient-row button,.send-amount-row button,.send-quick-row button,.compact-row button,.overview-actions button,.receive-shortcuts a{width:100%!important;min-height:44px!important;text-align:center!important;justify-content:center!important}
+    .fee-preset-cards{grid-template-columns:1fr!important}
+    .fee-preset-card{min-height:54px!important}
+    .kv{grid-template-columns:1fr!important}
+    .kv .k{margin-top:8px!important}
+    #paymentUri,#reviewTo,#utxoList,.mono,pre{overflow-wrap:anywhere!important;word-break:break-word!important}
+    canvas#qrCanvas{max-width:192px;width:100%;height:auto}
+  }
+</style>
+
+
+<style id="wallet-sleek-pass">
+  .wallet-page-title{font-size:clamp(22px,3vw,30px)!important;margin-bottom:4px!important}.sub{font-size:13px!important;margin-bottom:12px!important}.wallet-flow-guide p,.wallet-availability-card p,#speedUpCard p,.receive-shortcuts p{font-size:12.5px!important;line-height:1.35!important}.wallet-flow-grid{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))!important;gap:8px!important}.wallet-flow-step{padding:10px!important}.send-confirmation-checklist li{margin:4px 0!important}.wallet-availability-card textarea{min-height:86px!important}.wallet-availability-card pre{min-height:68px!important}.card label{font-size:12px!important;color:var(--mut)!important;text-transform:none!important;letter-spacing:0!important}
+</style>
 <!-- NetCoin final desktop width override -->
 <style>@media(min-width:1280px){.wrap{max-width:min(1500px,calc(100vw - 72px))!important}.wallet-section.active-section{max-width:1320px!important}.wallet-section[data-wallet-tab="settings"].active-section,.wallet-section[data-wallet-tab="send"].active-section{max-width:1080px!important}}@media(min-width:1600px){.wrap{max-width:min(1760px,calc(100vw - 96px))!important}.wallet-section.active-section{max-width:1500px!important}}</style>
 
@@ -708,4 +821,5 @@ body{letter-spacing:-.01em}
      Wallet actions stay in the wallet; ecosystem navigation remains in Directory. */
   body.m1-hide-shell-search .site-search{display:none!important}
 </style>
-
+</body>
+</html>

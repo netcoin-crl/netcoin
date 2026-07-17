@@ -12,8 +12,8 @@ EXPLORER = ROOT / "sites" / "explorer"
 
 def test_mempool_page_uses_live_asset_versions() -> None:
     html = (EXPLORER / "mempool.html").read_text(encoding="utf-8")
-    assert "explorer-pro.css?v=20260711-m1-mempool-live" in html
-    assert "explorer-pro.js?v=20260711-m1-mempool-live" in html
+    assert "explorer-pro.css?v=20260716-phase3-availability" in html
+    assert "explorer-pro.js?v=20260716-phase3-availability" in html
     assert "Content-Security-Policy" in html
     assert "connect-src 'self'" in html
 

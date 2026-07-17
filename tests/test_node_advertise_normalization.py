@@ -3,7 +3,7 @@ crash the node.
 
 Peers are dialed as http:// URLs, and NetCoinNode._normalize_peer rejects a
 bare host:port. The Seed tab documents/collects advertise as host:port (its
-placeholder was literally 203.0.113.5:28444), so without normalization the
+placeholder used a documentation-range address), so without normalization the
 node refused to start with "peer must start with http:// or https://". This
 pins the fix: cmd_node prepends http:// to a scheme-less advertise.
 """

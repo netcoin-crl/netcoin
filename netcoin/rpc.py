@@ -11,7 +11,7 @@ from typing import Any
 from .block import Block
 from .chain import Blockchain
 from .crypto import decode_address, validate_address
-from .params import COINBASE_MATURITY, DEFAULT_RPC_PORT, MAX_REQUEST_BODY_BYTES, TICKER
+from .params import COINBASE_MATURITY, DEFAULT_RPC_PORT, MAX_REQUEST_BODY_BYTES, NETWORK_NAME, NODE_VERSION, PROTOCOL_VERSION, TICKER, USER_AGENT
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .tx import Transaction, sats_to_amount
 
@@ -31,6 +31,17 @@ class RPCServer:
             return self.chain.height()
         if method == "getbestblockhash":
             return self.chain.tip_hash()
+        if method == "getnetworkinfo":
+            return {
+                "version": NODE_VERSION,
+                "protocolversion": PROTOCOL_VERSION,
+                "subversion": USER_AGENT,
+                "network": NETWORK_NAME,
+                "networkactive": True,
+                "connections": 0,
+                "relayfee": 0.00001,
+                "localservices": [],
+            }
         if method == "getrawmempool":
             verbose = bool(params[0]) if params else False
             if not verbose:
@@ -221,6 +232,21 @@ def make_handler(rpc: RPCServer, token: str | None = None):
             presented = header[7:] if header.startswith("Bearer ") else self.headers.get("X-Auth-Token", "")
             return bool(presented) and hmac.compare_digest(presented, token)
 
+        def _handle_rpc_request(self, request: Any) -> tuple[dict[str, Any], bool]:
+            request_id = request.get("id") if isinstance(request, dict) else None
+            try:
+                if not isinstance(request, dict):
+                    raise RPCError("JSON-RPC request must be an object")
+                params = request.get("params", [])
+                if params is None:
+                    params = []
+                if not isinstance(params, list):
+                    raise RPCError("JSON-RPC params must be an array")
+                result = rpc.call(str(request.get("method")), params)
+                return {"jsonrpc": "2.0", "id": request_id, "result": result, "error": None}, True
+            except Exception as exc:
+                return {"jsonrpc": "2.0", "id": request_id, "result": None, "error": str(exc)}, False
+
         def do_POST(self) -> None:
             if not self.authorized():
                 self.send_json(
@@ -233,11 +259,16 @@ def make_handler(rpc: RPCServer, token: str | None = None):
                 if length > MAX_REQUEST_BODY_BYTES:
                     raise RPCError("request body too large")
                 request = json.loads(self.rfile.read(length).decode("utf-8"))
-                result = rpc.call(str(request.get("method")), list(request.get("params", [])))
-                payload = {"jsonrpc": "2.0", "id": request.get("id"), "result": result, "error": None}
-                self.send_json(payload)
             except Exception as exc:
                 self.send_json({"jsonrpc": "2.0", "id": None, "result": None, "error": str(exc)}, status=400)
+                return
+            if isinstance(request, list):
+                payloads = [self._handle_rpc_request(item)[0] for item in request]
+                ok = all(item.get("error") is None for item in payloads)
+                self.send_json(payloads, status=200 if ok else 400)
+                return
+            payload, ok = self._handle_rpc_request(request)
+            self.send_json(payload, status=200 if ok else 400)
 
         def do_GET(self) -> None:
             # The discovery page never requires auth and never leaks the token.
@@ -260,6 +291,7 @@ RPC_METHODS = [
     "getblockchaininfo",
     "getblockcount",
     "getbestblockhash",
+    "getnetworkinfo",
     "getrawmempool",
     "getblock",
     "getblockheader",

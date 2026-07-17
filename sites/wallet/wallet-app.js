@@ -63,6 +63,9 @@
   let scanStream = null;
   let lastUtxos = [];
   let selectedOutpoints = new Set();
+  let feeEstimatePayload = null;
+  let lastRbfCandidate = null;
+  let lastMultisigRedeemScript = "";
 
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
@@ -169,6 +172,46 @@
     status.textContent = text;
   }
 
+  function friendlyWalletErrorMessage(error, context = "wallet") {
+    const raw = String(error?.message || error || "unknown error").trim();
+    if (/insufficient funds|amount \+ fee|selected UTXOs/i.test(raw)) {
+      return `Balance or coin selection problem: ${raw}`;
+    }
+    if (/invalid address|scriptpubkey|recipient/i.test(raw)) {
+      return `Recipient problem: ${raw}. Paste a full NetCoin address or a netcoin: payment link.`;
+    }
+    if (/non-JSON response|offline|failed to fetch|network/i.test(raw)) {
+      return `Node connection problem: ${raw}. Refresh node status and try again on testnet.`;
+    }
+    if (/psbt|multisig|redeem/i.test(raw)) {
+      return `${context} needs more signing data: ${raw}`;
+    }
+    return raw;
+  }
+
+  function markSendChecklist(risk, warnings) {
+    const recipient = $("checkRecipient");
+    const amountFee = $("checkAmountFee");
+    const riskItem = $("checkRisk");
+    const testnet = $("checkTestnet");
+    if (!recipient || !amountFee || !riskItem || !testnet) return;
+    recipient.className = "ok";
+    amountFee.className = "ok";
+    testnet.className = "ok";
+    const blocked = risk?.decision === "block";
+    riskItem.className = blocked || warnings.length ? "warn" : "ok";
+    riskItem.textContent = blocked
+      ? "Risk check blocked this send. Adjust amount, fee, or coins."
+      : warnings.length
+        ? "Risk warnings are present. Read them before sending."
+        : "No blocking wallet risk warnings.";
+  }
+
+  function setWalletFlowStep(step) {
+    const wallet = $("walletView");
+    if (wallet) wallet.dataset.flowStep = step;
+  }
+
   function setBackupMsg(text, className = "muted") {
     const msg = $("backupMsg");
     if (!msg) return;
@@ -268,6 +311,7 @@
       else if (card.querySelector("#receiveOut")) { tab = "wallet"; card.id = card.id || "wallet-receive"; }
       else if (card.querySelector("#btnSend")) { tab = "wallet"; card.id = card.id || "wallet-send"; }
       else if (card.querySelector("#txHistory")) { tab = "wallet"; card.id = card.id || "wallet-activity"; }
+      else if (card.classList.contains("wallet-availability-card")) tab = "wallet";
       else if (card.querySelector("#contactsImportFile")) { tab = "settings"; card.id = card.id || "wallet-settings-backups"; }
       else if (card.querySelector("#statementOut")) tab = "reports";
       else if (card.querySelector("#walletDescriptor")) tab = "advanced";
@@ -301,7 +345,7 @@
       <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"));
     addWalletSection(walletSection("Contracts", `
       <p class="muted">Developer-mode contract tools are intentionally separated from normal wallet use.</p>
-      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open Phase 7 contracts</b><br><span class="muted">Timelock, vesting, multisig, recurring, polls, and prediction-market demos.</span></a></div>`, "contracts"));
+      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open contract demos</b><br><span class="muted">Timelock, vesting, multisig, recurring, polls, and prediction-market demos.</span></a></div>`, "contracts"));
     addWalletSection(walletSection("Developer", `
       <p class="muted">Developer tools expose raw/debug views and are intended for local/testnet use.</p>
       <div class="section-links">
@@ -1412,6 +1456,115 @@
     }
   }
 
+  function hydrateRbfBumpCard() {
+    if (!$("rbfOriginalTx")) return;
+    if (lastRbfCandidate?.tx) $("rbfOriginalTx").value = JSON.stringify(lastRbfCandidate.tx, null, 2);
+    if (lastRbfCandidate?.prevouts) $("rbfPrevouts").value = JSON.stringify(lastRbfCandidate.prevouts, null, 2);
+    if (lastRbfCandidate?.feeSats && !$("rbfNewFee").value) $("rbfNewFee").value = satsToInput(Math.max(Number(lastRbfCandidate.feeSats) * 2, Number(lastRbfCandidate.feeSats) + 500));
+    if (state?.address && !$("rbfChangeAddress").value) $("rbfChangeAddress").value = state.address;
+  }
+
+  function readJsonField(id, fallback) {
+    const raw = ($(id)?.value || "").trim();
+    if (!raw) return fallback;
+    try { return JSON.parse(raw); }
+    catch { throw new Error(`${id} must contain valid JSON`); }
+  }
+
+  async function bumpFeeFromCard() {
+    const out = $("rbfBumpOut");
+    try {
+      const originalTx = readJsonField("rbfOriginalTx", lastRbfCandidate?.tx);
+      const prevouts = readJsonField("rbfPrevouts", lastRbfCandidate?.prevouts);
+      if (!originalTx) throw new Error("paste the original transaction JSON or use the last RBF send");
+      if (!Array.isArray(prevouts) || !prevouts.length) throw new Error("paste the previous outputs JSON");
+      const newFee = ($("rbfNewFee")?.value || "").trim();
+      if (!newFee) throw new Error("enter a higher fee in NET");
+      const changeAddress = ($("rbfChangeAddress")?.value || state?.address || "").trim();
+      if (!changeAddress) throw new Error("enter a change address or unlock this wallet");
+      const broadcast = Boolean($("rbfBroadcastNow")?.checked);
+      const bumped = await api("/wallet/rbf-bump", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ original_tx: originalTx, prevouts, new_fee: newFee, change_address: changeAddress, broadcast }) });
+      lastRbfCandidate = { ...lastRbfCandidate, tx: bumped.replacement_tx || bumped.tx, feeSats: bumped.new_fee, prevouts };
+      if (out) {
+        out.className = "mono ok";
+        out.textContent = JSON.stringify({ broadcast, txid: bumped.txid || bumped.replacement_txid || null, old_fee: bumped.old_fee, new_fee: bumped.new_fee, replacement_tx: bumped.replacement_tx || bumped.tx }, null, 2);
+      }
+    } catch (e) {
+      if (out) { out.className = "mono err"; out.textContent = "Fee bump failed: " + e.message; }
+    }
+  }
+
+  async function bumpLastFee() {
+    const msg = $("sendMsg");
+    try {
+      if (!lastRbfCandidate?.tx || !lastRbfCandidate?.prevouts) throw new Error("send an opt-in-RBF transaction first");
+      hydrateRbfBumpCard();
+      await bumpFeeFromCard();
+      msg.className = "ok";
+      msg.textContent = "Fee bump preview created in the Speed up transaction card.";
+    } catch (e) {
+      msg.className = "err";
+      msg.textContent = "Fee bump failed: " + e.message;
+    }
+  }
+
+  function setMultisigProgress(progress) {
+    const msg = $("multisigProgress");
+    if (!msg) return;
+    const p = progress || {};
+    msg.textContent = `${p.collected || 0} of ${p.required || 0} collected${p.ready ? " · ready to extract" : ""}.`;
+  }
+
+  async function createMultisigWallet() {
+    const out = $("multisigCreateOut");
+    try {
+      const created = await api("/wallet/multisig/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ required: $("multisigRequired").value, pubkeys: $("multisigPubkeys").value }) });
+      lastMultisigRedeemScript = created.redeem_script;
+      out.textContent = JSON.stringify({ address: created.address, redeem_script: created.redeem_script }, null, 2);
+    } catch (e) {
+      out.textContent = "Multisig create failed: " + e.message;
+    }
+  }
+
+  async function createMultisigSpend() {
+    const out = $("multisigProgress");
+    try {
+      const created = await api("/wallet/multisig/psbt/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ redeem_script: lastMultisigRedeemScript, to: normalizeRecipientField(), amount: $("amount").value, fee: $("fee").value }) });
+      $("multisigSpendPsbt").value = created.unsigned_psbt;
+      setMultisigProgress(created.progress);
+      out.className = "muted";
+    } catch (e) {
+      out.className = "err";
+      out.textContent = "Multisig spend failed: " + e.message;
+    }
+  }
+
+  async function signMultisigSpend() {
+    const out = $("multisigProgress");
+    try {
+      const signed = await api("/wallet/multisig/psbt/sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ psbt: $("multisigSpendPsbt").value, redeem_script: lastMultisigRedeemScript }) });
+      $("multisigSpendPsbt").value = signed.signed_psbt;
+      setMultisigProgress(signed.progress);
+      out.className = "muted";
+    } catch (e) {
+      out.className = "err";
+      out.textContent = "Multisig signing failed: " + e.message;
+    }
+  }
+
+  async function extractMultisigSpend() {
+    const out = $("multisigProgress");
+    try {
+      const extracted = await api("/wallet/psbt/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ psbt: $("multisigSpendPsbt").value }) });
+      setMultisigProgress(extracted.progress);
+      out.className = "ok";
+      out.textContent = "Extracted transaction " + String(extracted.txid || "").slice(0, 16) + "…";
+    } catch (e) {
+      out.className = "err";
+      out.textContent = "Multisig extract failed: " + e.message;
+    }
+  }
+
   // Chunked animated QR so a large PSBT can cross an airgap by camera. Each
   // frame is "p<i>/<n>:<chunk>" and small enough for the bundled v1-5 renderer.
   let psbtQrTimer = null;
@@ -1664,9 +1817,49 @@
   }
   function autoFeeTiers(amountSats) {
     const nInputs = estimateInputsForAmount(amountSats);
-    const slow = Math.max(FEE_FLOOR_SATS, Math.ceil(estimateVsize(nInputs) * FEE_RATE_MIN_SATS_PER_VBYTE));
-    return { slow, normal: slow * 10, fast: slow * 100, inputs: nInputs };
+    const vsize = estimateVsize(nInputs);
+    const nodePresets = feeEstimatePayload?.presets || {};
+    const fromNode = (name, fallbackRate) => {
+      const preset = nodePresets[name] || {};
+      const rate = Number(preset.fee_rate_per_kvb || 0) / 1000;
+      const direct = Number(preset.estimated_fee_sats || 0);
+      if (rate > 0) return Math.max(FEE_FLOOR_SATS, Math.ceil(vsize * rate));
+      if (direct > 0) return Math.max(FEE_FLOOR_SATS, Math.ceil((direct * vsize) / Number(feeEstimatePayload?.assumed_vbytes || 200)));
+      return Math.max(FEE_FLOOR_SATS, Math.ceil(vsize * fallbackRate));
+    };
+    const slow = fromNode("slow", FEE_RATE_MIN_SATS_PER_VBYTE);
+    const normal = fromNode("normal", FEE_RATE_MIN_SATS_PER_VBYTE * 10);
+    const fast = fromNode("fast", FEE_RATE_MIN_SATS_PER_VBYTE * 100);
+    return { slow, normal, fast, inputs: nInputs };
   }
+  function updateFeePresetCards(tiers) {
+    const labels = { slow: "feeSlowLabel", normal: "feeNormalLabel", fast: "feeFastLabel" };
+    for (const [presetName, labelId] of Object.entries(labels)) {
+      const label = $(labelId);
+      if (label && tiers?.[presetName] != null) label.textContent = satsToInput(tiers[presetName]) + " NET";
+    }
+    const selected = $("feePreset")?.value || "normal";
+    document.querySelectorAll("[data-fee-preset]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.feePreset === selected);
+      btn.setAttribute("aria-pressed", btn.dataset.feePreset === selected ? "true" : "false");
+    });
+    const status = $("feePresetStatus");
+    if (status) {
+      const names = { slow: "Economy", normal: "Standard", fast: "Fast", custom: "Custom" };
+      status.textContent = `${names[selected] || "Standard"} fee selected. Estimates refresh from the node when available.`;
+    }
+  }
+
+  function chooseFeePreset(presetName) {
+    const preset = $("feePreset");
+    if (!preset || !["slow", "normal", "fast"].includes(presetName)) return;
+    preset.value = presetName;
+    const tiers = preset._tiers || autoFeeTiers(0);
+    $("fee").value = satsToInput(tiers[presetName] ?? tiers.normal);
+    updateFeePresetCards(tiers);
+    updateFeeHint();
+  }
+
   function refreshAutoFees(keepCustom = true) {
     // Preserve a user's Custom fee; otherwise recompute from the current amount.
     const preset = $("feePreset");
@@ -1677,17 +1870,22 @@
     if (preset) {
       const sel = wasCustom ? "custom" : (preset.value && preset.value !== "custom" ? preset.value : "normal");
       preset.innerHTML =
-        `<option value="slow">Slow — ${satsToInput(t.slow)} NET (minimum)</option>` +
-        `<option value="normal">Normal — ${satsToInput(t.normal)} NET (recommended)</option>` +
+        `<option value="slow">Economy — ${satsToInput(t.slow)} NET</option>` +
+        `<option value="normal">Standard — ${satsToInput(t.normal)} NET</option>` +
         `<option value="fast">Fast — ${satsToInput(t.fast)} NET</option>` +
         `<option value="custom">Custom</option>`;
       preset.value = sel === "slow" || sel === "fast" || sel === "custom" ? sel : "normal";
       preset._tiers = t;
       if (!wasCustom) $("fee").value = satsToInput(t[preset.value] ?? t.normal);
+      updateFeePresetCards(t);
     }
     updateFeeHint();
   }
-  async function updateFeeEstimates() { refreshAutoFees(false); }
+  async function updateFeeEstimates() {
+    try { feeEstimatePayload = await api("/fee-estimates"); }
+    catch { feeEstimatePayload = null; }
+    refreshAutoFees(false);
+  }
 
   async function loadHistory() {
     if (!state || !$("txHistory")) return;
@@ -1704,8 +1902,15 @@
         const autoLabel = meta.contactName ? `Sent to ${meta.contactName}` : "";
         const label = txLabel(txid) || autoLabel;
         const subtitle = meta.to ? `To ${meta.contactName ? esc(meta.contactName) + " · " : ""}${esc(shortAddress(meta.to))}` : "Label saved only in this browser.";
-        return `<div class="review tx-row"><div class="tx-row-head"><strong>${esc(label || "Transaction")}</strong><span class="muted">${subtitle}</span></div><div class="mono txid-line">${esc(txid)}</div><div class="row compact-row"><input data-txid="${esc(txid)}" class="txLabel" placeholder="Label this transaction" value="${esc(label)}" /><button class="secondary inline btnSaveTxLabel" data-txid="${esc(txid)}" type="button">Save</button></div></div>`;
+        return `<div class="review tx-row"><div class="tx-row-head"><strong>${esc(label || "Transaction")}</strong><span class="muted">${subtitle}</span></div><div class="mono txid-line">${esc(txid)}</div><div class="tx-actions"><a href="https://explorer.netcoin.online/tx.html?txid=${encodeURIComponent(txid)}" target="_blank" rel="noreferrer">Open in Explorer</a><button class="secondary inline btnCopyTxid" data-txid="${esc(txid)}" type="button">Copy txid</button></div><div class="row compact-row"><input data-txid="${esc(txid)}" class="txLabel" placeholder="Label this transaction" value="${esc(label)}" /><button class="secondary inline btnSaveTxLabel" data-txid="${esc(txid)}" type="button">Save</button></div></div>`;
       }).join("");
+      document.querySelectorAll(".btnCopyTxid").forEach((btn) => {
+        btn.onclick = async () => {
+          await navigator.clipboard?.writeText(btn.dataset.txid || "");
+          btn.textContent = "Copied";
+          setTimeout(() => { btn.textContent = "Copy txid"; }, 900);
+        };
+      });
       document.querySelectorAll(".btnSaveTxLabel").forEach((btn) => {
         btn.onclick = () => {
           const txid = btn.dataset.txid;
@@ -1775,9 +1980,16 @@
     const chosen = forcedOutpoints.length ? lastUtxos.filter((u) => forcedOutpoints.includes(outpointOf(u))) : lastUtxos;
     if (forcedOutpoints.length && chosen.length !== forcedOutpoints.length) throw new Error("one or more selected UTXOs are no longer spendable");
     const utxos = chosen.map((x) => ({ txid: x.txid, vout: x.vout, amount: x.amount, address: x.address }));
+    const rbfInputs = W.selectCoins(utxos, amountSats + feeSats, MAX_WALLET_SEND_INPUTS).chosen;
     const signed = W.buildSignedPayment({
-      privHex: state.privHex, utxos, toAddress, amount: amountSats, fee: feeSats, changeAddress: state.address, maxInputs: MAX_WALLET_SEND_INPUTS,
+      privHex: state.privHex, utxos, toAddress, amount: amountSats, fee: feeSats, changeAddress: state.address, maxInputs: MAX_WALLET_SEND_INPUTS, rbf: Boolean($("rbfOptIn")?.checked),
     });
+    lastRbfCandidate = $("rbfOptIn")?.checked ? {
+      tx: signed,
+      feeSats,
+      prevouts: rbfInputs.map((u) => ({ txid: u.txid, vout: u.vout, height: null, coinbase: false, output: { amount: u.amount, address: u.address || state.address, script_pubkey: u.script_pubkey || W.addressToScriptPubkey(u.address || state.address) } })),
+    } : null;
+    hydrateRbfBumpCard();
     const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signed) });
     return res.txid;
   }
@@ -1908,15 +2120,22 @@
   });
   syncAutoLockControls();
   $("btnLock").onclick = () => lockWallet();
-  $("fee").oninput = () => { $("feePreset").value = "custom"; updateFeeHint(); };
+  $("fee").oninput = () => { $("feePreset").value = "custom"; updateFeePresetCards($("feePreset")._tiers || autoFeeTiers(0)); updateFeeHint(); };
   $("feePreset").onchange = () => {
     const p = $("feePreset");
     if (p.value !== "custom") {
       const tiers = p._tiers || autoFeeTiers(0);
       $("fee").value = satsToInput(tiers[p.value] ?? tiers.normal);
+      updateFeePresetCards(tiers);
       updateFeeHint();
+    } else {
+      updateFeePresetCards(p._tiers || autoFeeTiers(0));
     }
   };
+  document.addEventListener("click", (ev) => {
+    const feeButton = ev.target?.closest?.("[data-fee-preset]");
+    if (feeButton) chooseFeePreset(feeButton.dataset.feePreset);
+  });
   // Recompute size-based fees whenever the amount changes (more coins => higher min).
   $("amount").addEventListener("input", () => refreshAutoFees(true));
   $("btnMakePaymentLink").onclick = makePaymentRequest;
@@ -1938,6 +2157,12 @@
   $("btnDownloadSignedPsbt").onclick = () => downloadText("netcoin-signed.psbt", $("signedPsbtOut").value, "text/plain");
   $("btnImportSignedPsbt").onclick = () => importSignedPsbt($("signedPsbtOut").value);
   $("btnBroadcastSignedPsbt").onclick = broadcastSignedPsbt;
+  if ($("btnUseLastRbfCandidate")) $("btnUseLastRbfCandidate").onclick = hydrateRbfBumpCard;
+  if ($("btnPreviewRbfBump")) $("btnPreviewRbfBump").onclick = bumpFeeFromCard;
+  $("btnCreateMultisig").onclick = createMultisigWallet;
+  $("btnCreateMultisigSpend").onclick = createMultisigSpend;
+  $("btnSignMultisigSpend").onclick = signMultisigSpend;
+  $("btnExtractMultisigSpend").onclick = extractMultisigSpend;
   $("signedPsbtFile").onchange = async (ev) => {
     const file = ev.target.files && ev.target.files[0];
     if (!file) return;
@@ -2074,6 +2299,8 @@
         warnBox.textContent = warnings.join(" ");
         warnBox.classList.toggle("hide", !warnings.length);
       }
+      markSendChecklist(risk, warnings);
+      setWalletFlowStep("review");
       pendingSend = { to, amt, fee, outpoints: selected.map(outpointOf), blocked: risk.decision === "block", risk, contactName: contact?.name || "" };
       $("reviewTo").textContent = to;
       $("reviewContact").textContent = contact ? contact.name : "—";
@@ -2084,7 +2311,11 @@
       $("btnConfirmSend").disabled = risk.decision === "block";
       $("btnConfirmSend").textContent = risk.decision === "block" ? "Blocked by risk check" : "Send now";
       $("sendReview").classList.remove("hide");
-    } catch (e) { msg.className = "err"; msg.textContent = "Failed: " + e.message; }
+    } catch (e) {
+      msg.className = "err";
+      msg.innerHTML = "Failed: " + esc(friendlyWalletErrorMessage(e, "Send review")) + '<span class="wallet-error-help">Check the recipient, amount, fee, and node connection before trying again.</span>';
+      setWalletFlowStep("send-error");
+    }
   }
 
 
@@ -2123,6 +2354,7 @@
   }
 
   $("btnSend").onclick = reviewSend;
+  if ($("btnBumpFee")) $("btnBumpFee").onclick = bumpLastFee;
   if ($("btnSaveDraft")) $("btnSaveDraft").onclick = savePendingDraft;
   if ($("btnExportUnsigned")) $("btnExportUnsigned").onclick = exportPendingUnsigned;
   refreshWalletWorkflowStatus();
@@ -2138,10 +2370,15 @@
       recordSentTxMeta(txid, sent.to, sent.amt, sent.fee);
       await recordSpendForLimits(sent.amt, sent.fee);
       msg.className = "ok"; msg.textContent = sent.contactName ? `Sent to ${sent.contactName} ✓ txid ${txid.slice(0, 16)}…` : "Sent ✓ txid " + txid.slice(0, 16) + "…";
+      setWalletFlowStep("sent");
       pendingSend = null;
       $("sendReview").classList.add("hide");
       $("toAddr").value = ""; $("amount").value = ""; selectedOutpoints.clear(); renderUtxos(); setTimeout(refresh, 800);
-    } catch (e) { msg.className = "err"; msg.textContent = "Failed: " + e.message; }
+    } catch (e) {
+      msg.className = "err";
+      msg.innerHTML = "Failed: " + esc(friendlyWalletErrorMessage(e, "Broadcast")) + '<span class="wallet-error-help">The transaction was not marked sent. Review the draft or try again after refreshing UTXOs.</span>';
+      setWalletFlowStep("broadcast-error");
+    }
   };
 
   // ---------- boot ----------

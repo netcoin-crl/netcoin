@@ -40,6 +40,12 @@ async function mockWalletApi(page) {
     if (path === '/wallet/workflow') {
       return json({ drafts: [], approvals: [], fee_presets: { slow: '0.00005000', normal: '0.00050000', fast: '0.00500000' }, offline_signing: { unsigned_export: true } });
     }
+    if (path === '/fee-estimates') {
+      return json({ slow: { fee_sats: 5000 }, normal: { fee_sats: 50000 }, fast: { fee_sats: 500000 } });
+    }
+    if (path === '/wallet/rbf-bump') {
+      return json({ ok: true, broadcast: false, replacement: { fee_sats: 150000 }, txid: 'c'.repeat(64) });
+    }
     if (path === '/wallet/limits/check') {
       return json({ ok: true, limits: { mode: 'daily' }, reasons: [] });
     }
@@ -131,4 +137,28 @@ test.describe('M1 wallet workflow regression coverage', () => {
     expect(diagnostics.activeCards).toContain('wallet-home');
     expect(diagnostics.activeCards).toContain('wallet-send');
   });
+
+  test('Phase 8 wallet UX exposes safe advanced flows without broadcasting by default', async ({ page }) => {
+    await createWalletAndSkipBackupQuiz(page);
+    await expect(page.locator('#walletFlowGuide')).toContainText('Receive testnet NET');
+    await expect(page.locator('#walletFlowGuide')).toContainText('Send safely');
+    await expect(page.locator('#feePresetCards')).toBeVisible();
+    await page.locator('[data-fee-preset="fast"]').click();
+    await expect(page.locator('#feePresetStatus')).toContainText('Fast fee selected');
+
+    const walletAddress = await page.locator('#addr').getAttribute('title');
+    await page.locator('#toAddr').fill(walletAddress || 'net1qtest');
+    await page.locator('#amount').fill('0.01');
+    await page.locator('details.send-advanced-panel > summary').click();
+    await page.locator('#fee').fill('0.00050000');
+    await page.locator('#btnSend').click();
+    await expect(page.locator('#sendChecklist')).toContainText('Before you send');
+    await expect(page.locator('#btnConfirmSend')).toHaveText('Confirm testnet send');
+
+    await expect(page.locator('#speedUpCard')).toContainText('Preview is non-broadcast by default');
+    await expect(page.locator('#rbfBroadcastNow')).not.toBeChecked();
+    await expect(page.locator('#psbtToolsCard')).toContainText('PSBT import/export');
+    await expect(page.locator('#multisigToolsCard')).toContainText('Multisig wallet tools');
+  });
+
 });

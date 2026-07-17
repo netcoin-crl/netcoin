@@ -46,7 +46,8 @@ def test_shared_site_shell_uses_phase0_primary_nav_and_modes():
     assert "title: 'Build', detail: 'docs and APIs'" in shell
     assert "label: 'SDKs', detail: 'client libraries', group: 'Build'" in shell
     assert "site-nav-group" in shell
-    assert "<summary>More</summary>" not in shell
+    assert "<summary>More</summary>" in shell
+    assert "const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets']" in shell
     assert "const primary = links.filter((link) => link.primary);" not in shell
     assert "label: 'Features'," not in shell
     assert "label: 'Architecture'," not in shell
@@ -54,7 +55,7 @@ def test_shared_site_shell_uses_phase0_primary_nav_and_modes():
 
 def test_homepage_is_wallet_first_and_grouped():
     html = read("sites/www/index.html")
-    assert "wallet-first public testnet" in html
+    assert "minimal public testnet" in html
     assert "Open Wallet" in html
     assert "Search Explorer" in html
     assert "Download" in html
@@ -62,7 +63,7 @@ def test_homepage_is_wallet_first_and_grouped():
     assert "Network" in html
     assert "Governance" in html
     assert "Build" in html
-    assert "Every new NetCoin capability" in html
+    assert "Every capability should improve a workflow" in html
 
 
 def test_phase0_checker_script_exists():

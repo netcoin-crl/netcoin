@@ -31,3 +31,11 @@ main,
     padding-right:16px!important;
   }
 }
+
+/* Public testnet hub: one clean path into the newly exposed testnet workflows. */
+.use-hub-hero .lead p{max-width:76ch!important}.availability-card ol{margin-bottom:0!important}.use-hub-summary{border-color:rgba(61,220,151,.28)!important;background:linear-gradient(180deg,rgba(61,220,151,.07),rgba(255,255,255,.018))!important}.use-hub-badges{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.use-hub-badges span{display:inline-flex;align-items:center;min-height:28px;padding:5px 9px;border:1px solid rgba(148,163,184,.22);border-radius:999px;background:#090e14;color:var(--mut-2,#c4ceda);font-size:12px;font-weight:800}.use-hub-grid .biglink{position:relative;overflow:hidden}.use-hub-grid .biglink::before{content:attr(data-surface);display:inline-flex;width:max-content;margin-bottom:8px;padding:4px 8px;border:1px solid rgba(61,220,151,.26);border-radius:999px;background:rgba(61,220,151,.07);color:var(--accent,#3ddc97);font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.use-hub-grid .biglink small{display:block;margin-top:10px;color:var(--mut,#93a1b3);font-size:11px;font-weight:800}.use-paths .card{min-height:100%}.not-ready-card{border-color:rgba(255,204,102,.24)!important;background:linear-gradient(180deg,rgba(255,204,102,.06),rgba(255,255,255,.018))!important}
+
+
+/* Sleek hub pass: fewer words, same workflow links. */
+.use-hub-hero .lead p{max-width:52ch}.use-hub-grid .card{min-height:0}.use-paths .compact-path{display:flex;align-items:center;justify-content:space-between;gap:12px}.use-paths .compact-path h2{margin:0!important}.not-ready-card p{margin-bottom:0!important}
+@media(max-width:760px){.use-paths .compact-path{display:block}.use-paths .compact-path .actions{margin-top:8px}}

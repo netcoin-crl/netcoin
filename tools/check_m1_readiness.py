@@ -149,7 +149,8 @@ def check_wallet_e2e_wiring() -> dict[str, object]:
     for token in [
         "M1_WALLET_SPEC_PATH",
         "m1-wallet-workflow.spec.js",
-        'playwright_cmd() + ["test", str(SPEC_PATH), str(M1_WALLET_SPEC_PATH)]',
+        "playwright_cmd() + [",
+        "str(SPEC_PATH), str(M1_WALLET_SPEC_PATH)",
     ]:
         if token not in runner_text:
             issues.append(f"browser matrix runner missing token: {token}")
@@ -246,7 +247,7 @@ def check_explorer_mempool() -> dict[str, object]:
     js = read_text(js_path)
     server = read_text(server_path)
     issues: list[str] = []
-    for token in ["explorer-pro.css?v=20260711-m1-mempool-live", "explorer-pro.js?v=20260711-m1-mempool-live"]:
+    for token in ["explorer-pro.css?v=20260716-phase3-availability", "explorer-pro.js?v=20260716-phase3-availability"]:
         if token not in html:
             issues.append(f"mempool HTML missing cache-buster token: {token}")
     for token in [
