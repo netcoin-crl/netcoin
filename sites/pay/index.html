@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Pay</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="pay.css?v=20260630-ui-polish" />
+  <link rel="stylesheet" href="pay.css?v=20260717-checkout-csp-fix" />
   <link rel="stylesheet" href="ui-polish.css?v=20260710-v0377-widen" />
     <link rel="stylesheet" href="site-shell.css?v=20260716-adminview" />
 </head>
@@ -16,7 +16,7 @@
       <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
     </header>
     
-<section class="card checkout-box" id="checkout" style="display:none">
+<section class="card checkout-box" id="checkout">
   <span class="pill" id="checkoutStatusPill"><span id="checkoutDot" class="dot"></span><span id="checkoutStatusText">Loading invoice…</span></span>
   <h1 id="checkoutTitle">Payment request</h1>
   <div class="split">
