@@ -43,8 +43,8 @@
     { href: 'https://exchange.netcoin.online/listing.html', host: 'exchange.netcoin.online', label: 'Listing Readiness', detail: 'gated checklist', group: 'Network' },
     { href: 'https://security.netcoin.online', host: 'security.netcoin.online', label: 'Security', detail: 'release safety', group: 'Network' },
 
-    { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and votes', group: 'Ecosystem' },
-    { href: 'https://governance.netcoin.online#treasury', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem' },
+    { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and votes', group: 'Ecosystem', adminOnly: true },
+    { href: 'https://governance.netcoin.online#treasury', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem', adminOnly: true },
     { href: 'https://community.netcoin.online', host: 'community.netcoin.online', label: 'Community', detail: 'posts and bounties', group: 'Ecosystem' },
     { href: 'https://learn.netcoin.online', host: 'learn.netcoin.online', label: 'Learn', detail: 'guides', group: 'Ecosystem' },
 
@@ -140,6 +140,51 @@
 
   let activeMode = readMode();
 
+  // Admin/Simple view: orthogonal to the persona mode above (which only
+  // reorders nav groups). This controls content density -- Simple (the
+  // default for anyone without the flag set) hides admin-only-tagged nav
+  // links (Treasury, Governance -- pure read/vote pages with no everyday
+  // action) and lets pages opt individual blocks out via [data-admin-only].
+  // Admin shows everything, i.e. today's full site.
+  const VIEW_KEY = 'nc.viewLevel.v1';
+  function readViewLevel() {
+    const params = new URLSearchParams(location.search);
+    const urlView = (params.get('view') || '').toLowerCase();
+    if (urlView === 'admin' || urlView === 'simple') {
+      try { localStorage.setItem(VIEW_KEY, urlView); } catch (e) {}
+      return urlView;
+    }
+    try {
+      const stored = (localStorage.getItem(VIEW_KEY) || '').toLowerCase();
+      return stored === 'admin' ? 'admin' : 'simple';
+    } catch (e) {
+      return 'simple';
+    }
+  }
+  let viewLevel = readViewLevel();
+  function applyViewLevel() {
+    document.body.dataset.ncView = viewLevel;
+  }
+  function setViewLevel(next) {
+    viewLevel = next === 'admin' ? 'admin' : 'simple';
+    try { localStorage.setItem(VIEW_KEY, viewLevel); } catch (e) {}
+    applyViewLevel();
+    normalizeNav();
+    const btn = q('#ncViewToggle');
+    if (btn) btn.textContent = viewLevel === 'admin' ? 'Admin view' : 'Simple view';
+  }
+  function buildViewToggle() {
+    if (q('#ncViewToggle')) return;
+    const btn = document.createElement('button');
+    btn.id = 'ncViewToggle';
+    btn.type = 'button';
+    btn.className = 'nc-view-toggle';
+    btn.title = 'Switch between the simplified view and the full admin view';
+    btn.textContent = viewLevel === 'admin' ? 'Admin view' : 'Simple view';
+    btn.addEventListener('click', () => setViewLevel(viewLevel === 'admin' ? 'simple' : 'admin'));
+    document.body.appendChild(btn);
+  }
+
   function isCurrent(link) {
     const host = currentHost();
     if (host === link.host) return true;
@@ -160,9 +205,10 @@
   }
 
   function sortedLinks(group) {
-    const groupLinks = links.filter((link) => link.group === group);
+    let groupLinks = links.filter((link) => link.group === group);
+    if (viewLevel === 'simple') groupLinks = groupLinks.filter((link) => !link.adminOnly);
     if (group === 'Core') {
-      const order = ['Explorer', 'Download', 'Home', 'Markets', 'Wallet'];
+      const order = ['Home', 'Wallet', 'Explorer', 'Markets', 'Download'];
       return groupLinks.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
     }
     const order = modes[activeMode].groups;
@@ -324,11 +370,13 @@
   }
 
   window.NetCoinSite = { links, modes, routeSearch };
+  applyViewLevel();
   normalizeNav();
   buildTools();
   syncModeUi();
   wireSettings();
   buildGithubQuickstart();
+  buildViewToggle();
   closeFloatingPanelsOnOutside();
 })();
 

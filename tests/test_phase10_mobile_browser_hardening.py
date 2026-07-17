@@ -62,5 +62,5 @@ def test_phase10_cache_busters_point_at_phase10_shell_assets() -> None:
     html_files = list((ROOT / "sites").glob("**/*.html"))
     assert html_files
     joined = "\n".join(p.read_text(encoding="utf-8") for p in html_files)
-    assert "site-shell.css?v=20260716-sleek" in joined
-    assert "site-shell.js?v=20260716-sleek" in joined
+    assert "site-shell.css?v=20260716-adminview" in joined
+    assert "site-shell.js?v=20260716-adminview" in joined
