@@ -22,17 +22,11 @@ def test_completion_assets_include_functional_markers() -> None:
         "NetCoinProductCompletion",
         "buildCommandPalette",
         "buildNotificationCenter",
-        "mountSurfaceCompletion",
-        "recordLocalNote",
     ]:
         assert marker in js
     for marker in [
         "nc-command-palette",
         "nc-notification-center",
-        "nc-upgrade-panel",
-        "nc-timeline",
-        "nc-status-badge",
-        "nc-mobile-table",
     ]:
         assert marker in css
 

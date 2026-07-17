@@ -29,16 +29,10 @@ REQUIRED_JS = {
     "NetCoinProductCompletion",
     "buildCommandPalette",
     "buildNotificationCenter",
-    "mountSurfaceCompletion",
-    "recordLocalNote",
 }
 REQUIRED_CSS = {
     "nc-command-palette",
     "nc-notification-center",
-    "nc-upgrade-panel",
-    "nc-timeline",
-    "nc-status-badge",
-    "nc-mobile-table",
 }
 EXTERNAL_GATES = {
     "cargo test --workspace",

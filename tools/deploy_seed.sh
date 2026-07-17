@@ -135,6 +135,16 @@ for _ in $(seq 1 "$HEALTHCHECK_TRIES"); do
   fi
 done
 if [ -n "$HEALTHY" ]; then
+  # Seeds that also host nginx serve static sites from $PREFIX/sites, a
+  # directory separate from $SRC_DIR that nothing above this point touches.
+  # Skipping this step is exactly the bug that let a deployed nav/UI change
+  # pass its healthcheck while nginx kept serving the previous version.
+  SITES_DOCROOT="$PREFIX/sites"
+  if [ -d "$SITES_DOCROOT" ] && [ -d "$SRC_DIR/sites" ]; then
+    echo "==> Syncing static sites to $SITES_DOCROOT"
+    rsync -a --delete "$SRC_DIR/sites/" "$SITES_DOCROOT/"
+    chmod -R a+rX "$SITES_DOCROOT"
+  fi
   echo "==> Deploy OK"
   rm -rf "$PREV" "$STAGE"
 else

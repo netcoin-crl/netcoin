@@ -37,9 +37,18 @@ def audit_site_ui_polish(root: Path | None = None) -> dict[str, Any]:
     for required in ["nc-ui-v042", "feature-dock-compact", "feature-dock-panel"]:
         if required not in css:
             issues.append(f"missing v0.42 CSS marker: {required}")
+    # Preserved e2e/accessibility vocabulary must exist somewhere in the real,
+    # functional site pages -- not necessarily in the shared shell copy, which
+    # dropped its decorative per-surface "trust panels" (Explorer trust, etc.)
+    # in favor of pages that actually implement the workflow.
+    site_text = "".join(
+        p.read_text(encoding="utf-8", errors="ignore").lower()
+        for p in (root / "sites").rglob("*")
+        if p.is_file() and p.suffix in (".js", ".html")
+    )
     for token in manifest["copy_rules"]["preserve_e2e_tokens"]:
-        if token.lower() not in js.lower():
-            issues.append(f"required browser/accessibility token missing from shell copy: {token}")
+        if token.lower() not in site_text:
+            issues.append(f"required browser/accessibility token missing from site pages: {token}")
 
     # Ensure every per-site shell asset matches shared shell assets.
     shared_js = (root / "sites" / "shared" / "site-shell.js").read_text(encoding="utf-8")

@@ -11,9 +11,9 @@ def test_site_shell_detects_localhost_surface_from_path() -> None:
     assert "match(/\/sites\/([^\/]+)/)" in js
     assert "body.getAttribute('data-site')" in js
     for token in [
-        "Browse play-money markets, open the order book",
-        "Health alerts",
-        "diagnostics bundle",
+        "function hostKey",
+        "function buildNotifyButton",
+        "function guidedOnboarding",
     ]:
         assert token in js
 

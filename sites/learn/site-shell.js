@@ -315,8 +315,17 @@
 
   function routeSearch(term) {
     const s = term.trim();
+    if (!s) return;
     const l = s.toLowerCase();
-    let url = 'https://explorer.netcoin.online/?q=' + encodeURIComponent(s);
+    // Chain-data lookups go straight to the explorer's real hash router
+    // (#/address, #/tx, #/block) -- explorer-app.js never reads a `?q=`
+    // param, so anything else here would land on a page that ignores it.
+    if (/^\d+$/.test(s)) { location.href = 'https://explorer.netcoin.online/#/block/' + encodeURIComponent(s); return; }
+    if (/^[0-9a-fA-F]{64}$/.test(s)) { location.href = 'https://explorer.netcoin.online/#/tx/' + encodeURIComponent(s); return; }
+    if (/^net1[a-z0-9]{20,}$/i.test(s) || (/^[A-Za-z0-9]{26,40}$/.test(s) && !/^[0-9a-fA-F]{64}$/.test(s))) {
+      location.href = 'https://explorer.netcoin.online/#/address/' + encodeURIComponent(s);
+      return;
+    }
     const routes = [
       [/feature|rating|score|catalog|all tools|directory/, 'https://features.netcoin.online'],
       [/wallet|private key|seed phrase|backup|send|receive|contact|rbf|speed up|fee preset|psbt|multisig/, 'https://wallet.netcoin.online'],
@@ -337,12 +346,16 @@
       [/api|developer|sdk|endpoint/, 'https://api.netcoin.online'],
       [/security|audit|checksum|release|verify|bug/, 'https://security.netcoin.online'],
       [/governance|proposal|treasury|vote|nip/, 'https://governance.netcoin.online'],
-      [/market|prediction|lab|phase 7|poll/, 'https://markets.netcoin.online']
+      [/market|prediction|lab|phase 7|poll/, 'https://markets.netcoin.online'],
+      [/mempool|pending tx|unconfirmed/, 'https://explorer.netcoin.online/mempool.html']
     ];
     for (const [rx, u] of routes) {
-      if (rx.test(l)) { url = u + '?q=' + encodeURIComponent(s); break; }
+      if (rx.test(l)) { location.href = u.indexOf('mempool.html') !== -1 ? u + '?q=' + encodeURIComponent(s) : u; return; }
     }
-    location.href = url;
+    // No keyword match and not a recognizable chain-data shape: fall back
+    // to the explorer's own search box via its address lookup, since that's
+    // the only page that will actually try to resolve an arbitrary string.
+    location.href = 'https://explorer.netcoin.online/#/address/' + encodeURIComponent(s);
   }
 
   function buildGithubQuickstart() {
@@ -430,7 +443,6 @@
 /* NetCoin v0.42 clarity layer: compact navigation, short copy, alerts, notes, and surface trust panels. */
 (function () {
   'use strict';
-  var NOTE_KEY = 'nc.localNotes.v1';
   var NOTIFY_KEY = 'nc.notifications.v1';
   var MODE_KEY = 'nc.completionMode.v1';
   var paletteReturnFocus = null;
@@ -575,94 +587,7 @@
     if (notificationReturnFocus && notificationReturnFocus.focus) notificationReturnFocus.focus();
     notificationReturnFocus = null;
   }
-  function recordLocalNote(surface, text) {
-    var notes = readJson(NOTE_KEY, {});
-    var key = surface || hostKey();
-    notes[key] = notes[key] || [];
-    notes[key].unshift({ text: String(text || '').trim(), at: new Date().toISOString(), url: location.href });
-    notes[key] = notes[key].filter(function(n){ return n.text; }).slice(0, 20);
-    writeJson(NOTE_KEY, notes);
-    addNotification('Local note saved', 'Saved for '+key+'. Local only.', 'Healthy');
-  }
-  function localNoteHtml(surface) {
-    var notes = readJson(NOTE_KEY, {}); var items = notes[surface] || [];
-    return '<div class="nc-local-note"><h3>Notes</h3><p class="muted">Private browser notes for labels, contacts, or reminders.</p><textarea data-nc-note-input placeholder="Add note…"></textarea><button type="button" class="nc-icon-button" data-nc-save-note="'+esc(surface)+'">Save</button><div data-nc-note-list>'+items.map(function(n){ return '<div class="nc-notice-item"><strong>'+esc(n.text)+'</strong><small>'+esc(new Date(n.at).toLocaleString())+'</small></div>'; }).join('')+'</div></div>';
-  }
-  function timeline(items) { return '<div class="nc-timeline">'+items.map(function(item,i){ return '<div class="nc-step"><div class="nc-step-dot">'+(i+1)+'</div><div><b>'+esc(item[0])+'</b><small>'+esc(item[1])+'</small></div></div>'; }).join('')+'</div>'; }
-  function statusStrip(items) { return '<div class="nc-trust-strip">'+items.map(function(item){ return '<span class="nc-status-badge '+esc(item[1])+'">'+esc(item[0])+'</span>'; }).join('')+'</div>'; }
-  function card(title, copy){ return '<div class="nc-upgrade-card"><b>'+esc(title)+'</b><p>'+esc(copy)+'</p></div>'; }
-  function panel(title, intro, body){ return '<section class="nc-upgrade-panel nc-ui-v042" data-nc-completion-panel><h2>'+esc(title)+'</h2><p class="muted">'+esc(intro)+'</p>'+body+'</section>'; }
-  function walletPanel(){
-    return panel('Wallet safety','Back up first. Review before send. Verify in Explorer.',
-      statusStrip([['Fresh','healthy'],['Local labels','healthy'],['Backup first','warning']])+
-      '<div class="nc-upgrade-grid">'+
-      card('Overview, Send, Receive, and Activity','Simple mode keeps the daily wallet path visible.')+
-      card('Security Center','Lock state, backup status, and signing readiness.')+
-      card('Review before broadcast','Check amount, fee, destination, and risk.')+
-      card('Recovery drill','Practice restore before storing serious test funds.')+
-      '</div>'+timeline([['Prepare','Recipient, amount, fee.'],['Review','Confirm cost and destination.'],['Sign','Browser, offline, or hardware-ready path.'],['Verify','Open Explorer and label it.']])+localNoteHtml('wallet')+
-      '<div class="nc-next-step"><b>Next:</b> verify backup, then send a tiny test payment.</div>');
-  }
-  function explorerPanel(){
-    return panel('Explorer trust','Show status first. Keep raw data available, not dominant.',
-      statusStrip([['Verified','healthy'],['Active chain','healthy'],['Reorg-aware','warning']])+
-      '<div class="nc-upgrade-grid">'+card('Address, tx, block, mempool','Each page starts with a plain summary.')+card('Confirmation badges','Pending, confirmed, reorg-risk, orphaned, invalid.')+card('Fee bands','Mempool age and fee buckets guide wallet fees.')+card('CSV exports','Include schema, range, height, and source.')+'</div>'+localNoteHtml('explorer'));
-  }
-  function marketsPanel(){
-    return panel('Markets','Browse play-money markets, open the order book, or import public ideas into NetCoin Labs.',
-      statusStrip([['Play-money','healthy'],['CLOB','healthy'],['Discovery','healthy']])+
-      '<div class="nc-upgrade-grid">'+card('Trade','Open market cards with buy buttons and order-book depth.')+card('Portfolio','Review positions, orders, and PnL without raw JSON.')+card('Discovery','Load public market ideas and import them as NetCoin demo markets.')+card('Settlement','Use evidence and reconciliation pages when markets close.')+'</div>'+localNoteHtml('markets'));
-  }
-  function faucetPanel(){
-    return panel('Faucet clarity','Show challenge, claim, status, admin state, and recovery without extra copy.',
-      statusStrip([['Funding visible','healthy'],['Provider credentials pending','warning'],['Recovery copy','healthy']])+timeline([['Eligible','Cooldown, cap, funding.'],['Challenge','PoW or CAPTCHA.'],['Claim','Broadcast payment.'],['Cooldown','Show next claim time.']])+'<div class="nc-upgrade-grid">'+card('Provider status','Turnstile/hCaptcha when configured.')+card('Admin audit','Pause, cap, and difficulty changes are logged.')+'</div>');
-  }
-  function communityPanel(){
-    return panel('Community quality','Less noise. Clear profiles, moderation, bounties, and reputation.',
-      '<div class="nc-upgrade-grid">'+card('Profile basics','Name, local identity, contributions, badges.')+card('Moderation audit','Reports and actions stay reviewable.')+card('Bounty lifecycle','Proposed → accepted → submitted → paid.')+card('Anti-spam limits','Explain limits without exposing rules.')+'</div>');
-  }
-  function exchangePanel(){
-    return panel('Custody safety','Make deposits, withdrawals, custody, reserves, and approvals visible.',
-      statusStrip([['Custody scaffold','warning'],['Audit trail','warning'],['Reserves visible','healthy']])+'<div class="nc-upgrade-grid">'+card('Custody risk','Hot balance, cold reserve, limits, approvals.')+card('Listing readiness','Code-side checklist only; no real listing claim.')+card('Withdrawals','Requested → approved → signed → confirmed.')+card('Cold signing','Checklist before cold-to-hot movement.')+card('Ledger checks','Imbalance blocks readiness.')+'</div>'+timeline([['Deposit','Watch confirmations.'],['Credit','Apply policy.'],['Withdraw','Run checks and approvals.'],['Broadcast','Track confirmation.']]) );
-  }
-  function operatorPanel(){
-    return panel('Operator center','Health alerts, diagnostics bundle, runbooks, release blockers, and proof evidence in one place.',
-      statusStrip([['Health grouped','healthy'],['Blockers visible','warning'],['Diagnostics preview','healthy']])+'<div class="nc-upgrade-grid">'+card('Release blockers','Python, Rust, TS, browser, accessibility, security.')+card('Runbooks','Each alert links to the action.')+card('Diagnostics bundle','Preview data before export.')+card('Proof evidence','Logs and hashes grouped by gate.')+'</div>');
-  }
-  function securityPanel(){
-    return panel('Security readiness','Show limitations, dependencies, fuzz targets, SBOM, provenance, and audit package.',
-      statusStrip([['Limitations visible','healthy'],['External audit not claimed','warning'],['Signed release required','warning']])+'<div class="nc-upgrade-grid">'+card('Audit bundle','Spec, threat model, vectors, tests, deps.')+card('Fuzz matrix','Tx, block, script, wallet, mempool, markets.')+card('Dependency policy','Reproducible install and vulnerability review.')+card('Signed provenance','Checksums, signatures, SBOM, proof.')+'</div>');
-  }
-  function genericPanel(){ return panel('Product clarity','One job, one action, one trust signal, one next step.', statusStrip([['Healthy','healthy'],['No dead ends','healthy']])+'<div class="nc-upgrade-grid">'+card('Command palette','Ctrl/⌘ K opens Wallet, Explorer, Markets, Faucet, Operator, Docs.')+card('Alerts','Local-only status and reminders.')+card('Notes','Private labels and reminders.')+card('Status words','Healthy, Warning, Offline, Maintenance.')+'</div>'+localNoteHtml(hostKey())); }
-  function surfaceHtml(surface) {
-    if (surface === 'wallet') return '';
-    if (surface === 'explorer') return explorerPanel();
-    if (surface === 'markets') return marketsPanel();
-    if (surface === 'faucet') return faucetPanel();
-    if (surface === 'community' || surface === 'governance' || surface === 'treasury') return communityPanel();
-    if (surface === 'exchange') return exchangePanel();
-    if (surface === 'operator' || surface === 'status' || surface === 'nodes') return operatorPanel();
-    if (surface === 'security' || surface === 'download') return securityPanel();
-    return genericPanel();
-  }
-  function mountSurfaceCompletion() {
-    if (qs('[data-nc-completion-panel]')) return;
-    var root = shellRoot();
-    var html = surfaceHtml(hostKey());
-    if (!html) return;
-    var wrap = document.createElement('div'); wrap.innerHTML = html;
-    var target = qs('.footer', root) || root.lastElementChild;
-    if (target && target.parentNode === root) root.insertBefore(wrap.firstElementChild, target); else root.appendChild(wrap.firstElementChild);
-    wireCompletionControls();
-  }
   function buildNotifyButton(){ if(qs('#ncNotifyButton')) return; var b=document.createElement('button'); b.id='ncNotifyButton'; b.className='nc-notify-button'; b.type='button'; b.setAttribute('aria-haspopup','dialog'); b.setAttribute('aria-controls','ncNotificationCenter'); b.setAttribute('aria-label','Open local alerts'); b.textContent='Alerts'; document.body.appendChild(b); updateNotifyButton(); }
-  function wireCompletionControls(){
-    qsa('[data-nc-save-note]').forEach(function(btn){ if(btn.dataset.wired) return; btn.dataset.wired='1'; btn.addEventListener('click', function(){ var area = btn.parentNode.querySelector('[data-nc-note-input]'); recordLocalNote(btn.getAttribute('data-nc-save-note'), area ? area.value : ''); if(area) area.value=''; }); });
-    var preview = qs('[data-nc-market-preview]');
-    function calcPreview(){ if(!preview) return; var stake=parseFloat((qs('[data-nc-market-stake]')||{}).value||'0'); var price=parseFloat((qs('[data-nc-market-price]')||{}).value||'0'); var fee=parseFloat((qs('[data-nc-market-fee]')||{}).value||'0'); var feeNet=stake*(fee/100); var payout=price>0?stake/(price/100):0; preview.innerHTML='<b>Order preview</b><div class="nc-kv"><span>You pay</span><strong>'+stake.toFixed(2)+' NET</strong><span>Fee before submit</span><strong>'+feeNet.toFixed(4)+' NET</strong><span>Max loss</span><strong>'+stake.toFixed(2)+' NET</strong><span>Potential payout</span><strong>'+payout.toFixed(2)+' NET</strong></div>'; }
-    qsa('[data-nc-market-stake],[data-nc-market-price],[data-nc-market-fee]').forEach(function(el){ el.addEventListener('input', calcPreview); }); calcPreview();
-    qsa('[data-nc-market-mode] button').forEach(function(btn){ btn.addEventListener('click', function(){ qsa('[data-nc-market-mode] button').forEach(function(b){b.classList.remove('active')}); btn.classList.add('active'); addNotification('Market mode changed', 'Switched to '+btn.getAttribute('data-mode')+' market controls.', 'Healthy'); }); });
-  }
   function trapFloatingFocus(panel, ev) {
     if (!panel || !panel.classList.contains('open') || ev.key !== 'Tab') return;
     var focusable = qsa('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])', panel).filter(function(el){ return el.offsetParent !== null || el === document.activeElement; });
@@ -688,7 +613,7 @@
     addNotification('Guided testnet path', 'Create wallet → backup → claim faucet NET → send test payment → verify in Explorer.', 'Healthy');
     writeJson('nc.onboarding.v1', { dismissed: true, at: new Date().toISOString() });
   }
-  window.NetCoinProductCompletion = { buildCommandPalette: buildCommandPalette, buildNotificationCenter: buildNotificationCenter, mountSurfaceCompletion: mountSurfaceCompletion, recordLocalNote: recordLocalNote, addNotification: addNotification };
+  window.NetCoinProductCompletion = { buildCommandPalette: buildCommandPalette, buildNotificationCenter: buildNotificationCenter, addNotification: addNotification };
   buildSkipLink(); buildReadinessBanner(); buildCommandPalette(); buildNotificationCenter(); buildNotifyButton(); wireGlobalEvents();
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ mountSurfaceCompletion(); guidedOnboarding(); }); else { mountSurfaceCompletion(); guidedOnboarding(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', guidedOnboarding); else { guidedOnboarding(); }
 })();
