@@ -4,7 +4,7 @@ NetCoin is an educational, from-scratch, Bitcoin-like cryptocurrency written in 
 
 NetCoin is **not Bitcoin**, does not connect to the Bitcoin network, and should not be used as real money software. Public-testnet NET has no real-money value.
 
-> Current release: **v0.42.0** · website UI clarity pass, strict proof tooling, Rust/TS/Python parity, and explicit mainnet evidence gates.
+> Current release: **v0.42.0** · website UI clarity pass, strict proof tooling, Rust/TS/Python parity, explicit mainnet evidence gates, an Admin/Simple site view toggle, and real (non-preview) order/dispute actions in the Markets UI.
 
 ## Start here
 
