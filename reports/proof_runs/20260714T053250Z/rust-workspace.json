@@ -3,7 +3,7 @@
   "commands": [
     {
       "blocked_reason": null,
-      "command": "\"/Users/adoniyasnegash/Documents/Playground/netcoin/.venv/bin/python\" tools/check_rust_workspace.py",
+      "command": "\"/workspace/netcoin/.venv/bin/python\" tools/check_rust_workspace.py",
       "returncode": 0,
       "status": "pass",
       "stderr_tail": "",

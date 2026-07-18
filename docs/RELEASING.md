@@ -96,12 +96,15 @@ gpg --verify SHA256SUMS.asc SHA256SUMS
 A good signature reads:
 
 ```
-gpg: Good signature from "NetCoin <netcoin2026@gmail.com>"
+gpg: Good signature from "NetCoin (release signing key)"
 ```
+
+The authoritative trust anchor is the **fingerprint** below — verify that,
+not the on-screen identity string.
 
 ## Signing key
 
-- **Identity:** `NetCoin <netcoin2026@gmail.com>`
+- **Identity:** `NetCoin (release signing key)`
 - **Type:** Ed25519 (EdDSA), sign-only
 - **Fingerprint:** `84F7 F2B9 50C9 D16F A628  AC67 5546 3C98 D439 9B90`
 - **Short key id:** `55463C98D4399B90`

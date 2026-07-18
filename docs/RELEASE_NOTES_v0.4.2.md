@@ -49,7 +49,7 @@ Artifact SHA256 (`netcoin-0.4.2.zip`):
 Signing key:
 
 ```text
-NetCoin <netcoin2026@gmail.com>
+NetCoin (release signing key)
 84F7F2B950C9D16FA628AC6755463C98D4399B90
 ```
 

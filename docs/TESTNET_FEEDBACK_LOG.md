@@ -28,7 +28,7 @@ NetCoin is public testnet software. Testnet NET has no real-money value, this pa
 | Status snapshot | Height, mempool, peer count, uptime if relevant | `height stale, peers=1` |
 | Evidence | Safe screenshot, console line, or txid | `redacted screenshot` |
 | Severity | P0/P1/P2/P3 | `P1` |
-| Owner | Person debugging | `adoniyas` |
+| Owner | Person debugging | `maintainer` |
 | Disposition | accepted / duplicate / cannot reproduce / docs-only | `accepted` |
 | Fix link | PR, commit, issue, or patch | `pending` |
 | Retest result | pass/fail with date | `pending` |
