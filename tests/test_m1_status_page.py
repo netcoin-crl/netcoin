@@ -18,7 +18,7 @@ def test_status_page_exposes_m1_network_snapshot_card() -> None:
         "networkState",
     ]:
         assert token in html
-    assert "status.js?v=20260711-m1-network-snapshot" in html
+    assert "status.js?v=20260717-readiness-table" in html
     assert "status.css?v=20260711-m1-network-snapshot" in html
 
 

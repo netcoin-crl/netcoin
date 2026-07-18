@@ -56,14 +56,14 @@ function renderReadiness(data) {
     return acc;
   }, {});
   summary.textContent = `${data.categories.length} categories tracked · ${counts.done || 0} done · ${counts['in progress'] || 0} in progress · ${counts.next || 0} next priorities. Updated ${data.updated}.`;
-  grid.innerHTML = data.categories.map((item) => `
-    <div class="card">
-      <h2>${esc(item.name)}</h2>
-      <p><span class="pill">${esc(item.status)}</span></p>
-      <p class="muted"><strong>Done:</strong> ${esc((item.done || []).join(', ') || 'none yet')}</p>
-      <p class="muted"><strong>Next:</strong> ${esc((item.next || []).join(', ') || 'none listed')}</p>
-    </div>
-  `).join('');
+  grid.innerHTML = `<table class="nc-mobile-table"><thead><tr><th>Category</th><th>Status</th><th>Done</th><th>Next</th></tr></thead><tbody>${data.categories.map((item) => `
+    <tr>
+      <td data-label="Category"><strong>${esc(item.name)}</strong></td>
+      <td data-label="Status"><span class="pill">${esc(item.status)}</span></td>
+      <td data-label="Done" class="muted">${esc((item.done || []).join(', ') || 'none yet')}</td>
+      <td data-label="Next" class="muted">${esc((item.next || []).join(', ') || 'none listed')}</td>
+    </tr>
+  `).join('')}</tbody></table>`;
 }
 
 function renderNetworkSnapshot({ health, latest, mempool, peers, errors }) {

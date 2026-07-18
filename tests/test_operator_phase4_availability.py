@@ -74,5 +74,5 @@ def test_operator_dashboard_exposes_phase4_cards_without_destructive_buttons() -
         assert text in js
     assert "destructive browser actions stay disabled" in js
     assert "run_ledger_audit.py" in js
-    assert "operator.css?v=20260716-cleanup" in html
+    assert "operator.css?v=20260717-minilist-grid" in html
     assert "operator.js?v=20260716-cleanup" in html

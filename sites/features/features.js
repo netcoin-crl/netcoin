@@ -1,6 +1,8 @@
 'use strict';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Shown once as the page-level disclaimer banner; repeating it on every card is noise.
+const GENERIC_AVAILABILITY_NOTE = 'Internal readiness rating only; not externally audited, mainnet-ready, or real-money production software.';
 let catalog = null;
 function ratingClass(r){ return Number(r) >= 7 ? 'strong' : (Number(r) < 6 ? 'weak' : ''); }
 function statusClass(value){
@@ -17,7 +19,8 @@ function featureCard(f){
     `<p>${esc(f.summary)}</p>` +
     `<div class="surface-grid">${surfaceBadge('UI', f.ui)}${surfaceBadge('API', f.api)}${surfaceBadge('CLI', f.cli)}${surfaceBadge('Tests', f.test_coverage)}</div>` +
     `<small><b>${esc(f.status)}</b>${f.next_fix ? ' · Next: ' + esc(f.next_fix) : ''}</small>` +
-    `<small class="availability-note">${esc(f.availability_notes || '')}</small></article>`;
+    (f.availability_notes && f.availability_notes !== GENERIC_AVAILABILITY_NOTE ? `<small class="availability-note">${esc(f.availability_notes)}</small>` : '') +
+    `</article>`;
 }
 function liveBadge(status){ return `<span class="rating-pill ${status==='working'?'strong':status==='missing'?'weak':''}">${esc(status)}</span>`; }
 function render(){

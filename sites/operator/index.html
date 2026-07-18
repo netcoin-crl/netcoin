@@ -6,7 +6,7 @@
   <title>NetCoin Operator</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'" />
   <link rel="stylesheet" href="site-shell.css?v=20260716-adminview" />
-  <link rel="stylesheet" href="operator.css?v=20260716-cleanup" />
+  <link rel="stylesheet" href="operator.css?v=20260717-minilist-grid" />
 </head>
 <body data-site="operator">
   <div class="shell">
@@ -24,10 +24,8 @@
         <article class="panel"><h2>Active alerts</h2><div id="alerts"></div></article>
         <article class="panel"><h2>Node metrics</h2><div id="metrics"></div></article>
       </section>
-      <section class="split">
-        <article class="panel"><h2>Public sites</h2><div id="sites"></div></article>
-        <article class="panel"><h2>Release trust</h2><div id="release"></div></article>
-      </section>
+      <section class="panel"><h2>Public sites</h2><div id="sites"></div></section>
+      <section class="panel"><h2>Release trust</h2><div id="release"></div></section>
       <section class="split operator-status-grid">
         <article class="panel"><h2>Ledger audit</h2><div id="ledgerAudit"></div></article>
         <article class="panel"><h2>Chainstate hash</h2><div id="chainstateHash"></div></article>
