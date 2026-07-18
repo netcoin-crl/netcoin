@@ -180,4 +180,10 @@ for what that would actually take.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Copyright © 2026 NetCoin. Licensed under the **GNU Affero General Public
+License v3.0 or later (AGPL-3.0-or-later)** — see [LICENSE](LICENSE).
+
+You are free to use, study, run, and modify NetCoin, but any distributed or
+network-hosted derivative must remain open source under the same license and
+must preserve attribution. You may **not** take this code, close it, rebrand
+it, and pass it off as your own proprietary product.

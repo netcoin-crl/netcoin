@@ -8,12 +8,12 @@ version = "0.42.0"
 description = "NetCoin Python SDK — signed API envelopes and a thin client for the NetCoin testnet API."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-or-later" }
 keywords = ["netcoin", "cryptocurrency", "testnet", "sdk", "bitcoin-family"]
 authors = [{ name = "NetCoin" }]
 classifiers = [
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
   "Topic :: Software Development :: Libraries",
 ]
 

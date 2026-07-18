@@ -9,7 +9,7 @@ description = "Educational Bitcoin-like cryptocurrency with Script, SegWit-style
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{name = "NetCoin educational project"}]
-license = {text = "MIT"}
+license = {text = "AGPL-3.0-or-later"}
 dependencies = ["cryptography>=42"]
 
 [project.optional-dependencies]

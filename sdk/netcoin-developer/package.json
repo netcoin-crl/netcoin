@@ -25,7 +25,7 @@
     "webhooks",
     "bitcoin-family"
   ],
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "sideEffects": false,
   "scripts": {
     "check": "node --check index.js"

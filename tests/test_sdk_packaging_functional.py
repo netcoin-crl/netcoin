@@ -46,7 +46,7 @@ def test_rust_sdk_manifest_is_publish_ready():
     package = data["package"]
     assert package["name"] == "netcoin-rs"
     assert package["edition"] == "2021"
-    assert package["license"] == "MIT"
+    assert package["license"] == "AGPL-3.0-or-later"
     assert package["readme"] == "README.md"
     assert (ROOT / "sdk" / "netcoin-rs" / "README.md").exists()
     assert (ROOT / "sdk" / "netcoin-rs" / "src" / "lib.rs").exists()
