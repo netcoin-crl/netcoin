@@ -220,54 +220,48 @@
   }
 
   // ---------- wallet tab shell and modes ----------
+  const EVERYDAY = ["simple", "developer"];   // shown in both Simple and Admin views
+  const ADMIN_ONLY = ["developer"];            // shown only in Admin view
   const WALLET_TABS = [
-    { id: "wallet", label: "Wallet", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "mining", label: "Mining", modes: ["simple", "advanced", "developer"] },
-    { id: "tokens", label: "Tokens", modes: ["business", "advanced", "developer"] },
-    { id: "payments", label: "Payments", modes: ["business", "advanced", "developer"] },
-    { id: "reports", label: "Reports", modes: ["business", "advanced", "developer"] },
-    { id: "watch", label: "Watch-only", modes: ["advanced", "developer"] },
-    { id: "escrow", label: "Escrow", modes: ["advanced", "developer"] },
-    { id: "advanced", label: "Advanced", modes: ["advanced", "developer"] },
-    { id: "contracts", label: "Contracts", modes: ["developer"] },
-    { id: "developer", label: "Developer", modes: ["developer"] },
-    { id: "settings", label: "Settings", modes: ["simple", "business", "advanced", "developer"] },
+    { id: "wallet", label: "Wallet", modes: EVERYDAY },
+    { id: "activity", label: "Activity", modes: EVERYDAY },
+    { id: "mining", label: "Mining", modes: EVERYDAY },
+    { id: "advanced", label: "Advanced", modes: ADMIN_ONLY },
+    { id: "tokens", label: "Tokens", modes: ADMIN_ONLY },
+    { id: "payments", label: "Payments", modes: ADMIN_ONLY },
+    { id: "reports", label: "Reports", modes: ADMIN_ONLY },
+    { id: "watch", label: "Watch-only", modes: ADMIN_ONLY },
+    { id: "escrow", label: "Escrow", modes: ADMIN_ONLY },
+    { id: "contracts", label: "Contracts", modes: ADMIN_ONLY },
+    { id: "developer", label: "Developer", modes: ADMIN_ONLY },
+    { id: "settings", label: "Settings", modes: EVERYDAY },
   ];
   const MODE_INFO = {
-    simple: "Recommended for most users: send, receive, activity, contacts, and settings.",
-    business: "Adds invoices, recurring payments, receipts, and reports.",
-    advanced: "Adds watch-only wallets, escrow, coin control, PSBT, descriptors, and raw transaction tools.",
-    developer: "Shows experimental app-layer contracts, polls, prediction-market demos, API/debug links, and raw tools. Use testnet/dev only.",
+    simple: "Everyday wallet: balance, send, receive, activity, mining, and settings.",
+    developer: "Full admin view: adds tokens, payments, reports, watch-only, escrow, PSBT/multisig, contracts, and developer tools.",
   };
-  function walletUiMode() {
-    const mode = localStorage.getItem(UI_MODE_STORE) || "simple";
-    return MODE_INFO[mode] ? mode : "simple";
+  // The wallet no longer has its own mode selector. It follows the site-wide
+  // Admin/Simple (user) view toggle: Simple = everyday tabs, Admin = everything.
+  function walletViewIsAdmin() {
+    try {
+      const v = (document.body.dataset.ncView || localStorage.getItem("nc.viewLevel.v1") || "simple").toLowerCase();
+      return v === "admin";
+    } catch (e) { return false; }
   }
-  function siteModeToWalletMode(mode) {
-    return { simple: "simple", merchant: "business", developer: "developer", node: "advanced", community: "simple", labs: "developer" }[mode] || "simple";
-  }
-  function walletModeToSiteMode(mode) {
-    return { simple: "simple", business: "merchant", advanced: "node", developer: "developer" }[mode] || "simple";
-  }
-  function setWalletUiMode(mode, syncSite = true) {
-    if (!MODE_INFO[mode]) mode = "simple";
-    localStorage.setItem(UI_MODE_STORE, mode);
-    if (syncSite) {
-      const siteMode = walletModeToSiteMode(mode);
-      if (window.NetCoinSiteMode?.setMode) window.NetCoinSiteMode.setMode(siteMode);
-      else localStorage.setItem(SITE_MODE_STORE, siteMode);
-    }
-    applyWalletMode();
-  }
-  function syncWalletModeFromSite(siteMode) {
-    const walletMode = siteModeToWalletMode(siteMode);
-    if (walletMode && walletMode !== walletUiMode()) setWalletUiMode(walletMode, false);
-    else applyWalletMode();
-  }
-  window.addEventListener("netcoin:siteModeChanged", (ev) => syncWalletModeFromSite(ev.detail?.mode));
+  function walletUiMode() { return walletViewIsAdmin() ? "developer" : "simple"; }
+  // Legacy shim: kept so older call sites don't break; view is driven by the site toggle now.
+  function setWalletUiMode() { applyWalletMode(); }
+  // Re-render wallet tabs whenever the site Admin/Simple toggle flips body[data-nc-view].
+  (function observeSiteView() {
+    try {
+      const obs = new MutationObserver(() => applyWalletMode());
+      obs.observe(document.body, { attributes: true, attributeFilter: ["data-nc-view"] });
+    } catch (e) {}
+  })();
   function activeWalletTab() {
     const tab = localStorage.getItem(UI_TAB_STORE) || "wallet";
-    return ["overview", "send", "receive", "activity", "contacts"].includes(tab) ? "wallet" : tab;
+    // Legacy sub-tab ids collapse into the Wallet tab. "activity" is now its own tab.
+    return ["overview", "send", "receive", "contacts"].includes(tab) ? "wallet" : tab;
   }
   function setActiveWalletTab(tab) {
     localStorage.setItem(UI_TAB_STORE, tab);
@@ -306,11 +300,14 @@
     wallet.prepend(tabs);
     const cards = Array.from(wallet.querySelectorAll(":scope > .card"));
     for (const card of cards) {
-      let tab = "wallet";
+      // Keep the Wallet tab minimal: balance+address overview, Receive, and Send.
+      // Everything else moves to its own tab so the page stops being one long stack.
+      let tab = "advanced";
       if (card.classList.contains("wallet-overview-card")) { tab = "wallet"; card.id = card.id || "wallet-home"; }
       else if (card.querySelector("#receiveOut")) { tab = "wallet"; card.id = card.id || "wallet-receive"; }
       else if (card.querySelector("#btnSend")) { tab = "wallet"; card.id = card.id || "wallet-send"; }
-      else if (card.querySelector("#txHistory")) { tab = "wallet"; card.id = card.id || "wallet-activity"; }
+      else if (card.querySelector("#txHistory")) { tab = "activity"; card.id = card.id || "wallet-activity"; }
+      else if (["speedUpCard", "psbtToolsCard", "multisigToolsCard"].includes(card.id)) tab = "advanced";
       else if (card.classList.contains("wallet-availability-card")) tab = "wallet";
       else if (card.querySelector("#contactsImportFile")) { tab = "settings"; card.id = card.id || "wallet-settings-backups"; }
       else if (card.querySelector("#statementOut")) tab = "reports";
@@ -353,16 +350,7 @@
       </div>`, "developer"));
 
     const settings = walletSection("Settings", `
-      <p class="muted">Choose wallet mode and manage backups. Hidden tool groups are tucked away until you switch modes.</p>
-      <label class="hide" for="walletUiMode">Wallet mode</label>
-      <select id="walletUiMode" class="hide" aria-label="Wallet mode">
-        <option value="simple">Simple — recommended</option>
-        <option value="business">Business — invoices and reports</option>
-        <option value="advanced">Advanced — coin control, escrow, PSBT</option>
-        <option value="developer">Developer — raw/debug/testnet tools</option>
-      </select>
-      <div class="mode-grid" id="walletModeButtons"></div>
-      <p id="walletModeHelp" class="muted compact-note"></p>
+      <p class="muted">Manage this wallet's session and backups. Use the site's <b>Simple / Admin</b> toggle (bottom-left) to switch between the everyday wallet and the full toolset — Admin adds Tokens, Payments, Reports, Watch-only, Escrow, PSBT/multisig, and developer tools.</p>
       <label for="sessionAutoLock">Session auto-lock</label>
       <select id="sessionAutoLock" aria-label="Session auto-lock timeout">
         <option value="15">15 minutes</option>
@@ -371,26 +359,8 @@
         <option value="120">2 hours</option>
         <option value="0">Disabled for this tab</option>
       </select>
-      <p id="sessionAutoLockStatus" class="muted auto-lock-status"></p>
-      <details class="raw-details">
-        <summary>What each mode shows</summary>
-        <p class="muted">Simple: one compact wallet page with balance, send, receive, and activity. Merchant mode adds payments and reports. Advanced mode adds watch-only, escrow, coin control, PSBT, descriptors, and backups/settings tools. Developer mode adds contract/debug links.</p>
-      </details>`, "settings");
+      <p id="sessionAutoLockStatus" class="muted auto-lock-status"></p>`, "settings");
     addWalletSection(settings);
-    const modeButtons = $("walletModeButtons");
-    if (modeButtons) {
-      for (const [mode, text] of Object.entries(MODE_INFO)) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "secondary";
-        btn.dataset.walletModeButton = mode;
-        btn.textContent = mode[0].toUpperCase() + mode.slice(1);
-        btn.title = text;
-        btn.onclick = () => setWalletUiMode(mode);
-        modeButtons.appendChild(btn);
-      }
-    }
-    if ($("walletUiMode")) $("walletUiMode").onchange = () => setWalletUiMode($("walletUiMode").value);
   }
   function applyWalletMode() {
     const wallet = $("walletView");
@@ -400,9 +370,6 @@
     const mode = walletUiMode();
     let tab = activeWalletTab();
     if (!tabAllowed(tab, mode)) tab = "wallet";
-    if ($("walletUiMode")) $("walletUiMode").value = mode;
-    if ($("walletModeHelp")) $("walletModeHelp").textContent = MODE_INFO[mode];
-    document.querySelectorAll("[data-wallet-mode-button]").forEach((btn) => btn.classList.toggle("active", btn.dataset.walletModeButton === mode));
     document.querySelectorAll("[data-wallet-tab-button]").forEach((btn) => {
       const allowed = tabAllowed(btn.dataset.walletTabButton, mode);
       btn.classList.toggle("hidden-tab", !allowed);

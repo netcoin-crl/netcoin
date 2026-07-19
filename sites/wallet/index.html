@@ -652,7 +652,7 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260716-rbf-sequence" integrity="sha384-khM5FWIgWnMvrxYuUUVmpQcEEcQxVp4paoWOFhxaiEhf4ZLYIigDpmCHbE0cBIZ9" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260716-cleanup-wallet" integrity="sha384-q2qyzN2xXgYArGdryIa26ygAJgS1uj/DD9ENLnZPZpxYhXVFtkj+Ea/fvBfKETKe" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260718-wallet-tabs2" integrity="sha384-M3Nxjil0GTLKWlyaf2n34bkPKW9bRO4ZcEAaGAVmT9c0OX+cVlEwK6i2xGHwhtCJ" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260716-adminview"></script>
 
 <style id="wallet-mobile-hardening">
@@ -820,6 +820,35 @@ body{letter-spacing:-.01em}
   /* M1 wallet focus: hide the global shell search on the wallet surface.
      Wallet actions stay in the wallet; ecosystem navigation remains in Directory. */
   body.m1-hide-shell-search .site-search{display:none!important}
+</style>
+
+<!-- v0.44 wallet tab: compact merged balance+address, Send/Receive side by side. -->
+<style id="wallet-v044-compact">
+  /* Wallet workspace is a 2-column grid; every section spans full width by
+     default, except Send and Receive, which sit side by side. */
+  #walletView:not(.hide){
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:14px!important;align-items:start!important;max-width:1180px!important;
+    margin-left:auto!important;margin-right:auto!important;
+  }
+  #walletView:not(.hide) > .wallet-section.active-section,
+  #walletTabs{grid-column:1 / -1!important;max-width:none!important;margin:0!important}
+  #walletView:not(.hide) > #wallet-receive.active-section,
+  #walletView:not(.hide) > #wallet-send.active-section{grid-column:auto!important;max-width:none!important;margin:0!important;padding:16px!important}
+  #wallet-home.active-section{padding:14px!important;margin:0!important}
+  /* One compact card: address on the left, balance on the right (merged). */
+  #wallet-home .overview-grid{display:grid!important;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)!important;gap:14px!important;align-items:stretch!important}
+  #wallet-home .balance-panel{order:0!important;grid-column:auto!important;display:flex!important;flex-direction:column!important;justify-content:center!important;padding:14px 18px!important;min-height:0!important}
+  #wallet-home .balance-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important}
+  #wallet-home .bal{font-size:clamp(26px,2.4vw,34px)!important;line-height:1.05!important;margin:4px 0 0!important;white-space:nowrap!important}
+  #wallet-home .address-panel{order:0!important}
+  /* declutter for newcomers: the 4-step guide duplicates the tabs now */
+  #walletFlowGuide{display:none!important}
+  @media(max-width:900px){
+    #walletView:not(.hide){grid-template-columns:1fr!important}
+    #wallet-home .overview-grid{grid-template-columns:1fr!important}
+    #wallet-receive.active-section,#wallet-send.active-section{grid-column:1 / -1!important}
+  }
 </style>
 </body>
 </html>
