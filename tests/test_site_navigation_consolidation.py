@@ -16,7 +16,8 @@ def test_site_shell_groups_secondary_surfaces_under_clear_tabs():
     assert "https://governance.netcoin.online#treasury" in shell
     assert "title: 'Build', detail: 'docs and APIs'" in shell
     assert "label: 'API', detail: 'OpenAPI', group: 'Build'" in shell
-    assert "label: 'SDKs', detail: 'client libraries', group: 'Build'" in shell
+    assert "label: 'Developers', detail: 'SDKs and client libraries', group: 'Build'" in shell
+    assert "label: 'Developer Console', detail: 'payment links, API keys, webhooks', group: 'Build'" in shell
     assert "label: 'Download', detail: 'install files', group: 'Core'" in shell
     assert "https://download.netcoin.online" in shell
     assert "https://learn.netcoin.online#download" not in shell

@@ -10,10 +10,8 @@
   const LABELS_STORE = "ncw.txlabels.v1";
   const SEND_META_STORE = "ncw.sentMeta.v1";
   const WATCH_STORE = "ncw.watch.v1";
-  const UI_MODE_STORE = "ncw.walletMode.v1";
   const ADDR_TYPE_STORE = "ncw.addrType.v1";
   const UI_TAB_STORE = "ncw.walletTab.v1";
-  const SITE_MODE_STORE = "nc.siteMode.v1";
   const COIN = 100000000;
   const MAX_WALLET_SEND_INPUTS = 500;
   const SESSION_STORE = "ncw.unlockedSession.v2";

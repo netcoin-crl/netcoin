@@ -51,7 +51,8 @@
     { href: 'https://docs.netcoin.online', host: 'docs.netcoin.online', label: 'Docs', detail: 'reference', group: 'Build' },
     { href: 'https://docs.netcoin.online/localnet.html', host: 'docs.netcoin.online', label: 'Localnet', detail: 'launch guide', group: 'Build' },
     { href: 'https://api.netcoin.online', host: 'api.netcoin.online', label: 'API', detail: 'OpenAPI', group: 'Build' },
-    { href: 'https://developers.netcoin.online', host: 'developers.netcoin.online', label: 'SDKs', detail: 'client libraries', group: 'Build' },
+    { href: 'https://developers.netcoin.online', host: 'developers.netcoin.online', label: 'Developers', detail: 'SDKs and client libraries', group: 'Build' },
+    { href: 'https://developers.netcoin.online/console.html', host: 'developers.netcoin.online', label: 'Developer Console', detail: 'payment links, API keys, webhooks', group: 'Build' },
     { href: 'https://architecture.netcoin.online', host: 'architecture.netcoin.online', label: 'System Design', detail: 'architecture', group: 'Build' },
     { href: 'https://features.netcoin.online', host: 'features.netcoin.online', label: 'Capabilities', detail: 'feature status', group: 'Build' },
     { href: 'https://download.netcoin.online/verify.html', host: 'download.netcoin.online', label: 'Verify Release', detail: 'release checks', group: 'Build' }
@@ -93,7 +94,8 @@
         ['Docs', 'https://docs.netcoin.online'],
         ['Localnet', 'https://docs.netcoin.online/localnet.html'],
         ['API', 'https://api.netcoin.online'],
-        ['SDKs', 'https://developers.netcoin.online'],
+        ['Developers', 'https://developers.netcoin.online'],
+        ['Developer Console', 'https://developers.netcoin.online/console.html'],
         ['System Design', 'https://architecture.netcoin.online'],
         ['Capabilities', 'https://features.netcoin.online'],
         ['Verify Release', 'https://download.netcoin.online/verify.html']

@@ -44,7 +44,7 @@ def test_shared_site_shell_uses_phase0_primary_nav_and_modes():
     assert "title: 'Core', detail: 'main tools'" in shell
     assert "label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem'" in shell
     assert "title: 'Build', detail: 'docs and APIs'" in shell
-    assert "label: 'SDKs', detail: 'client libraries', group: 'Build'" in shell
+    assert "label: 'Developers', detail: 'SDKs and client libraries', group: 'Build'" in shell
     assert "site-nav-group" in shell
     assert "<summary>More</summary>" in shell
     assert "const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets']" in shell
