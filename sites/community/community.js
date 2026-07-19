@@ -65,6 +65,16 @@ function cardBounty(b) {
 function commentCard(c) {
   return `<article class="comment-card"><div><b>u/${esc(c.name || 'Anonymous')}</b><span>${esc(timeLabel(c.created_at))}</span></div><p>${esc(c.message || '')}</p></article>`;
 }
+function cardCircle(c) {
+  const members = (c.members || []).length;
+  const threshold = c.activation_threshold || 5;
+  const pct = Math.min(100, Math.round((members / threshold) * 100));
+  const isActive = c.status === 'active';
+  const progress = isActive
+    ? `<span class="tag ok">active</span>`
+    : `<div class="circle-progress"><div class="circle-progress-bar" style="width:${pct}%"></div></div><span class="muted">${members}/${threshold} to activate</span>`;
+  return `<article class="reddit-card" data-post-id="${esc(c.circle_id || '')}"><div class="post-body"><div class="post-meta"><span class="tag">${esc(c.status || 'proposed')}</span><span>u/${esc(c.creator || 'Anonymous')}</span><span>${esc(timeLabel(c.created_at))}</span></div><h3>${esc(c.name || c.circle_id || 'Circle')}</h3><p>${esc(c.description || 'No description yet.')}</p>${progress}<div class="post-actions"><button type="button" data-join-circle="${esc(c.circle_id || '')}">Join</button></div></div></article>`;
+}
 function modCard(item) {
   const r = item.report || {};
   const p = item.post || {};
@@ -113,15 +123,32 @@ function leaderboardTable(title, rows) {
   const body = (rows || []).length ? rows.slice(0, 20).map((r, i) => `<tr><td class="rank">#${esc(r.rank || i + 1)}</td><td class="id" title="${esc(r.id || r.address || '')}">${esc(r.short_id || shortId(r.id || r.address || 'unknown'))}</td><td class="amount">${amount(r.amount ?? r.amount_sats)} NET</td></tr>`).join('') : '<tr><td colspan="3" class="muted">No data yet.</td></tr>';
   return `<section class="leaderboard-table"><h3>${esc(title)}</h3><table><thead><tr><th>Rank</th><th>Account</th><th class="amount">Amount</th></tr></thead><tbody>${body}</tbody></table></section>`;
 }
+let lastLeaderboardData = null;
+let activeLeaderTab = 'top_miners';
+const LEADER_TAB_TITLES = { top_miners: 'Top miners', top_earners: 'Top earners', top_donors: 'Top donors' };
+function renderLeaderboardTab() {
+  const out = $('#leaderboardsOut');
+  const d = lastLeaderboardData;
+  if (!d) return;
+  const summary = d.summary ? `<div class="leader-summary"><span>${esc(d.summary.miner_count || 0)} miners</span><span>${esc(d.summary.earner_count || 0)} earners</span><span>${esc(d.summary.donor_count || 0)} donors</span></div>` : '';
+  out.innerHTML = summary + leaderboardTable(LEADER_TAB_TITLES[activeLeaderTab], d[activeLeaderTab]);
+}
 async function loadLeaderboards() {
   const out = $('#leaderboardsOut');
   try {
-    const d = await api('/community/leaderboards');
-    const summary = d.summary ? `<div class="leader-summary"><span>${esc(d.summary.miner_count || 0)} miners</span><span>${esc(d.summary.earner_count || 0)} earners</span><span>${esc(d.summary.donor_count || 0)} donors</span></div>` : '';
-    out.innerHTML = summary + [leaderboardTable('Top miners', d.top_miners), leaderboardTable('Top earners', d.top_earners), leaderboardTable('Top donors', d.top_donors)].join('');
+    lastLeaderboardData = await api('/community/leaderboards');
+    renderLeaderboardTab();
     const side = $('#sidebarLeaders');
-    if (side) side.innerHTML = (d.top_miners || []).slice(0, 5).map((r, i) => `<div class="mini-leader"><span>#${i + 1} ${esc(r.short_id || shortId(r.id || 'unknown'))}</span><b>${amount(r.amount)} NET</b></div>`).join('') || '<p class="muted">No miners yet.</p>';
+    if (side) side.innerHTML = (lastLeaderboardData.top_miners || []).slice(0, 5).map((r, i) => `<div class="mini-leader"><span>#${i + 1} ${esc(r.short_id || shortId(r.id || 'unknown'))}</span><b>${amount(r.amount)} NET</b></div>`).join('') || '<p class="muted">No miners yet.</p>';
   } catch (e) { out.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+}
+async function loadCircles() {
+  const feed = $('#circleFeed');
+  try {
+    const d = await api('/community/circles');
+    const circles = d.circles || [];
+    feed.innerHTML = circles.length ? circles.map(cardCircle).join('') : '<div class="empty-state">No circles yet. Propose one.</div>';
+  } catch (e) { feed.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
 }
 async function loadModQueue() {
   const out = $('#modQueue');
@@ -132,9 +159,9 @@ async function loadModQueue() {
 }
 async function boot() {
   const initial = (location.hash || '#posts').slice(1);
-  if (['posts', 'comments', 'ideas', 'bounties', 'leaderboards', 'tools', 'mod'].includes(initial)) openTab(initial);
+  if (['posts', 'comments', 'ideas', 'bounties', 'circles', 'leaderboards', 'tools', 'mod'].includes(initial)) openTab(initial);
   try {
-    await Promise.all([loadPosts(), loadIdeas(), loadBounties(), loadLeaderboards(), loadModQueue()]);
+    await Promise.all([loadPosts(), loadIdeas(), loadBounties(), loadCircles(), loadLeaderboards(), loadModQueue()]);
     $('#communityDot').className = 'dot ok'; setText('#communityStatus', 'API online');
   } catch { $('#communityDot').className = 'dot err'; setText('#communityStatus', 'API unavailable'); }
 }
@@ -176,6 +203,18 @@ $('#refreshIdeas')?.addEventListener('click', loadIdeas);
 $('#refreshBounties')?.addEventListener('click', loadBounties);
 $('#refreshLeaderboards')?.addEventListener('click', loadLeaderboards);
 $('#refreshMod')?.addEventListener('click', loadModQueue);
+$('#refreshCircles')?.addEventListener('click', loadCircles);
+$$('[data-leader-tab]').forEach(btn => btn.addEventListener('click', () => {
+  activeLeaderTab = btn.dataset.leaderTab || 'top_miners';
+  $$('[data-leader-tab]').forEach(b => b.classList.toggle('active', b === btn));
+  renderLeaderboardTab();
+}));
+$('#submitCircle')?.addEventListener('click', async () => {
+  try {
+    const d = await post('/community/circles', { name: $('#circleName').value, description: $('#circleDescription').value, creator: $('#circleCreator').value });
+    setToast('#circleResult', 'Proposed ' + (d.circle_id || ''), 'ok'); $('#circleName').value = ''; $('#circleDescription').value = ''; await loadCircles();
+  } catch (e) { setToast('#circleResult', e.message, 'err'); }
+});
 document.addEventListener('click', async (ev) => {
   const report = ev.target.closest('[data-report-post]');
   if (report) { openTab('tools'); $('#reportPostId').value = report.dataset.reportPost || ''; $('#reportReason').focus(); return; }
@@ -191,6 +230,16 @@ document.addEventListener('click', async (ev) => {
   if (vote && vote.dataset.voteIdea) {
     try { await post('/community/improvements/' + encodeURIComponent(vote.dataset.voteIdea) + '/vote', {}); await loadIdeas(); }
     catch (e) { setToast('#ideaResult', e.message, 'err'); }
+    return;
+  }
+  const join = ev.target.closest('[data-join-circle]');
+  if (join && join.dataset.joinCircle) {
+    try {
+      const member = $('#circleCreator').value || localStorage.getItem('nc.apiKey.v1') || prompt('Your name to join this circle:') || '';
+      if (!member) return;
+      await post('/community/circles/' + encodeURIComponent(join.dataset.joinCircle) + '/join', { member });
+      await loadCircles();
+    } catch (e) { $('#circleFeed').insertAdjacentHTML('afterbegin', `<div class="empty-state">${esc(e.message)}</div>`); }
     return;
   }
   const mod = ev.target.closest('[data-mod-target]');

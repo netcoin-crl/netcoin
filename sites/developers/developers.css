@@ -160,3 +160,12 @@ body{letter-spacing:-.01em}
 /* Developer console availability tools. */
 .console-intro h1{font-size:clamp(26px,4vw,38px);line-height:1.05;margin:10px 0 8px}.console-intro p{margin-bottom:0}.phase2-actions{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))!important;align-items:start}.action-card{display:flex;flex-direction:column;gap:8px}.action-card p{margin-top:0}.result-box{min-height:92px;max-height:180px}.compact-split{grid-template-columns:repeat(2,minmax(0,1fr))}.table-scroll{overflow-x:auto}.table-scroll button{min-width:auto;padding:8px 10px}.action-card table{font-size:13px}.action-card th,.action-card td{padding:7px 6px}.action-card input{margin-bottom:2px}
 @media(max-width:760px){.compact-split{grid-template-columns:1fr!important}.phase2-actions{grid-template-columns:1fr!important}}
+
+/* Nav/API-key readability pass: don't cram a 40-char secret into a narrow 3-up grid cell. */
+.wide-card{grid-column:1 / -1}
+.api-key-row{display:flex;gap:8px;align-items:center;margin:8px 0}
+.api-key-row input{flex:1;min-width:0}
+.api-key-row button{width:auto;min-width:80px}
+#apiKeyOut{white-space:normal}
+.stat .v{word-break:normal;overflow-wrap:normal;font-size:clamp(14px,1.6vw,20px)}
+#statsGrid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important}

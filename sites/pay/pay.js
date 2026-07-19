@@ -106,7 +106,14 @@ $('#loadInvoice').onclick=async()=>{const id=$('#invoiceId').value.trim();if(!id
     $('#checkoutAddress').textContent = inv.recipient_address || '—';
     $('#checkoutMemo').textContent = inv.memo || inv.order_id || 'No memo';
     $('#checkoutUri').textContent = inv.payment_uri || '';
-    $('#checkoutWalletLink').href = inv.payment_uri || 'https://wallet.netcoin.online';
+    if (inv.recipient_address) {
+      const walletParams = new URLSearchParams({ to: inv.recipient_address });
+      if (inv.amount != null) walletParams.set('amount', String(inv.amount));
+      if (inv.label) walletParams.set('label', inv.label);
+      $('#checkoutWalletLink').href = 'https://wallet.netcoin.online/?' + walletParams.toString();
+    } else {
+      $('#checkoutWalletLink').href = 'https://wallet.netcoin.online';
+    }
     const status = inv.status || 'unpaid';
     $('#checkoutStatusText').textContent = STATUS_LABEL[status] || status;
     $('#checkoutDot').className = 'dot ' + (status === 'confirmed' || status === 'overpaid' ? 'ok' : status === 'expired' ? 'err' : '');

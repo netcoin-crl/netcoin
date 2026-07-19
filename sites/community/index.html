@@ -6,7 +6,7 @@
   <title>NetCoin Community</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
   <link rel="stylesheet" href="site-shell.css?v=20260718-futuristic-polish" />
-  <link rel="stylesheet" href="community.css?v=20260708-reddit" />
+  <link rel="stylesheet" href="community.css?v=20260719-circles" />
 </head>
 <body>
   <div class="shell community-shell">
@@ -33,6 +33,7 @@
       <button type="button" data-tab="comments">Comments</button>
       <button type="button" data-tab="ideas">Ideas</button>
       <button type="button" data-tab="bounties">Bounties</button>
+      <button type="button" data-tab="circles">Circles</button>
       <button type="button" data-tab="leaderboards">Leaderboard</button>
       <button type="button" data-tab="tools">Tools</button>
       <button type="button" data-tab="mod">Mod queue</button>
@@ -79,8 +80,28 @@
           <div class="section-card card"><div class="section-head"><h2>Open bounties</h2><button id="refreshBounties" class="secondary small" type="button">Refresh</button></div><div id="bountyFeed" class="bounty-grid"></div></div>
         </section>
 
+        <section class="tab-panel" id="tab-circles">
+          <div class="compose-card card">
+            <div class="compose-top"><h2>Propose a circle</h2><button id="refreshCircles" class="secondary small" type="button">Refresh</button></div>
+            <p class="muted">A circle is a focused group inside Community (e.g. "Mining Ops", "Merchant Builders"). Propose one, then share it &mdash; it goes live automatically once 5 people join.</p>
+            <input id="circleName" placeholder="Circle name" maxlength="60" />
+            <textarea id="circleDescription" placeholder="What is this circle for?" maxlength="500"></textarea>
+            <input id="circleCreator" placeholder="Your name" maxlength="80" />
+            <button id="submitCircle" type="button">Propose circle</button><p id="circleResult" class="toast"></p>
+          </div>
+          <div id="circleFeed" class="reddit-feed"></div>
+        </section>
+
         <section class="tab-panel" id="tab-leaderboards">
-          <div class="section-card card"><div class="section-head"><h2>Leaderboards</h2><button id="refreshLeaderboards" class="secondary small" type="button">Refresh</button></div><div id="leaderboardsOut" class="leaderboard-grid"></div></div>
+          <div class="section-card card">
+            <div class="section-head"><h2>Leaderboards</h2><button id="refreshLeaderboards" class="secondary small" type="button">Refresh</button></div>
+            <nav class="leaderboard-tabs" aria-label="Leaderboard category">
+              <button type="button" class="secondary small active" data-leader-tab="top_miners">Miners</button>
+              <button type="button" class="secondary small" data-leader-tab="top_earners">Earners</button>
+              <button type="button" class="secondary small" data-leader-tab="top_donors">Donors</button>
+            </nav>
+            <div id="leaderboardsOut" class="leaderboard-grid"></div>
+          </div>
         </section>
 
         <section class="tab-panel" id="tab-mod">
@@ -115,6 +136,7 @@
           <a href="#posts" data-open-tab="posts">Posts</a>
           <a href="#ideas" data-open-tab="ideas">Ideas</a>
           <a href="#bounties" data-open-tab="bounties">Bounties</a>
+          <a href="#circles" data-open-tab="circles">Circles</a>
           <a href="#leaderboards" data-open-tab="leaderboards">Leaderboards</a>
           <a href="#mod" data-open-tab="mod">Mod queue</a>
           <a href="https://markets.netcoin.online">Markets Labs</a>
@@ -132,7 +154,7 @@
 
     <p class="footer">NetCoin Community is public testnet coordination.</p>
   </div>
-  <script src="community.js?v=20260708-reddit"></script>
+  <script src="community.js?v=20260719-circles"></script>
   <script src="site-shell.js?v=20260718-nav-cleanup"></script>
 </body>
 </html>

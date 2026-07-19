@@ -58,6 +58,11 @@ function row(cells) {
 
 let currentDeveloperId = '';
 
+function formatNet(value) {
+  const n = Number(value || 0);
+  return (Number.isInteger(n) ? n.toFixed(0) : n.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')) + ' NET';
+}
+
 function renderStats(dashboard) {
   const c = dashboard.counts;
   const t = dashboard.totals;
@@ -69,8 +74,8 @@ function renderStats(dashboard) {
     statCard('Webhooks', c.webhooks),
     statCard('Webhook events', c.webhook_events),
     statCard('Dead letters', c.webhook_dead_letters),
-    statCard('Reward total', t.reward + ' NET'),
-    statCard('Withdrawal total', t.withdrawal + ' NET'),
+    statCard('Reward total', formatNet(t.reward)),
+    statCard('Withdrawal total', formatNet(t.withdrawal)),
   ].join('');
 }
 
@@ -232,12 +237,27 @@ async function createPaymentLink() {
 }
 
 async function createApiKey() {
+  const box = $('#apiKeyOut');
   try {
     const result = await postApi('/developer/api-keys', developerPayload({ permissions: ['app:write', 'merchant:write', 'webhooks:deliver'] }));
-    setResult('#apiKeyOut', { key_id: result.key_id, api_key: result.api_key, warning: result.warning });
+    box.innerHTML =
+      `<div class="muted">${esc(result.warning || 'Store this key now. Only its hash is saved.')}</div>` +
+      `<div class="api-key-row"><input class="mono" id="newApiKeyField" readonly value="${esc(result.api_key)}" aria-label="New API key" />` +
+      `<button type="button" class="secondary" id="copyNewApiKeyBtn">Copy</button></div>` +
+      `<div class="muted">key_id: <span class="mono">${esc(result.key_id)}</span></div>`;
+    const copyBtn = $('#copyNewApiKeyBtn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(result.api_key);
+          copyBtn.textContent = 'Copied';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        } catch { /* clipboard permission denied; user can select-and-copy from the field */ }
+      });
+    }
     await loadApiKeys(getDeveloperId());
   } catch (e) {
-    setResult('#apiKeyOut', 'Failed to create API key: ' + e.message);
+    box.textContent = 'Failed to create API key: ' + e.message;
   }
 }
 

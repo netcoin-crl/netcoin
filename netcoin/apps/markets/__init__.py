@@ -753,6 +753,31 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
     outcomes = [str(x).strip().upper() for x in (payload.get("outcomes") or ["YES", "NO"]) if str(x).strip()]
     if len(outcomes) < 2:
         raise AppError("market requires at least two outcomes")
+    # Only fingerprint on an explicitly-provided close time -- the field is
+    # auto-defaulted (now + a fixed window) when omitted, so two accidental
+    # duplicate submissions without one would otherwise never match.
+    explicit_close_time = _parse_source_time(
+        payload.get("close_time") or payload.get("source_end_time") or payload.get("auto_resolution_at")
+    )
+    fingerprint = (" ".join(question.lower().split()), tuple(sorted(outcomes)), explicit_close_time)
+    if not bool(payload.get("allow_duplicate", False)):
+        for existing in store.load().get("prediction_markets", {}).values():
+            existing_outcomes = tuple(
+                sorted(
+                    str(o.get("label") if isinstance(o, dict) else o).strip().upper()
+                    for o in existing.get("outcomes", [])
+                )
+            )
+            existing_fingerprint = (
+                " ".join(str(existing.get("question", "")).lower().split()),
+                existing_outcomes,
+                explicit_close_time and existing.get("close_time"),
+            )
+            if existing_fingerprint == fingerprint:
+                raise AppError(
+                    f"a market with this question, outcomes, and close time already exists (market_id={existing.get('market_id')}); "
+                    "pass allow_duplicate=true if this is intentional"
+                )
     market_id = str(payload.get("market_id") or clean_id("mkt"))
     slug = _slug_text(str(payload.get("slug") or question), market_id)
     mode = str(payload.get("mode") or "testnet_demo")

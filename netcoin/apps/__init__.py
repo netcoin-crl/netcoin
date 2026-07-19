@@ -157,6 +157,7 @@ DEFAULT_APP_STATE: dict[str, Any] = {
     "community_improvements": {},
     "community_reports": [],
     "community_mod_actions": [],
+    "community_circles": {},
 }
 
 
@@ -3002,6 +3003,149 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return rec
 
+    def record_exchange_deposit(self, payload: dict[str, Any]) -> dict[str, Any]:
+        customer_id = str(payload.get("customer_id") or "").strip()[:80]
+        if not customer_id:
+            raise AppError("customer_id is required")
+        amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "deposit amount")
+        if amount_sats <= 0:
+            raise AppError("deposit amount must be greater than zero")
+        tier = str(payload.get("tier") or "hot").strip().lower()
+        if tier not in {"hot", "warm", "cold"}:
+            tier = "hot"
+        data = self.load()
+        rec = {
+            "deposit_id": clean_id("dep"),
+            "customer_id": customer_id,
+            "amount_sats": amount_sats,
+            "amount": sats_to_amount(amount_sats),
+            "tier": tier,
+            "txid": str(payload.get("txid") or "")[:140],
+            "created_at": now(),
+        }
+        data.setdefault("exchange_deposits", []).append(rec)
+        custody = data.setdefault("exchange_custody", {"hot": 0, "warm": 0, "cold": 0})
+        custody[tier] = int(custody.get(tier, 0) or 0) + amount_sats
+        self.save(data)
+        return rec
+
+    def request_exchange_withdrawal(self, payload: dict[str, Any]) -> dict[str, Any]:
+        customer_id = str(payload.get("customer_id") or "").strip()[:80]
+        if not customer_id:
+            raise AppError("customer_id is required")
+        amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "withdrawal amount")
+        if amount_sats <= 0:
+            raise AppError("withdrawal amount must be greater than zero")
+        to_address = normalize_address(payload.get("to_address") or payload.get("address"))
+        data = self.load()
+        rec = {
+            "withdrawal_id": clean_id("wd"),
+            "customer_id": customer_id,
+            "amount_sats": amount_sats,
+            "amount": sats_to_amount(amount_sats),
+            "to_address": to_address,
+            "status": "requested",
+            "created_at": now(),
+        }
+        data.setdefault("exchange_withdrawals", []).append(rec)
+        self.save(data)
+        return rec
+
+    def approve_exchange_withdrawal(self, withdrawal_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        approver = str((payload or {}).get("approver") or "operator")[:80]
+        data = self.load()
+        withdrawals = data.setdefault("exchange_withdrawals", [])
+        rec = next((w for w in withdrawals if w.get("withdrawal_id") == withdrawal_id), None)
+        if not rec:
+            raise AppError("withdrawal not found")
+        if rec["status"] not in {"requested", "approved"}:
+            raise AppError(f"withdrawal is already {rec['status']}")
+        approvals = data.setdefault("exchange_withdrawal_approvals", [])
+        approvals.append({"withdrawal_id": withdrawal_id, "approver": approver, "created_at": now()})
+        signers = {a["approver"] for a in approvals if a["withdrawal_id"] == withdrawal_id}
+        if len(signers) >= 2:
+            rec["status"] = "released"
+            custody = data.setdefault("exchange_custody", {"hot": 0, "warm": 0, "cold": 0})
+            custody["hot"] = max(0, int(custody.get("hot", 0) or 0) - int(rec["amount_sats"]))
+        else:
+            rec["status"] = "approved"
+        rec["updated_at"] = now()
+        self.save(data)
+        return rec
+
+    def run_reserve_attestation(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        from ..exchange_reserves import reserve_attestation
+
+        data = self.load()
+        deposits = data.get("exchange_deposits", [])
+        by_customer: dict[str, int] = {}
+        for d in deposits:
+            by_customer[d["customer_id"]] = by_customer.get(d["customer_id"], 0) + int(d.get("amount_sats", 0) or 0)
+        liabilities = [{"customer_id": cid, "amount_sats": amt} for cid, amt in by_customer.items()]
+        custody = data.get("exchange_custody", {"hot": 0, "warm": 0, "cold": 0})
+        reserves = [{"tier": tier, "amount_sats": int(amt or 0)} for tier, amt in custody.items() if amt]
+        attestation = reserve_attestation(liabilities=liabilities, reserves=reserves, operator=str((payload or {}).get("operator") or "exchange"))
+        data.setdefault("reserve_attestations", []).append(attestation)
+        self.save(data)
+        return attestation
+
+    CIRCLE_ACTIVATION_THRESHOLD = 5
+
+    def list_circles(self) -> dict[str, Any]:
+        data = self.load()
+        circles = sorted(
+            data.get("community_circles", {}).values(),
+            key=lambda x: (x.get("status") != "active", -int(x.get("created_at", 0))),
+        )
+        return {"circles": circles, "count": len(circles), "activation_threshold": self.CIRCLE_ACTIVATION_THRESHOLD}
+
+    def propose_circle(self, payload: dict[str, Any]) -> dict[str, Any]:
+        name = str(payload.get("name") or "").strip()[:60]
+        if not name:
+            raise AppError("name is required")
+        slug = re.sub(r"[^a-z0-9-]+", "-", name.lower()).strip("-")[:40] or clean_id("circle")
+        description = str(payload.get("description") or "")[:500].strip()
+        creator = str(payload.get("creator") or payload.get("author") or "Anonymous")[:80].strip() or "Anonymous"
+        if looks_like_sensitive_secret(name) or looks_like_sensitive_secret(description):
+            raise AppError("circle name/description must not include private keys, seed phrases, passwords, or API secrets")
+        data = self.load()
+        circles = data.setdefault("community_circles", {})
+        if slug in circles and circles[slug].get("status") != "rejected":
+            raise AppError(f"a circle with slug '{slug}' already exists")
+        rec = {
+            "circle_id": slug,
+            "name": name,
+            "slug": slug,
+            "description": description,
+            "creator": creator,
+            "status": "proposed",
+            "members": [creator],
+            "activation_threshold": self.CIRCLE_ACTIVATION_THRESHOLD,
+            "created_at": now(),
+            "activated_at": None,
+        }
+        circles[slug] = rec
+        self.save(data)
+        return rec
+
+    def join_circle(self, circle_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        member = str((payload or {}).get("member") or (payload or {}).get("address") or "").strip()[:80]
+        if not member:
+            raise AppError("member is required")
+        data = self.load()
+        rec = data.get("community_circles", {}).get(circle_id)
+        if not rec:
+            raise AppError("circle not found")
+        if rec["status"] == "rejected":
+            raise AppError("this circle proposal was rejected")
+        if member not in rec["members"]:
+            rec["members"].append(member)
+        if rec["status"] == "proposed" and len(rec["members"]) >= self.CIRCLE_ACTIVATION_THRESHOLD:
+            rec["status"] = "active"
+            rec["activated_at"] = now()
+        self.save(data)
+        return rec
+
     def tip_button(self, payload: dict[str, Any]) -> dict[str, Any]:
         address = normalize_address(payload.get("address"))
         label = str(payload.get("label") or payload.get("username") or "Tip with NetCoin")[:80]
@@ -4547,6 +4691,8 @@ def route_app_get(
         from ..live_product import exchange_live_status
 
         return 200, exchange_live_status(store), "application/json"
+    if path == "/exchange/reserve-attestations":
+        return 200, {"attestations": store.load().get("reserve_attestations", [])[-10:]}, "application/json"
     if path == "/exchange/listing-readiness":
         from ..live_product import exchange_listing_readiness
 
@@ -4628,6 +4774,8 @@ def route_app_get(
         )
     if path == "/community/improvements":
         return 200, store.list_improvements(), "application/json"
+    if path == "/community/circles":
+        return 200, store.list_circles(), "application/json"
     if path == "/community/moderation":
         limit = int(q("limit", "100") or 100)
         return 200, store.community_moderation_queue(limit=limit), "application/json"
@@ -4919,6 +5067,18 @@ def _route_app_post_uncached(
         return 200, store.create_community_report(body)
     if path.startswith("/community/improvements/") and path.endswith("/vote"):
         return 200, store.vote_improvement(path.split("/")[3])
+    if path == "/community/circles":
+        return 200, store.propose_circle(body)
+    if path.startswith("/community/circles/") and path.endswith("/join"):
+        return 200, store.join_circle(path.split("/")[3], body)
+    if path == "/exchange/deposits":
+        return 200, store.record_exchange_deposit(body)
+    if path == "/exchange/withdrawals":
+        return 200, store.request_exchange_withdrawal(body)
+    if path.startswith("/exchange/withdrawals/") and path.endswith("/approve"):
+        return 200, store.approve_exchange_withdrawal(path.split("/")[3], body)
+    if path == "/exchange/reserve-attestations":
+        return 200, store.run_reserve_attestation(body)
     if path == "/community/bounties":
         return 200, store.create_bounty(body)
     if path.startswith("/community/bounties/") and path.endswith("/submit"):

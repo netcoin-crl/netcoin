@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Localnet Guide</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="docs.css?v=20260716-cleanup" />
+  <link rel="stylesheet" href="docs.css?v=20260719-real-content" />
   <link rel="stylesheet" href="site-shell.css?v=20260718-futuristic-polish" />
 </head>
 <body class="localnet-guide-page">
@@ -49,7 +49,10 @@
           <div class="stat"><div class="k">Faucet</div><div class="v" id="localnetFaucetStatus">—</div></div>
           <div class="stat"><div class="k">Explorer</div><div class="v" id="localnetExplorerStatus">—</div></div>
         </div>
-        <pre id="localnetStatusJson" class="compact-json" role="status" aria-live="polite">Loading local status…</pre>
+        <details class="raw-details">
+          <summary>Raw status response</summary>
+          <pre id="localnetStatusJson" class="compact-json" role="status" aria-live="polite">Loading local status…</pre>
+        </details>
       </div>
       <div class="card">
         <h2>What success looks like</h2>
@@ -107,7 +110,7 @@ python3 -m netcoin mempool-info --node http://127.0.0.1:28444 --summary</pre>
 
     <p class="footer">NetCoin Localnet is for educational testnet development. Never share private keys or seed phrases.</p>
   </div>
-  <script src="localnet.js?v=20260716-cleanup"></script>
+  <script src="localnet.js?v=20260719-real-content"></script>
   <script src="site-shell.js?v=20260718-nav-cleanup"></script>
 </body>
 </html>

@@ -8,11 +8,10 @@
   const PROFILE_STORE = "ncw.profiles.v1";
   const CONTACTS_STORE = "ncw.contacts.v1";
   const LABELS_STORE = "ncw.txlabels.v1";
+  const SEND_META_STORE = "ncw.sentMeta.v1";
   const WATCH_STORE = "ncw.watch.v1";
-  const UI_MODE_STORE = "ncw.walletMode.v1";
   const ADDR_TYPE_STORE = "ncw.addrType.v1";
   const UI_TAB_STORE = "ncw.walletTab.v1";
-  const SITE_MODE_STORE = "nc.siteMode.v1";
   const COIN = 100000000;
   const MAX_WALLET_SEND_INPUTS = 500;
   const SESSION_STORE = "ncw.unlockedSession.v2";
@@ -42,7 +41,7 @@
       try {
         const b = await api("/balance/" + encodeURIComponent(addrs[type]));
         const total = (b.total_sats ?? 0) / COIN;
-        opt.textContent = labels[type] + (total > 0 ? ` · ${total.toLocaleString(undefined, { maximumFractionDigits: 8 })} NET` : "");
+        opt.textContent = labels[type] + (total > 0 ? " · has balance" : "");
       } catch { /* offline: keep plain labels */ }
     }
   }
@@ -51,7 +50,7 @@
     if (state) {
       const w = W.walletFromPrivateKey(state.privHex, walletAddressType());
       state.address = w.address;
-      $("addr").textContent = w.address;
+      setAddressDisplay(w.address);
       if ($("addrTypeSel")) $("addrTypeSel").value = walletAddressType();
       makePaymentRequest();
       refresh();
@@ -62,11 +61,44 @@
   let scanStream = null;
   let lastUtxos = [];
   let selectedOutpoints = new Set();
+  let feeEstimatePayload = null;
+  let lastRbfCandidate = null;
+  let lastMultisigRedeemScript = "";
 
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
   const screens = ["welcome", "create", "restore", "privateKey", "unlock", "walletView"];
-  function show(id) { screens.forEach((s) => $(s).classList.toggle("hide", s !== id)); }
+  function show(id) {
+    screens.forEach((s) => $(s).classList.toggle("hide", s !== id));
+    if (id === "walletView") applyPendingPrefill();
+  }
+
+  let prefillApplied = false;
+  function applyPendingPrefill() {
+    if (prefillApplied) return;
+    const params = new URLSearchParams(location.search);
+    let to = params.get("to") || "";
+    let amt = params.get("amount") || "";
+    const label = params.get("label") || "";
+    const uri = params.get("uri");
+    if (uri) {
+      const parsed = parsePaymentUri(uri);
+      if (parsed) { to = to || parsed.address; amt = amt || parsed.amount; }
+    }
+    if (!to) return;
+    prefillApplied = true;
+    ensureWalletTabShell();
+    setActiveWalletTab("wallet");
+    const activeSection = document.querySelector('.wallet-section[data-wallet-tab="wallet"]');
+    if (activeSection) {
+      const sendSection = $("wallet-send");
+      if (sendSection) { document.querySelectorAll(".wallet-section.active-section").forEach((s) => s.classList.remove("active-section")); sendSection.classList.add("active-section"); }
+    }
+    if ($("toAddr")) $("toAddr").value = to;
+    if (amt && $("amount")) $("amount").value = amt;
+    if (label && $("contactName") && !$("contactName").value) $("contactName").value = label;
+    validateRecipientField();
+  }
   const enc = new TextEncoder();
   const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
   const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -80,7 +112,10 @@
     if (sats > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("amount too large");
     return Number(sats);
   }
-  const satsToNet = (s) => (s / COIN).toLocaleString(undefined, { maximumFractionDigits: 8 });
+  const satsToNet = (s) => (s / COIN).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const satsToNetFull = (s) => (s / COIN).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+  const truncAddr = (a) => (a && a.length > 22) ? `${a.slice(0, 10)}…${a.slice(-6)}` : a;
+  const setAddressDisplay = (a) => { const el = $("addr"); if (!el) return; el.textContent = truncAddr(a); el.title = a || ""; };
   const esc = (value) => String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   function satsToInput(sats) {
     const n = BigInt(Math.max(0, Number(sats)));
@@ -165,6 +200,46 @@
     status.textContent = text;
   }
 
+  function friendlyWalletErrorMessage(error, context = "wallet") {
+    const raw = String(error?.message || error || "unknown error").trim();
+    if (/insufficient funds|amount \+ fee|selected UTXOs/i.test(raw)) {
+      return `Balance or coin selection problem: ${raw}`;
+    }
+    if (/invalid address|scriptpubkey|recipient/i.test(raw)) {
+      return `Recipient problem: ${raw}. Paste a full NetCoin address or a netcoin: payment link.`;
+    }
+    if (/non-JSON response|offline|failed to fetch|network/i.test(raw)) {
+      return `Node connection problem: ${raw}. Refresh node status and try again on testnet.`;
+    }
+    if (/psbt|multisig|redeem/i.test(raw)) {
+      return `${context} needs more signing data: ${raw}`;
+    }
+    return raw;
+  }
+
+  function markSendChecklist(risk, warnings) {
+    const recipient = $("checkRecipient");
+    const amountFee = $("checkAmountFee");
+    const riskItem = $("checkRisk");
+    const testnet = $("checkTestnet");
+    if (!recipient || !amountFee || !riskItem || !testnet) return;
+    recipient.className = "ok";
+    amountFee.className = "ok";
+    testnet.className = "ok";
+    const blocked = risk?.decision === "block";
+    riskItem.className = blocked || warnings.length ? "warn" : "ok";
+    riskItem.textContent = blocked
+      ? "Risk check blocked this send. Adjust amount, fee, or coins."
+      : warnings.length
+        ? "Risk warnings are present. Read them before sending."
+        : "No blocking wallet risk warnings.";
+  }
+
+  function setWalletFlowStep(step) {
+    const wallet = $("walletView");
+    if (wallet) wallet.dataset.flowStep = step;
+  }
+
   function setBackupMsg(text, className = "muted") {
     const msg = $("backupMsg");
     if (!msg) return;
@@ -173,57 +248,48 @@
   }
 
   // ---------- wallet tab shell and modes ----------
+  const EVERYDAY = ["simple", "developer"];   // shown in both Simple and Admin views
+  const ADMIN_ONLY = ["developer"];            // shown only in Admin view
   const WALLET_TABS = [
-    { id: "overview", label: "Overview", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "send", label: "Send", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "receive", label: "Receive", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "activity", label: "Activity", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "contacts", label: "Contacts", modes: ["simple", "business", "advanced", "developer"] },
-    { id: "mining", label: "Mining", modes: ["simple", "advanced", "developer"] },
-    { id: "tokens", label: "Tokens", modes: ["business", "advanced", "developer"] },
-    { id: "payments", label: "Payments", modes: ["business", "advanced", "developer"] },
-    { id: "reports", label: "Reports", modes: ["business", "advanced", "developer"] },
-    { id: "watch", label: "Watch-only", modes: ["advanced", "developer"] },
-    { id: "escrow", label: "Escrow", modes: ["advanced", "developer"] },
-    { id: "advanced", label: "Advanced", modes: ["advanced", "developer"] },
-    { id: "contracts", label: "Contracts", modes: ["developer"] },
-    { id: "developer", label: "Developer", modes: ["developer"] },
-    { id: "settings", label: "Settings", modes: ["simple", "business", "advanced", "developer"] },
+    { id: "wallet", label: "Wallet", modes: EVERYDAY },
+    { id: "activity", label: "Activity", modes: EVERYDAY },
+    { id: "mining", label: "Mining", modes: EVERYDAY },
+    { id: "advanced", label: "Advanced", modes: ADMIN_ONLY },
+    { id: "tokens", label: "Tokens", modes: ADMIN_ONLY },
+    { id: "payments", label: "Payments", modes: ADMIN_ONLY },
+    { id: "reports", label: "Reports", modes: ADMIN_ONLY },
+    { id: "watch", label: "Watch-only", modes: ADMIN_ONLY },
+    { id: "escrow", label: "Escrow", modes: ADMIN_ONLY },
+    { id: "contracts", label: "Contracts", modes: ADMIN_ONLY },
+    { id: "developer", label: "Developer", modes: ADMIN_ONLY },
+    { id: "settings", label: "Settings", modes: EVERYDAY },
   ];
   const MODE_INFO = {
-    simple: "Recommended for most users: send, receive, activity, contacts, and settings.",
-    business: "Adds invoices, recurring payments, receipts, and reports.",
-    advanced: "Adds watch-only wallets, escrow, coin control, PSBT, descriptors, and raw transaction tools.",
-    developer: "Shows experimental app-layer contracts, polls, prediction-market demos, API/debug links, and raw tools. Use testnet/dev only.",
+    simple: "Everyday wallet: balance, send, receive, activity, mining, and settings.",
+    developer: "Full admin view: adds tokens, payments, reports, watch-only, escrow, PSBT/multisig, contracts, and developer tools.",
   };
-  function walletUiMode() {
-    const mode = localStorage.getItem(UI_MODE_STORE) || "simple";
-    return MODE_INFO[mode] ? mode : "simple";
+  // The wallet no longer has its own mode selector. It follows the site-wide
+  // Admin/Simple (user) view toggle: Simple = everyday tabs, Admin = everything.
+  function walletViewIsAdmin() {
+    try {
+      const v = (document.body.dataset.ncView || localStorage.getItem("nc.viewLevel.v1") || "simple").toLowerCase();
+      return v === "admin";
+    } catch (e) { return false; }
   }
-  function siteModeToWalletMode(mode) {
-    return { simple: "simple", merchant: "business", developer: "developer", node: "advanced", community: "simple", labs: "developer" }[mode] || "simple";
-  }
-  function walletModeToSiteMode(mode) {
-    return { simple: "simple", business: "merchant", advanced: "node", developer: "developer" }[mode] || "simple";
-  }
-  function setWalletUiMode(mode, syncSite = true) {
-    if (!MODE_INFO[mode]) mode = "simple";
-    localStorage.setItem(UI_MODE_STORE, mode);
-    if (syncSite) {
-      const siteMode = walletModeToSiteMode(mode);
-      if (window.NetCoinSiteMode?.setMode) window.NetCoinSiteMode.setMode(siteMode);
-      else localStorage.setItem(SITE_MODE_STORE, siteMode);
-    }
-    applyWalletMode();
-  }
-  function syncWalletModeFromSite(siteMode) {
-    const walletMode = siteModeToWalletMode(siteMode);
-    if (walletMode && walletMode !== walletUiMode()) setWalletUiMode(walletMode, false);
-    else applyWalletMode();
-  }
-  window.addEventListener("netcoin:siteModeChanged", (ev) => syncWalletModeFromSite(ev.detail?.mode));
+  function walletUiMode() { return walletViewIsAdmin() ? "developer" : "simple"; }
+  // Legacy shim: kept so older call sites don't break; view is driven by the site toggle now.
+  function setWalletUiMode() { applyWalletMode(); }
+  // Re-render wallet tabs whenever the site Admin/Simple toggle flips body[data-nc-view].
+  (function observeSiteView() {
+    try {
+      const obs = new MutationObserver(() => applyWalletMode());
+      obs.observe(document.body, { attributes: true, attributeFilter: ["data-nc-view"] });
+    } catch (e) {}
+  })();
   function activeWalletTab() {
-    return localStorage.getItem(UI_TAB_STORE) || "overview";
+    const tab = localStorage.getItem(UI_TAB_STORE) || "wallet";
+    // Legacy sub-tab ids collapse into the Wallet tab. "activity" is now its own tab.
+    return ["overview", "send", "receive", "contacts"].includes(tab) ? "wallet" : tab;
   }
   function setActiveWalletTab(tab) {
     localStorage.setItem(UI_TAB_STORE, tab);
@@ -260,17 +326,21 @@
       tabs.appendChild(btn);
     }
     wallet.prepend(tabs);
-
     const cards = Array.from(wallet.querySelectorAll(":scope > .card"));
     for (const card of cards) {
-      let tab = "overview";
-      if (card.querySelector("#receiveOut")) tab = "receive";
-      else if (card.querySelector("#btnSend")) tab = "send";
-      else if (card.querySelector("#txHistory")) tab = "activity";
+      // Keep the Wallet tab minimal: balance+address overview, Receive, and Send.
+      // Everything else moves to its own tab so the page stops being one long stack.
+      let tab = "advanced";
+      if (card.classList.contains("wallet-overview-card")) { tab = "wallet"; card.id = card.id || "wallet-home"; }
+      else if (card.querySelector("#receiveOut")) { tab = "wallet"; card.id = card.id || "wallet-receive"; }
+      else if (card.querySelector("#btnSend")) { tab = "wallet"; card.id = card.id || "wallet-send"; }
+      else if (card.querySelector("#txHistory")) { tab = "activity"; card.id = card.id || "wallet-activity"; }
+      else if (["speedUpCard", "psbtToolsCard", "multisigToolsCard"].includes(card.id)) tab = "advanced";
+      else if (card.classList.contains("wallet-availability-card")) tab = "wallet";
+      else if (card.querySelector("#contactsImportFile")) { tab = "settings"; card.id = card.id || "wallet-settings-backups"; }
       else if (card.querySelector("#statementOut")) tab = "reports";
       else if (card.querySelector("#walletDescriptor")) tab = "advanced";
       else if (card.querySelector("#watchList")) tab = "watch";
-      else if (card.querySelector("#contactsImportFile")) tab = "contacts";
       card.classList.add("wallet-section");
       card.dataset.walletTab = tab;
     }
@@ -296,28 +366,53 @@
       <div id="tokenList" class="watch-list"><span class="muted">Unlock the wallet, then refresh to load tokens.</span></div>
       <p class="muted">Create and manage tokens via the API — see <a href="https://api.netcoin.online/openapi.yaml" target="_blank" rel="noreferrer">the OpenAPI spec</a> or the SDKs.</p>`, "tokens"));
     addWalletSection(walletSection("Escrow", `
-      <p class="muted">Escrow is an advanced app-layer workflow. Create and monitor 2-of-3 escrow deals from the separated markets/contract page.</p>
-      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open escrow tools</b><br><span class="muted">Escrow, recurring agreements, polls, and contract templates.</span></a></div>`, "escrow"));
+      <p class="muted">2-of-3 escrow: funds go to an address that needs 2 of buyer/seller/mediator signatures to release or refund. App-layer accounting, not a chain-level contract.</p>
+      <div class="row compact-row">
+        <input id="escrowBuyerPub" class="mono" placeholder="Buyer pubkey (hex)" autocomplete="off" />
+        <input id="escrowSellerPub" class="mono" placeholder="Seller pubkey (hex)" autocomplete="off" />
+      </div>
+      <div class="row compact-row">
+        <input id="escrowMediatorPub" class="mono" placeholder="Mediator pubkey (hex)" autocomplete="off" />
+        <input id="escrowAmount" inputmode="decimal" placeholder="Amount (NET)" autocomplete="off" />
+      </div>
+      <label for="escrowTerms">Terms, optional</label>
+      <textarea id="escrowTerms" placeholder="What this escrow is for"></textarea>
+      <button id="btnCreateEscrow" type="button">Create escrow</button>
+      <p id="escrowMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div class="row compact-row">
+        <input id="escrowLookupId" class="mono" placeholder="escrow_id" autocomplete="off" />
+        <button id="btnLoadEscrow" class="secondary inline" type="button">Load</button>
+      </div>
+      <div id="escrowDetail" class="review hide">
+        <div class="kv">
+          <div class="k">Address</div><div class="v mono" id="escrowAddr"></div>
+          <div class="k">Status</div><div class="v" id="escrowStatus"></div>
+          <div class="k">Amount</div><div class="v" id="escrowAmountOut"></div>
+        </div>
+        <label for="escrowSigner">Your role (buyer/seller/mediator address)</label>
+        <input id="escrowSigner" class="mono" placeholder="your address" autocomplete="off" />
+        <div class="row compact-row">
+          <button id="btnEscrowRelease" class="secondary inline" type="button">Approve release</button>
+          <button id="btnEscrowRefund" class="secondary inline" type="button">Approve refund</button>
+          <button id="btnEscrowDispute" class="secondary inline" type="button">Dispute</button>
+        </div>
+      </div>`, "escrow"));
     addWalletSection(walletSection("Contracts", `
-      <p class="muted">Developer-mode contract tools are intentionally separated from normal wallet use.</p>
-      <div class="section-links"><a href="https://markets.netcoin.online/"><b>Open Phase 7 contracts</b><br><span class="muted">Timelock, vesting, multisig, recurring, polls, and prediction-market demos.</span></a></div>`, "contracts"));
+      <p class="muted">Read-only app-layer contract templates and this wallet's contract events. Escrow deals (the "Escrow" tab) are one instance of the escrow_2_of_3 template below.</p>
+      <button id="btnLoadContractTemplates" class="secondary" type="button">Load templates</button>
+      <div id="contractTemplateList" class="watch-list"><span class="muted">Load templates to see available contract types.</span></div>
+      <h3 style="margin-top:16px">Recent contract events</h3>
+      <button id="btnLoadContractEvents" class="secondary" type="button">Load recent events</button>
+      <div id="contractEventList" class="watch-list"><span class="muted">Load to see recent contract activity on this node.</span></div>`, "contracts"));
     addWalletSection(walletSection("Developer", `
-      <p class="muted">Developer tools expose raw/debug views and are intended for local/testnet use.</p>
+      <p class="muted">Payment links, developer API keys, webhooks, and reward simulations live in the full Developer Console. This wallet only surfaces the raw OpenAPI reference.</p>
       <div class="section-links">
+        <a href="https://developers.netcoin.online/console.html"><b>Developer Console</b><br><span class="muted">Payment links, API keys, webhooks, reward simulations.</span></a>
         <a href="https://api.netcoin.online/"><b>API docs</b><br><span class="muted">Explorer/backend API reference and SDK links.</span></a>
       </div>`, "developer"));
 
     const settings = walletSection("Settings", `
-      <p class="muted">Choose a wallet mode. Hidden tabs are not deleted; they are only tucked away until you switch modes.</p>
-      <label class="hide" for="walletUiMode">Wallet mode</label>
-      <select id="walletUiMode" class="hide" aria-label="Wallet mode">
-        <option value="simple">Simple — recommended</option>
-        <option value="business">Business — invoices and reports</option>
-        <option value="advanced">Advanced — coin control, escrow, PSBT</option>
-        <option value="developer">Developer — raw/debug/testnet tools</option>
-      </select>
-      <div class="mode-grid" id="walletModeButtons"></div>
-      <p id="walletModeHelp" class="muted compact-note"></p>
+      <p class="muted">Manage this wallet's session and backups. Use the site's <b>Simple / Admin</b> toggle (bottom-left) to switch between the everyday wallet and the full toolset — Admin adds Tokens, Payments, Reports, Watch-only, Escrow, PSBT/multisig, and developer tools.</p>
       <label for="sessionAutoLock">Session auto-lock</label>
       <select id="sessionAutoLock" aria-label="Session auto-lock timeout">
         <option value="15">15 minutes</option>
@@ -326,26 +421,23 @@
         <option value="120">2 hours</option>
         <option value="0">Disabled for this tab</option>
       </select>
-      <p id="sessionAutoLockStatus" class="muted auto-lock-status"></p>
-      <details class="raw-details">
-        <summary>What each mode shows</summary>
-        <p class="muted">Simple: overview, send, receive, activity, contacts, settings. Merchant mode adds payments and reports. Node operator/Advanced mode adds watch-only, escrow, coin control, PSBT, and descriptors. Developer/Labs mode adds contract/debug links.</p>
-      </details>`, "settings");
+      <p id="sessionAutoLockStatus" class="muted auto-lock-status"></p>`, "settings");
     addWalletSection(settings);
-    const modeButtons = $("walletModeButtons");
-    if (modeButtons) {
-      for (const [mode, text] of Object.entries(MODE_INFO)) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "secondary";
-        btn.dataset.walletModeButton = mode;
-        btn.textContent = mode[0].toUpperCase() + mode.slice(1);
-        btn.title = text;
-        btn.onclick = () => setWalletUiMode(mode);
-        modeButtons.appendChild(btn);
-      }
-    }
-    if ($("walletUiMode")) $("walletUiMode").onchange = () => setWalletUiMode($("walletUiMode").value);
+
+    addWalletSection(walletSection("Username", `
+      <p class="muted">Register a public username for this wallet's address. Anyone can then look you up by name instead of a long address — used on the leaderboard, tip/donate pages, and public profiles at <span class="mono">community.netcoin.online/u/&lt;username&gt;</span>.</p>
+      <label for="usernameInput">Username</label>
+      <input id="usernameInput" placeholder="letters, numbers, dash, underscore" autocomplete="off" />
+      <label for="usernameDisplay">Display name, optional</label>
+      <input id="usernameDisplay" placeholder="Shown instead of the raw username" autocomplete="off" />
+      <button id="btnRegisterUsername" type="button">Save username for this wallet</button>
+      <p id="usernameMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>
+      <label for="usernameLookup">Look up a username</label>
+      <div class="row compact-row">
+        <input id="usernameLookup" placeholder="username" autocomplete="off" />
+        <button id="btnLookupUsername" class="secondary inline" type="button">Look up</button>
+      </div>
+      <pre id="usernameLookupOut" class="mono muted">Address appears here.</pre>`, "settings"));
   }
   function applyWalletMode() {
     const wallet = $("walletView");
@@ -354,10 +446,7 @@
     syncAutoLockControls();
     const mode = walletUiMode();
     let tab = activeWalletTab();
-    if (!tabAllowed(tab, mode)) tab = "overview";
-    if ($("walletUiMode")) $("walletUiMode").value = mode;
-    if ($("walletModeHelp")) $("walletModeHelp").textContent = MODE_INFO[mode];
-    document.querySelectorAll("[data-wallet-mode-button]").forEach((btn) => btn.classList.toggle("active", btn.dataset.walletModeButton === mode));
+    if (!tabAllowed(tab, mode)) tab = "wallet";
     document.querySelectorAll("[data-wallet-tab-button]").forEach((btn) => {
       const allowed = tabAllowed(btn.dataset.walletTabButton, mode);
       btn.classList.toggle("hidden-tab", !allowed);
@@ -671,6 +760,24 @@
   function saveLabels(labels) { localStorage.setItem(LABELS_STORE, JSON.stringify(labels || {})); }
   function txLabel(txid) { return String(loadLabels()[txid] || ""); }
   function setTxLabel(txid, label) { const labels = loadLabels(); if (label) labels[txid] = label; else delete labels[txid]; saveLabels(labels); }
+  function loadSendMeta() {
+    try { return JSON.parse(localStorage.getItem(SEND_META_STORE) || "{}"); } catch { return {}; }
+  }
+  function saveSendMeta(meta) { localStorage.setItem(SEND_META_STORE, JSON.stringify(meta || {})); }
+  function contactForAddress(address) { return loadContacts().find((c) => sameAddress(c.address, address)); }
+  function autoTxLabelForSend(toAddress) {
+    const contact = contactForAddress(toAddress);
+    return contact ? `Sent to ${contact.name}` : "";
+  }
+  function recordSentTxMeta(txid, toAddress, amountSats, feeSats) {
+    if (!txid) return;
+    const contact = contactForAddress(toAddress);
+    const label = contact ? `Sent to ${contact.name}` : "";
+    const meta = loadSendMeta();
+    meta[txid] = { direction: "sent", to: toAddress, contactName: contact?.name || "", amountSats, feeSats, createdAt: Date.now() };
+    saveSendMeta(meta);
+    if (label && !txLabel(txid)) setTxLabel(txid, label);
+  }
 
   // ---------- watch-only addresses ----------
   function loadWatchlist() {
@@ -1024,7 +1131,7 @@
     const clean = normalizePrivateKeyHex(privHex);
     const w = W.walletFromPrivateKey(clean, walletAddressType());
     state = { secretType: "privateKey", privHex: clean, address: w.address, profile };
-    $("addr").textContent = w.address;
+    setAddressDisplay(w.address);
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · private key · session unlocked`;
     if (remember) rememberUnlocked("privateKey", clean, profile, true);
     show("walletView");
@@ -1192,7 +1299,7 @@
     const privHex = W.privateKeyFromSeedPhrase(seed, 0);
     const w = W.walletFromPrivateKey(privHex, walletAddressType());
     state = { secretType: "seed", seed, privHex, address: w.address, profile };
-    $("addr").textContent = w.address;
+    setAddressDisplay(w.address);
     if ($("activeProfilePill")) $("activeProfilePill").textContent = `Profile: ${profile} · seed phrase · session unlocked`;
     if (remember) rememberUnlocked("seed", seed, profile, true);
     show("walletView");
@@ -1279,12 +1386,261 @@
         outputs,
       };
       const prevouts = chosen.map((u) => ({ txid: u.txid, vout: u.vout, output: { amount: u.amount, address: u.address || state.address } }));
-      const psbt = { magic: "netcoin-psbt-v1", tx, prevouts, created_at: new Date().toISOString(), note: "Unsigned browser wallet PSBT. Review offline before signing." };
-      $("psbtOut").value = encodeNetPsbt(psbt);
-      setDescriptorMsg("Unsigned PSBT created. Copy it for offline review/signing.", "ok");
+      // Payment intent lets an offline copy of this wallet reconstruct and sign
+      // the exact same payment; the outputs are re-verified on import so a
+      // tampered signer cannot change where funds go.
+      const intent = {
+        utxos: chosen.map((u) => ({ txid: u.txid, vout: u.vout, amount: u.amount, address: u.address || state.address })),
+        toAddress: to,
+        amount,
+        fee,
+        changeAddress: state.address,
+      };
+      const psbt = {
+        magic: "netcoin-psbt-v1",
+        tx,
+        prevouts,
+        intent,
+        intent_hash: await psbtIntentHash(intent),
+        created_at: new Date().toISOString(),
+        note: "Unsigned browser wallet PSBT. Review offline before signing.",
+      };
+      const encoded = encodeNetPsbt(psbt);
+      lastUnsignedPsbt = encoded;
+      $("psbtOut").value = encoded;
+      renderPsbtQr(encoded);
+      $("btnDownloadUnsignedPsbt")?.removeAttribute("disabled");
+      $("btnSignPsbtOffline")?.removeAttribute("disabled");
+      setDescriptorMsg("Unsigned PSBT created. Export it (file/QR) to an offline signer, or sign here.", "ok");
     } catch (e) {
       setDescriptorMsg("PSBT creation failed: " + e.message, "err");
     }
+  }
+
+  // ---------- airgap / offline PSBT signing loop ----------
+  const PSBT_SIGNED_PREFIX = "netpsbt-signed:";
+  let lastUnsignedPsbt = "";
+  let pendingSignedPsbt = null; // { intent, signed } awaiting broadcast
+
+  async function psbtIntentHash(intent) {
+    const canonical = JSON.stringify({
+      utxos: intent.utxos, toAddress: intent.toAddress, amount: intent.amount,
+      fee: intent.fee, changeAddress: intent.changeAddress,
+    });
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  function decodePsbt(text, prefix) {
+    const t = String(text || "").trim();
+    if (!t.startsWith(prefix)) throw new Error("expected a " + prefix.replace(":", "") + " payload");
+    return JSON.parse(atob(t.slice(prefix.length)));
+  }
+
+  // Sign an unsigned PSBT in this browser using the loaded key (software offline
+  // signer). On a real airgapped device this same wallet copy holds the key.
+  async function signPsbtOffline() {
+    try {
+      if (!state) throw new Error("unlock a wallet first");
+      const unsigned = decodePsbt($("psbtOut").value || lastUnsignedPsbt, "netpsbt:");
+      if (unsigned.magic !== "netcoin-psbt-v1" || !unsigned.intent) throw new Error("not a NetCoin unsigned PSBT with a payment intent");
+      const intent = unsigned.intent;
+      if ((await psbtIntentHash(intent)) !== unsigned.intent_hash) throw new Error("PSBT intent hash mismatch; refusing to sign a tampered payment");
+      const signed = W.buildSignedPayment({
+        privHex: state.privHex, utxos: intent.utxos, toAddress: intent.toAddress,
+        amount: intent.amount, fee: intent.fee, changeAddress: intent.changeAddress, maxInputs: MAX_WALLET_SEND_INPUTS,
+      });
+      const wrapper = { magic: "netcoin-psbt-signed-v1", intent, intent_hash: unsigned.intent_hash, signed, signed_at: new Date().toISOString() };
+      const encoded = PSBT_SIGNED_PREFIX + btoa(JSON.stringify(wrapper));
+      $("signedPsbtOut").value = encoded;
+      renderPsbtQr(encoded);
+      $("btnDownloadSignedPsbt")?.removeAttribute("disabled");
+      setDescriptorMsg("Signed offline. Export the signed PSBT back to the online wallet to broadcast.", "ok");
+    } catch (e) {
+      setDescriptorMsg("Offline signing failed: " + e.message, "err");
+    }
+  }
+
+  // Import a signed PSBT, re-verify its payment matches the intent, and stage it.
+  async function importSignedPsbt(rawText) {
+    try {
+      const wrapper = decodePsbt(rawText, PSBT_SIGNED_PREFIX);
+      if (wrapper.magic !== "netcoin-psbt-signed-v1" || !wrapper.intent || !wrapper.signed) throw new Error("not a NetCoin signed PSBT");
+      if ((await psbtIntentHash(wrapper.intent)) !== wrapper.intent_hash) throw new Error("signed PSBT intent hash mismatch; refusing to broadcast a tampered payment");
+      pendingSignedPsbt = wrapper;
+      const i = wrapper.intent;
+      const review = $("psbtReview");
+      if (review) {
+        review.innerHTML =
+          `<div class="kv"><div class="k">To</div><div class="v mono">${esc(i.toAddress)}</div>` +
+          `<div class="k">Amount</div><div class="v">${satsToNet(i.amount)} NET</div>` +
+          `<div class="k">Fee</div><div class="v">${satsToNet(i.fee)} NET</div>` +
+          `<div class="k">Inputs</div><div class="v">${i.utxos.length}</div></div>`;
+        review.classList.remove("hide");
+      }
+      $("btnBroadcastSignedPsbt")?.removeAttribute("disabled");
+      setDescriptorMsg("Signed PSBT verified against its intent. Review, then broadcast.", "ok");
+    } catch (e) {
+      pendingSignedPsbt = null;
+      $("btnBroadcastSignedPsbt")?.setAttribute("disabled", "disabled");
+      setDescriptorMsg("Signed PSBT import failed: " + e.message, "err");
+    }
+  }
+
+  async function broadcastSignedPsbt() {
+    try {
+      if (!pendingSignedPsbt) throw new Error("import a signed PSBT first");
+      const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pendingSignedPsbt.signed) });
+      setDescriptorMsg("Broadcast ✓ txid " + String(res.txid || "").slice(0, 16) + "…", "ok");
+      pendingSignedPsbt = null;
+      $("btnBroadcastSignedPsbt")?.setAttribute("disabled", "disabled");
+      refresh();
+    } catch (e) {
+      setDescriptorMsg("Broadcast failed: " + e.message, "err");
+    }
+  }
+
+  function hydrateRbfBumpCard() {
+    if (!$("rbfOriginalTx")) return;
+    if (lastRbfCandidate?.tx) $("rbfOriginalTx").value = JSON.stringify(lastRbfCandidate.tx, null, 2);
+    if (lastRbfCandidate?.prevouts) $("rbfPrevouts").value = JSON.stringify(lastRbfCandidate.prevouts, null, 2);
+    if (lastRbfCandidate?.feeSats && !$("rbfNewFee").value) $("rbfNewFee").value = satsToInput(Math.max(Number(lastRbfCandidate.feeSats) * 2, Number(lastRbfCandidate.feeSats) + 500));
+    if (state?.address && !$("rbfChangeAddress").value) $("rbfChangeAddress").value = state.address;
+  }
+
+  function readJsonField(id, fallback) {
+    const raw = ($(id)?.value || "").trim();
+    if (!raw) return fallback;
+    try { return JSON.parse(raw); }
+    catch { throw new Error(`${id} must contain valid JSON`); }
+  }
+
+  async function bumpFeeFromCard() {
+    const out = $("rbfBumpOut");
+    try {
+      const originalTx = readJsonField("rbfOriginalTx", lastRbfCandidate?.tx);
+      const prevouts = readJsonField("rbfPrevouts", lastRbfCandidate?.prevouts);
+      if (!originalTx) throw new Error("paste the original transaction JSON or use the last RBF send");
+      if (!Array.isArray(prevouts) || !prevouts.length) throw new Error("paste the previous outputs JSON");
+      const newFee = ($("rbfNewFee")?.value || "").trim();
+      if (!newFee) throw new Error("enter a higher fee in NET");
+      const changeAddress = ($("rbfChangeAddress")?.value || state?.address || "").trim();
+      if (!changeAddress) throw new Error("enter a change address or unlock this wallet");
+      const broadcast = Boolean($("rbfBroadcastNow")?.checked);
+      const bumped = await api("/wallet/rbf-bump", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ original_tx: originalTx, prevouts, new_fee: newFee, change_address: changeAddress, broadcast }) });
+      lastRbfCandidate = { ...lastRbfCandidate, tx: bumped.replacement_tx || bumped.tx, feeSats: bumped.new_fee, prevouts };
+      if (out) {
+        out.className = "mono ok";
+        out.textContent = JSON.stringify({ broadcast, txid: bumped.txid || bumped.replacement_txid || null, old_fee: bumped.old_fee, new_fee: bumped.new_fee, replacement_tx: bumped.replacement_tx || bumped.tx }, null, 2);
+      }
+    } catch (e) {
+      if (out) { out.className = "mono err"; out.textContent = "Fee bump failed: " + e.message; }
+    }
+  }
+
+  async function bumpLastFee() {
+    const msg = $("sendMsg");
+    try {
+      if (!lastRbfCandidate?.tx || !lastRbfCandidate?.prevouts) throw new Error("send an opt-in-RBF transaction first");
+      hydrateRbfBumpCard();
+      await bumpFeeFromCard();
+      msg.className = "ok";
+      msg.textContent = "Fee bump preview created in the Speed up transaction card.";
+    } catch (e) {
+      msg.className = "err";
+      msg.textContent = "Fee bump failed: " + e.message;
+    }
+  }
+
+  function setMultisigProgress(progress) {
+    const msg = $("multisigProgress");
+    if (!msg) return;
+    const p = progress || {};
+    msg.textContent = `${p.collected || 0} of ${p.required || 0} collected${p.ready ? " · ready to extract" : ""}.`;
+  }
+
+  async function createMultisigWallet() {
+    const out = $("multisigCreateOut");
+    try {
+      const created = await api("/wallet/multisig/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ required: $("multisigRequired").value, pubkeys: $("multisigPubkeys").value }) });
+      lastMultisigRedeemScript = created.redeem_script;
+      out.textContent = JSON.stringify({ address: created.address, redeem_script: created.redeem_script }, null, 2);
+    } catch (e) {
+      out.textContent = "Multisig create failed: " + e.message;
+    }
+  }
+
+  async function createMultisigSpend() {
+    const out = $("multisigProgress");
+    try {
+      const created = await api("/wallet/multisig/psbt/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ redeem_script: lastMultisigRedeemScript, to: normalizeRecipientField(), amount: $("amount").value, fee: $("fee").value }) });
+      $("multisigSpendPsbt").value = created.unsigned_psbt;
+      setMultisigProgress(created.progress);
+      out.className = "muted";
+    } catch (e) {
+      out.className = "err";
+      out.textContent = "Multisig spend failed: " + e.message;
+    }
+  }
+
+  async function signMultisigSpend() {
+    const out = $("multisigProgress");
+    try {
+      const signed = await api("/wallet/multisig/psbt/sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ psbt: $("multisigSpendPsbt").value, redeem_script: lastMultisigRedeemScript }) });
+      $("multisigSpendPsbt").value = signed.signed_psbt;
+      setMultisigProgress(signed.progress);
+      out.className = "muted";
+    } catch (e) {
+      out.className = "err";
+      out.textContent = "Multisig signing failed: " + e.message;
+    }
+  }
+
+  async function extractMultisigSpend() {
+    const out = $("multisigProgress");
+    try {
+      const extracted = await api("/wallet/psbt/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ psbt: $("multisigSpendPsbt").value }) });
+      setMultisigProgress(extracted.progress);
+      out.className = "ok";
+      out.textContent = "Extracted transaction " + String(extracted.txid || "").slice(0, 16) + "…";
+    } catch (e) {
+      out.className = "err";
+      out.textContent = "Multisig extract failed: " + e.message;
+    }
+  }
+
+  // Chunked animated QR so a large PSBT can cross an airgap by camera. Each
+  // frame is "p<i>/<n>:<chunk>" and small enough for the bundled v1-5 renderer.
+  let psbtQrTimer = null;
+  function renderPsbtQr(text) {
+    const canvas = $("psbtQrCanvas");
+    if (!canvas) return;
+    if (psbtQrTimer) { clearInterval(psbtQrTimer); psbtQrTimer = null; }
+    if (!text) return;
+    const CHUNK = 70; // keep each frame within the bundled v1-5 QR renderer's capacity
+    const frames = [];
+    const n = Math.ceil(text.length / CHUNK);
+    for (let i = 0; i < n; i++) frames.push(`p${i + 1}/${n}:${text.slice(i * CHUNK, (i + 1) * CHUNK)}`);
+    let idx = 0;
+    const ctx = canvas.getContext("2d");
+    const draw = () => {
+      try {
+        const matrix = makeQrMatrix(frames[idx % frames.length]);
+        const quiet = 4;
+        const scale = Math.floor(canvas.width / (matrix.length + quiet * 2));
+        const used = (matrix.length + quiet * 2) * scale;
+        const off = Math.floor((canvas.width - used) / 2);
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#000";
+        for (let y = 0; y < matrix.length; y++) for (let x = 0; x < matrix.length; x++) {
+          if (matrix[y][x]) ctx.fillRect(off + (x + quiet) * scale, off + (y + quiet) * scale, scale, scale);
+        }
+        const label = $("psbtQrLabel"); if (label) label.textContent = `Airgap QR frame ${(idx % frames.length) + 1}/${frames.length}`;
+        idx++;
+      } catch { /* frame too large for bundled renderer; file export still works */ }
+    };
+    draw();
+    if (frames.length > 1) psbtQrTimer = setInterval(draw, 700);
   }
 
   // ---------- app-layer wallet reports / alerts / limits ----------
@@ -1385,6 +1741,110 @@
     } catch (e) { setWalletToolsMsg("Could not download PDF: " + e.message, "err"); }
   }
 
+  async function registerUsername() {
+    const msg = $("usernameMsg");
+    if (!state) { msg.className = "err"; msg.textContent = "Unlock the wallet first."; return; }
+    const username = ($("usernameInput").value || "").trim();
+    if (!username) { msg.className = "err"; msg.textContent = "Enter a username."; return; }
+    try {
+      const rec = await api("/usernames", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, address: state.address, display_name: $("usernameDisplay").value || "" }),
+      });
+      msg.className = "ok";
+      msg.textContent = `Saved: @${rec.username} now resolves to your address.`;
+    } catch (e) { msg.className = "err"; msg.textContent = "Could not save username: " + e.message; }
+  }
+
+  async function lookupUsername() {
+    const out = $("usernameLookupOut");
+    const name = ($("usernameLookup").value || "").trim();
+    if (!name) { out.textContent = "Enter a username to look up."; return; }
+    try {
+      const rec = await api("/usernames/" + encodeURIComponent(name));
+      out.textContent = `@${rec.username} -> ${rec.address}` + (rec.display_name ? ` (${rec.display_name})` : "");
+    } catch (e) { out.textContent = "Not found: " + e.message; }
+  }
+
+  let lastEscrowId = "";
+  async function createEscrow() {
+    const msg = $("escrowMsg");
+    try {
+      const amount = parseFloat($("escrowAmount").value || "0");
+      if (!(amount > 0)) throw new Error("amount must be greater than zero");
+      const rec = await api("/escrows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buyer_pubkey: $("escrowBuyerPub").value.trim(),
+          seller_pubkey: $("escrowSellerPub").value.trim(),
+          mediator_pubkey: $("escrowMediatorPub").value.trim(),
+          amount,
+          terms: $("escrowTerms").value || "",
+        }),
+      });
+      lastEscrowId = rec.escrow_id;
+      $("escrowLookupId").value = rec.escrow_id;
+      msg.className = "ok";
+      msg.textContent = `Created escrow ${rec.escrow_id}. Fund the escrow address, then load it below.`;
+      await loadEscrow();
+    } catch (e) { msg.className = "err"; msg.textContent = "Could not create escrow: " + e.message; }
+  }
+
+  async function loadEscrow() {
+    const id = ($("escrowLookupId").value || lastEscrowId || "").trim();
+    if (!id) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Enter an escrow_id to load."; return; }
+    try {
+      const rec = await api("/escrows/" + encodeURIComponent(id));
+      lastEscrowId = rec.escrow_id;
+      $("escrowDetail").classList.remove("hide");
+      $("escrowAddr").textContent = rec.escrow_address;
+      $("escrowStatus").textContent = rec.status;
+      $("escrowAmountOut").textContent = rec.amount + " NET";
+    } catch (e) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Could not load escrow: " + e.message; }
+  }
+
+  async function submitEscrowAction(action) {
+    const id = ($("escrowLookupId").value || lastEscrowId || "").trim();
+    const signer = ($("escrowSigner").value || "").trim();
+    if (!id) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Load an escrow first."; return; }
+    try {
+      const rec = await api(`/escrows/${encodeURIComponent(id)}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, signer }),
+      });
+      $("escrowStatus").textContent = rec.status;
+      $("escrowMsg").className = "ok";
+      $("escrowMsg").textContent = `Recorded ${action}. Status: ${rec.status}`;
+    } catch (e) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Could not submit action: " + e.message; }
+  }
+
+  async function loadContractTemplates() {
+    const box = $("contractTemplateList");
+    box.innerHTML = "Loading…";
+    try {
+      const data = await api("/contracts/templates");
+      const items = Object.values(data.templates || data || {});
+      box.innerHTML = items.length
+        ? items.map((t) => `<div class="watch-item"><b>${esc(t.title || t.type || "")}</b><div class="muted">${esc(t.description || "")}</div></div>`).join("")
+        : '<span class="muted">No templates available.</span>';
+    } catch (e) { box.innerHTML = '<span class="err">Could not load templates: ' + esc(e.message) + "</span>"; }
+  }
+
+  async function loadContractEvents() {
+    const box = $("contractEventList");
+    box.innerHTML = "Loading…";
+    try {
+      const data = await api("/contracts/events");
+      const items = Array.isArray(data.events) ? data.events : Array.isArray(data) ? data : [];
+      box.innerHTML = items.length
+        ? items.slice(-20).reverse().map((e) => `<div class="watch-item"><b>${esc(e.type || e.event || "")}</b><div class="muted">${esc(JSON.stringify(e.data || e.detail || {}))}</div></div>`).join("")
+        : '<span class="muted">No contract events yet.</span>';
+    } catch (e) { box.innerHTML = '<span class="err">Could not load events: ' + esc(e.message) + "</span>"; }
+  }
+
   async function markBackupVerified() {
     if (!state) return;
     try {
@@ -1397,8 +1857,14 @@
   async function api(path, opts) {
     const r = await fetch(API + path, opts);
     const text = await r.text();
-    let data; try { data = JSON.parse(text); } catch { data = { error: text }; }
-    if (!r.ok || data.error) throw new Error(data.error || ("HTTP " + r.status));
+    let data; let parsed = true;
+    try { data = JSON.parse(text); } catch { parsed = false; data = {}; }
+    if (!r.ok || data.error) {
+      // A non-JSON body (nginx/proxy error pages, gateway timeouts) must never
+      // be shown to the user verbatim — it can be an entire raw HTML page.
+      const message = parsed ? (data.error || ("HTTP " + r.status)) : ("HTTP " + r.status + " (non-JSON response from node)");
+      throw new Error(message);
+    }
     return data;
   }
 
@@ -1408,6 +1874,7 @@
       const b = await api("/balance/" + encodeURIComponent(state.address));
       lastSpendableSats = b.spendable_sats ?? b.spendable ?? 0;
       $("balNet").textContent = satsToNet(lastSpendableSats);
+      $("balNet").title = satsToNetFull(lastSpendableSats) + " NET";
       const imm = b.immature_sats ?? 0;
       let maturing = "";
       if (imm > 0) {
@@ -1498,9 +1965,49 @@
   }
   function autoFeeTiers(amountSats) {
     const nInputs = estimateInputsForAmount(amountSats);
-    const slow = Math.max(FEE_FLOOR_SATS, Math.ceil(estimateVsize(nInputs) * FEE_RATE_MIN_SATS_PER_VBYTE));
-    return { slow, normal: slow * 10, fast: slow * 100, inputs: nInputs };
+    const vsize = estimateVsize(nInputs);
+    const nodePresets = feeEstimatePayload?.presets || {};
+    const fromNode = (name, fallbackRate) => {
+      const preset = nodePresets[name] || {};
+      const rate = Number(preset.fee_rate_per_kvb || 0) / 1000;
+      const direct = Number(preset.estimated_fee_sats || 0);
+      if (rate > 0) return Math.max(FEE_FLOOR_SATS, Math.ceil(vsize * rate));
+      if (direct > 0) return Math.max(FEE_FLOOR_SATS, Math.ceil((direct * vsize) / Number(feeEstimatePayload?.assumed_vbytes || 200)));
+      return Math.max(FEE_FLOOR_SATS, Math.ceil(vsize * fallbackRate));
+    };
+    const slow = fromNode("slow", FEE_RATE_MIN_SATS_PER_VBYTE);
+    const normal = fromNode("normal", FEE_RATE_MIN_SATS_PER_VBYTE * 10);
+    const fast = fromNode("fast", FEE_RATE_MIN_SATS_PER_VBYTE * 100);
+    return { slow, normal, fast, inputs: nInputs };
   }
+  function updateFeePresetCards(tiers) {
+    const labels = { slow: "feeSlowLabel", normal: "feeNormalLabel", fast: "feeFastLabel" };
+    for (const [presetName, labelId] of Object.entries(labels)) {
+      const label = $(labelId);
+      if (label && tiers?.[presetName] != null) label.textContent = satsToInput(tiers[presetName]) + " NET";
+    }
+    const selected = $("feePreset")?.value || "normal";
+    document.querySelectorAll("[data-fee-preset]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.feePreset === selected);
+      btn.setAttribute("aria-pressed", btn.dataset.feePreset === selected ? "true" : "false");
+    });
+    const status = $("feePresetStatus");
+    if (status) {
+      const names = { slow: "Economy", normal: "Standard", fast: "Fast", custom: "Custom" };
+      status.textContent = `${names[selected] || "Standard"} fee selected. Estimates refresh from the node when available.`;
+    }
+  }
+
+  function chooseFeePreset(presetName) {
+    const preset = $("feePreset");
+    if (!preset || !["slow", "normal", "fast"].includes(presetName)) return;
+    preset.value = presetName;
+    const tiers = preset._tiers || autoFeeTiers(0);
+    $("fee").value = satsToInput(tiers[presetName] ?? tiers.normal);
+    updateFeePresetCards(tiers);
+    updateFeeHint();
+  }
+
   function refreshAutoFees(keepCustom = true) {
     // Preserve a user's Custom fee; otherwise recompute from the current amount.
     const preset = $("feePreset");
@@ -1511,17 +2018,22 @@
     if (preset) {
       const sel = wasCustom ? "custom" : (preset.value && preset.value !== "custom" ? preset.value : "normal");
       preset.innerHTML =
-        `<option value="slow">Slow — ${satsToInput(t.slow)} NET (minimum)</option>` +
-        `<option value="normal">Normal — ${satsToInput(t.normal)} NET (recommended)</option>` +
+        `<option value="slow">Economy — ${satsToInput(t.slow)} NET</option>` +
+        `<option value="normal">Standard — ${satsToInput(t.normal)} NET</option>` +
         `<option value="fast">Fast — ${satsToInput(t.fast)} NET</option>` +
         `<option value="custom">Custom</option>`;
       preset.value = sel === "slow" || sel === "fast" || sel === "custom" ? sel : "normal";
       preset._tiers = t;
       if (!wasCustom) $("fee").value = satsToInput(t[preset.value] ?? t.normal);
+      updateFeePresetCards(t);
     }
     updateFeeHint();
   }
-  async function updateFeeEstimates() { refreshAutoFees(false); }
+  async function updateFeeEstimates() {
+    try { feeEstimatePayload = await api("/fee-estimates"); }
+    catch { feeEstimatePayload = null; }
+    refreshAutoFees(false);
+  }
 
   async function loadHistory() {
     if (!state || !$("txHistory")) return;
@@ -1532,17 +2044,28 @@
         $("txHistory").innerHTML = '<span class="muted">No transactions yet.</span>';
         return;
       }
+      const sentMeta = loadSendMeta();
       $("txHistory").innerHTML = txids.map((txid) => {
-        const label = txLabel(txid);
-        return `<div class="review"><div class="mono">${esc(txid)}</div><div class="row"><input data-txid="${esc(txid)}" class="txLabel" placeholder="Label this transaction" value="${esc(label)}" /><button class="secondary inline btnSaveTxLabel" data-txid="${esc(txid)}" type="button">Save label</button></div></div>`;
+        const meta = sentMeta[txid] || {};
+        const autoLabel = meta.contactName ? `Sent to ${meta.contactName}` : "";
+        const label = txLabel(txid) || autoLabel;
+        const subtitle = meta.to ? `To ${meta.contactName ? esc(meta.contactName) + " · " : ""}${esc(shortAddress(meta.to))}` : "Label saved only in this browser.";
+        return `<div class="review tx-row"><div class="tx-row-head"><strong>${esc(label || "Transaction")}</strong><span class="muted">${subtitle}</span></div><div class="mono txid-line">${esc(txid)}</div><div class="tx-actions"><a href="https://explorer.netcoin.online/tx.html?txid=${encodeURIComponent(txid)}" target="_blank" rel="noreferrer">Open in Explorer</a><button class="secondary inline btnCopyTxid" data-txid="${esc(txid)}" type="button">Copy txid</button></div><div class="row compact-row"><input data-txid="${esc(txid)}" class="txLabel" placeholder="Label this transaction" value="${esc(label)}" /><button class="secondary inline btnSaveTxLabel" data-txid="${esc(txid)}" type="button">Save</button></div></div>`;
       }).join("");
+      document.querySelectorAll(".btnCopyTxid").forEach((btn) => {
+        btn.onclick = async () => {
+          await navigator.clipboard?.writeText(btn.dataset.txid || "");
+          btn.textContent = "Copied";
+          setTimeout(() => { btn.textContent = "Copy txid"; }, 900);
+        };
+      });
       document.querySelectorAll(".btnSaveTxLabel").forEach((btn) => {
         btn.onclick = () => {
           const txid = btn.dataset.txid;
           const input = document.querySelector(`.txLabel[data-txid="${txid}"]`);
           setTxLabel(txid, input.value.trim());
           btn.textContent = "Saved";
-          setTimeout(() => { btn.textContent = "Save label"; }, 900);
+          setTimeout(() => { btn.textContent = "Save"; }, 900);
         };
       });
     } catch (e) {
@@ -1605,9 +2128,16 @@
     const chosen = forcedOutpoints.length ? lastUtxos.filter((u) => forcedOutpoints.includes(outpointOf(u))) : lastUtxos;
     if (forcedOutpoints.length && chosen.length !== forcedOutpoints.length) throw new Error("one or more selected UTXOs are no longer spendable");
     const utxos = chosen.map((x) => ({ txid: x.txid, vout: x.vout, amount: x.amount, address: x.address }));
+    const rbfInputs = W.selectCoins(utxos, amountSats + feeSats, MAX_WALLET_SEND_INPUTS).chosen;
     const signed = W.buildSignedPayment({
-      privHex: state.privHex, utxos, toAddress, amount: amountSats, fee: feeSats, changeAddress: state.address, maxInputs: MAX_WALLET_SEND_INPUTS,
+      privHex: state.privHex, utxos, toAddress, amount: amountSats, fee: feeSats, changeAddress: state.address, maxInputs: MAX_WALLET_SEND_INPUTS, rbf: Boolean($("rbfOptIn")?.checked),
     });
+    lastRbfCandidate = $("rbfOptIn")?.checked ? {
+      tx: signed,
+      feeSats,
+      prevouts: rbfInputs.map((u) => ({ txid: u.txid, vout: u.vout, height: null, coinbase: false, output: { amount: u.amount, address: u.address || state.address, script_pubkey: u.script_pubkey || W.addressToScriptPubkey(u.address || state.address) } })),
+    } : null;
+    hydrateRbfBumpCard();
     const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signed) });
     return res.txid;
   }
@@ -1738,15 +2268,22 @@
   });
   syncAutoLockControls();
   $("btnLock").onclick = () => lockWallet();
-  $("fee").oninput = () => { $("feePreset").value = "custom"; updateFeeHint(); };
+  $("fee").oninput = () => { $("feePreset").value = "custom"; updateFeePresetCards($("feePreset")._tiers || autoFeeTiers(0)); updateFeeHint(); };
   $("feePreset").onchange = () => {
     const p = $("feePreset");
     if (p.value !== "custom") {
       const tiers = p._tiers || autoFeeTiers(0);
       $("fee").value = satsToInput(tiers[p.value] ?? tiers.normal);
+      updateFeePresetCards(tiers);
       updateFeeHint();
+    } else {
+      updateFeePresetCards(p._tiers || autoFeeTiers(0));
     }
   };
+  document.addEventListener("click", (ev) => {
+    const feeButton = ev.target?.closest?.("[data-fee-preset]");
+    if (feeButton) chooseFeePreset(feeButton.dataset.feePreset);
+  });
   // Recompute size-based fees whenever the amount changes (more coins => higher min).
   $("amount").addEventListener("input", () => refreshAutoFees(true));
   $("btnMakePaymentLink").onclick = makePaymentRequest;
@@ -1763,6 +2300,24 @@
   $("btnCopyDescriptor").onclick = () => navigator.clipboard?.writeText($("walletDescriptor").value || "");
   $("btnImportDescriptor").onclick = importDescriptorToWatchlist;
   $("btnMakePsbt").onclick = makeUnsignedPsbt;
+  $("btnDownloadUnsignedPsbt").onclick = () => downloadText("netcoin-unsigned.psbt", $("psbtOut").value || lastUnsignedPsbt, "text/plain");
+  $("btnSignPsbtOffline").onclick = signPsbtOffline;
+  $("btnDownloadSignedPsbt").onclick = () => downloadText("netcoin-signed.psbt", $("signedPsbtOut").value, "text/plain");
+  $("btnImportSignedPsbt").onclick = () => importSignedPsbt($("signedPsbtOut").value);
+  $("btnBroadcastSignedPsbt").onclick = broadcastSignedPsbt;
+  if ($("btnUseLastRbfCandidate")) $("btnUseLastRbfCandidate").onclick = hydrateRbfBumpCard;
+  if ($("btnPreviewRbfBump")) $("btnPreviewRbfBump").onclick = bumpFeeFromCard;
+  $("btnCreateMultisig").onclick = createMultisigWallet;
+  $("btnCreateMultisigSpend").onclick = createMultisigSpend;
+  $("btnSignMultisigSpend").onclick = signMultisigSpend;
+  $("btnExtractMultisigSpend").onclick = extractMultisigSpend;
+  $("signedPsbtFile").onchange = async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    const text = (await file.text()).trim();
+    $("signedPsbtOut").value = text;
+    await importSignedPsbt(text);
+  };
   if ($("btnWalletStatement")) $("btnWalletStatement").onclick = createWalletStatement;
   if ($("btnWalletStatementCsv")) $("btnWalletStatementCsv").onclick = downloadWalletStatementCsv;
   if ($("btnWalletStatementPdf")) $("btnWalletStatementPdf").onclick = downloadWalletStatementPdf;
@@ -1799,6 +2354,51 @@
       $("sendMsg").textContent = "Failed: " + e.message;
     }
   };
+  function estimateTxVbytes(inputCount, outputCount) {
+    return Math.max(120, 10 + Number(inputCount || 1) * 68 + Number(outputCount || 2) * 31);
+  }
+  function simulateWalletRisk(to, amt, fee, selected) {
+    const autoInputs = selected.length ? selected : lastUtxos.slice().sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+    const used = [];
+    let inputTotal = 0;
+    for (const coin of autoInputs) {
+      if (!selected.length && inputTotal >= amt + fee) break;
+      used.push(coin);
+      inputTotal += Number(coin.amount || 0);
+    }
+    const change = inputTotal - amt - fee;
+    const vbytes = estimateTxVbytes(Math.max(1, used.length), change > 0 ? 2 : 1);
+    const feeRate = fee / vbytes;
+    const warnings = [];
+    let decision = "allow";
+    if (inputTotal < amt + fee) { decision = "block"; warnings.push("Selected or available coins do not cover amount + fee."); }
+    if (feeRate > 250) { decision = decision === "block" ? "block" : "review"; warnings.push("Fee rate is unusually high."); }
+    if (change > 0 && change < 546) { decision = decision === "block" ? "block" : "review"; warnings.push("Change output would be dust-sized."); }
+    if (used.length > 50) { decision = decision === "block" ? "block" : "review"; warnings.push("This spend uses many UTXOs; consolidate first if possible."); }
+    if (lastSpendableSats && amt + fee > lastSpendableSats * 0.8) { decision = decision === "block" ? "block" : "review"; warnings.push("This spend empties most of the wallet."); }
+    if (sameAddress(to, state.address)) warnings.push("Recipient is your own wallet; this looks like consolidation.");
+    const balanceAfter = Math.max(0, Number(lastSpendableSats || 0) - amt - fee);
+    return { decision, warnings, inputTotal, change, vbytes, feeRate, inputCount: used.length, balanceAfter };
+  }
+  function renderRiskSimulation(risk) {
+    const panel = $("riskPanel");
+    if (!panel) return;
+    panel.classList.remove("hide");
+    $("riskDecision").textContent = risk.decision.toUpperCase();
+    $("riskBalanceAfter").textContent = satsToInput(risk.balanceAfter) + " NET";
+    $("riskChange").textContent = satsToInput(Math.max(0, risk.change)) + " NET";
+    $("riskInputs").textContent = `${risk.inputCount} input(s), ${risk.vbytes} vbytes est.`;
+    $("riskFeeRate").textContent = `${risk.feeRate.toFixed(2)} sats/vB`;
+    const list = $("riskWarnings");
+    list.innerHTML = "";
+    const warnings = risk.warnings.length ? risk.warnings : ["No major wallet-risk warnings detected."];
+    for (const warning of warnings) {
+      const li = document.createElement("li");
+      li.textContent = warning;
+      list.appendChild(li);
+    }
+  }
+
   async function reviewSend() {
     const msg = $("sendMsg"); msg.className = ""; msg.textContent = "";
     try {
@@ -1819,9 +2419,11 @@
         const selectedTotal = selected.reduce((sum, u) => sum + Number(u.amount || 0), 0);
         if (selectedTotal < amt + fee) throw new Error("selected UTXOs do not cover amount + fee");
       }
+      const risk = simulateWalletRisk(to, amt, fee, selected);
+      renderRiskSimulation(risk);
       await checkSpendingLimits(amt, fee);
-      const contact = loadContacts().find((c) => sameAddress(c.address, to));
-      const warnings = [];
+      const contact = contactForAddress(to);
+      const warnings = [...risk.warnings.map((w) => "⚠ " + w)];
       // Address-poisoning check: a recipient that looks like a known address but
       // is not that address is the classic lookalike scam pattern.
       const known = [
@@ -1845,35 +2447,99 @@
         warnBox.textContent = warnings.join(" ");
         warnBox.classList.toggle("hide", !warnings.length);
       }
-      pendingSend = { to, amt, fee, outpoints: selected.map(outpointOf) };
+      markSendChecklist(risk, warnings);
+      setWalletFlowStep("review");
+      pendingSend = { to, amt, fee, outpoints: selected.map(outpointOf), blocked: risk.decision === "block", risk, contactName: contact?.name || "" };
       $("reviewTo").textContent = to;
       $("reviewContact").textContent = contact ? contact.name : "—";
       $("reviewAmount").textContent = satsToInput(amt) + " NET";
       $("reviewFee").textContent = satsToInput(fee) + " NET";
       $("reviewTotal").textContent = satsToInput(amt + fee) + " NET";
       $("reviewUtxos").textContent = selected.length ? `${selected.length} selected (${satsToInput(selected.reduce((sum, u) => sum + Number(u.amount || 0), 0))} NET)` : "Automatic coin selection";
+      $("btnConfirmSend").disabled = risk.decision === "block";
+      $("btnConfirmSend").textContent = risk.decision === "block" ? "Blocked by risk check" : "Send now";
       $("sendReview").classList.remove("hide");
-    } catch (e) { msg.className = "err"; msg.textContent = "Failed: " + e.message; }
+    } catch (e) {
+      msg.className = "err";
+      msg.innerHTML = "Failed: " + esc(friendlyWalletErrorMessage(e, "Send review")) + '<span class="wallet-error-help">Check the recipient, amount, fee, and node connection before trying again.</span>';
+      setWalletFlowStep("send-error");
+    }
+  }
+
+
+  async function refreshWalletWorkflowStatus() {
+    const msg = $("walletWorkflowMsg");
+    if (!msg) return;
+    try {
+      const status = await api("/wallet/workflow");
+      const presets = Object.keys(status.fee_presets || {}).join(" / ");
+      msg.textContent = `Workflow: drafts ${(status.drafts||[]).length} · approvals ${(status.approvals||[]).length} · fee presets ${presets || "ready"} · offline signing ${status.offline_signing?.unsigned_export ? "ready" : "review"}.`;
+      msg.className = "muted";
+    } catch (e) {
+      msg.textContent = "Workflow status unavailable: " + e.message;
+      msg.className = "muted";
+    }
+  }
+
+  async function savePendingDraft() {
+    const msg = $("sendMsg");
+    if (!pendingSend) { msg.className = "err"; msg.textContent = "Review the transaction before saving a draft."; return; }
+    try {
+      const draft = await api("/wallet/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: pendingSend.to, amount: satsToInput(pendingSend.amt), fee: satsToInput(pendingSend.fee), memo: "browser wallet draft" }) });
+      msg.className = "ok"; msg.textContent = "Saved draft " + (draft.draft_id || "ready") + ".";
+      refreshWalletWorkflowStatus();
+    } catch (e) { msg.className = "err"; msg.textContent = "Could not save draft: " + e.message; }
+  }
+
+  async function exportPendingUnsigned() {
+    const msg = $("sendMsg");
+    if (!pendingSend) { msg.className = "err"; msg.textContent = "Review the transaction before exporting."; return; }
+    try {
+      const payload = { magic: "netcoin-unsigned-send-v1", to: pendingSend.to, amount_sats: pendingSend.amt, fee_sats: pendingSend.fee, outpoints: pendingSend.outpoints || [], created_at: new Date().toISOString(), risk: pendingSend.risk || {} };
+      downloadText("netcoin-unsigned-send.json", JSON.stringify(payload, null, 2));
+      msg.className = "ok"; msg.textContent = "Unsigned transaction request exported for offline signing.";
+    } catch (e) { msg.className = "err"; msg.textContent = "Export failed: " + e.message; }
   }
 
   $("btnSend").onclick = reviewSend;
+  if ($("btnBumpFee")) $("btnBumpFee").onclick = bumpLastFee;
+  if ($("btnSaveDraft")) $("btnSaveDraft").onclick = savePendingDraft;
+  if ($("btnExportUnsigned")) $("btnExportUnsigned").onclick = exportPendingUnsigned;
+  refreshWalletWorkflowStatus();
   $("btnCancelSend").onclick = () => { pendingSend = null; $("sendReview").classList.add("hide"); };
   $("btnConfirmSend").onclick = async () => {
     const msg = $("sendMsg");
     if (!pendingSend) { msg.className = "err"; msg.textContent = "Review the transaction first."; return; }
+    if (pendingSend.blocked) { msg.className = "err"; msg.textContent = "Blocked by wallet risk simulator. Adjust amount, fee, or coins."; return; }
     msg.className = ""; msg.textContent = "Sending…";
     try {
-      const txid = await send(pendingSend.to, pendingSend.amt, pendingSend.fee, pendingSend.outpoints || []);
-      await recordSpendForLimits(pendingSend.amt, pendingSend.fee);
-      msg.className = "ok"; msg.textContent = "Sent ✓ txid " + txid.slice(0, 16) + "…";
+      const sent = pendingSend;
+      const txid = await send(sent.to, sent.amt, sent.fee, sent.outpoints || []);
+      recordSentTxMeta(txid, sent.to, sent.amt, sent.fee);
+      await recordSpendForLimits(sent.amt, sent.fee);
+      msg.className = "ok"; msg.textContent = sent.contactName ? `Sent to ${sent.contactName} ✓ txid ${txid.slice(0, 16)}…` : "Sent ✓ txid " + txid.slice(0, 16) + "…";
+      setWalletFlowStep("sent");
       pendingSend = null;
       $("sendReview").classList.add("hide");
       $("toAddr").value = ""; $("amount").value = ""; selectedOutpoints.clear(); renderUtxos(); setTimeout(refresh, 800);
-    } catch (e) { msg.className = "err"; msg.textContent = "Failed: " + e.message; }
+    } catch (e) {
+      msg.className = "err";
+      msg.innerHTML = "Failed: " + esc(friendlyWalletErrorMessage(e, "Broadcast")) + '<span class="wallet-error-help">The transaction was not marked sent. Review the draft or try again after refreshing UTXOs.</span>';
+      setWalletFlowStep("broadcast-error");
+    }
   };
 
   // ---------- boot ----------
   ensureWalletTabShell();
+  if ($("btnRegisterUsername")) $("btnRegisterUsername").onclick = registerUsername;
+  if ($("btnLookupUsername")) $("btnLookupUsername").onclick = lookupUsername;
+  if ($("btnCreateEscrow")) $("btnCreateEscrow").onclick = createEscrow;
+  if ($("btnLoadEscrow")) $("btnLoadEscrow").onclick = loadEscrow;
+  if ($("btnEscrowRelease")) $("btnEscrowRelease").onclick = () => submitEscrowAction("release");
+  if ($("btnEscrowRefund")) $("btnEscrowRefund").onclick = () => submitEscrowAction("refund");
+  if ($("btnEscrowDispute")) $("btnEscrowDispute").onclick = () => submitEscrowAction("dispute");
+  if ($("btnLoadContractTemplates")) $("btnLoadContractTemplates").onclick = loadContractTemplates;
+  if ($("btnLoadContractEvents")) $("btnLoadContractEvents").onclick = loadContractEvents;
   applyWalletMode();
   renderProfiles();
   if (!resumeUnlockedSession()) show(hasProfiles() ? "unlock" : "welcome");

@@ -49,11 +49,19 @@
       });
     });
   }
+  function severityClass(sev){ sev=String(sev||'').toLowerCase(); return sev==='critical'?'err':sev==='medium'?'warn':'muted'; }
+  function surveillanceCard(surv){
+    const s=(surv||{}).surveillance||surv||{};
+    const alerts=s.alerts||[];
+    const status=s.ok===false?'<span class="err">Alerts open</span>':'<span class="ok">Clear</span>';
+    const alertRows=table(alerts, [['Code',x=>x.code||'—'],['Severity',x=>x.severity||'—'],['Detail',x=>x.detail||''],['Ref',x=>x.trade_id||x.trader||x.outcome_id||'']]);
+    return '<h3>Surveillance '+status+'</h3><p class="muted">'+esc(s.alert_count||alerts.length||0)+' alert(s) from wash-trade, volume-concentration, and rapid-price-move checks.</p>'+alertRows;
+  }
   async function renderDisputes(){
     const markets=await loadMarkets(); const id=marketId(markets); let dossier={}, surv={};
     try{dossier=await api('/markets/'+encodeURIComponent(id)+'/oracles')}catch{}
     try{surv=await api('/markets/'+encodeURIComponent(id)+'/surveillance')}catch{}
-    $('#content').innerHTML='<section class="trade-card"><h2>Dispute + evidence panel</h2><p class="muted">Oracle evidence, dispute comments, and surveillance warnings for '+esc(id)+'.</p>'+table(dossier.evidence||[], [['Source',x=>x.source_type||x.type||'evidence'],['Title',x=>x.title||x.url||'—'],['Hash',x=>(x.hash||x.evidence_hash||'').slice(0,16)]])+'<h3>Surveillance</h3><pre class="mono">'+esc(JSON.stringify(surv,null,2))+'</pre></section><section class="trade-card"><h2>Submit evidence</h2><label>Oracle</label><input id="evOracle" value="manual"><label>Title</label><input id="evTitle" placeholder="Official result"><label>URL / note</label><input id="evUrl" placeholder="https://…"><label>Statement</label><textarea id="evStatement" rows="2"></textarea><button id="submitEvidence" class="primary">Submit evidence</button><p id="evidenceMsg" class="muted"></p></section><section class="trade-card"><h2>File dispute</h2><label>Commenter</label><input id="disCommenter" value="operator"><label>Comment</label><textarea id="disComment" rows="2"></textarea><button id="submitDispute" class="primary">File dispute</button><p id="disputeMsg" class="muted"></p></section>';
+    $('#content').innerHTML='<section class="trade-card"><h2>Dispute + evidence panel</h2><p class="muted">Oracle evidence, dispute comments, and surveillance warnings for '+esc(id)+'.</p>'+table(dossier.evidence||[], [['Source',x=>x.source_type||x.type||'evidence'],['Title',x=>x.title||x.url||'—'],['Hash',x=>(x.hash||x.evidence_hash||'').slice(0,16)]])+surveillanceCard(surv)+'</section><section class="trade-card"><h2>Submit evidence</h2><label>Oracle</label><input id="evOracle" value="manual"><label>Title</label><input id="evTitle" placeholder="Official result"><label>URL / note</label><input id="evUrl" placeholder="https://…"><label>Statement</label><textarea id="evStatement" rows="2"></textarea><button id="submitEvidence" class="primary">Submit evidence</button><p id="evidenceMsg" class="muted"></p></section><section class="trade-card"><h2>File dispute</h2><label>Commenter</label><input id="disCommenter" value="operator"><label>Comment</label><textarea id="disComment" rows="2"></textarea><button id="submitDispute" class="primary">File dispute</button><p id="disputeMsg" class="muted"></p></section>';
     $('#submitEvidence')?.addEventListener('click',async()=>{
       $('#evidenceMsg').textContent='Submitting…';
       try{
@@ -69,6 +77,14 @@
       }catch(e){$('#disputeMsg').textContent='Failed: '+e.message;}
     });
   }
-  async function renderSettlement(){ const markets=await loadMarkets(); const id=marketId(markets); let r={}; try{r=await api('/markets/'+encodeURIComponent(id)+'/reconciliation')}catch{} $('#content').innerHTML='<section class="trade-card"><h2>Settlement report</h2><p class="muted">Reconciliation checks for winning payouts, losing collateral, dust, and resolved market immutability.</p>'+table(r.checks||r.items||[], [['Check',x=>x.check||x.name||'—'],['Status',x=>x.status||'review'],['Detail',x=>x.detail||'']])+'<pre class="mono">'+esc(JSON.stringify(r,null,2))+'</pre></section>';}
+  async function renderSettlement(){
+    const markets=await loadMarkets(); const id=marketId(markets); let r={};
+    try{r=await api('/markets/'+encodeURIComponent(id)+'/reconciliation')}catch{}
+    const okBadge=r.ok?'<span class="ok">OK</span>':'<span class="warn">Review</span>';
+    const summary='<div class="metric-row"><span>Status '+esc(r.status||'—')+'</span><span>Winner '+esc(r.winning_outcome_id||'unresolved')+'</span><span>Claimable '+esc(r.total_claimable||'0')+' NET</span><span>Reserved '+esc(r.reserved||'0')+' NET</span><span>'+okBadge+'</span></div>';
+    const negRow=(r.negative_balances||[]).length?'<p class="err">Negative balances: '+esc((r.negative_balances||[]).join(', '))+'</p>':'';
+    const rows=table(r.rows||[], [['Trader',x=>x.trader_id||'—'],['Winning shares',x=>x.winning_quantity||0],['Claimable',x=>x.claimable||'0']]);
+    $('#content').innerHTML='<section class="trade-card"><h2>Settlement report</h2><p class="muted">Per-trader payout reconciliation for '+esc(id)+'. Winning shares pay out at the fixed unit payout; reserved funds are still locked in open orders.</p>'+summary+negRow+'<h3>Per-trader payouts</h3>'+rows+'</section>';
+  }
   const page=document.body.dataset.marketPage; if(page==='portfolio')renderPortfolio(); else if(page==='disputes')renderDisputes(); else if(page==='settlement')renderSettlement(); else renderTrade();
 })();

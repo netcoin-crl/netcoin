@@ -65,9 +65,15 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function init() {
     bindCopyButtons();
     $('#btnRefreshLocalnet')?.addEventListener('click', refreshStatus);
     refreshStatus();
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();

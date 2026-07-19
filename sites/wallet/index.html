@@ -311,6 +311,18 @@ body{letter-spacing:-.01em}
     <div id="walletView" class="hide">
       <div class="card wallet-overview-card">
         <div class="overview-grid">
+          <section class="overview-panel balance-panel">
+            <div class="balance-head">
+              <div class="muted">Spendable balance</div>
+              <button id="btnLock" class="secondary" type="button">Lock wallet</button>
+            </div>
+            <div class="bal"><span id="balNet">—</span> <small>NET</small></div>
+            <div class="muted" id="balImmature"></div>
+            <details class="balance-explain">
+              <summary>What this balance means</summary>
+              <p class="muted">The NET you can spend right now, summed across all four address types (they all come from your one recovery phrase). This wallet is non-custodial — keys are encrypted in this browser and never uploaded. Use <b>Receive</b> to get paid, <b>Send</b> to pay someone, and <b>Lock</b> to end this session.</p>
+            </details>
+          </section>
           <section class="overview-panel address-panel">
             <div class="muted">Your address</div>
             <div class="mono overview-address" id="addr"></div>
@@ -326,18 +338,6 @@ body{letter-spacing:-.01em}
               <button id="btnCopy">Copy address</button>
               <button id="btnRefresh" class="secondary ghost">Refresh</button>
             </div>
-          </section>
-          <section class="overview-panel balance-panel">
-            <div class="balance-head">
-              <div class="muted">Spendable balance</div>
-              <button id="btnLock" class="secondary" type="button">Lock wallet</button>
-            </div>
-            <div class="bal"><span id="balNet">—</span> <small>NET</small></div>
-            <div class="muted" id="balImmature"></div>
-            <details class="balance-explain">
-              <summary>What this balance means</summary>
-              <p class="muted">The NET you can spend right now, summed across all four address types (they all come from your one recovery phrase). This wallet is non-custodial — keys are encrypted in this browser and never uploaded. Use <b>Receive</b> to get paid, <b>Send</b> to pay someone, and <b>Lock</b> to end this session.</p>
-            </details>
           </section>
         </div>
         <div class="statusbar wallet-status-inline"><span class="dot" id="statusDot"></span><span id="walletStatus" class="muted" role="status" aria-live="polite" aria-atomic="true">Checking node status…</span><span class="pill" id="activeProfilePill">Profile</span></div>
@@ -652,7 +652,7 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260716-rbf-sequence" integrity="sha384-khM5FWIgWnMvrxYuUUVmpQcEEcQxVp4paoWOFhxaiEhf4ZLYIigDpmCHbE0cBIZ9" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260718-wallet-cleanup" integrity="sha384-wo8E8Qvf95CLPyfxnwETbgZDjdMFIa48pdGEGBdYaG8iVndZZoT5mPYvoSKsBX7s" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260719-pay-prefill" integrity="sha384-HP3yQAt/vXMx50kEqy53ecX/PR3g2av3ESsh829FMowQZjPDu58N8HBMypXD8Ky8" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260718-nav-cleanup"></script>
 
 <style id="wallet-mobile-hardening">

@@ -103,6 +103,49 @@
   }
   const post = (path, body) => api(path, { method: "POST", body: JSON.stringify(body || {}) });
 
+  // ---- signed envelope (order placement is a "sensitive" write and requires
+  // a signature proving control of the trader address; keys never touch the
+  // browser -- the message is signed offline via `netcoin signmessage`). ----
+  function canonicalize(value) {
+    if (Array.isArray(value)) return value.map(canonicalize);
+    if (value && typeof value === "object") {
+      const out = {};
+      for (const k of Object.keys(value).sort()) out[k] = canonicalize(value[k]);
+      return out;
+    }
+    return value;
+  }
+  function canonicalBodyString(body) {
+    const excluded = new Set(["api_key", "admin_token", "signed_envelope", "signed_request", "signed_envelope_verified"]);
+    const filtered = {};
+    for (const k of Object.keys(body || {})) {
+      if (excluded.has(k) || k.startsWith("signature") || k.startsWith("__netcoin_")) continue;
+      if (body[k] !== undefined && body[k] !== null) filtered[k] = body[k];
+    }
+    return JSON.stringify(canonicalize(filtered));
+  }
+  async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  function envelopeMessage({ address, method, path, bodyHash, timestamp, nonce }) {
+    return ["NetCoin signed request", "netcoin-signed-envelope-v1", address, method.toUpperCase(), path, bodyHash, String(timestamp), nonce].join("\n");
+  }
+  async function buildEnvelopeMessage(method, path, body, address) {
+    const bodyHash = await sha256Hex(canonicalBodyString(body));
+    const timestamp = Math.floor(Date.now() / 1000);
+    const nonce = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+    return { message: envelopeMessage({ address, method, path, bodyHash, timestamp, nonce }), address, method, path, bodyHash, timestamp, nonce };
+  }
+  function isSignedEnvelopeError(err) {
+    return /signed envelope|signature is required for this app-layer action/i.test(String(err && err.message || ""));
+  }
+  // Populated by the "Sign & submit" panel once the operator pastes a signature.
+  async function signedPost(path, body, address) {
+    const envelope = await buildEnvelopeMessage("POST", path, body, address);
+    return { envelope, submit: (signature) => post(path, { ...body, signed_envelope: { address: envelope.address, method: envelope.method, path: envelope.path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature } }) };
+  }
+
   const selectedMarket = () => state.markets.find((m) => m.market_id === state.selectedId) || null;
   const isBinary = (m) => (m.outcomes || []).length === 2 && (m.outcomes || []).some((o) => /^y(es)?$/i.test(o.label));
   const yesOutcome = (m) => (m.outcomes || []).find((o) => /^y(es)?$/i.test(o.label)) || (m.outcomes || [])[0];
@@ -326,25 +369,72 @@
     ["tradeShares", "tradePrice"].forEach((id) => { const el = $("#" + id); if (el) el.addEventListener("input", updateTradeSummary); });
     const buy = $("#tradeBuy"); if (buy) buy.addEventListener("click", () => doTradeBuy(m));
   }
+  function orderPayloadFromForm() {
+    const type = ($("#tradeType") || {}).value || "limit";
+    const priceC = Number(($("#tradePrice") || {}).value || 0);
+    return {
+      trader_address: ($("#tradeTrader") || {}).value || "demo:you",
+      outcome_id: state.tradeOutcomeId,
+      side: "buy",
+      order_type: type,
+      time_in_force: type === "ioc" ? "IOC" : type === "fok" ? "FOK" : "GTC",
+      quantity: Number(($("#tradeShares") || {}).value || 0),
+      price_bps: type === "market" ? undefined : Math.max(1, Math.min(9999, priceC * 100)),
+      allow_unverified_demo: true,
+      sandbox_short_mode: true,
+    };
+  }
   async function doTradeBuy(m) {
+    const body = orderPayloadFromForm();
     try {
-      const type = ($("#tradeType") || {}).value || "limit";
-      const priceC = Number(($("#tradePrice") || {}).value || 0);
-      await placeOrder({
-        trader_address: ($("#tradeTrader") || {}).value || "demo:you",
-        outcome_id: state.tradeOutcomeId,
-        side: "buy",
-        order_type: type,
-        time_in_force: type === "ioc" ? "IOC" : type === "fok" ? "FOK" : "GTC",
-        quantity: Number(($("#tradeShares") || {}).value || 0),
-        price_bps: type === "market" ? undefined : Math.max(1, Math.min(9999, priceC * 100)),
-        allow_unverified_demo: true,
-        sandbox_short_mode: true,
-      });
-    } catch (err) { alert(`Order failed: ${err.message}`); }
+      await placeOrder(body);
+    } catch (err) {
+      if (isSignedEnvelopeError(err)) { await showSignPanel(m, body); return; }
+      alert(`Order failed: ${err.message}`);
+    }
+  }
+  async function showSignPanel(m, body) {
+    const path = `/markets/${encodeURIComponent(m.market_id)}/order`;
+    const { envelope, submit } = await signedPost(path, body, body.trader_address);
+    const panel = $("#tradePanel");
+    panel.innerHTML = `<h3>Sign this order</h3>
+      <p class="muted">Orders need a signature proving you control <code>${esc(body.trader_address)}</code>. Keys never touch the browser &mdash; sign offline, then paste the signature below.</p>
+      <label>1. Sign this exact text</label>
+      <textarea id="signMsgOut" class="mono" rows="4" readonly>${esc(envelope.message)}</textarea>
+      <button type="button" class="secondary" id="copySignMsg">Copy message</button>
+      <label style="margin-top:10px">Using the CLI</label>
+      <pre class="mono" id="signCliCmd">python -m netcoin signmessage --wallet your-wallet.json --message "${esc(envelope.message).replace(/"/g, '\\"')}"</pre>
+      <button type="button" class="secondary" id="copySignCli">Copy command</button>
+      <label style="margin-top:10px">2. Paste the resulting signature</label>
+      <input id="signSigInput" class="mono" placeholder="base64 signature from signmessage output" autocomplete="off" />
+      <div class="op-actions" style="margin-top:10px"><button type="button" id="submitSignedOrder" class="primary">Submit signed order</button><button type="button" class="secondary" id="cancelSignPanel">Cancel</button></div>
+      <p id="signPanelMsg" class="muted"></p>`;
+    $("#copySignMsg")?.addEventListener("click", () => navigator.clipboard.writeText(envelope.message).catch(() => {}));
+    $("#copySignCli")?.addEventListener("click", () => navigator.clipboard.writeText($("#signCliCmd").textContent).catch(() => {}));
+    $("#cancelSignPanel")?.addEventListener("click", () => { $("#tradePanel").innerHTML = tradePanel(m); wireDetail(m); updateTradeSummary(); });
+    $("#submitSignedOrder")?.addEventListener("click", async () => {
+      const sig = ($("#signSigInput") || {}).value.trim();
+      if (!sig) { $("#signPanelMsg").textContent = "Paste a signature first."; return; }
+      $("#signPanelMsg").textContent = "Submitting…";
+      try {
+        const p = await submit(sig);
+        log("Placed signed order", { trades: (p.trades || []).length });
+        await loadMarkets();
+      } catch (err) { $("#signPanelMsg").textContent = "Failed: " + err.message; }
+    });
   }
 
   function openDetail(id) { state.selectedId = id; state.view = "detail"; state.tab = "orderbook"; state.tradeOutcomeId = ""; $("#gridView").classList.add("hidden"); $("#detailView").classList.remove("hidden"); renderDetail(); window.scrollTo(0, 0); }
+  let autoOpenedFromUrl = false;
+  function maybeAutoOpenFromUrl() {
+    if (autoOpenedFromUrl) return;
+    const wantId = new URLSearchParams(location.search).get("market");
+    const focusTrade = document.body.dataset.marketPage === "trade";
+    if (!wantId && !focusTrade) return;
+    autoOpenedFromUrl = true;
+    const target = (wantId && state.markets.find((m) => m.market_id === wantId)) || state.markets[0];
+    if (target) openDetail(target.market_id);
+  }
   function backToGrid() { state.view = "grid"; $("#detailView").classList.add("hidden"); $("#gridView").classList.remove("hidden"); }
 
   function renderOutcomeSelectors(m) {
@@ -384,6 +474,7 @@
       state.apiOk = true;
       $("#apiStatus").textContent = `live${state.usingLocalMarkets ? " · local drafts" : ""}${payload.warning ? " · " + payload.warning : ""}`;
       renderAll(payload.totals);
+      maybeAutoOpenFromUrl();
     } catch (err) {
       const locals = localMarkets();
       state.markets = locals;
@@ -461,28 +552,28 @@
   }
 
   function wire() {
-    $("#backToGrid").addEventListener("click", backToGrid);
-    $("#searchInput").addEventListener("input", (e) => { state.query = e.target.value; renderGrid(); });
+    $("#backToGrid")?.addEventListener("click", backToGrid);
+    $("#searchInput")?.addEventListener("input", (e) => { state.query = e.target.value; renderGrid(); });
     $("#newMarketButton")?.addEventListener("click", openCreateMarket);
-    $("#refreshMarkets").addEventListener("click", loadMarkets);
-    $("#loadPolymarket").addEventListener("click", loadPolymarket);
-    $("#seedMarket").addEventListener("click", () => createMarket({ question: "Will NetCoin complete the Markets Labs upgrade?", outcomes: ["YES", "NO"], oracle: "manual operator review", resolution_source: "NetCoin demo operator", legal_acknowledged: true, sandbox_short_mode: true }));
-    $("#createMarketForm").addEventListener("submit", async (e) => {
+    $("#refreshMarkets")?.addEventListener("click", loadMarkets);
+    $("#loadPolymarket")?.addEventListener("click", loadPolymarket);
+    $("#seedMarket")?.addEventListener("click", () => createMarket({ question: "Will NetCoin complete the Markets Labs upgrade?", outcomes: ["YES", "NO"], oracle: "manual operator review", resolution_source: "NetCoin demo operator", legal_acknowledged: true, sandbox_short_mode: true }));
+    $("#createMarketForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const cv = $("#closeTime").value; const close = cv ? Math.floor(new Date(cv).getTime() / 1000) : undefined;
       await createMarket({ question: $("#question").value, outcomes: $("#outcomes").value.split(",").map((x) => x.trim()).filter(Boolean), oracle: "manual", close_time: close, resolution_source: $("#resolutionSource").value, category: $("#marketCategory").value, tags: $("#marketTags").value, rules: $("#marketRules").value, legal_acknowledged: $("#legalAck").checked, sandbox_short_mode: true });
       e.target.reset(); $("#outcomes").value = "YES,NO"; $("#legalAck").checked = true;
     });
-    $("#orderForm").addEventListener("submit", async (e) => {
+    $("#orderForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
         await placeOrder({ trader_address: $("#orderTrader").value, outcome_id: $("#orderOutcome").value, side: $("#orderSide").value, order_type: $("#orderType").value, time_in_force: $("#timeInForce").value, post_only: $("#postOnly").checked, quantity: Number($("#orderQuantity").value), price_bps: $("#orderType").value === "market" ? undefined : Number($("#orderPrice").value), allow_unverified_demo: true, sandbox_short_mode: true });
       } catch (err) { alert(`Order failed: ${err.message}`); }
     });
-    $("#requestResolution").addEventListener("click", () => resolveMarket(true).catch((e) => alert(e.message)));
-    $("#submitEvidence").addEventListener("click", () => submitEvidence().catch((e) => alert(e.message)));
-    $("#submitDispute").addEventListener("click", () => submitDisputeComment().catch((e) => alert(e.message)));
-    $("#resolveForm").addEventListener("submit", (e) => { e.preventDefault(); resolveMarket(false).catch((err) => alert(err.message)); });
+    $("#requestResolution")?.addEventListener("click", () => resolveMarket(true).catch((e) => alert(e.message)));
+    $("#submitEvidence")?.addEventListener("click", () => submitEvidence().catch((e) => alert(e.message)));
+    $("#submitDispute")?.addEventListener("click", () => submitDisputeComment().catch((e) => alert(e.message)));
+    $("#resolveForm")?.addEventListener("submit", (e) => { e.preventDefault(); resolveMarket(false).catch((err) => alert(err.message)); });
   }
 
   wire();

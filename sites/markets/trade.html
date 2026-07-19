@@ -1,1 +1,112 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>NetCoin Markets Trade</title><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'"/><link rel="stylesheet" href="site-shell.css?v=20260718-futuristic-polish"/><link rel="stylesheet" href="markets.css?v=20260714-market-discovery"/><link rel="stylesheet" href="markets-pro.css?v=20260708-v017"/></head><body data-site="markets" data-market-page="trade"><div class="shell"><header class="topbar"><div class="brand"><div class="logo">N</div><div>Markets<small>Trade</small></div></div><nav class="site-nav" aria-label="NetCoin ecosystem"></nav></header><main><nav class="tabs"><a href="trade.html" class="active">Trade</a><a href="portfolio.html" class="">Portfolio</a><a href="disputes.html" class="">Disputes</a><a href="settlement.html" class="">Settlement</a><a href="index.html">Classic</a></nav><div id="content"></div></main></div><script src="site-shell.js?v=20260718-nav-cleanup"></script><script src="markets-pro.js?v=20260716-real-actions"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NetCoin Markets Trade</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
+  <link rel="stylesheet" href="ui-polish.css?v=20260710-v0377-widen" />
+  <link rel="stylesheet" href="site-shell.css?v=20260718-futuristic-polish" />
+  <link rel="stylesheet" href="markets.css?v=20260714-market-discovery" />
+</head>
+<body data-site="markets" data-market-page="trade">
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="logo">N</div><div>NetCoin Markets<small>trade a single market</small></div></div>
+      <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
+    </header>
+
+    <main class="mkt-wrap">
+      <div class="mkt-banner"><span class="dot"></span> Play-money testnet · NET has no real value · <span id="apiStatus">connecting…</span></div>
+      <section class="market-actions" id="marketProStrip" aria-label="Markets workspace">
+        <a href="trade.html" class="active">Trade</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="disputes.html">Disputes</a>
+        <a href="settlement.html">Settlement</a>
+        <a href="index.html">All markets</a>
+      </section>
+
+      <!-- GRID VIEW: fallback if no market is selected yet -->
+      <section id="gridView">
+        <div class="mkt-subnav">
+          <div class="mkt-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="searchInput" type="search" placeholder="Search markets" autocomplete="off" />
+          </div>
+          <div class="mkt-chips" id="categoryChips"></div>
+          <button id="newMarketButton" class="new-market-btn" type="button">New market</button>
+        </div>
+        <div class="mkt-metrics" id="marketMetrics" aria-live="polite"></div>
+        <div class="mkt-grid" id="marketGrid"></div>
+      </section>
+
+      <!-- DETAIL VIEW: opens automatically for ?market=<id>, or the first market -->
+      <section id="detailView" class="hidden">
+        <a class="back-link" href="index.html">← All markets</a>
+        <div class="mkt-detail">
+          <div class="detail-main" id="detailMain"></div>
+          <aside class="trade-panel" id="tradePanel"></aside>
+        </div>
+      </section>
+
+      <details class="operator" id="operatorTools">
+        <summary>Advanced tools</summary>
+        <div class="operator-body">
+          <form id="createMarketForm">
+            <h4>Create market</h4>
+            <label for="question">Question</label>
+            <input id="question" required placeholder="Will NetCoin ship X this week?" />
+            <div class="op-actions" style="gap:8px">
+              <div style="flex:1"><label for="outcomes">Outcomes</label><input id="outcomes" value="YES,NO" /></div>
+              <div style="flex:1"><label for="closeTime">Close</label><input id="closeTime" type="datetime-local" /></div>
+            </div>
+            <label for="marketCategory">Category</label><input id="marketCategory" value="Technology" />
+            <label for="marketTags">Tags</label><input id="marketTags" value="netcoin,labs" />
+            <label for="marketRules">Resolution rules</label>
+            <textarea id="marketRules" rows="2" placeholder="What counts as YES, and which source resolves it."></textarea>
+            <input id="resolutionSource" placeholder="manual operator review" />
+            <label class="op-actions"><input id="legalAck" type="checkbox" checked style="width:auto" /> Testnet/play-money only</label>
+            <div class="op-actions"><button type="submit" class="primary">Create</button><button id="seedMarket" type="button">Sample</button></div>
+          </form>
+
+          <form id="orderForm">
+            <h4>Raw order</h4>
+            <label for="orderTrader">Trader</label><input id="orderTrader" value="demo:alice" />
+            <label for="orderOutcome">Outcome</label><select id="orderOutcome"></select>
+            <div class="op-actions">
+              <div style="flex:1"><label for="orderSide">Side</label><select id="orderSide"><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
+              <div style="flex:1"><label for="orderQuantity">Shares</label><input id="orderQuantity" type="number" min="1" value="5" /></div>
+            </div>
+            <div class="op-actions">
+              <div style="flex:1"><label for="orderType">Type</label><select id="orderType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC</option><option value="fok">FOK</option></select></div>
+              <div style="flex:1"><label for="timeInForce">TIF</label><select id="timeInForce"><option value="GTC">GTC</option><option value="IOC">IOC</option><option value="FOK">FOK</option></select></div>
+            </div>
+            <label for="orderPrice">Price (bps 1–9999)</label><input id="orderPrice" type="number" min="1" max="9999" value="5000" />
+            <label class="op-actions"><input id="postOnly" type="checkbox" style="width:auto" /> Post-only</label>
+            <div class="op-actions"><button type="submit" class="primary">Place order</button></div>
+          </form>
+
+          <form id="resolveForm">
+            <h4>Resolution</h4>
+            <label for="resolveOutcome">Winning outcome</label><select id="resolveOutcome"></select>
+            <label for="oracleId">Oracle / operator</label><input id="oracleId" value="manual" />
+            <label for="evidenceTitle">Evidence title</label><input id="evidenceTitle" placeholder="Official result" />
+            <label for="evidenceUrl">Evidence URL / note</label><input id="evidenceUrl" placeholder="manual operator approval" />
+            <label for="disputeComment">Statement / dispute</label><textarea id="disputeComment" rows="2"></textarea>
+            <div class="op-actions"><button id="submitEvidence" type="button">Evidence</button><button id="submitDispute" type="button">Dispute</button><button id="requestResolution" type="button">Request</button><button type="submit" class="primary">Resolve</button></div>
+          </form>
+
+          <div style="grid-column:1/-1">
+            <div class="op-actions"><button id="refreshMarkets" type="button">Refresh</button></div>
+            <pre id="activityLog" class="op-log">Ready.</pre>
+          </div>
+        </div>
+      </details>
+
+      <p class="footer">NetCoin is public testnet/demo software. Never share private keys or seed phrases. Orders are signed offline &mdash; keys never touch this page.</p>
+    </main>
+  </div>
+  <script src="site-shell.js?v=20260718-nav-cleanup"></script>
+  <script src="markets.js?v=20260719-signed-orders"></script>
+</body>
+</html>

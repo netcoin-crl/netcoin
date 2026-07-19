@@ -1,5 +1,175 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>NetCoin Docs</title><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" /><link rel="stylesheet" href="docs.css?v=20260716-cleanup" /><link rel="stylesheet" href="site-shell.css?v=20260718-futuristic-polish" /></head>
-<body><div class="shell"><header class="topbar"><div class="brand"><div class="logo">N</div><div>NetCoin Docs<small>learn first, develop deeper</small></div></div><nav class="site-nav" aria-label="NetCoin ecosystem"></nav></header>
-<section class="hero dashboard-hero"><div class="card"><span class="pill">docs map</span><h1>Docs are split by audience.</h1><p>API specs, SDKs, webhooks, app-layer examples, the M1 public testnet user journey, localnet launch guide, the feedback intake loop, and the two-week pilot plan.</p><div class="actions"><a class="pill" href="testnet-user-journey.html">Testnet user journey</a><a class="pill" href="localnet.html">Localnet guide</a><a class="pill" href="testnet-feedback.html">Feedback intake</a><a class="pill" href="testnet-pilot.html">Pilot plan</a><a class="pill" href="https://learn.netcoin.online">Beginner docs</a><a class="pill" href="https://api.netcoin.online">Developer docs</a><a class="pill" href="https://security.netcoin.online">Security</a></div></div><div class="card"><h2>Fast links</h2><ul><li><a href="testnet-user-journey.html">M1 tester path: wallet -> faucet -> explorer -> status</a></li><li><a href="localnet.html">Localnet guide: install -> node -> wallet -> mining -> explorer</a></li><li><a href="testnet-feedback.html">M1 feedback intake: capture friction without collecting secrets</a></li><li><a href="testnet-pilot.html">M1 two-week pilot plan: 5-10 testers with stop conditions</a></li><li><a href="https://netcoin.online">Start: wallet/pay/community basics</a></li><li><a href="https://download.netcoin.online">Download and install</a></li><li><a href="https://nodes.netcoin.online">Network and node ops</a></li><li><a href="https://api.netcoin.online/openapi.yaml">OpenAPI spec</a></li></ul></div></section>
-<p class="footer">This docs subdomain remains a map. Use Learn or Developers for the active docs.</p></div><script src="site-shell.js?v=20260718-nav-cleanup"></script></body></html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>NetCoin Docs</title><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" /><link rel="stylesheet" href="docs.css?v=20260719-real-content" /><link rel="stylesheet" href="site-shell.css?v=20260718-futuristic-polish" /></head>
+<body><div class="shell"><header class="topbar"><div class="brand"><div class="logo">N</div><div>NetCoin Docs<small>reference: install, run, build</small></div></div><nav class="site-nav" aria-label="NetCoin ecosystem"></nav></header>
+
+<section class="hero dashboard-hero">
+  <div class="card lead">
+    <span class="pill">docs</span>
+    <h1>Everything to install, run, and build against NetCoin.</h1>
+    <p>Public testnet software. Testnet NET has no real-money value. Never reuse a real-money seed phrase here.</p>
+    <div class="actions">
+      <a class="pill" href="#install">Install</a>
+      <a class="pill" href="#node-urls">Node URLs</a>
+      <a class="pill" href="#cli-wallet">CLI wallet</a>
+      <a class="pill" href="#mining">Mining</a>
+      <a class="pill" href="#api">API</a>
+      <a class="pill" href="#guides">More guides</a>
+    </div>
+  </div>
+  <div class="card notice warn">
+    <h2>New here?</h2>
+    <p>Use a hosted app instead of installing anything: <a href="https://wallet.netcoin.online">Wallet</a>, <a href="https://explorer.netcoin.online">Explorer</a>, <a href="https://faucet.netcoin.online">Faucet</a>. This page is for CLI/local-node/API use.</p>
+  </div>
+</section>
+
+<section class="grid" id="install" aria-label="Install">
+  <div class="card command-card">
+    <h2>Install from source (macOS / Linux)</h2>
+    <pre id="cmdInstallUnix">git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
+python -m netcoin --help</pre>
+    <button class="secondary" type="button" data-copy-target="cmdInstallUnix">Copy</button>
+  </div>
+  <div class="card command-card">
+    <h2>Install from source (Windows PowerShell)</h2>
+    <pre id="cmdInstallWin">git clone https://github.com/netcoin-crl/netcoin.git
+cd netcoin
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
+python -m netcoin --help</pre>
+    <button class="secondary" type="button" data-copy-target="cmdInstallWin">Copy</button>
+  </div>
+</section>
+
+<section class="grid" id="node-urls" aria-label="Public node URLs">
+  <div class="card command-card">
+    <h2>Public node URLs</h2>
+    <p class="muted">Use these when a command asks for a node URL. Start with the API proxy; fall back to the raw IP if your network blocks the domain or custom ports.</p>
+    <pre id="cmdNodeUrls">https://api.netcoin.online/api          # preferred
+http://18.220.89.128/api                # raw-IP fallback
+http://seed1.netcoin.online:28444
+http://seed2.netcoin.online:28444
+http://seed3.netcoin.online:28444</pre>
+    <button class="secondary" type="button" data-copy-target="cmdNodeUrls">Copy</button>
+  </div>
+  <div class="card command-card">
+    <h2>Health check</h2>
+    <pre id="cmdHealth">curl https://api.netcoin.online/api/info
+curl http://seed1.netcoin.online:28444/health</pre>
+    <button class="secondary" type="button" data-copy-target="cmdHealth">Copy</button>
+  </div>
+</section>
+
+<section class="grid" id="cli-wallet" aria-label="CLI wallet">
+  <div class="card command-card">
+    <h2>Create a CLI wallet</h2>
+    <pre id="cmdWalletNew">python -m netcoin wallet-new --out my-wallet.json --mnemonic --confirm-backup
+chmod 600 my-wallet.json
+python -m netcoin wallet-info --wallet my-wallet.json</pre>
+    <button class="secondary" type="button" data-copy-target="cmdWalletNew">Copy</button>
+    <p class="muted">Store the recovery phrase safely. <code>chmod 600</code> keeps other users on your machine from reading the file.</p>
+  </div>
+  <div class="card command-card">
+    <h2>Check balance</h2>
+    <pre id="cmdBalance">python -m netcoin balance --node https://api.netcoin.online/api --wallet my-wallet.json
+python -m netcoin balance --node https://api.netcoin.online/api --address &lt;NETCOIN_ADDRESS&gt;</pre>
+    <button class="secondary" type="button" data-copy-target="cmdBalance">Copy</button>
+  </div>
+  <div class="card command-card">
+    <h2>Get test coins</h2>
+    <p>Open <a href="https://faucet.netcoin.online">faucet.netcoin.online</a> and paste your address. Faucet limits apply (typically one claim per hour).</p>
+  </div>
+</section>
+
+<section class="grid" id="mining" aria-label="Mining">
+  <div class="card command-card">
+    <h2>Mine one block</h2>
+    <pre id="cmdMineOne">python -m netcoin miner --node https://api.netcoin.online/api --wallet my-wallet.json --blocks 1 --sync-after</pre>
+    <button class="secondary" type="button" data-copy-target="cmdMineOne">Copy</button>
+  </div>
+  <div class="card command-card">
+    <h2>Mine continuously</h2>
+    <pre id="cmdMineLoop">while true; do
+  python -m netcoin miner --node http://seed2.netcoin.online:28444 --wallet my-wallet.json --blocks 1
+done</pre>
+    <button class="secondary" type="button" data-copy-target="cmdMineLoop">Copy</button>
+    <p class="muted">Coinbase rewards become spendable after 100 more blocks. See <a href="https://learn.netcoin.online">Learn</a> for depth.</p>
+  </div>
+  <div class="card command-card">
+    <h2>Run a local node</h2>
+    <pre id="cmdLocalNode">python -m netcoin --data ~/.netcoin-testnet node --host 127.0.0.1 --port 28444 \
+  --sync-interval 60 \
+  --peer http://seed1.netcoin.online:28444 \
+  --peer http://seed2.netcoin.online:28444 \
+  --peer http://seed3.netcoin.online:28444</pre>
+    <button class="secondary" type="button" data-copy-target="cmdLocalNode">Copy</button>
+    <p class="muted">Full localnet harness (multi-node, auto-bootstrapped): <a href="localnet.html">Localnet guide: install -> node -> wallet -> mining -> explorer</a></p>
+  </div>
+</section>
+
+<section class="grid" id="api" aria-label="API and app-layer">
+  <div class="card">
+    <h2>API and SDKs</h2>
+    <ul class="compact-list">
+      <li><a href="https://api.netcoin.online/openapi.yaml">OpenAPI spec</a> — full endpoint reference</li>
+      <li><a href="https://api.netcoin.online">api.netcoin.online</a> — interactive API docs</li>
+      <li><a href="https://developers.netcoin.online">developers.netcoin.online</a> — SDKs and client libraries</li>
+      <li><a href="https://developers.netcoin.online/console.html">Developer Console</a> — payment links, API keys, webhooks</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>App-layer public pages</h2>
+    <pre>/pay/&lt;invoice_id&gt;       checkout page
+/receipt/&lt;txid&gt;         receipt page
+/receipt/&lt;txid&gt;.pdf     receipt PDF
+/u/&lt;username&gt;           public profile
+/tip/&lt;username&gt;         tip page
+/donate/&lt;username&gt;      donation page
+/gift/&lt;claim_code&gt;      gift claim page</pre>
+  </div>
+  <div class="card">
+    <h2>Build and test (contributors)</h2>
+    <pre id="cmdBuildTest">python -m pip install -e ".[dev]"
+pytest -q</pre>
+    <button class="secondary" type="button" data-copy-target="cmdBuildTest">Copy</button>
+  </div>
+</section>
+
+<section class="grid" id="guides" aria-label="More guides">
+  <div class="card">
+    <h2>M1 public testnet</h2>
+    <ul class="compact-list">
+      <li><a href="testnet-user-journey.html">M1 tester path: wallet -> faucet -> explorer -> status</a></li>
+      <li><a href="testnet-feedback.html">M1 feedback intake: capture friction without collecting secrets</a></li>
+      <li><a href="testnet-pilot.html">M1 two-week pilot plan: 5-10 testers with stop conditions</a></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Deeper references</h2>
+    <ul class="compact-list">
+      <li><a href="https://learn.netcoin.online">Learn</a> — beginner-friendly walkthroughs</li>
+      <li><a href="https://architecture.netcoin.online">Architecture</a> — Rust/TS/Python design</li>
+      <li><a href="https://security.netcoin.online">Security</a> — release verification, signing keys</li>
+      <li><a href="https://nodes.netcoin.online">Nodes</a> — public seeds and becoming a seed</li>
+    </ul>
+  </div>
+</section>
+
+<section class="card notice warn">
+  <h2>Safety checklist</h2>
+  <ul class="compact-list">
+    <li>Never share seed phrases, private keys, wallet files, API keys, or tokens.</li>
+    <li>Treat public-testnet coins as valueless test coins.</li>
+    <li>Use the HTTPS hosted apps for browser wallet features.</li>
+    <li>Review code before running experimental tools.</li>
+  </ul>
+</section>
+
+<p class="footer">NetCoin Docs. Public testnet software — testnet NET has no real-money value.</p></div>
+<script src="docs.js?v=20260719-real-content"></script>
+<script src="site-shell.js?v=20260718-nav-cleanup"></script>
+</body></html>
