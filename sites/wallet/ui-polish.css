@@ -198,3 +198,6 @@ main,
   }
   .wrap > h1{font-size:20px!important}
 }
+
+/* Full-width layout pass: keep the content column edge to edge at every viewport. */
+.shell,.wrap{max-width:100%!important;padding-left:12px!important;padding-right:12px!important}

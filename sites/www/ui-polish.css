@@ -39,3 +39,6 @@ main,
 /* Sleek hub pass: fewer words, same workflow links. */
 .use-hub-hero .lead p{max-width:52ch}.use-hub-grid .card{min-height:0}.use-paths .compact-path{display:flex;align-items:center;justify-content:space-between;gap:12px}.use-paths .compact-path h2{margin:0!important}.not-ready-card p{margin-bottom:0!important}
 @media(max-width:760px){.use-paths .compact-path{display:block}.use-paths .compact-path .actions{margin-top:8px}}
+
+/* Full-width layout pass: keep the content column edge to edge at every viewport. */
+.shell,.wrap{max-width:100%!important;padding-left:12px!important;padding-right:12px!important}

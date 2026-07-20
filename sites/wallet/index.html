@@ -168,8 +168,8 @@ body{letter-spacing:-.01em}
     @media(max-width:860px){.wallet-section[data-wallet-tab="wallet"].active-section,#wallet-send.active-section{display:block!important;grid-column:auto!important}.wallet-workspace-nav{top:0}}
 
 </style>
-  <link rel="stylesheet" href="ui-polish.css?v=20260710-v0377-widen" />
-    <link rel="stylesheet" href="site-shell.css?v=20260718-futuristic-polish" />
+  <link rel="stylesheet" href="ui-polish.css?v=20260719-fullwidth" />
+    <link rel="stylesheet" href="site-shell.css?v=20260719-fullwidth-shell" />
 
 
   <style>
@@ -849,6 +849,13 @@ body{letter-spacing:-.01em}
     #wallet-home .overview-grid{grid-template-columns:1fr!important}
     #wallet-receive.active-section,#wallet-send.active-section{grid-column:1 / -1!important}
   }
+</style>
+<style id="wallet-fullwidth-layout">
+  /* Full-width layout: the content column spans the browser edge to edge,
+     matching the other sites. Wins over earlier .wrap/#walletView caps by
+     coming last in source order. */
+  .wrap{max-width:100%!important;padding-left:12px!important;padding-right:12px!important}
+  #walletView:not(.hide){max-width:none!important}
 </style>
 <style id="wallet-fullbleed-tabs">
   /* Tab bar spans the full browser width (edge to edge), matching the other

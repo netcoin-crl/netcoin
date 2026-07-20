@@ -735,3 +735,7 @@ button:active,.pill:active{transform:translateY(0)}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid rgba(61,220,151,.65)!important;outline-offset:2px!important}
 .hero h1,.dashboard-hero h1,.lead h1{background:linear-gradient(180deg,#fff,#c9d6e0)!important;-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important}
 .logo{box-shadow:0 0 0 1px rgba(61,220,151,.25),0 4px 16px rgba(61,220,151,.14)!important}
+
+/* Full-width layout pass: every site's content column spans the browser edge
+   to edge (matching the markets page), instead of a centered max-width column. */
+.shell,.wrap{max-width:100%!important;padding-left:12px!important;padding-right:12px!important}
