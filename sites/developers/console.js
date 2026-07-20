@@ -29,6 +29,29 @@ async function api(path, options = {}) {
   return d;
 }
 
+// ---- signed envelope: /tokens is a sensitive write and needs a signature
+// proving control of the creator address. Keys never touch this page.
+function canonicalizeForEnvelope(value) {
+  if (Array.isArray(value)) return value.map(canonicalizeForEnvelope);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const k of Object.keys(value).sort()) out[k] = canonicalizeForEnvelope(value[k]);
+    return out;
+  }
+  return value;
+}
+async function buildEnvelope(method, path, body, address) {
+  const filtered = {};
+  for (const k of Object.keys(body)) if (body[k] !== undefined && body[k] !== null) filtered[k] = body[k];
+  const bodyStr = JSON.stringify(canonicalizeForEnvelope(filtered));
+  const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bodyStr));
+  const bodyHash = Array.from(new Uint8Array(hashBuf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  const timestamp = Math.floor(Date.now() / 1000);
+  const nonce = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+  const message = ['NetCoin signed request', 'netcoin-signed-envelope-v1', address, method.toUpperCase(), path, bodyHash, String(timestamp), nonce].join('\n');
+  return { message, bodyHash, timestamp, nonce };
+}
+
 async function postApi(path, payload) {
   return api(path, {
     method: 'POST',
@@ -343,6 +366,46 @@ $('#refreshApiKeysBtn').addEventListener('click', () => loadApiKeys(getDeveloper
 $('#createWebhookBtn').addEventListener('click', createWebhook);
 $('#refreshWebhooksBtn').addEventListener('click', () => loadWebhooks(getDeveloperId()));
 $('#simulateRewardsBtn').addEventListener('click', simulateRewards);
+
+let pendingTokenEnvelope = null;
+$('#prepareTokenBtn').addEventListener('click', async () => {
+  const out = $('#tokenOut');
+  try {
+    const creator = $('#tokenCreatorAddr').value.trim();
+    if (!creator) throw new Error('creator address is required');
+    const body = {
+      symbol: $('#tokenSymbol').value.trim().toUpperCase(),
+      name: $('#tokenName').value.trim(),
+      decimals: Number($('#tokenDecimals').value || 8),
+      initial_supply: $('#tokenInitialSupply').value || '0',
+      creator,
+    };
+    const path = '/tokens';
+    const envelope = await buildEnvelope('POST', path, body, creator);
+    pendingTokenEnvelope = { body, path, envelope, address: creator };
+    $('#tokenSignPanel').classList.remove('hide');
+    $('#tokenSignMsg').value = envelope.message;
+    $('#tokenSignCli').textContent = `python -m netcoin signmessage --wallet your-wallet.json --message "${envelope.message.replace(/"/g, '\\"')}"`;
+    out.textContent = 'Ready to sign. Follow the steps below.';
+  } catch (e) {
+    out.textContent = 'Failed: ' + e.message;
+  }
+});
+$('#copyTokenSignMsg').addEventListener('click', () => navigator.clipboard.writeText($('#tokenSignMsg').value).catch(() => {}));
+$('#copyTokenSignCli').addEventListener('click', () => navigator.clipboard.writeText($('#tokenSignCli').textContent).catch(() => {}));
+$('#submitTokenBtn').addEventListener('click', async () => {
+  const out = $('#tokenOut');
+  if (!pendingTokenEnvelope) { out.textContent = 'Prepare the token first.'; return; }
+  const sig = $('#tokenSigInput').value.trim();
+  if (!sig) { out.textContent = 'Paste a signature first.'; return; }
+  try {
+    const { body, path, envelope, address } = pendingTokenEnvelope;
+    const result = await postApi(path, { ...body, signed_envelope: { address, method: 'POST', path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature: sig } });
+    out.textContent = 'Token created: ' + (result.token_id || result.symbol || 'ok');
+  } catch (e) {
+    out.textContent = 'Failed: ' + e.message;
+  }
+});
 
 const params = new URLSearchParams(location.search);
 const initialDeveloperId = params.get('developer_id') || params.get('id') || '';

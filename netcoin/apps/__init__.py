@@ -788,9 +788,13 @@ class AppStore:
         address = normalize_address(payload.get("address"))
         data = self.load()
         existing = data["usernames"].get(name, {})
+        pubkey_hex = str(payload.get("pubkey") or existing.get("pubkey") or "").strip().lower()
+        if pubkey_hex and not re.fullmatch(r"[0-9a-f]{66}", pubkey_hex):
+            raise AppError("pubkey must be 33-byte compressed hex")
         record = existing | {
             "username": name,
             "address": address,
+            "pubkey": pubkey_hex,
             "display_name": str(payload.get("display_name") or existing.get("display_name") or name)[:120],
             "bio": str(payload.get("bio") or existing.get("bio") or "")[:500],
             "verified": bool(payload.get("verified", existing.get("verified", False))),

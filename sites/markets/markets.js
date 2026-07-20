@@ -103,49 +103,6 @@
   }
   const post = (path, body) => api(path, { method: "POST", body: JSON.stringify(body || {}) });
 
-  // ---- signed envelope (order placement is a "sensitive" write and requires
-  // a signature proving control of the trader address; keys never touch the
-  // browser -- the message is signed offline via `netcoin signmessage`). ----
-  function canonicalize(value) {
-    if (Array.isArray(value)) return value.map(canonicalize);
-    if (value && typeof value === "object") {
-      const out = {};
-      for (const k of Object.keys(value).sort()) out[k] = canonicalize(value[k]);
-      return out;
-    }
-    return value;
-  }
-  function canonicalBodyString(body) {
-    const excluded = new Set(["api_key", "admin_token", "signed_envelope", "signed_request", "signed_envelope_verified"]);
-    const filtered = {};
-    for (const k of Object.keys(body || {})) {
-      if (excluded.has(k) || k.startsWith("signature") || k.startsWith("__netcoin_")) continue;
-      if (body[k] !== undefined && body[k] !== null) filtered[k] = body[k];
-    }
-    return JSON.stringify(canonicalize(filtered));
-  }
-  async function sha256Hex(text) {
-    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
-  }
-  function envelopeMessage({ address, method, path, bodyHash, timestamp, nonce }) {
-    return ["NetCoin signed request", "netcoin-signed-envelope-v1", address, method.toUpperCase(), path, bodyHash, String(timestamp), nonce].join("\n");
-  }
-  async function buildEnvelopeMessage(method, path, body, address) {
-    const bodyHash = await sha256Hex(canonicalBodyString(body));
-    const timestamp = Math.floor(Date.now() / 1000);
-    const nonce = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
-    return { message: envelopeMessage({ address, method, path, bodyHash, timestamp, nonce }), address, method, path, bodyHash, timestamp, nonce };
-  }
-  function isSignedEnvelopeError(err) {
-    return /signed envelope|signature is required for this app-layer action/i.test(String(err && err.message || ""));
-  }
-  // Populated by the "Sign & submit" panel once the operator pastes a signature.
-  async function signedPost(path, body, address) {
-    const envelope = await buildEnvelopeMessage("POST", path, body, address);
-    return { envelope, submit: (signature) => post(path, { ...body, signed_envelope: { address: envelope.address, method: envelope.method, path: envelope.path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature } }) };
-  }
-
   const selectedMarket = () => state.markets.find((m) => m.market_id === state.selectedId) || null;
   const isBinary = (m) => (m.outcomes || []).length === 2 && (m.outcomes || []).some((o) => /^y(es)?$/i.test(o.label));
   const yesOutcome = (m) => (m.outcomes || []).find((o) => /^y(es)?$/i.test(o.label)) || (m.outcomes || [])[0];
@@ -312,12 +269,11 @@
         <div class="row"><span>Cost</span><b id="sumCost">—</b></div>
         <div class="row"><span>Payout if wins</span><b id="sumPayout">—</b></div>
       </div>
-      <button class="buy-btn ${noSide ? "no" : ""}" id="tradeBuy" ${resolved ? "disabled" : ""}>${resolved ? "Resolved" : `Buy ${binary ? (noSide ? "No" : "Yes") : "shares"}`}</button>
+      <button class="buy-btn ${noSide ? "no" : ""}" id="tradeBuy" ${resolved ? "disabled" : ""}>${resolved ? "Resolved" : `Buy ${binary ? (noSide ? "No" : "Yes") : "shares"} via Wallet`}</button>
       <details class="trade-adv"><summary>Advanced</summary><div class="adv-body">
-        <div class="trade-field"><label>Trader id</label><input id="tradeTrader" value="demo:you" /></div>
         <div class="trade-field"><label>Order type</label><select id="tradeType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC</option><option value="fok">FOK</option></select></div>
       </div></details>
-      <p class="muted" style="font-size:12px">Play-money. Buys place a NET limit order on this outcome.</p>`;
+      <p class="muted" style="font-size:12px">Play-money. Opens your Wallet with this order filled in &mdash; your own address is used automatically, and Wallet signs and submits it.</p>`;
   }
   function updateTradeSummary() {
     const shares = Number(($("#tradeShares") || {}).value || 0);
@@ -373,57 +329,33 @@
     const type = ($("#tradeType") || {}).value || "limit";
     const priceC = Number(($("#tradePrice") || {}).value || 0);
     return {
-      trader_address: ($("#tradeTrader") || {}).value || "demo:you",
       outcome_id: state.tradeOutcomeId,
       side: "buy",
       order_type: type,
       time_in_force: type === "ioc" ? "IOC" : type === "fok" ? "FOK" : "GTC",
       quantity: Number(($("#tradeShares") || {}).value || 0),
       price_bps: type === "market" ? undefined : Math.max(1, Math.min(9999, priceC * 100)),
-      allow_unverified_demo: true,
-      sandbox_short_mode: true,
     };
   }
-  async function doTradeBuy(m) {
+  // Signing a market order requires the trader's key, which never leaves the
+  // Wallet's own origin. Buy sends the order details to Wallet (which knows
+  // the real logged-in address) instead of trying to collect a signature here
+  // -- this is also what fixes "address is not a valid NetCoin address",
+  // since the address is always the wallet's own, never a placeholder.
+  function doTradeBuy(m) {
     const body = orderPayloadFromForm();
-    try {
-      await placeOrder(body);
-    } catch (err) {
-      if (isSignedEnvelopeError(err)) { await showSignPanel(m, body); return; }
-      alert(`Order failed: ${err.message}`);
-    }
-  }
-  async function showSignPanel(m, body) {
-    const path = `/markets/${encodeURIComponent(m.market_id)}/order`;
-    const { envelope, submit } = await signedPost(path, body, body.trader_address);
-    const panel = $("#tradePanel");
-    panel.innerHTML = `<h3>Sign this order</h3>
-      <p class="muted">Orders need a signature proving you control <code>${esc(body.trader_address)}</code>. Keys never touch the browser &mdash; sign offline, then paste the signature below.</p>
-      <label>1. Sign this exact text</label>
-      <textarea id="signMsgOut" class="mono" rows="4" readonly>${esc(envelope.message)}</textarea>
-      <button type="button" class="secondary" id="copySignMsg">Copy message</button>
-      <label style="margin-top:10px">Using the CLI</label>
-      <pre class="mono" id="signCliCmd">python -m netcoin signmessage --wallet your-wallet.json --message "${esc(envelope.message).replace(/"/g, '\\"')}"</pre>
-      <button type="button" class="secondary" id="copySignCli">Copy command</button>
-      <label style="margin-top:10px">2. Paste the resulting signature</label>
-      <input id="signSigInput" class="mono" placeholder="base64 signature from signmessage output" autocomplete="off" />
-      <div class="op-actions" style="margin-top:10px"><button type="button" id="submitSignedOrder" class="primary">Submit signed order</button><button type="button" class="secondary" id="cancelSignPanel">Cancel</button></div>
-      <p id="signPanelMsg" class="muted"></p>`;
-    $("#copySignMsg")?.addEventListener("click", () => navigator.clipboard.writeText(envelope.message).catch(() => {}));
-    $("#copySignCli")?.addEventListener("click", () => navigator.clipboard.writeText($("#signCliCmd").textContent).catch(() => {}));
-    $("#cancelSignPanel")?.addEventListener("click", () => { $("#tradePanel").innerHTML = tradePanel(m); wireDetail(m); updateTradeSummary(); });
-    $("#submitSignedOrder")?.addEventListener("click", async () => {
-      const sig = ($("#signSigInput") || {}).value.trim();
-      if (!sig) { $("#signPanelMsg").textContent = "Paste a signature first."; return; }
-      $("#signPanelMsg").textContent = "Submitting…";
-      try {
-        const p = await submit(sig);
-        log("Placed signed order", { trades: (p.trades || []).length });
-        await loadMarkets();
-      } catch (err) { $("#signPanelMsg").textContent = "Failed: " + err.message; }
+    if (!(body.quantity > 0)) { alert("Enter a number of shares first."); return; }
+    const params = new URLSearchParams({
+      buy_market: m.market_id,
+      buy_outcome: body.outcome_id,
+      buy_side: body.side,
+      buy_qty: String(body.quantity),
+      buy_order_type: body.order_type,
+      buy_tif: body.time_in_force,
     });
+    if (body.price_bps != null) params.set("buy_price_bps", String(body.price_bps));
+    location.href = "https://wallet.netcoin.online/?" + params.toString();
   }
-
   function openDetail(id) { state.selectedId = id; state.view = "detail"; state.tab = "orderbook"; state.tradeOutcomeId = ""; $("#gridView").classList.add("hidden"); $("#detailView").classList.remove("hidden"); renderDetail(); window.scrollTo(0, 0); }
   let autoOpenedFromUrl = false;
   function maybeAutoOpenFromUrl() {

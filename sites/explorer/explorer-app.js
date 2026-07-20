@@ -642,8 +642,14 @@
 
   // ---------- search ----------
   async function doSearch(qRaw) {
-    const q = qRaw.trim(); if (!q) return;
+    const q = qRaw.trim().replace(/^@/, ""); if (!q) return;
     try {
+      if (!q.startsWith("net1") && /^[A-Za-z0-9_-]{2,30}$/.test(q) && !/^\d+$/.test(q) && !/^[0-9a-fA-F]{64}$/.test(q)) {
+        try {
+          const u = await api("/usernames/" + encodeURIComponent(q));
+          if (u && u.address) return (location.hash = "#/address/" + u.address);
+        } catch { /* not a username, fall through to other checks */ }
+      }
       if (/^\d+$/.test(q)) { // height
         const d = await api(`/headers?start=${q}&limit=1`);
         const hh = (d.headers || d)[0];

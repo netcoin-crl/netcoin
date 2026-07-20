@@ -77,6 +77,7 @@
   function applyPendingPrefill() {
     if (prefillApplied) return;
     const params = new URLSearchParams(location.search);
+    if (params.get("buy_market")) { applyPendingMarketBuy(params); return; }
     let to = params.get("to") || "";
     let amt = params.get("amount") || "";
     const label = params.get("label") || "";
@@ -99,6 +100,86 @@
     if (label && $("contactName") && !$("contactName").value) $("contactName").value = label;
     validateRecipientField();
   }
+
+  // ---- Markets deep link: Buy on markets.netcoin.online opens this wallet
+  // with the order filled in, so signing happens where the key actually
+  // lives instead of a "sign this order" step on a different origin. ----
+  function canonicalizeForEnvelope(value) {
+    if (Array.isArray(value)) return value.map(canonicalizeForEnvelope);
+    if (value && typeof value === "object") {
+      const out = {};
+      for (const k of Object.keys(value).sort()) out[k] = canonicalizeForEnvelope(value[k]);
+      return out;
+    }
+    return value;
+  }
+  async function marketOrderEnvelopeMessage(path, body, address) {
+    const filtered = {};
+    for (const k of Object.keys(body)) if (body[k] !== undefined && body[k] !== null) filtered[k] = body[k];
+    const bodyStr = JSON.stringify(canonicalizeForEnvelope(filtered));
+    const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(bodyStr));
+    const bodyHash = Array.from(new Uint8Array(hashBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const timestamp = Math.floor(Date.now() / 1000);
+    const nonce = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+    const message = ["NetCoin signed request", "netcoin-signed-envelope-v1", address, "POST", path, bodyHash, String(timestamp), nonce].join("\n");
+    return { message, bodyHash, timestamp, nonce };
+  }
+  async function applyPendingMarketBuy(params) {
+    prefillApplied = true;
+    ensureWalletTabShell();
+    if (!hasProfiles() && !resumeUnlockedSession()) { show("welcome"); return; }
+    const marketId = params.get("buy_market");
+    const outcomeId = params.get("buy_outcome") || "";
+    const body = {
+      outcome_id: outcomeId,
+      side: params.get("buy_side") || "buy",
+      order_type: params.get("buy_order_type") || "limit",
+      time_in_force: params.get("buy_tif") || "GTC",
+      quantity: Number(params.get("buy_qty") || 0),
+      price_bps: params.get("buy_price_bps") ? Number(params.get("buy_price_bps")) : undefined,
+      trader_address: state ? state.address : "",
+    };
+    // Developer is an admin-only tab; force admin view since arriving here
+    // via a buy link means the user explicitly wants it.
+    try { localStorage.setItem("nc.viewLevel.v1", "admin"); document.body.dataset.ncView = "admin"; } catch { /* ignore */ }
+    setActiveWalletTab("developer");
+    const box = $("marketBuyPanel");
+    if (!box) return;
+    box.classList.remove("hide");
+    box.innerHTML = `<h3>Buy from Markets</h3>
+      <p class="muted">Market <span class="mono">${esc(marketId)}</span> &middot; outcome <span class="mono">${esc(outcomeId)}</span> &middot; ${esc(body.quantity)} shares${body.price_bps ? " @ " + esc(body.price_bps / 100) + "&cent;" : " (market price)"}</p>
+      <p class="muted">Using your wallet address <span class="mono">${esc(state ? state.address : "")}</span>.</p>
+      <label>1. Sign this exact text</label>
+      <textarea id="marketBuyMsgOut" class="mono" rows="4" readonly></textarea>
+      <button type="button" class="secondary" id="btnCopyMarketBuyMsg">Copy message</button>
+      <label style="margin-top:10px">Using the CLI</label>
+      <pre class="mono" id="marketBuyCliCmd"></pre>
+      <button type="button" class="secondary" id="btnCopyMarketBuyCli">Copy command</button>
+      <label style="margin-top:10px">2. Paste the resulting signature</label>
+      <input id="marketBuySigInput" class="mono" placeholder="base64 signature from signmessage output" autocomplete="off" />
+      <button id="btnSubmitMarketBuy" type="button">Submit order</button>
+      <p id="marketBuyMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>`;
+    const path = `/markets/${encodeURIComponent(marketId)}/order`;
+    const envelope = await marketOrderEnvelopeMessage(path, body, state.address);
+    $("marketBuyMsgOut").value = envelope.message;
+    $("marketBuyCliCmd").textContent = `python -m netcoin signmessage --wallet your-wallet.json --message "${envelope.message.replace(/"/g, '\\"')}"`;
+    $("btnCopyMarketBuyMsg").onclick = () => navigator.clipboard.writeText(envelope.message).catch(() => {});
+    $("btnCopyMarketBuyCli").onclick = () => navigator.clipboard.writeText($("marketBuyCliCmd").textContent).catch(() => {});
+    $("btnSubmitMarketBuy").onclick = async () => {
+      const sig = ($("marketBuySigInput").value || "").trim();
+      if (!sig) { $("marketBuyMsg").className = "err"; $("marketBuyMsg").textContent = "Paste a signature first."; return; }
+      $("marketBuyMsg").textContent = "Submitting…";
+      try {
+        const result = await api(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...body, signed_envelope: { address: state.address, method: "POST", path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature: sig } }),
+        });
+        $("marketBuyMsg").className = "ok";
+        $("marketBuyMsg").textContent = `Order placed. Trades: ${(result.trades || []).length}.`;
+      } catch (e) { $("marketBuyMsg").className = "err"; $("marketBuyMsg").textContent = "Failed: " + e.message; }
+    };
+  }
   const enc = new TextEncoder();
   const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
   const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -115,7 +196,10 @@
   const satsToNet = (s) => (s / COIN).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const satsToNetFull = (s) => (s / COIN).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
   const truncAddr = (a) => (a && a.length > 22) ? `${a.slice(0, 10)}…${a.slice(-6)}` : a;
-  const setAddressDisplay = (a) => { const el = $("addr"); if (!el) return; el.textContent = truncAddr(a); el.title = a || ""; };
+  const setAddressDisplay = (a) => {
+    const el = $("addr"); if (el) { el.textContent = truncAddr(a); el.title = a || ""; }
+    const settingsEl = $("settingsAddrOut"); if (settingsEl) settingsEl.textContent = a || "";
+  };
   const esc = (value) => String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   function satsToInput(sats) {
     const n = BigInt(Math.max(0, Number(sats)));
@@ -256,17 +340,15 @@
     { id: "mining", label: "Mining", modes: EVERYDAY },
     { id: "advanced", label: "Advanced", modes: ADMIN_ONLY },
     { id: "tokens", label: "Tokens", modes: ADMIN_ONLY },
-    { id: "payments", label: "Payments", modes: ADMIN_ONLY },
     { id: "reports", label: "Reports", modes: ADMIN_ONLY },
     { id: "watch", label: "Watch-only", modes: ADMIN_ONLY },
     { id: "escrow", label: "Escrow", modes: ADMIN_ONLY },
-    { id: "contracts", label: "Contracts", modes: ADMIN_ONLY },
     { id: "developer", label: "Developer", modes: ADMIN_ONLY },
     { id: "settings", label: "Settings", modes: EVERYDAY },
   ];
   const MODE_INFO = {
     simple: "Everyday wallet: balance, send, receive, activity, mining, and settings.",
-    developer: "Full admin view: adds tokens, payments, reports, watch-only, escrow, PSBT/multisig, contracts, and developer tools.",
+    developer: "Full admin view: adds tokens, reports, watch-only, escrow, PSBT/multisig, and developer tools.",
   };
   // The wallet no longer has its own mode selector. It follows the site-wide
   // Admin/Simple (user) view toggle: Simple = everyday tabs, Admin = everything.
@@ -345,12 +427,6 @@
       card.dataset.walletTab = tab;
     }
 
-    addWalletSection(walletSection("Payments", `
-      <p class="muted">Business payment tools live on the separated payment and merchant pages so the wallet stays clean.</p>
-      <div class="section-links">
-        <a href="https://pay.netcoin.online/"><b>Payment hub</b><br><span class="muted">Checkout, receipts, tips, donations, and profiles.</span></a>
-        <a href="https://merchant.netcoin.online/"><b>Merchant dashboard</b><br><span class="muted">Invoices, POS, refunds, API keys, webhooks, and exports.</span></a>
-      </div>`, "payments"));
     addWalletSection(walletSection("Mining", `
       <p class="muted">Mine NetCoin on your own computer and get the block reward paid to this wallet. No pools, no signup.</p>
       <p id="miningStats" class="muted">Checking chain status…</p>
@@ -366,21 +442,24 @@
       <div id="tokenList" class="watch-list"><span class="muted">Unlock the wallet, then refresh to load tokens.</span></div>
       <p class="muted">Create and manage tokens via the API — see <a href="https://api.netcoin.online/openapi.yaml" target="_blank" rel="noreferrer">the OpenAPI spec</a> or the SDKs.</p>`, "tokens"));
     addWalletSection(walletSection("Escrow", `
-      <p class="muted">2-of-3 escrow: funds go to an address that needs 2 of buyer/seller/mediator signatures to release or refund. App-layer accounting, not a chain-level contract.</p>
+      <p class="muted">2-of-3 escrow: funds go to an address that needs 2 of buyer/seller/mediator signatures to release or refund. Type usernames if the other parties have one registered &mdash; no need to know raw pubkeys.</p>
       <div class="row compact-row">
-        <input id="escrowBuyerPub" class="mono" placeholder="Buyer pubkey (hex)" autocomplete="off" />
-        <input id="escrowSellerPub" class="mono" placeholder="Seller pubkey (hex)" autocomplete="off" />
+        <input id="escrowBuyerPub" class="mono" placeholder="Buyer: username or pubkey hex" autocomplete="off" />
+        <input id="escrowSellerPub" class="mono" placeholder="Seller: username or pubkey hex" autocomplete="off" />
       </div>
       <div class="row compact-row">
-        <input id="escrowMediatorPub" class="mono" placeholder="Mediator pubkey (hex)" autocomplete="off" />
+        <input id="escrowMediatorPub" class="mono" placeholder="Mediator: username or pubkey hex" autocomplete="off" />
         <input id="escrowAmount" inputmode="decimal" placeholder="Amount (NET)" autocomplete="off" />
       </div>
       <label for="escrowTerms">Terms, optional</label>
       <textarea id="escrowTerms" placeholder="What this escrow is for"></textarea>
       <button id="btnCreateEscrow" type="button">Create escrow</button>
       <p id="escrowMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>
-      <div class="row compact-row">
-        <input id="escrowLookupId" class="mono" placeholder="escrow_id" autocomplete="off" />
+      <h3 style="margin-top:16px">Your escrows</h3>
+      <button id="btnLoadMyEscrows" class="secondary" type="button">Refresh my escrows</button>
+      <div id="myEscrowList" class="watch-list"><span class="muted">Unlock the wallet, then refresh to see escrows you're part of.</span></div>
+      <div class="row compact-row" style="margin-top:10px">
+        <input id="escrowLookupId" class="mono" placeholder="Or load by escrow_id" autocomplete="off" />
         <button id="btnLoadEscrow" class="secondary inline" type="button">Load</button>
       </div>
       <div id="escrowDetail" class="review hide">
@@ -389,27 +468,33 @@
           <div class="k">Status</div><div class="v" id="escrowStatus"></div>
           <div class="k">Amount</div><div class="v" id="escrowAmountOut"></div>
         </div>
-        <label for="escrowSigner">Your role (buyer/seller/mediator address)</label>
-        <input id="escrowSigner" class="mono" placeholder="your address" autocomplete="off" />
-        <div class="row compact-row">
-          <button id="btnEscrowRelease" class="secondary inline" type="button">Approve release</button>
-          <button id="btnEscrowRefund" class="secondary inline" type="button">Approve refund</button>
-          <button id="btnEscrowDispute" class="secondary inline" type="button">Dispute</button>
-        </div>
+        <p class="muted" id="escrowNextAction"></p>
+        <div id="escrowActionButtons" class="row compact-row"></div>
       </div>`, "escrow"));
-    addWalletSection(walletSection("Contracts", `
-      <p class="muted">Read-only app-layer contract templates and this wallet's contract events. Escrow deals (the "Escrow" tab) are one instance of the escrow_2_of_3 template below.</p>
+    addWalletSection(walletSection("Developer", `
+      <div id="marketBuyPanel" class="review hide"></div>
+      <p class="muted">Payment links, developer API keys, webhooks, reward simulations, and app-layer contract templates &mdash; using this wallet's own address as the developer identity. No separate site or ID needed.</p>
+      <label for="devPaymentAmount">Create a payment link</label>
+      <div class="row compact-row">
+        <input id="devPaymentAmount" inputmode="decimal" placeholder="Amount (NET)" autocomplete="off" />
+        <input id="devPaymentTitle" placeholder="Title, e.g. Starter pack" autocomplete="off" />
+      </div>
+      <button id="btnCreatePaymentLink" type="button">Create payment link</button>
+      <pre id="devPaymentOut" class="mono muted">Link appears here.</pre>
+      <label for="devApiKeyLabel" style="margin-top:10px">Create a developer API key</label>
+      <button id="btnCreateDevApiKey" class="secondary" type="button">Create API key</button>
+      <div id="devApiKeyOut" class="review hide">
+        <div class="row compact-row"><input id="devApiKeyField" class="mono" readonly /><button id="btnCopyDevApiKey" class="secondary inline" type="button">Copy</button></div>
+        <p class="muted">Shown once. Store it somewhere safe.</p>
+      </div>
+      <label for="devWebhookUrl" style="margin-top:10px">Register a webhook</label>
+      <input id="devWebhookUrl" placeholder="https://example.com/netcoin/webhook" autocomplete="off" />
+      <button id="btnRegisterDevWebhook" class="secondary" type="button">Register webhook</button>
+      <p id="devWebhookMsg" class="muted"></p>
+      <h3 style="margin-top:16px">Contract templates</h3>
       <button id="btnLoadContractTemplates" class="secondary" type="button">Load templates</button>
       <div id="contractTemplateList" class="watch-list"><span class="muted">Load templates to see available contract types.</span></div>
-      <h3 style="margin-top:16px">Recent contract events</h3>
-      <button id="btnLoadContractEvents" class="secondary" type="button">Load recent events</button>
-      <div id="contractEventList" class="watch-list"><span class="muted">Load to see recent contract activity on this node.</span></div>`, "contracts"));
-    addWalletSection(walletSection("Developer", `
-      <p class="muted">Payment links, developer API keys, webhooks, and reward simulations live in the full Developer Console. This wallet only surfaces the raw OpenAPI reference.</p>
-      <div class="section-links">
-        <a href="https://developers.netcoin.online/console.html"><b>Developer Console</b><br><span class="muted">Payment links, API keys, webhooks, reward simulations.</span></a>
-        <a href="https://api.netcoin.online/"><b>API docs</b><br><span class="muted">Explorer/backend API reference and SDK links.</span></a>
-      </div>`, "developer"));
+      <p class="muted"><a href="https://developers.netcoin.online/console.html">Full Developer Console</a> and <a href="https://api.netcoin.online/">API docs</a> for advanced use.</p>`, "developer"));
 
     const settings = walletSection("Settings", `
       <p class="muted">Manage this wallet's session and backups. Use the site's <b>Simple / Admin</b> toggle (bottom-left) to switch between the everyday wallet and the full toolset — Admin adds Tokens, Payments, Reports, Watch-only, Escrow, PSBT/multisig, and developer tools.</p>
@@ -421,18 +506,26 @@
         <option value="120">2 hours</option>
         <option value="0">Disabled for this tab</option>
       </select>
-      <p id="sessionAutoLockStatus" class="muted auto-lock-status"></p>`, "settings");
+      <p id="sessionAutoLockStatus" class="muted auto-lock-status"></p>
+      <h3 style="margin-top:16px">Related tools</h3>
+      <div class="section-links">
+        <a href="https://pay.netcoin.online/"><b>Payment hub</b><br><span class="muted">Checkout, receipts, tips, donations, and profiles.</span></a>
+        <a href="https://merchant.netcoin.online/"><b>Merchant dashboard</b><br><span class="muted">Invoices, POS, refunds, API keys, webhooks, and exports.</span></a>
+      </div>`, "settings");
     addWalletSection(settings);
 
-    addWalletSection(walletSection("Username", `
-      <p class="muted">Register a public username for this wallet's address. Anyone can then look you up by name instead of a long address — used on the leaderboard, tip/donate pages, and public profiles at <span class="mono">community.netcoin.online/u/&lt;username&gt;</span>.</p>
-      <label for="usernameInput">Username</label>
+    addWalletSection(walletSection("Your address", `
+      <p class="muted">Your address is your identity. Optionally attach a username so people can find you by name instead &mdash; on the leaderboard, tip/donate pages, and public profiles at <span class="mono">community.netcoin.online/u/&lt;username&gt;</span>.</p>
+      <label class="muted">This wallet's address</label>
+      <pre id="settingsAddrOut" class="mono muted"></pre>
+      <label for="usernameInput">Attach a username, optional</label>
       <input id="usernameInput" placeholder="letters, numbers, dash, underscore" autocomplete="off" />
       <label for="usernameDisplay">Display name, optional</label>
       <input id="usernameDisplay" placeholder="Shown instead of the raw username" autocomplete="off" />
       <button id="btnRegisterUsername" type="button">Save username for this wallet</button>
       <p id="usernameMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>
-      <label for="usernameLookup">Look up a username</label>
+      <h3 style="margin-top:16px">Look up any username</h3>
+      <p class="muted">Check whether a username is tied to a NetCoin address. Works anywhere someone can be tipped, paid, or added to escrow.</p>
       <div class="row compact-row">
         <input id="usernameLookup" placeholder="username" autocomplete="off" />
         <button id="btnLookupUsername" class="secondary inline" type="button">Look up</button>
@@ -1747,14 +1840,25 @@
     const username = ($("usernameInput").value || "").trim();
     if (!username) { msg.className = "err"; msg.textContent = "Enter a username."; return; }
     try {
+      const pubkey = W.walletFromPrivateKey(state.privHex).pubHex;
       const rec = await api("/usernames", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, address: state.address, display_name: $("usernameDisplay").value || "" }),
+        body: JSON.stringify({ username, address: state.address, pubkey, display_name: $("usernameDisplay").value || "" }),
       });
       msg.className = "ok";
-      msg.textContent = `Saved: @${rec.username} now resolves to your address.`;
+      msg.textContent = `Saved: @${rec.username} now resolves to your address (and can be used in Escrow instead of a raw pubkey).`;
     } catch (e) { msg.className = "err"; msg.textContent = "Could not save username: " + e.message; }
+  }
+
+  async function resolveEscrowParty(input) {
+    const raw = (input || "").trim();
+    if (!raw) throw new Error("required");
+    if (/^[0-9a-fA-F]{66}$/.test(raw)) return raw;
+    const clean = raw.replace(/^@/, "");
+    const rec = await api("/usernames/" + encodeURIComponent(clean));
+    if (!rec.pubkey) throw new Error(`@${clean} has no pubkey on file yet (they need to re-save their username from a newer wallet)`);
+    return rec.pubkey;
   }
 
   async function lookupUsername() {
@@ -1773,27 +1877,51 @@
     try {
       const amount = parseFloat($("escrowAmount").value || "0");
       if (!(amount > 0)) throw new Error("amount must be greater than zero");
+      const [buyer_pubkey, seller_pubkey, mediator_pubkey] = await Promise.all([
+        resolveEscrowParty($("escrowBuyerPub").value),
+        resolveEscrowParty($("escrowSellerPub").value),
+        resolveEscrowParty($("escrowMediatorPub").value),
+      ]);
       const rec = await api("/escrows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          buyer_pubkey: $("escrowBuyerPub").value.trim(),
-          seller_pubkey: $("escrowSellerPub").value.trim(),
-          mediator_pubkey: $("escrowMediatorPub").value.trim(),
-          amount,
-          terms: $("escrowTerms").value || "",
-        }),
+        body: JSON.stringify({ buyer_pubkey, seller_pubkey, mediator_pubkey, amount, terms: $("escrowTerms").value || "" }),
       });
       lastEscrowId = rec.escrow_id;
-      $("escrowLookupId").value = rec.escrow_id;
       msg.className = "ok";
-      msg.textContent = `Created escrow ${rec.escrow_id}. Fund the escrow address, then load it below.`;
-      await loadEscrow();
+      msg.textContent = `Created escrow ${rec.escrow_id}. Fund the escrow address, then check "Your escrows" below.`;
+      await loadMyEscrows();
+      await loadEscrowById(rec.escrow_id);
     } catch (e) { msg.className = "err"; msg.textContent = "Could not create escrow: " + e.message; }
   }
 
-  async function loadEscrow() {
-    const id = ($("escrowLookupId").value || lastEscrowId || "").trim();
+  function escrowRole(rec) {
+    if (!state) return null;
+    try {
+      const myPub = W.walletFromPrivateKey(state.privHex).pubHex;
+      if (rec.buyer_pubkey === myPub) return "buyer";
+      if (rec.seller_pubkey === myPub) return "seller";
+      if (rec.mediator_pubkey === myPub) return "mediator";
+    } catch { /* ignore */ }
+    return null;
+  }
+
+  async function loadMyEscrows() {
+    const box = $("myEscrowList");
+    if (!state) { box.innerHTML = '<span class="muted">Unlock the wallet first.</span>'; return; }
+    box.innerHTML = "Loading…";
+    try {
+      const myPub = W.walletFromPrivateKey(state.privHex).pubHex;
+      const data = await api("/escrows");
+      const mine = (data.escrows || []).filter((e) => [e.buyer_pubkey, e.seller_pubkey, e.mediator_pubkey].includes(myPub));
+      box.innerHTML = mine.length
+        ? mine.map((e) => `<div class="watch-item"><b>${esc(e.escrow_id)}</b><div class="muted">${esc(e.status)} · ${esc(e.amount)} NET · you are ${esc(escrowRole(e) || "?")}</div><button type="button" class="secondary smallbtn" data-load-escrow="${esc(e.escrow_id)}">Open</button></div>`).join("")
+        : '<span class="muted">No escrows involve this wallet yet.</span>';
+      box.querySelectorAll("[data-load-escrow]").forEach((btn) => btn.addEventListener("click", () => loadEscrowById(btn.dataset.loadEscrow)));
+    } catch (e) { box.innerHTML = '<span class="err">Could not load escrows: ' + esc(e.message) + "</span>"; }
+  }
+
+  async function loadEscrowById(id) {
     if (!id) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Enter an escrow_id to load."; return; }
     try {
       const rec = await api("/escrows/" + encodeURIComponent(id));
@@ -1802,14 +1930,43 @@
       $("escrowAddr").textContent = rec.escrow_address;
       $("escrowStatus").textContent = rec.status;
       $("escrowAmountOut").textContent = rec.amount + " NET";
+      renderEscrowNextAction(rec);
     } catch (e) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Could not load escrow: " + e.message; }
+  }
+  function loadEscrow() { return loadEscrowById(($("escrowLookupId").value || lastEscrowId || "").trim()); }
+
+  function renderEscrowNextAction(rec) {
+    const role = escrowRole(rec);
+    const next = $("escrowNextAction");
+    const btns = $("escrowActionButtons");
+    if (!role) {
+      next.textContent = "You're not a party to this escrow (viewing read-only).";
+      btns.innerHTML = "";
+      return;
+    }
+    const actionsByStatus = {
+      funding_ready: "Waiting for funds to arrive at the escrow address.",
+      funded: "Funds are in. Approve release (pay the seller) or refund (return to buyer), or dispute.",
+      pending_release: "Release requested — needs a second approval from another party.",
+      pending_refund: "Refund requested — needs a second approval from another party.",
+      released: "Released. Nothing more to do.",
+      refunded: "Refunded. Nothing more to do.",
+      disputed: "Disputed — the mediator should review and approve release or refund.",
+      canceled: "Canceled.",
+    };
+    next.textContent = actionsByStatus[rec.status] || "";
+    const canAct = ["funded", "pending_release", "pending_refund", "disputed"].includes(rec.status);
+    btns.innerHTML = canAct
+      ? '<button type="button" class="secondary inline" data-escrow-action="release">Approve release</button><button type="button" class="secondary inline" data-escrow-action="refund">Approve refund</button><button type="button" class="secondary inline" data-escrow-action="dispute">Dispute</button>'
+      : "";
+    btns.querySelectorAll("[data-escrow-action]").forEach((btn) => btn.addEventListener("click", () => submitEscrowAction(btn.dataset.escrowAction)));
   }
 
   async function submitEscrowAction(action) {
-    const id = ($("escrowLookupId").value || lastEscrowId || "").trim();
-    const signer = ($("escrowSigner").value || "").trim();
-    if (!id) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Load an escrow first."; return; }
+    const id = lastEscrowId;
+    if (!id || !state) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Load an escrow first."; return; }
     try {
+      const signer = state.address;
       const rec = await api(`/escrows/${encodeURIComponent(id)}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1818,6 +1975,8 @@
       $("escrowStatus").textContent = rec.status;
       $("escrowMsg").className = "ok";
       $("escrowMsg").textContent = `Recorded ${action}. Status: ${rec.status}`;
+      renderEscrowNextAction(rec);
+      loadMyEscrows();
     } catch (e) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Could not submit action: " + e.message; }
   }
 
@@ -1833,16 +1992,49 @@
     } catch (e) { box.innerHTML = '<span class="err">Could not load templates: ' + esc(e.message) + "</span>"; }
   }
 
-  async function loadContractEvents() {
-    const box = $("contractEventList");
-    box.innerHTML = "Loading…";
+  async function createDevPaymentLink() {
+    const out = $("devPaymentOut");
+    if (!state) { out.textContent = "Unlock the wallet first."; return; }
     try {
-      const data = await api("/contracts/events");
-      const items = Array.isArray(data.events) ? data.events : Array.isArray(data) ? data : [];
-      box.innerHTML = items.length
-        ? items.slice(-20).reverse().map((e) => `<div class="watch-item"><b>${esc(e.type || e.event || "")}</b><div class="muted">${esc(JSON.stringify(e.data || e.detail || {}))}</div></div>`).join("")
-        : '<span class="muted">No contract events yet.</span>';
-    } catch (e) { box.innerHTML = '<span class="err">Could not load events: ' + esc(e.message) + "</span>"; }
+      const amount = parseFloat($("devPaymentAmount").value || "0");
+      if (!(amount > 0)) throw new Error("amount must be greater than zero");
+      const rec = await api("/developer/payment-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ developer_id: state.address, address: state.address, amount, title: $("devPaymentTitle").value || "" }),
+      });
+      out.textContent = `https://pay.netcoin.online${rec.checkout_path}`;
+    } catch (e) { out.textContent = "Failed: " + e.message; }
+  }
+
+  async function createDevApiKey() {
+    const box = $("devApiKeyOut");
+    if (!state) return;
+    try {
+      const rec = await api("/developer/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ developer_id: state.address }),
+      });
+      box.classList.remove("hide");
+      $("devApiKeyField").value = rec.api_key;
+    } catch (e) { $("devWebhookMsg").className = "err"; $("devWebhookMsg").textContent = "Failed: " + e.message; }
+  }
+
+  async function registerDevWebhook() {
+    const msg = $("devWebhookMsg");
+    if (!state) { msg.className = "err"; msg.textContent = "Unlock the wallet first."; return; }
+    const url = ($("devWebhookUrl").value || "").trim();
+    if (!url) { msg.className = "err"; msg.textContent = "Enter a webhook URL."; return; }
+    try {
+      await api("/developer/webhooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ developer_id: state.address, url }),
+      });
+      msg.className = "ok";
+      msg.textContent = "Webhook registered.";
+    } catch (e) { msg.className = "err"; msg.textContent = "Failed: " + e.message; }
   }
 
   async function markBackupVerified() {
@@ -2535,11 +2727,12 @@
   if ($("btnLookupUsername")) $("btnLookupUsername").onclick = lookupUsername;
   if ($("btnCreateEscrow")) $("btnCreateEscrow").onclick = createEscrow;
   if ($("btnLoadEscrow")) $("btnLoadEscrow").onclick = loadEscrow;
-  if ($("btnEscrowRelease")) $("btnEscrowRelease").onclick = () => submitEscrowAction("release");
-  if ($("btnEscrowRefund")) $("btnEscrowRefund").onclick = () => submitEscrowAction("refund");
-  if ($("btnEscrowDispute")) $("btnEscrowDispute").onclick = () => submitEscrowAction("dispute");
+  if ($("btnLoadMyEscrows")) $("btnLoadMyEscrows").onclick = loadMyEscrows;
   if ($("btnLoadContractTemplates")) $("btnLoadContractTemplates").onclick = loadContractTemplates;
-  if ($("btnLoadContractEvents")) $("btnLoadContractEvents").onclick = loadContractEvents;
+  if ($("btnCreatePaymentLink")) $("btnCreatePaymentLink").onclick = createDevPaymentLink;
+  if ($("btnCreateDevApiKey")) $("btnCreateDevApiKey").onclick = createDevApiKey;
+  if ($("btnCopyDevApiKey")) $("btnCopyDevApiKey").onclick = () => navigator.clipboard.writeText($("devApiKeyField").value).catch(() => {});
+  if ($("btnRegisterDevWebhook")) $("btnRegisterDevWebhook").onclick = registerDevWebhook;
   applyWalletMode();
   renderProfiles();
   if (!resumeUnlockedSession()) show(hasProfiles() ? "unlock" : "welcome");

@@ -315,8 +315,8 @@
     return;
   }
 
-  function routeSearch(term) {
-    const s = term.trim();
+  async function routeSearch(term) {
+    const s = term.trim().replace(/^@/, '');
     if (!s) return;
     const l = s.toLowerCase();
     // Chain-data lookups go straight to the explorer's real hash router
@@ -327,6 +327,18 @@
     if (/^net1[a-z0-9]{20,}$/i.test(s) || (/^[A-Za-z0-9]{26,40}$/.test(s) && !/^[0-9a-fA-F]{64}$/.test(s))) {
       location.href = 'https://explorer.netcoin.online/#/address/' + encodeURIComponent(s);
       return;
+    }
+    // A short handle-like term (letters/digits/dash/underscore) might be a
+    // registered username -- resolve it to an address before falling back
+    // to keyword routing below.
+    if (/^[A-Za-z0-9_-]{2,30}$/.test(s)) {
+      try {
+        const r = await fetch('/api/usernames/' + encodeURIComponent(s));
+        if (r.ok) {
+          const rec = await r.json();
+          if (rec && rec.address) { location.href = 'https://explorer.netcoin.online/#/address/' + encodeURIComponent(rec.address); return; }
+        }
+      } catch { /* not a username, fall through to keyword routing */ }
     }
     const routes = [
       [/feature|rating|score|catalog|all tools|directory/, 'https://features.netcoin.online'],

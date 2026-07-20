@@ -142,12 +142,21 @@ async function loadLeaderboards() {
     if (side) side.innerHTML = (lastLeaderboardData.top_miners || []).slice(0, 5).map((r, i) => `<div class="mini-leader"><span>#${i + 1} ${esc(r.short_id || shortId(r.id || 'unknown'))}</span><b>${amount(r.amount)} NET</b></div>`).join('') || '<p class="muted">No miners yet.</p>';
   } catch (e) { out.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
 }
+let allCircles = [];
+function renderCircleFeed() {
+  const feed = $('#circleFeed');
+  const q = (($('#circleSearch') || {}).value || '').trim().toLowerCase();
+  const filtered = q ? allCircles.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q)) : allCircles;
+  feed.innerHTML = filtered.length
+    ? filtered.map(cardCircle).join('')
+    : (allCircles.length ? '<div class="empty-state">No circles match that search.</div>' : '<div class="empty-state">No circles yet. Propose one.</div>');
+}
 async function loadCircles() {
   const feed = $('#circleFeed');
   try {
     const d = await api('/community/circles');
-    const circles = d.circles || [];
-    feed.innerHTML = circles.length ? circles.map(cardCircle).join('') : '<div class="empty-state">No circles yet. Propose one.</div>';
+    allCircles = d.circles || [];
+    renderCircleFeed();
   } catch (e) { feed.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
 }
 async function loadModQueue() {
@@ -204,6 +213,7 @@ $('#refreshBounties')?.addEventListener('click', loadBounties);
 $('#refreshLeaderboards')?.addEventListener('click', loadLeaderboards);
 $('#refreshMod')?.addEventListener('click', loadModQueue);
 $('#refreshCircles')?.addEventListener('click', loadCircles);
+$('#circleSearch')?.addEventListener('input', renderCircleFeed);
 $$('[data-leader-tab]').forEach(btn => btn.addEventListener('click', () => {
   activeLeaderTab = btn.dataset.leaderTab || 'top_miners';
   $$('[data-leader-tab]').forEach(b => b.classList.toggle('active', b === btn));
