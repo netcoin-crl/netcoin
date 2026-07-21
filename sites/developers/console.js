@@ -236,7 +236,7 @@ async function loadPolicy(developerId) {
       `<div class="stats">` +
       statCard('Daily cap', policy.daily_cap_sats ? policy.daily_cap_sats + ' sats' : 'none') +
       statCard('Per-user cap', policy.per_user_cap_sats ? policy.per_user_cap_sats + ' sats' : 'none') +
-      statCard('Allowlist', (policy.allowlisted_addresses || []).length + ' address(es)') +
+      statCard('Allowlist', String((policy.allowlisted_addresses || []).length)) +
       statCard('Paused', policy.paused ? 'yes' : 'no') +
       `</div>`;
   } catch (e) {

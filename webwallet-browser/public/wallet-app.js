@@ -125,9 +125,10 @@
     return { message, bodyHash, timestamp, nonce };
   }
   async function applyPendingMarketBuy(params) {
-    prefillApplied = true;
     ensureWalletTabShell();
-    if (!hasProfiles() && !resumeUnlockedSession()) { show("welcome"); return; }
+    if (!state) resumeUnlockedSession();
+    if (!state) { show(hasProfiles() ? "unlock" : "welcome"); return; }
+    prefillApplied = true;
     const marketId = params.get("buy_market");
     const outcomeId = params.get("buy_outcome") || "";
     const body = {
