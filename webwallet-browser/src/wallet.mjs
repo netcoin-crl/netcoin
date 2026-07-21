@@ -155,12 +155,14 @@ const DUST = 546;
 
 // Build + sign a P2WPKH->P2WPKH payment. Returns the signed tx dict for POST /tx.
 // All inputs must be P2WPKH controlled by `privHex` (single-key wallet).
-export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, changeAddress, maxInputs = 500 }) {
+export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, changeAddress, maxInputs = 500, rbf = false }) {
   amount = Number(amount); fee = Number(fee);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error("amount must be a positive integer (sats)");
   if (!Number.isInteger(fee) || fee <= 0) throw new Error("fee must be a positive integer (sats)");
   const { chosen, total } = selectCoins(utxos, amount + fee, maxInputs);
   const change = total - amount - fee;
+  // BIP125 opt-in RBF: any sequence below 0xfffffffe signals replaceability.
+  const sequence = rbf ? 0xfffffffd : 0xffffffff;
 
   const outputs = [{ amount, address: toAddress }];
   if (change > DUST) outputs.push({ amount: change, address: changeAddress });
@@ -168,7 +170,7 @@ export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, cha
   const txCore = {
     version: 1,
     locktime: 0,
-    inputs: chosen.map((u) => ({ txid: u.txid, vout: u.vout })),
+    inputs: chosen.map((u) => ({ txid: u.txid, vout: u.vout, sequence })),
     outputs,
   };
 
@@ -181,17 +183,17 @@ export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, cha
     // Sign per prevout kind. All four address eras of this key are spendable.
     const spk = prevout.script_pubkey;
     if (spk.startsWith("OP_1 ")) {
-      return { txid: u.txid, vout: u.vout, signature: "", public_key: "", coinbase: "", witness: signP2trInput(txCore, i, privHex, prevout) };
+      return { txid: u.txid, vout: u.vout, sequence, signature: "", public_key: "", coinbase: "", witness: signP2trInput(txCore, i, privHex, prevout) };
     }
     if (spk.startsWith("OP_DUP ")) {
       const f = signP2pkhInput(txCore, i, privHex, prevout);
-      return { txid: u.txid, vout: u.vout, signature: f.signature, public_key: f.public_key, coinbase: "", script_sig: f.script_sig };
+      return { txid: u.txid, vout: u.vout, sequence, signature: f.signature, public_key: f.public_key, coinbase: "", script_sig: f.script_sig };
     }
     if (spk.startsWith("OP_HASH160 ")) {
       const f = signP2shSegwitInput(txCore, i, privHex, prevout);
-      return { txid: u.txid, vout: u.vout, signature: "", public_key: "", coinbase: "", script_sig: f.script_sig, witness: f.witness };
+      return { txid: u.txid, vout: u.vout, sequence, signature: "", public_key: "", coinbase: "", script_sig: f.script_sig, witness: f.witness };
     }
-    return { txid: u.txid, vout: u.vout, signature: "", public_key: "", coinbase: "", witness: signP2wpkhInput(txCore, i, privHex, prevout) };
+    return { txid: u.txid, vout: u.vout, sequence, signature: "", public_key: "", coinbase: "", witness: signP2wpkhInput(txCore, i, privHex, prevout) };
   });
 
   return { version: 1, locktime: 0, inputs, outputs, fee, change };

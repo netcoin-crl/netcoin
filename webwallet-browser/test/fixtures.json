@@ -42,5 +42,9 @@
     "index": 0,
     "priv_hex": "5887aaac1353fed524912f1367ec35bc7e116ba68472f8d54e0660e14c34d7b6",
     "p2wpkh_address": "net1q29kyvdsam93h4xkjshwalgj8fq7a7lxpe4p3mz"
+  },
+  "message": {
+    "text": "NetCoin signed request\nnetcoin-signed-envelope-v1\nnet1ql3e9pgs3mmwuwrh95fecme0s0qtn2880pdf9sc\nPOST\n/markets/m1/order\nabababababababababababababababababababababababababababababababab\n1700000000\nfixed-nonce",
+    "signature_b64": "HwYachBksKgxwygAq4YAq+iMXJGLZFaGUHlVQAD/ihqbELl4mccHC+k8p+AjTbszCNYuXdvWsx0VpYkiMajlUOY="
   }
 }

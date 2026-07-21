@@ -150,35 +150,28 @@
     box.innerHTML = `<h3>Buy from Markets</h3>
       <p class="muted">Market <span class="mono">${esc(marketId)}</span> &middot; outcome <span class="mono">${esc(outcomeId)}</span> &middot; ${esc(body.quantity)} shares${body.price_bps ? " @ " + esc(body.price_bps / 100) + "&cent;" : " (market price)"}</p>
       <p class="muted">Using your wallet address <span class="mono">${esc(state ? state.address : "")}</span>.</p>
-      <label>1. Sign this exact text</label>
-      <textarea id="marketBuyMsgOut" class="mono" rows="4" readonly></textarea>
-      <button type="button" class="secondary" id="btnCopyMarketBuyMsg">Copy message</button>
-      <label style="margin-top:10px">Using the CLI</label>
-      <pre class="mono" id="marketBuyCliCmd"></pre>
-      <button type="button" class="secondary" id="btnCopyMarketBuyCli">Copy command</button>
-      <label style="margin-top:10px">2. Paste the resulting signature</label>
-      <input id="marketBuySigInput" class="mono" placeholder="base64 signature from signmessage output" autocomplete="off" />
-      <button id="btnSubmitMarketBuy" type="button">Submit order</button>
+      <button id="btnSubmitMarketBuy" type="button">Confirm &amp; buy</button>
       <p id="marketBuyMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>`;
     const path = `/markets/${encodeURIComponent(marketId)}/order`;
-    const envelope = await marketOrderEnvelopeMessage(path, body, state.address);
-    $("marketBuyMsgOut").value = envelope.message;
-    $("marketBuyCliCmd").textContent = `python -m netcoin signmessage --wallet your-wallet.json --message "${envelope.message.replace(/"/g, '\\"')}"`;
-    $("btnCopyMarketBuyMsg").onclick = () => navigator.clipboard.writeText(envelope.message).catch(() => {});
-    $("btnCopyMarketBuyCli").onclick = () => navigator.clipboard.writeText($("marketBuyCliCmd").textContent).catch(() => {});
     $("btnSubmitMarketBuy").onclick = async () => {
-      const sig = ($("marketBuySigInput").value || "").trim();
-      if (!sig) { $("marketBuyMsg").className = "err"; $("marketBuyMsg").textContent = "Paste a signature first."; return; }
-      $("marketBuyMsg").textContent = "Submitting…";
+      $("btnSubmitMarketBuy").disabled = true;
+      $("marketBuyMsg").className = "muted";
+      $("marketBuyMsg").textContent = "Signing and submitting…";
       try {
+        const envelope = await marketOrderEnvelopeMessage(path, body, state.address);
+        const signature = W.signMessage(state.privHex, envelope.message);
         const result = await api(path, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...body, signed_envelope: { address: state.address, method: "POST", path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature: sig } }),
+          body: JSON.stringify({ ...body, signed_envelope: { address: state.address, method: "POST", path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature } }),
         });
         $("marketBuyMsg").className = "ok";
         $("marketBuyMsg").textContent = `Order placed. Trades: ${(result.trades || []).length}.`;
-      } catch (e) { $("marketBuyMsg").className = "err"; $("marketBuyMsg").textContent = "Failed: " + e.message; }
+      } catch (e) {
+        $("marketBuyMsg").className = "err";
+        $("marketBuyMsg").textContent = "Failed: " + e.message;
+        $("btnSubmitMarketBuy").disabled = false;
+      }
     };
   }
   const enc = new TextEncoder();

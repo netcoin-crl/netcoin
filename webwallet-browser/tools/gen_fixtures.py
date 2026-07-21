@@ -38,6 +38,10 @@ SEED_PHRASE = "net000 net001 net002 net003 net004 net005 net006 net007 net008 ne
 seed_priv = private_key_from_seed_phrase(SEED_PHRASE, 0)
 seed_pub = crypto.private_key_to_public_key(seed_priv, compressed=True)
 
+# Signed-envelope message fixture (crosschecks JS signMessage against Python).
+MESSAGE_TEXT = "NetCoin signed request\nnetcoin-signed-envelope-v1\n" + p2wpkh + "\nPOST\n/markets/m1/order\n" + ("ab" * 32) + "\n1700000000\nfixed-nonce"
+message_signature = crypto.sign_message(priv, MESSAGE_TEXT)
+
 print(json.dumps({
     "priv_hex": f"{priv:064x}",
     "taproot_address": taproot_addr,
@@ -56,5 +60,9 @@ print(json.dumps({
         "index": 0,
         "priv_hex": f"{seed_priv:064x}",
         "p2wpkh_address": crypto.public_key_to_p2wpkh_address(seed_pub),
+    },
+    "message": {
+        "text": MESSAGE_TEXT,
+        "signature_b64": message_signature,
     },
 }, indent=2))

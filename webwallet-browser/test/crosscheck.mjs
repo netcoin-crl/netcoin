@@ -9,8 +9,9 @@ import { schnorr } from "@noble/curves/secp256k1";
 import {
   privToPub, p2wpkhAddress, p2wpkhScriptPubkey, sighashAll, signP2wpkhInput,
   xonlyFromPriv, p2trAddress, p2trScriptPubkey, signP2trInput,
-  legacyAddress, p2shSegwitAddress,
+  legacyAddress, p2shSegwitAddress, signMessage,
 } from "../src/netcoin.mjs";
+import { privateKeyFromSeedPhrase, walletFromPrivateKey, verifySeedPhrase, addressToScriptPubkey, buildSignedPayment } from "../src/wallet.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fx = JSON.parse(readFileSync(join(here, "fixtures.json"), "utf8"));
@@ -56,7 +57,6 @@ const pyValid = secp256k1.verify(hexToBytes(pySig), hexToBytes(digestHex), hexTo
 check("Python signature verifies against JS digest", pyValid, true);
 
 // 5. seed-phrase derivation must match the Python wallet (mnemonic portability)
-import { privateKeyFromSeedPhrase, walletFromPrivateKey, verifySeedPhrase, addressToScriptPubkey, buildSignedPayment } from "../src/wallet.mjs";
 const seedPriv = privateKeyFromSeedPhrase(fx.seed.phrase, fx.seed.index);
 check("seed phrase -> private key", seedPriv, fx.seed.priv_hex);
 check("seed phrase -> p2wpkh address", walletFromPrivateKey(seedPriv).address, fx.seed.p2wpkh_address);
@@ -81,8 +81,9 @@ try {
 }
 check("zero-fee payment is rejected", zeroFeeRejected, true);
 
-console.log(fails === 0 ? "\nALL CHECKS PASSED ✅" : `\n${fails} CHECK(S) FAILED ❌`);
-process.exit(fails === 0 ? 0 : 1);
+// 5b. signMessage must produce the exact Python signature (same digest, same
+// low-S/RFC6979 signature, same recovery-bit header byte).
+check("signMessage matches Python", signMessage(fx.priv_hex, fx.message.text), fx.message.signature_b64);
 
 // 5. Taproot key-path: address, scriptPubkey, digest, and a verifying BIP340 sig
 check("taproot xonly", xonlyFromPriv(fx.priv_hex), fx.taproot_xonly_hex);
@@ -97,3 +98,6 @@ check("taproot BIP340 sig verifies", String(schnorr.verify(hexToBytes(trSigHex),
 // 6. Legacy + nested-segwit address derivation matches Python base58check
 check("legacy address", legacyAddress(fx.pubkey_hex), fx.legacy_address);
 check("p2sh-segwit address", p2shSegwitAddress(fx.pubkey_hex), fx.p2sh_segwit_address);
+
+console.log(fails === 0 ? "\nALL CHECKS PASSED ✅" : `\n${fails} CHECK(S) FAILED ❌`);
+process.exit(fails === 0 ? 0 : 1);

@@ -8,7 +8,7 @@
 import { secp256k1, schnorr } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
-import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
+import { bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from "@noble/hashes/utils";
 import { bech32, bech32m, createBase58check } from "@scure/base";
 
 export const HRP = "net";
@@ -172,4 +172,32 @@ export function signP2trInput(tx, inputIndex, privHex, prevout) {
   const digest = sighashAll(tx, inputIndex, prevout);
   const sig = schnorr.sign(digest, hexToBytes(privHex), new Uint8Array(32));
   return [bytesToHex(sig)];
+}
+
+// ---- Signed messages (Bitcoin-style signmessage/verifymessage) ----
+// Mirrors netcoin/crypto.py message_digest/sign_message byte-for-byte:
+// double_sha256("\x18NetCoin Signed Message:\n" + varint(len(utf8)) + utf8),
+// low-S ECDSA (RFC6979 k, noble's default), header byte = 27 + recovery + 4
+// (always the "compressed" offset — this protocol never emits legacy 27-30).
+const MESSAGE_MAGIC = utf8ToBytes("\x18NetCoin Signed Message:\n");
+
+function messageVarint(n) {
+  if (n < 0xfd) return Uint8Array.of(n);
+  if (n <= 0xffff) return Uint8Array.of(0xfd, n & 0xff, (n >> 8) & 0xff);
+  throw new Error("message too long");
+}
+
+export function messageDigest(message) {
+  const body = utf8ToBytes(message);
+  return doubleSha256(concatBytes(MESSAGE_MAGIC, messageVarint(body.length), body));
+}
+
+export function signMessage(privHex, message) {
+  const digest = messageDigest(message);
+  const sig = secp256k1.sign(digest, hexToBytes(privHex)); // low-S + RFC6979, like Python
+  if (sig.recovery == null) throw new Error("signature missing recovery bit");
+  const out = new Uint8Array(65);
+  out[0] = 27 + sig.recovery + 4;
+  out.set(sig.toCompactRawBytes(), 1);
+  return btoa(String.fromCharCode(...out));
 }
