@@ -2,24 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="refresh" content="0; url=https://governance.netcoin.online#treasury" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NetCoin Treasury moved to Governance</title>
-  <link rel="canonical" href="https://governance.netcoin.online#treasury" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'" />
-  <link rel="stylesheet" href="site-shell.css?v=20260719-fullwidth-shell" />
+  <title>NetCoin Treasury</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'" />
+  <link rel="stylesheet" href="site-shell.css?v=20260721-structured-ui" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand"><div class="logo">N</div><div>NetCoin Treasury<small>moved to Governance</small></div></div>
+      <div class="brand"><div class="logo">N</div><div>NetCoin Treasury<small>public spending and signing status</small></div></div>
       <nav class="site-nav" aria-label="NetCoin ecosystem"></nav>
     </header>
-    <main class="card" style="max-width:640px;margin:80px auto;padding:24px;text-align:center">
-      <h1>Treasury moved to Governance</h1>
-      <p class="muted">Treasury transparency, spending plans, and grants now live with proposals and votes at <a href="https://governance.netcoin.online#treasury">governance.netcoin.online#treasury</a>.</p>
+    <main id="main-content">
+      <section class="hero dashboard-hero">
+        <div class="card lead"><span class="pill">Transparency</span><h1>Treasury activity, without the data dump.</h1><p>Review public addresses, spending proposals, and wallet-signing readiness in one place.</p></div>
+        <div class="card"><h2>Status</h2><p id="treasuryStatus" class="muted" role="status">Loading treasury records...</p><button id="refreshTreasury" type="button">Refresh</button></div>
+      </section>
+      <section class="grid dashboard-grid" aria-label="Treasury summary">
+        <article class="card"><span class="muted">Proposals</span><h2 id="proposalCount">-</h2></article>
+        <article class="card"><span class="muted">Pending approval</span><h2 id="pendingCount">-</h2></article>
+        <article class="card"><span class="muted">Ready for signing</span><h2 id="readyCount">-</h2></article>
+      </section>
+      <section class="grid">
+        <article class="card"><h2>Treasury addresses</h2><div id="treasuryAddresses"><p class="muted">Loading...</p></div></article>
+        <article class="card"><h2>Signing policy</h2><div id="treasuryPolicy"><p class="muted">Loading...</p></div></article>
+      </section>
+      <section><div class="section-head"><div><h2>Spending proposals</h2><p class="muted">Approval and signing state for every recorded proposal.</p></div><a class="pill" href="https://governance.netcoin.online">Open Governance</a></div><div id="treasuryProposals" class="grid"><p class="muted">Loading...</p></div></section>
     </main>
+    <p class="footer">Treasury controls remain wallet-signed. This public page does not hold signing keys.</p>
   </div>
-  <script src="site-shell.js?v=20260720-username-search"></script>
+  <script src="treasury.js?v=20260721-structured-ui"></script>
+  <script src="site-shell.js?v=20260721-structured-ui"></script>
 </body>
 </html>

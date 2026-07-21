@@ -33,6 +33,10 @@ AVAILABILITY_KEYS = (
     "production_ready",
     "badge",
     "availability_notes",
+    "audience",
+    "access_mode",
+    "ui_entrypoint",
+    "workflow",
 )
 
 DEFAULT_AVAILABILITY: dict[str, Any] = {
@@ -91,6 +95,39 @@ _SURFACE_OVERRIDES: dict[tuple[str, str], dict[str, Any]] = {
     ("Developer API", "Unsigned transaction builder / reward simulation"): {"ui": "Simulation available", "api": "Available", "test_coverage": "developer console regressions", "badge": "Available"},
     ("Developer API", "Developer dashboard/console"): {"ui": "Available", "api": "Available", "test_coverage": "developer console regressions", "badge": "Available"},
     ("Developer API", "SDK packages advertisement"): {"ui": "Available", "api": "Available", "cli": "Install-from-git only", "badge": "Not published", "availability_notes": "JS SDK can be installed from git; npm/PyPI publication is not complete."},
+}
+
+_EXPOSURE_DEFAULTS: dict[str, dict[str, str]] = {
+    "Core chain": {"audience": "Node operator", "access_mode": "CLI", "workflow": "Run and verify this capability from a node or localnet."},
+    "Crypto": {"audience": "Developer", "access_mode": "Library/CLI", "workflow": "Use the documented crypto library or command-line workflow."},
+    "Storage": {"audience": "Node operator", "access_mode": "CLI", "workflow": "Use the operator maintenance workflow; this is not a browser action."},
+    "Wallet": {"audience": "Wallet user", "access_mode": "Site", "ui_entrypoint": "https://wallet.netcoin.online", "workflow": "Open Wallet and use its visible account, send, receive, or advanced-tools workflow."},
+    "Node/API": {"audience": "Developer or node operator", "access_mode": "API/CLI", "workflow": "Use the API documentation or node command-line workflow."},
+    "Security": {"audience": "Developer or operator", "access_mode": "API/CLI", "workflow": "Use the documented security, release, or operator workflow."},
+    "Sites": {"audience": "Site user", "access_mode": "Site", "ui_entrypoint": "https://netcoin.online", "workflow": "Open the linked NetCoin site and complete the visible workflow."},
+    "Architecture": {"audience": "Developer or operator", "access_mode": "Site", "ui_entrypoint": "https://architecture.netcoin.online", "workflow": "Open Architecture to inspect the current implementation plan and evidence."},
+    "Markets": {"audience": "Market participant", "access_mode": "Site", "ui_entrypoint": "https://markets.netcoin.online", "workflow": "Open Markets to create, inspect, trade, or settle a testnet market."},
+    "Mining": {"audience": "Miner or node operator", "access_mode": "CLI/API", "workflow": "Run the mining or pool workflow from a node; no public browser control is claimed."},
+    "Exchange": {"audience": "Exchange operator", "access_mode": "Site status/API", "ui_entrypoint": "https://exchange.netcoin.online", "workflow": "Open Exchange for testnet status and operator-facing readiness information."},
+    "Faucet": {"audience": "Testnet user", "access_mode": "Site", "ui_entrypoint": "https://faucet.netcoin.online", "workflow": "Open Faucet, enter a testnet address, and request test NET."},
+    "Developer API": {"audience": "Developer", "access_mode": "Site/API", "ui_entrypoint": "https://developers.netcoin.online/console.html", "workflow": "Open Developer Console to manage testnet keys, payment links, webhooks, and simulations."},
+}
+
+_EXPOSURE_OVERRIDES: dict[tuple[str, str], dict[str, str]] = {
+    ("Crypto", "Multisig and timelocks"): {"access_mode": "Site (advanced)", "ui_entrypoint": "https://wallet.netcoin.online", "workflow": "Open Wallet advanced tools to create or review a multisig or timelock workflow."},
+    ("Storage", "Explorer watchlists"): {"access_mode": "Site", "ui_entrypoint": "https://explorer.netcoin.online", "workflow": "Open Explorer and add an address to the visible watchlist workflow."},
+    ("Security", "API keys / RBAC"): {"access_mode": "Site/API", "ui_entrypoint": "https://developers.netcoin.online/console.html", "workflow": "Open Developer Console to create, review, or revoke scoped testnet API keys."},
+    ("Sites", "Explorer UI"): {"ui_entrypoint": "https://explorer.netcoin.online", "workflow": "Open Explorer and search an address, transaction, block, or mempool entry."},
+    ("Sites", "Operator dashboard"): {"audience": "Operator", "ui_entrypoint": "https://operator.netcoin.online", "workflow": "Open Operator to review health, diagnostics, chainstate, and runbooks."},
+    ("Sites", "Exchange dashboard"): {"audience": "Exchange operator", "ui_entrypoint": "https://exchange.netcoin.online"},
+    ("Sites", "Wallet UI"): {"ui_entrypoint": "https://wallet.netcoin.online"},
+    ("Sites", "Docs/Learn"): {"ui_entrypoint": "https://docs.netcoin.online", "workflow": "Open Docs or Learn to follow a guided setup or reference workflow."},
+    ("Sites", "Feature discoverability"): {"ui_entrypoint": "https://features.netcoin.online", "workflow": "Open Features and filter by category, access surface, or readiness."},
+    ("Sites", "Community posts"): {"ui_entrypoint": "https://community.netcoin.online", "workflow": "Open Community to read or create a testnet community post."},
+    ("Wallet", "Hardware signer"): {"access_mode": "Experimental adapter/CLI", "ui_entrypoint": ""},
+    ("Wallet", "Coin control"): {"access_mode": "Site (advanced)", "workflow": "Open Wallet advanced tools and select spendable UTXOs before review."},
+    ("Node/API", "Localnet harness + chaos drill"): {"access_mode": "Docs/CLI", "ui_entrypoint": "https://docs.netcoin.online/localnet.html", "workflow": "Open the Localnet guide, then run the documented local command."},
+    ("Security", "Professional readiness/audit"): {"access_mode": "Status/CLI", "ui_entrypoint": "https://security.netcoin.online", "workflow": "Open Security for readiness status; run audit tooling from an operator terminal."},
 }
 
 _FORBIDDEN_READY_WORDS = ("production-ready", "mainnet-ready", "fully production")
@@ -848,10 +885,38 @@ def _availability_for(feature: FeatureRating) -> dict[str, Any]:
     return surface
 
 
+def _exposure_for(feature: FeatureRating, availability: dict[str, Any]) -> dict[str, str]:
+    exposure = dict(_EXPOSURE_DEFAULTS[feature.category])
+    exposure.update(_EXPOSURE_OVERRIDES.get((feature.category, feature.name), {}))
+    exposure.setdefault("ui_entrypoint", "")
+    if str(availability.get("ui", "")).lower() == "not exposed":
+        exposure["ui_entrypoint"] = ""
+    return exposure
+
+
 def _public_feature(feature: FeatureRating) -> dict[str, Any]:
     data = asdict(feature)
-    data.update(_availability_for(feature))
+    availability = _availability_for(feature)
+    data.update(availability)
+    data.update(_exposure_for(feature, availability))
     return data
+
+
+def feature_exposure_issues(features: list[dict[str, Any]] | None = None) -> list[str]:
+    """Return catalog gaps that would make a public feature hard to route or audit."""
+    issues: list[str] = []
+    for feature in features or all_features():
+        label = f"{feature['category']}: {feature['name']}"
+        for key in ("audience", "access_mode", "workflow"):
+            if not str(feature.get(key, "")).strip():
+                issues.append(f"{label} is missing {key}")
+        ui = str(feature.get("ui", "")).lower()
+        entrypoint = str(feature.get("ui_entrypoint", "")).strip()
+        if ui == "available" and not entrypoint:
+            issues.append(f"{label} claims UI Available without a UI entrypoint")
+        if ui == "not exposed" and entrypoint:
+            issues.append(f"{label} is Not exposed but has a UI entrypoint")
+    return issues
 
 
 def all_features() -> list[dict[str, Any]]:
@@ -899,6 +964,12 @@ def feature_catalog() -> dict[str, Any]:
             "api": "Available, Partial, Read-only status, Internal, or Not exposed",
             "cli": "Available, Partial, Internal, or Not exposed",
             "production_ready": "Always false until external audit, public soak, independent operators, and production ops evidence exist.",
+        },
+        "exposure_scale": {
+            "audience": "Who should use the feature.",
+            "access_mode": "The supported route: site, API, CLI, or intentionally internal.",
+            "ui_entrypoint": "A direct site URL only when a browser workflow is actually exposed.",
+            "workflow": "The concrete first action a user should take.",
         },
         "disclaimer": "NetCoin is educational public-testnet software. Testnet NET has no real-money value, and catalog ratings are not production readiness claims.",
         "summary": rating_summary(),

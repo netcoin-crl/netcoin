@@ -73,6 +73,13 @@ def test_wallet_app_sri_matches_site_html():
     assert match.group(1) == actual
 
 
+def test_wallet_accepts_market_signing_requests_only_from_markets():
+    js = _read(SITE_WALLET / "wallet-app.js")
+    assert 'event.origin !== "https://markets.netcoin.online"' in js
+    assert 'type !== "netcoin.signMarketOrder"' in js
+    assert 'type: "netcoin.marketOrderSignature"' in js
+
+
 def test_wallet_api_helper_never_surfaces_a_raw_non_json_response_body():
     """Regression: a 502/504 from nginx returns a full raw HTML error page as
     the response body. The shared api() helper must never hand that page to

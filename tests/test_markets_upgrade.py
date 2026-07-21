@@ -62,6 +62,25 @@ def test_markets_have_order_ids_cancellation_wallets_and_stats(tmp_path: Path):
     assert canceled["orderbook"][yes]["sells"] == []
 
 
+def test_unused_market_can_be_deleted_but_active_market_cannot(tmp_path: Path):
+    store = AppStore(tmp_path)
+    unused = store.create_prediction_market({"question": "Delete me", "outcomes": ["YES", "NO"]})
+    assert store.delete_prediction_market(unused["market_id"])["deleted"] is True
+    try:
+        store.prediction_market(unused["market_id"])
+        assert False, "expected deleted market to be absent"
+    except AppError as exc:
+        assert "not found" in str(exc)
+
+    active = store.create_prediction_market({"question": "Keep me", "outcomes": ["YES", "NO"]})
+    store.place_market_order(active["market_id"], {"trader": "demo:alice", "demo_wallet": True, "outcome_id": "out1", "quantity": 1, "price_bps": 5000})
+    try:
+        store.delete_prediction_market(active["market_id"])
+        assert False, "expected active market deletion to be rejected"
+    except AppError as exc:
+        assert "without orders" in str(exc)
+
+
 def test_markets_can_block_unbacked_sells_when_short_mode_disabled(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     trader = Wallet.create()

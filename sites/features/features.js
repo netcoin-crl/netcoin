@@ -14,10 +14,12 @@ function statusClass(value){
 }
 function surfaceBadge(label, value){ return `<span class="surface-badge ${statusClass(value)}"><b>${esc(label)}</b>${esc(value || 'Not exposed')}</span>`; }
 function featureCard(f){
+  const workflow = f.ui_entrypoint ? `<a class="feature-workflow" href="${esc(f.ui_entrypoint)}">Open workflow</a>` : `<span class="feature-workflow unavailable">No browser workflow</span>`;
   return `<article class="feature-card" data-badge="${esc(f.badge)}"><header><h3>${esc(f.name)}</h3><span class="rating-pill ${ratingClass(f.rating)}">${esc(f.rating)}/10</span></header>` +
     `<div class="availability-row"><span class="availability-chip ${statusClass(f.availability)}">${esc(f.badge || f.availability || 'Testnet only')}</span><span class="prod-chip">Production-ready: ${f.production_ready ? 'yes' : 'no'}</span></div>` +
     `<p>${esc(f.summary)}</p>` +
     `<div class="surface-grid">${surfaceBadge('UI', f.ui)}${surfaceBadge('API', f.api)}${surfaceBadge('CLI', f.cli)}${surfaceBadge('Tests', f.test_coverage)}</div>` +
+    `<div class="feature-exposure"><b>${esc(f.audience || 'Unspecified audience')}</b><span>${esc(f.access_mode || 'Unspecified access')}</span><p>${esc(f.workflow || 'No workflow recorded.')}</p>${workflow}</div>` +
     `<small><b>${esc(f.status)}</b>${f.next_fix ? ' · Next: ' + esc(f.next_fix) : ''}</small>` +
     (f.availability_notes && f.availability_notes !== GENERIC_AVAILABILITY_NOTE ? `<small class="availability-note">${esc(f.availability_notes)}</small>` : '') +
     `</article>`;
@@ -37,7 +39,7 @@ function render(){
     return value.includes('available') || value.includes('guide/status') || value.includes('simulation available');
   }
   out.innerHTML = Object.keys(groups).filter(name => !cat || name === cat).map(name => {
-    const items = (groups[name] || []).filter(f => Number(f.rating) >= min && matchesSurface(f) && (!q || (f.name + ' ' + f.summary + ' ' + f.next_fix + ' ' + f.category + ' ' + f.badge + ' ' + f.ui + ' ' + f.api + ' ' + f.cli + ' ' + f.test_coverage).toLowerCase().includes(q)));
+    const items = (groups[name] || []).filter(f => Number(f.rating) >= min && matchesSurface(f) && (!q || (f.name + ' ' + f.summary + ' ' + f.next_fix + ' ' + f.category + ' ' + f.badge + ' ' + f.ui + ' ' + f.api + ' ' + f.cli + ' ' + f.test_coverage + ' ' + f.audience + ' ' + f.access_mode + ' ' + f.workflow).toLowerCase().includes(q)));
     if(!items.length) return '';
     return `<section class="feature-section"><h2>${esc(name)}</h2><div class="feature-grid">${items.map(featureCard).join('')}</div></section>`;
   }).join('') || '<div class="card">No matching features.</div>';

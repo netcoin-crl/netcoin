@@ -8,7 +8,7 @@
        relay is same-origin, so connect-src 'self' suffices. SRI is added to the
        <script> tags at build time. -->
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'" />
+    content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors https://markets.netcoin.online; base-uri 'none'; form-action 'none'" />
   <style>
     :root { color-scheme: dark; --bg:#0b0e14; --card:#151a23; --fg:#e6e9ef; --mut:#9aa4b2; --acc:#3ddc97; --err:#ff6b6b; --bd:#222a36; }
     * { box-sizing: border-box; }
@@ -499,7 +499,7 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260720-signmessage"></script>
   <script src="wallet-vault.js?v=20260708-vault"></script>
-  <script src="wallet-app.js?v=20260720-auto-buy-sign"></script>
+  <script src="wallet-app.js?v=20260721-market-buy"></script>
 <script src="site-shell.js?v=20260630-reward-schedule"></script>
 </body>
 </html>

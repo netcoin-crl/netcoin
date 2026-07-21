@@ -29,6 +29,18 @@ def test_markets_create_falls_back_to_local_browser_draft() -> None:
     assert "function renderResolutionQueue" in js
 
 
+def test_markets_buy_stays_on_markets_and_requires_a_published_market() -> None:
+    js = read("sites/markets/markets.js")
+    html = read("sites/markets/index.html")
+    assert "function requestMarketOrderSignature" in js
+    assert "netcoin.signMarketOrder" in js
+    assert "local_only" in js
+    assert "https://wallet.netcoin.online/?" not in js
+    assert "frame-src https://wallet.netcoin.online" in html
+    assert 'id="deleteMarket"' in js
+    assert "function deleteMarket" in js
+
+
 def test_site_profile_controls_are_hidden_from_public_shell() -> None:
     shell = read("sites/shared/site-shell.js")
     css = read("sites/shared/site-shell.css")

@@ -8,7 +8,7 @@
        relay is same-origin, so connect-src 'self' suffices. SRI is added to the
        <script> tags at build time. -->
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'" />
+    content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors https://markets.netcoin.online; base-uri 'none'; form-action 'none'" />
   <style>
     :root { color-scheme: dark; --bg:#0b0e14; --card:#151a23; --fg:#e6e9ef; --mut:#9aa4b2; --acc:#3ddc97; --err:#ff6b6b; --bd:#222a36; }
     * { box-sizing: border-box; }
@@ -169,7 +169,7 @@ body{letter-spacing:-.01em}
 
 </style>
   <link rel="stylesheet" href="ui-polish.css?v=20260719-fullwidth" />
-    <link rel="stylesheet" href="site-shell.css?v=20260719-fullwidth-shell" />
+    <link rel="stylesheet" href="site-shell.css?v=20260721-structured-ui" />
 
 
   <style>
@@ -652,8 +652,8 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260720-signmessage" integrity="sha384-X66CYLkOnrHAkDZDVn9RLcaJzd3aCoXf8GAEInzhHZq7dp+XRdHWqejj2uFzxNBc" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260720-auto-buy-sign" integrity="sha384-H6vlx8eNb829YtU/W5BH7WZOsusbKaM7mFsX9EsLZVxxkCDSPDOpBniFsq5CMSxp" crossorigin="anonymous"></script>
-<script src="site-shell.js?v=20260720-username-search"></script>
+  <script src="wallet-app.js?v=20260721-market-buy" integrity="sha384-suj0dEv9dKBuA1sjZiuo08GsQ2JLO1hT10MLSequH/tEGlKZQoyArP4Do5Mg9OrL" crossorigin="anonymous"></script>
+<script src="site-shell.js?v=20260721-structured-ui"></script>
 
 <style id="wallet-mobile-hardening">
   .send-recipient-row,.send-amount-row,.send-quick-row,.compact-row{min-width:0}

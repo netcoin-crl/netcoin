@@ -947,6 +947,21 @@ def list_prediction_markets_impl(store: Any) -> dict[str, Any]:
     return {"markets": markets, "totals": totals, "warning": PREDICTION_MARKET_WARNING}
 
 
+def delete_prediction_market_impl(store: Any, market_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Delete an unused demo market without erasing market activity or balances."""
+    data = store.load()
+    market = data.get("prediction_markets", {}).get(market_id)
+    if not market:
+        raise AppError("prediction market not found")
+    if market.get("orders") or market.get("trades") or market.get("positions") or market.get("wallets"):
+        raise AppError("only markets without orders, trades, or positions can be deleted")
+    data["prediction_markets"].pop(market_id, None)
+    data.get("contracts", {}).pop(market_id, None)
+    store._record_contract_event(data, "market.deleted", {"market_id": market_id, "actor": str((payload or {}).get("trader_address") or "wallet")})
+    store.save(data)
+    return {"deleted": True, "market_id": market_id}
+
+
 def _find_order(market: dict[str, Any], order_id: str) -> dict[str, Any] | None:
     for order in market.get("orders", []):
         if order.get("order_id") == order_id:

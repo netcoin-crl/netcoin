@@ -124,6 +124,26 @@
     const message = ["NetCoin signed request", "netcoin-signed-envelope-v1", address, "POST", path, bodyHash, String(timestamp), nonce].join("\n");
     return { message, bodyHash, timestamp, nonce };
   }
+  window.addEventListener("message", async (event) => {
+    if (event.origin !== "https://markets.netcoin.online") return;
+    const request = event.data || {};
+    if (request.type !== "netcoin.signMarketOrder" || typeof request.requestId !== "string") return;
+    const reply = (payload) => event.source.postMessage({ type: "netcoin.marketOrderSignature", requestId: request.requestId, ...payload }, event.origin);
+    try {
+      if (!state) resumeUnlockedSession();
+      if (!state) throw new Error("Unlock Wallet in another tab before buying.");
+      const path = String(request.path || "");
+      if (!/^\/markets\/[^/]+\/(order|delete)$/.test(path)) throw new Error("Invalid market request.");
+      const requestedBody = request.body && typeof request.body === "object" ? request.body : null;
+      if (!requestedBody) throw new Error("Invalid market order payload.");
+      const body = { ...requestedBody, trader_address: state.address };
+      const envelope = await marketOrderEnvelopeMessage(path, body, state.address);
+      const signature = W.signMessage(state.privHex, envelope.message);
+      reply({ address: state.address, envelope: { address: state.address, method: "POST", path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature } });
+    } catch (error) {
+      reply({ error: error.message || "Wallet could not sign this market order." });
+    }
+  });
   async function applyPendingMarketBuy(params) {
     ensureWalletTabShell();
     if (!state) resumeUnlockedSession();

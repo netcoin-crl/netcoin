@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from netcoin.feature_catalog import feature_catalog
+from netcoin.feature_catalog import feature_catalog, feature_exposure_issues
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -26,6 +26,10 @@ def test_feature_catalog_exposes_phase6_availability_metadata():
         "production_ready",
         "badge",
         "availability_notes",
+        "audience",
+        "access_mode",
+        "ui_entrypoint",
+        "workflow",
     }
     features = list(_features())
     assert len(features) >= 80
@@ -33,6 +37,7 @@ def test_feature_catalog_exposes_phase6_availability_metadata():
         assert required.issubset(feature.keys()), feature["name"]
         assert feature["production_ready"] is False, feature["name"]
         assert feature["availability_notes"]
+    assert feature_exposure_issues(features) == []
 
 
 def test_phase6_known_available_surfaces_are_labeled_without_overclaiming():
@@ -61,6 +66,15 @@ def test_features_page_renders_availability_controls_and_disclaimer():
     assert "surfaceBadge('Tests'" in js
     assert "availability-disclaimer" in css
     assert "prod-chip" in css
+    assert "Open workflow" in js
+
+
+def test_available_features_have_an_auditable_entrypoint_or_are_explicitly_limited():
+    catalog = feature_catalog()
+    assert "exposure_scale" in catalog
+    for feature in _features():
+        if feature["ui"] == "Available":
+            assert feature["ui_entrypoint"], feature["name"]
 
 
 def test_public_shell_adds_testnet_readiness_banner_and_is_synced():

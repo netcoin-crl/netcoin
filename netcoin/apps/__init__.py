@@ -4020,6 +4020,11 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
 
         return list_prediction_markets_impl(self)
 
+    def delete_prediction_market(self, market_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        from .markets import delete_prediction_market_impl
+
+        return delete_prediction_market_impl(self, market_id, payload)
+
     def place_market_order(self, market_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         from .markets import place_market_order_impl
 
@@ -4351,37 +4356,6 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
                 result.append({"address": address, "error": str(exc)})
         return {"addresses": result, "total_sats": total, "total": sats_to_amount(total)}
 
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, bytes):
-        return value.hex()
-    if isinstance(value, dict):
-        return {str(k): _json_safe(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(v) for v in value]
-    return value
-
-
-def validate_address_payload(address: str) -> dict[str, Any]:  # noqa: RET503
-    valid = validate_address(address)
-    details: dict[str, Any] | None = None
-    error = None
-    if valid:
-        try:
-            details = _json_safe(decode_address(address))
-        except Exception as exc:  # pragma: no cover - validate_address already passed
-            error = str(exc)
-    return {
-        "address": address,
-        "valid": valid,
-        "network": "netcoin" if valid else None,
-        "details": details,
-        "error": error,
-    }
-
-    # -------- small routing helpers used by node.py and explorer_server.py --------
-
-    # ----- professional treasury governance -----
     def create_treasury_proposal(self, payload: dict[str, Any]) -> dict[str, Any]:
         proposal_id = str(payload.get("proposal_id") or clean_id("tpr"))[:80]
         title = str(payload.get("title") or "Treasury spend")[:120]
@@ -4452,6 +4426,33 @@ def validate_address_payload(address: str) -> dict[str, Any]:  # noqa: RET503
             "policy": data.get("payout_signing_policy", DEFAULT_APP_STATE["payout_signing_policy"]),
         }
 
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, bytes):
+        return value.hex()
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
+def validate_address_payload(address: str) -> dict[str, Any]:  # noqa: RET503
+    valid = validate_address(address)
+    details: dict[str, Any] | None = None
+    error = None
+    if valid:
+        try:
+            details = _json_safe(decode_address(address))
+        except Exception as exc:  # pragma: no cover - validate_address already passed
+            error = str(exc)
+    return {
+        "address": address,
+        "valid": valid,
+        "network": "netcoin" if valid else None,
+        "details": details,
+        "error": error,
+    }
 
 def route_app_get(
     store: AppStore, chain: Any, path: str, query: dict[str, list[str]], node: Any | None = None
@@ -5125,6 +5126,8 @@ def _route_app_post_uncached(
         return 200, store.close_poll(path.split("/")[2], body)
     if path == "/markets":
         return 200, store.create_prediction_market(body)
+    if path.startswith("/markets/") and path.endswith("/delete"):
+        return 200, store.delete_prediction_market(path.split("/")[2], body)
     if path.startswith("/markets/") and path.endswith("/order"):
         return 200, store.place_market_order(path.split("/")[2], body)
     if path.startswith("/markets/") and path.endswith("/batch-orders"):

@@ -269,11 +269,12 @@
         <div class="row"><span>Cost</span><b id="sumCost">—</b></div>
         <div class="row"><span>Payout if wins</span><b id="sumPayout">—</b></div>
       </div>
-      <button class="buy-btn ${noSide ? "no" : ""}" id="tradeBuy" ${resolved ? "disabled" : ""}>${resolved ? "Resolved" : `Buy ${binary ? (noSide ? "No" : "Yes") : "shares"} via Wallet`}</button>
+      <button class="buy-btn ${noSide ? "no" : ""}" id="tradeBuy" ${resolved ? "disabled" : ""}>${resolved ? "Resolved" : `Buy ${binary ? (noSide ? "No" : "Yes") : "shares"}`}</button>
+      <button class="secondary" id="deleteMarket" type="button">Delete market</button>
       <details class="trade-adv"><summary>Advanced</summary><div class="adv-body">
         <div class="trade-field"><label>Order type</label><select id="tradeType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC</option><option value="fok">FOK</option></select></div>
       </div></details>
-      <p class="muted" style="font-size:12px">Play-money. Opens your Wallet with this order filled in &mdash; your own address is used automatically, and Wallet signs and submits it.</p>`;
+      <p class="muted" style="font-size:12px">Play-money. Your Wallet authorizes the order and Markets submits it here.</p>`;
   }
   function updateTradeSummary() {
     const shares = Number(($("#tradeShares") || {}).value || 0);
@@ -324,6 +325,7 @@
     const to = $("#tradeOutcome"); if (to) to.addEventListener("change", () => { state.tradeOutcomeId = to.value; $("#tradePrice") ; $("#tradePanel").innerHTML = tradePanel(m); wireDetail(m); updateTradeSummary(); });
     ["tradeShares", "tradePrice"].forEach((id) => { const el = $("#" + id); if (el) el.addEventListener("input", updateTradeSummary); });
     const buy = $("#tradeBuy"); if (buy) buy.addEventListener("click", () => doTradeBuy(m));
+    const remove = $("#deleteMarket"); if (remove) remove.addEventListener("click", () => deleteMarket(m));
   }
   function orderPayloadFromForm() {
     const type = ($("#tradeType") || {}).value || "limit";
@@ -337,24 +339,76 @@
       price_bps: type === "market" ? undefined : Math.max(1, Math.min(9999, priceC * 100)),
     };
   }
-  // Signing a market order requires the trader's key, which never leaves the
-  // Wallet's own origin. Buy sends the order details to Wallet (which knows
-  // the real logged-in address) instead of trying to collect a signature here
-  // -- this is also what fixes "address is not a valid NetCoin address",
-  // since the address is always the wallet's own, never a placeholder.
-  function doTradeBuy(m) {
+  function requestMarketOrderSignature(path, body) {
+    return new Promise((resolve, reject) => {
+      const walletOrigin = "https://wallet.netcoin.online";
+      const requestId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      const frame = document.createElement("iframe");
+      frame.hidden = true;
+      frame.src = `${walletOrigin}/?market_signer=1`;
+      const timeout = window.setTimeout(() => finish(new Error("Wallet did not respond. Unlock Wallet, then try again.")), 8000);
+      function finish(error, result) {
+        window.clearTimeout(timeout);
+        window.removeEventListener("message", receive);
+        frame.remove();
+        if (error) reject(error); else resolve(result);
+      }
+      function receive(event) {
+        if (event.origin !== walletOrigin || event.source !== frame.contentWindow) return;
+        const response = event.data || {};
+        if (response.type !== "netcoin.marketOrderSignature" || response.requestId !== requestId) return;
+        if (response.error) finish(new Error(response.error)); else finish(null, response);
+      }
+      frame.addEventListener("load", () => frame.contentWindow.postMessage({ type: "netcoin.signMarketOrder", requestId, path, body }, walletOrigin), { once: true });
+      window.addEventListener("message", receive);
+      document.body.appendChild(frame);
+    });
+  }
+
+  async function doTradeBuy(m) {
     const body = orderPayloadFromForm();
     if (!(body.quantity > 0)) { alert("Enter a number of shares first."); return; }
-    const params = new URLSearchParams({
-      buy_market: m.market_id,
-      buy_outcome: body.outcome_id,
-      buy_side: body.side,
-      buy_qty: String(body.quantity),
-      buy_order_type: body.order_type,
-      buy_tif: body.time_in_force,
-    });
-    if (body.price_bps != null) params.set("buy_price_bps", String(body.price_bps));
-    location.href = "https://wallet.netcoin.online/?" + params.toString();
+    if (m.local_only || String(m.market_id).startsWith("local_")) {
+      alert("This is a browser-only market draft. Publish it to the NetCoin API before placing an order.");
+      return;
+    }
+    const button = $("tradeBuy");
+    if (button) button.disabled = true;
+    try {
+      const path = `/markets/${encodeURIComponent(m.market_id)}/order`;
+      const signed = await requestMarketOrderSignature(path, body);
+      const result = await post(path, { ...body, trader_address: signed.address, signed_envelope: signed.envelope });
+      log("Placed order", { trades: (result.trades || []).length });
+      await loadMarkets();
+    } catch (error) {
+      alert(`Order failed: ${error.message}`);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+  async function deleteMarket(m) {
+    if (!confirm(`Delete “${m.question}”? This cannot be undone.`)) return;
+    if (m.local_only || String(m.market_id).startsWith("local_")) {
+      saveLocalMarkets(localMarkets().filter((item) => item.market_id !== m.market_id));
+      state.markets = state.markets.filter((item) => item.market_id !== m.market_id);
+      state.selectedId = state.markets[0] ? state.markets[0].market_id : "";
+      backToGrid();
+      renderAll({ count: state.markets.length, open: state.markets.filter((item) => item.status === "open").length, resolved: 0, volume: "0" });
+      return;
+    }
+    const button = $("#deleteMarket");
+    if (button) button.disabled = true;
+    try {
+      const path = `/markets/${encodeURIComponent(m.market_id)}/delete`;
+      const signed = await requestMarketOrderSignature(path, {});
+      await post(path, { trader_address: signed.address, signed_envelope: signed.envelope });
+      state.selectedId = "";
+      backToGrid();
+      await loadMarkets();
+    } catch (error) {
+      alert(`Could not delete market: ${error.message}`);
+      if (button) button.disabled = false;
+    }
   }
   function openDetail(id) { state.selectedId = id; state.view = "detail"; state.tab = "orderbook"; state.tradeOutcomeId = ""; $("#gridView").classList.add("hidden"); $("#detailView").classList.remove("hidden"); renderDetail(); window.scrollTo(0, 0); }
   let autoOpenedFromUrl = false;

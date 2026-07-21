@@ -44,7 +44,7 @@
     { href: 'https://security.netcoin.online', host: 'security.netcoin.online', label: 'Security', detail: 'release safety', group: 'Network' },
 
     { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and votes', group: 'Ecosystem', adminOnly: true },
-    { href: 'https://governance.netcoin.online#treasury', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem', adminOnly: true },
+    { href: 'https://treasury.netcoin.online', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem', adminOnly: true },
     { href: 'https://community.netcoin.online', host: 'community.netcoin.online', label: 'Community', detail: 'posts and bounties', group: 'Ecosystem' },
     { href: 'https://learn.netcoin.online', host: 'learn.netcoin.online', label: 'Learn', detail: 'guides', group: 'Ecosystem' },
 
@@ -105,7 +105,7 @@
       title: 'Ecosystem',
       items: [
         ['Governance', 'https://governance.netcoin.online'],
-        ['Treasury', 'https://governance.netcoin.online#treasury'],
+        ['Treasury', 'https://treasury.netcoin.online'],
         ['NIPs', 'https://governance.netcoin.online'],
         ['Roadmap', 'https://governance.netcoin.online#roadmap'],
         ['Community', 'https://community.netcoin.online'],
@@ -173,7 +173,7 @@
     applyViewLevel();
     normalizeNav();
     const btn = q('#ncViewToggle');
-    if (btn) btn.textContent = viewLevel === 'admin' ? 'Admin view' : 'Simple view';
+    if (btn) btn.textContent = viewLevel === 'admin' ? 'Hide advanced' : 'Show advanced';
   }
   function buildViewToggle() {
     if (q('#ncViewToggle')) return;
@@ -181,8 +181,8 @@
     btn.id = 'ncViewToggle';
     btn.type = 'button';
     btn.className = 'nc-view-toggle';
-    btn.title = 'Switch between the simplified view and the full admin view';
-    btn.textContent = viewLevel === 'admin' ? 'Admin view' : 'Simple view';
+    btn.title = 'Show or hide advanced operator and governance tools';
+    btn.textContent = viewLevel === 'admin' ? 'Hide advanced' : 'Show advanced';
     btn.addEventListener('click', () => setViewLevel(viewLevel === 'admin' ? 'simple' : 'admin'));
     document.body.appendChild(btn);
   }
@@ -359,7 +359,8 @@
       [/availability|available now|feature status|test coverage/, 'https://features.netcoin.online'],
       [/api|developer|sdk|endpoint/, 'https://api.netcoin.online'],
       [/security|audit|checksum|release|verify|bug/, 'https://security.netcoin.online'],
-      [/governance|proposal|treasury|vote|nip/, 'https://governance.netcoin.online'],
+      [/treasury|grant|spending/, 'https://treasury.netcoin.online'],
+      [/governance|proposal|vote|nip/, 'https://governance.netcoin.online'],
       [/market|prediction|lab|phase 7|poll/, 'https://markets.netcoin.online'],
       [/mempool|pending tx|unconfirmed/, 'https://explorer.netcoin.online/mempool.html']
     ];
@@ -405,6 +406,74 @@
   buildGithubQuickstart();
   buildViewToggle();
   closeFloatingPanelsOnOutside();
+})();
+
+/* Turn machine-oriented JSON output into a compact readable view while
+   preserving the original payload behind an expandable disclosure. */
+(function () {
+  'use strict';
+  const MAX_ITEMS = 40;
+  const MAX_DEPTH = 4;
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const label = key => String(key).replace(/[_-]+/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+
+  function scalar(value) {
+    if (value === true || value === false) return '<span class="nc-data-chip ' + (value ? 'ok' : 'off') + '">' + (value ? 'Yes' : 'No') + '</span>';
+    if (value == null) return '<span class="nc-data-empty">Not set</span>';
+    const text = String(value);
+    return '<span class="nc-data-value' + (text.length > 32 ? ' mono' : '') + '">' + esc(text) + '</span>';
+  }
+
+  function render(value, depth) {
+    if (value == null || typeof value !== 'object') return scalar(value);
+    if (depth >= MAX_DEPTH) return '<span class="nc-data-empty">Nested data available in raw JSON</span>';
+    const entries = Array.isArray(value) ? value.map((item, index) => [String(index + 1), item]) : Object.entries(value);
+    if (!entries.length) return '<span class="nc-data-empty">No data</span>';
+    const visible = entries.slice(0, MAX_ITEMS);
+    const rows = visible.map(([key, item]) => {
+      const content = item != null && typeof item === 'object'
+        ? '<details class="nc-data-nested"><summary>' + (Array.isArray(item) ? item.length + ' items' : Object.keys(item).length + ' fields') + '</summary>' + render(item, depth + 1) + '</details>'
+        : scalar(item);
+      return '<div class="nc-data-row"><span class="nc-data-key">' + esc(Array.isArray(value) ? 'Item ' + key : label(key)) + '</span><div>' + content + '</div></div>';
+    }).join('');
+    const more = entries.length > MAX_ITEMS ? '<p class="nc-data-more">Showing ' + MAX_ITEMS + ' of ' + entries.length + ' items. The complete payload is in raw JSON.</p>' : '';
+    return '<div class="nc-data-grid">' + rows + '</div>' + more;
+  }
+
+  function enhance(pre) {
+    if (!pre || pre.dataset.ncJsonReady === 'true') return;
+    let value;
+    try { value = JSON.parse(pre.textContent.trim()); } catch (_) { return; }
+    if (value == null || typeof value !== 'object') return;
+    pre.dataset.ncJsonReady = 'true';
+    const view = document.createElement('div');
+    view.className = 'nc-data-view';
+    view.setAttribute('aria-label', 'Structured data');
+    view.innerHTML = render(value, 0);
+    const details = document.createElement('details');
+    details.className = 'nc-raw-json';
+    details.innerHTML = '<summary>Raw JSON</summary>';
+    pre.parentNode.insertBefore(view, pre);
+    pre.parentNode.insertBefore(details, pre);
+    details.appendChild(pre);
+    new MutationObserver(() => {
+      let next;
+      try { next = JSON.parse(pre.textContent.trim()); } catch (_) { return; }
+      if (next != null && typeof next === 'object') view.innerHTML = render(next, 0);
+    }).observe(pre, { childList: true, characterData: true, subtree: true });
+  }
+
+  function scan(root) {
+    if (root instanceof Element && root.matches('pre')) enhance(root);
+    (root.querySelectorAll ? root.querySelectorAll('pre') : []).forEach(enhance);
+  }
+  function start() {
+    scan(document);
+    new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => {
+      if (node.nodeType === 1) scan(node);
+    }))).observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 
 /* NetCoin API-key shim (NIP-0004): the hosted relay requires a free developer

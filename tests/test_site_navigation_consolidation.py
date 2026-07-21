@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from netcoin.apps import AppStore
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -13,7 +15,7 @@ def test_site_shell_groups_secondary_surfaces_under_clear_tabs():
     assert "title: 'Core', detail: 'main tools'" in shell
     assert "title: 'Ecosystem', detail: 'governance, community, and commerce'" in shell
     assert "label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem'" in shell
-    assert "https://governance.netcoin.online#treasury" in shell
+    assert "https://treasury.netcoin.online" in shell
     assert "title: 'Build', detail: 'docs and APIs'" in shell
     assert "label: 'API', detail: 'OpenAPI', group: 'Build'" in shell
     assert "label: 'Developers', detail: 'SDKs and client libraries', group: 'Build'" in shell
@@ -55,3 +57,28 @@ def test_homepage_presents_consolidated_navigation_buckets():
     assert "<h2>Ecosystem</h2>" in html
     assert "https://developers.netcoin.online/console.html" in html
     assert "https://docs.netcoin.online/localnet.html" in html
+
+
+def test_treasury_is_a_live_ui_instead_of_a_redirect():
+    html = read("sites/treasury/index.html")
+    js = read("sites/treasury/treasury.js")
+    assert 'http-equiv="refresh"' not in html
+    assert 'id="treasuryProposals"' in html
+    assert 'id="refreshTreasury"' in html
+    assert "/api/treasury/governance" in js
+    assert "treasury_addresses" in js
+    assert "ready_for_signing" in js
+    assert hasattr(AppStore, "treasury_governance")
+    assert hasattr(AppStore, "create_treasury_proposal")
+    assert hasattr(AppStore, "approve_treasury_proposal")
+
+
+def test_raw_json_has_a_readable_progressive_disclosure_view():
+    shell = read("sites/shared/site-shell.js")
+    css = read("sites/shared/site-shell.css")
+    assert "function enhance(pre)" in shell
+    assert "JSON.parse(pre.textContent.trim())" in shell
+    assert "Raw JSON" in shell
+    assert "MAX_ITEMS = 40" in shell
+    assert ".nc-data-view" in css
+    assert ".nc-raw-json" in css
