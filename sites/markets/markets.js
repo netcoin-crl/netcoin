@@ -256,6 +256,7 @@
     state.tradeOutcomeId = outcomeId;
     const priceC = bestAskCents(m, outcomeId) ?? 50;
     const resolved = m.status !== "open";
+    const localDraft = Boolean(m.local_only || String(m.market_id).startsWith("local_"));
     const sideRow = binary
       ? `<div class="side-toggle"><button type="button" data-side="yes" class="${state.tradeSide === "yes" ? "sel-yes" : ""}">Yes ${fmtCents(displayCents(m, (yesOutcome(m) || {}).outcome_id))}</button><button type="button" data-side="no" class="${state.tradeSide === "no" ? "sel-no" : ""}">No ${fmtCents(displayCents(m, (noOutcome(m) || {}).outcome_id))}</button></div>`
       : `<div class="trade-field"><label>Outcome</label><select id="tradeOutcome">${(m.outcomes || []).map((o) => `<option value="${esc(o.outcome_id)}"${o.outcome_id === outcomeId ? " selected" : ""}>${esc(o.label)} · ${fmtCents(displayCents(m, o.outcome_id))}</option>`).join("")}</select></div>`;
@@ -269,12 +270,12 @@
         <div class="row"><span>Cost</span><b id="sumCost">—</b></div>
         <div class="row"><span>Payout if wins</span><b id="sumPayout">—</b></div>
       </div>
-      <button class="buy-btn ${noSide ? "no" : ""}" id="tradeBuy" ${resolved ? "disabled" : ""}>${resolved ? "Resolved" : `Buy ${binary ? (noSide ? "No" : "Yes") : "shares"}`}</button>
+      <button class="buy-btn ${noSide ? "no" : ""}" id="tradeBuy" ${resolved ? "disabled" : ""}>${resolved ? "Resolved" : localDraft ? "Publish & buy" : `Buy ${binary ? (noSide ? "No" : "Yes") : "shares"}`}</button>
       <button class="secondary" id="deleteMarket" type="button">Delete market</button>
       <details class="trade-adv"><summary>Advanced</summary><div class="adv-body">
         <div class="trade-field"><label>Order type</label><select id="tradeType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC</option><option value="fok">FOK</option></select></div>
       </div></details>
-      <p class="muted" style="font-size:12px">Play-money. Your Wallet authorizes the order and Markets submits it here.</p>`;
+      <p id="tradeStatus" class="muted" role="status" style="font-size:12px">${localDraft ? "This draft will publish to the testnet before Wallet authorizes the order." : "Play-money. Your Wallet authorizes the order and Markets submits it here."}</p>`;
   }
   function updateTradeSummary() {
     const shares = Number(($("#tradeShares") || {}).value || 0);
@@ -367,12 +368,20 @@
 
   async function doTradeBuy(m) {
     const body = orderPayloadFromForm();
-    if (!(body.quantity > 0)) { alert("Enter a number of shares first."); return; }
+    let status = $("#tradeStatus");
+    if (!(body.quantity > 0)) { if (status) status.textContent = "Enter a number of shares first."; return; }
     if (m.local_only || String(m.market_id).startsWith("local_")) {
-      alert("This is a browser-only market draft. Publish it to the NetCoin API before placing an order.");
-      return;
+      try {
+        if (status) status.textContent = "Publishing this draft to the NetCoin testnet...";
+        m = await publishLocalMarket(m);
+        status = $("#tradeStatus");
+        if (status) status.textContent = "Published. Opening Wallet authorization...";
+      } catch (error) {
+        if (status) status.textContent = `Could not publish: ${error.message}`;
+        return;
+      }
     }
-    const button = $("tradeBuy");
+    const button = $("#tradeBuy");
     if (button) button.disabled = true;
     try {
       const path = `/markets/${encodeURIComponent(m.market_id)}/order`;
@@ -381,10 +390,31 @@
       log("Placed order", { trades: (result.trades || []).length });
       await loadMarkets();
     } catch (error) {
-      alert(`Order failed: ${error.message}`);
+      if (status) status.textContent = `Order failed: ${error.message}`;
     } finally {
       if (button) button.disabled = false;
     }
+  }
+  async function publishLocalMarket(m) {
+    const body = {
+      question: m.question,
+      outcomes: (m.outcomes || []).map((outcome) => outcome.label),
+      category: m.category,
+      tags: (m.tags || []).filter((tag) => tag !== "local" && tag !== "draft"),
+      close_time: m.close_time,
+      rules: m.rules,
+      resolution_source: m.resolution_source,
+      legal_acknowledged: true,
+      sandbox_short_mode: true,
+      mode: "testnet_demo",
+    };
+    const published = await post("/markets", body);
+    saveLocalMarkets(localMarkets().filter((item) => item.market_id !== m.market_id));
+    state.selectedId = published.market_id;
+    await loadMarkets();
+    const market = selectedMarket();
+    if (!market || market.local_only) throw new Error("The market was published but could not be reloaded.");
+    return market;
   }
   async function deleteMarket(m) {
     if (!confirm(`Delete “${m.question}”? This cannot be undone.`)) return;

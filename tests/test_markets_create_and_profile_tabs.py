@@ -23,6 +23,16 @@ def test_markets_create_falls_back_to_local_browser_draft() -> None:
     assert 'mode: "local_browser_draft"' in js
     assert "Saved local market draft" in js
     assert "API write unavailable · saved local draft" in js
+
+
+def test_local_market_buy_publishes_then_continues_in_place() -> None:
+    js = read("sites/markets/markets.js")
+    assert 'localDraft ? "Publish & buy"' in js
+    assert "async function publishLocalMarket(m)" in js
+    assert 'await publishLocalMarket(m)' in js
+    assert 'saveLocalMarkets(localMarkets().filter' in js
+    assert "browser-only market draft" not in js
+    assert 'alert("This is a browser-only' not in js
     assert '$("#newMarketButton")?.addEventListener("click", openCreateMarket)' in js
     assert "source_end_time" in js
     assert "auto_resolution: true" in js
