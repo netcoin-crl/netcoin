@@ -176,9 +176,10 @@ def _ensure_market_wallet(market: dict[str, Any], trader: str, payload: dict[str
     payload = payload or {}
     wallets = market.setdefault("wallets", {})
     if trader not in wallets:
-        initial = int(
-            payload.get("initial_balance_sats") or payload.get("demo_balance_sats") or DEFAULT_DEMO_BALANCE_SATS
-        )
+        # Demo-market balances are a fixed, server-side allocation. A caller
+        # once could supply initial_balance_sats/demo_balance_sats directly,
+        # letting any trader fabricate unlimited play-money collateral.
+        initial = DEFAULT_DEMO_BALANCE_SATS
         wallets[trader] = {
             "trader_id": trader,
             "balance_sats": initial,
@@ -798,6 +799,8 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
                     "pass allow_duplicate=true if this is intentional"
                 )
     market_id = str(payload.get("market_id") or clean_id("mkt"))
+    if market_id in store.load().get("prediction_markets", {}):
+        raise AppError(f"market_id {market_id} already exists")
     slug = _slug_text(str(payload.get("slug") or question), market_id)
     mode = str(payload.get("mode") or "testnet_demo")
     if mode not in {"testnet_demo", "play_money", "private_dev"}:
@@ -1359,36 +1362,45 @@ def _finalize_market_resolution(
     store: Any, data: dict[str, Any], m: dict[str, Any], market_id: str, winning: str, payload: dict[str, Any]
 ) -> None:
     pending = m.get("resolution_workflow", {}).get("pending_resolution") or {}
-    payout_per_share_sats = parse_amount_sats(
-        payload.get(
-            "payout_per_share_sats",
-            payload.get(
-                "payout_per_share",
-                sats_to_amount(int(m.get("unit_payout_sats", DEFAULT_UNIT_PAYOUT_SATS) or DEFAULT_UNIT_PAYOUT_SATS)),
-            ),
-        ),
-        "payout per share",
-    )
-    outputs = []
-    demo_payouts = []
+    # payout_per_share is fixed at market creation (unit_payout_sats), never
+    # caller-suppliable at resolution time -- otherwise whoever triggers
+    # resolution could mint an arbitrarily large payout for themselves.
+    payout_per_share_sats = int(m.get("unit_payout_sats", DEFAULT_UNIT_PAYOUT_SATS) or DEFAULT_UNIT_PAYOUT_SATS)
+    collateral_pool_sats = int(m.get("collateral_pool_sats", 0) or 0)
+    claims = []
+    total_claimed_sats = 0
     for address, positions in m.get("positions", {}).items():
         qty = int(positions.get(winning, 0) or 0)
         if qty > 0:
             payout_sats = qty * payout_per_share_sats
-            if validate_address(address):
-                outputs.append({"address": address, "amount_sats": payout_sats})
-            else:
-                wallet = _ensure_market_wallet(m, address)
-                wallet["balance_sats"] = int(wallet.get("balance_sats", 0)) + payout_sats
-                wallet["realized_pnl_sats"] = int(wallet.get("realized_pnl_sats", 0)) + payout_sats
-                demo_payouts.append(
-                    {
-                        "trader_id": address,
-                        "amount_sats": payout_sats,
-                        "amount": sats_to_amount(payout_sats),
-                        "quantity": qty,
-                    }
-                )
+            total_claimed_sats += payout_sats
+            claims.append((address, qty, payout_sats))
+    # Total payout can never exceed the market's own collateral pool -- a
+    # resolution that would overpay is scaled down pro rata across all
+    # winning positions instead of settling in full and going negative.
+    scale = 1.0
+    if total_claimed_sats > collateral_pool_sats > 0:
+        scale = collateral_pool_sats / total_claimed_sats
+    outputs = []
+    demo_payouts = []
+    for address, qty, raw_payout_sats in claims:
+        payout_sats = int(raw_payout_sats * scale) if scale < 1.0 else raw_payout_sats
+        if payout_sats <= 0:
+            continue
+        if validate_address(address):
+            outputs.append({"address": address, "amount_sats": payout_sats})
+        else:
+            wallet = _ensure_market_wallet(m, address)
+            wallet["balance_sats"] = int(wallet.get("balance_sats", 0)) + payout_sats
+            wallet["realized_pnl_sats"] = int(wallet.get("realized_pnl_sats", 0)) + payout_sats
+            demo_payouts.append(
+                {
+                    "trader_id": address,
+                    "amount_sats": payout_sats,
+                    "amount": sats_to_amount(payout_sats),
+                    "quantity": qty,
+                }
+            )
     # Release short collateral for losing outcomes back to demo wallets; winning shorts lose collateral.
     for trader, by_outcome in m.get("short_collateral", {}).items():
         for outcome_id, collateral_sats in by_outcome.items():
