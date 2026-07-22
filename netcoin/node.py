@@ -97,6 +97,25 @@ class RateLimiter:
     def allow(self, key: Any) -> bool:
         return self.check(key).allowed
 
+    def status_for(self, ip: str, identity: str) -> list[dict[str, Any]]:
+        """Read-only quota snapshot for one caller -- does not consume a token,
+        unlike check()/allow(), so a developer can poll their own usage without
+        it counting against the very quota they're inspecting."""
+        if self.max_requests <= 0:
+            return []
+        now = time.time()
+        capacity = float(self.max_requests)
+        refill_rate = self.refill_rate
+        out = []
+        with self._lock:
+            for (k_ip, k_identity, method, path), (tokens, updated_at) in self._buckets.items():
+                if k_ip != ip or k_identity != identity:
+                    continue
+                elapsed = max(0.0, now - updated_at)
+                remaining = min(capacity, tokens + elapsed * refill_rate)
+                out.append({"method": method, "path": path, "remaining": round(remaining, 2), "capacity": capacity})
+        return out
+
 
 def client_ip_from_headers(headers: Any, client_address: Any, *, trust_proxy_headers: bool = False) -> str:
     """Return the request client IP, optionally honoring trusted proxy headers.
@@ -1233,6 +1252,16 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                                 }
                                 for item in node._relay_queue
                             ],
+                        }
+                    )
+                elif parsed.path == "/rate-limit-status":
+                    ip = self.client_ip()
+                    identity = api_key_identity_from_headers(self.headers)
+                    self.send_json(
+                        {
+                            "max_requests_per_window": node.rate_limiter.max_requests,
+                            "window_seconds": node.rate_limiter.window_seconds,
+                            "endpoints": node.rate_limiter.status_for(ip, identity),
                         }
                     )
                 elif parsed.path == "/events":

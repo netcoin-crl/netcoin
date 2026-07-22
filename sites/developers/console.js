@@ -407,6 +407,23 @@ $('#submitTokenBtn').addEventListener('click', async () => {
   }
 });
 
+async function loadRateLimitStatus() {
+  const summary = $('#rateLimitSummary');
+  const tbody = $('#rateLimitTable tbody');
+  try {
+    const d = await api('/rate-limit-status');
+    summary.textContent = `${d.max_requests_per_window} requests / ${d.window_seconds}s window, per IP + API key.`;
+    const rows = d.endpoints || [];
+    tbody.innerHTML = rows.length
+      ? rows.map((r) => `<tr><td>${esc(r.method)}</td><td>${esc(r.path)}</td><td>${esc(r.remaining)} / ${esc(r.capacity)}</td></tr>`).join('')
+      : '<tr><td colspan="3" class="muted">No recent requests tracked yet.</td></tr>';
+  } catch (e) {
+    summary.textContent = 'Failed: ' + e.message;
+  }
+}
+$('#refreshRateLimitBtn')?.addEventListener('click', loadRateLimitStatus);
+loadRateLimitStatus();
+
 const params = new URLSearchParams(location.search);
 const initialDeveloperId = params.get('developer_id') || params.get('id') || '';
 if (initialDeveloperId) {

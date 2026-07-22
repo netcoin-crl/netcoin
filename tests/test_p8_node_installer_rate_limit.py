@@ -40,6 +40,35 @@ def test_token_bucket_returns_retry_after():
     assert limiter.check(("ip", "other-key", "GET", "/info")).allowed is True
 
 
+def test_status_for_does_not_consume_a_token():
+    limiter = RateLimiter(max_requests=2, window_seconds=60)
+    limiter.check(("1.2.3.4", "anonymous", "GET", "/info"))
+    before = limiter.status_for("1.2.3.4", "anonymous")
+    after = limiter.status_for("1.2.3.4", "anonymous")
+    assert before == after
+    # Peeking must never itself count against the quota it's reporting on.
+    assert limiter.check(("1.2.3.4", "anonymous", "GET", "/info")).allowed is True
+
+
+def test_status_for_only_returns_the_matching_caller(tmp_path: Path):
+    limiter = RateLimiter(max_requests=5, window_seconds=60)
+    limiter.check(("1.1.1.1", "anonymous", "GET", "/info"))
+    limiter.check(("2.2.2.2", "anonymous", "GET", "/latest"))
+    rows = limiter.status_for("1.1.1.1", "anonymous")
+    assert len(rows) == 1
+    assert rows[0]["path"] == "/info"
+
+
+def test_rate_limit_status_endpoint_reports_live_quota(tmp_path: Path):
+    node = NetCoinNode(Blockchain(tmp_path / "chain"), rate_limit_per_min=10)
+    with served(node) as env:
+        urlopen(f"{env.url}/info").read()
+        payload = json.loads(urlopen(f"{env.url}/rate-limit-status").read())
+        assert payload["max_requests_per_window"] == 10
+        assert payload["window_seconds"] == 60
+        assert any(e["path"] == "/info" for e in payload["endpoints"])
+
+
 def test_api_key_identity_is_fingerprinted_and_anonymous():
     assert api_key_identity_from_headers({}) == "anonymous"
     identity = api_key_identity_from_headers({"Authorization": "Bearer secret-token"})

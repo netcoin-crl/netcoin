@@ -170,6 +170,14 @@
       </section>
 
       <section class="card">
+        <h2>Rate limit status</h2>
+        <p class="muted">Your own current quota usage, keyed by your IP and API key (if any) &mdash; checking this never counts against your quota.</p>
+        <button id="refreshRateLimitBtn" type="button" class="secondary">Refresh</button>
+        <div id="rateLimitSummary" class="muted" style="margin-top:8px"></div>
+        <div class="table-scroll"><table id="rateLimitTable"><thead><tr><th>Method</th><th>Path</th><th>Remaining / capacity</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="card">
         <h2>Recent rewards</h2>
         <div class="table-scroll"><table id="rewardsTable"><thead><tr><th>Reward</th><th>Player</th><th>Address</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table></div>
       </section>
@@ -210,7 +218,7 @@
 
     <p class="footer">Developer Console writes are testnet-only. API keys and webhook secrets are sensitive; copy them once and store them outside the browser.</p>
   </div>
-  <script src="console.js?v=20260720-allowlist-fix"></script>
+  <script src="console.js?v=20260722-rate-limit-status"></script>
   <script src="site-shell.js?v=20260721-structured-ui"></script>
 </body>
 </html>
