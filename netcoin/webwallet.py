@@ -13,6 +13,7 @@ expose it publicly — it is not a custodial/hosted wallet.
 
 from __future__ import annotations
 
+import atexit
 import json
 import subprocess
 import sys
@@ -954,6 +955,11 @@ boot();
 def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: bool = False):
     node_url = _normalize_node_url(node_url)
     state: dict[str, Wallet | None] = {"wallet": None}
+    # ThreadingHTTPServer serves requests concurrently against this one
+    # mutable wallet. Without a lock, two overlapping sends (or a send racing
+    # a load/new that swaps the active wallet mid-flight) could both select
+    # the same UTXOs or build against a wallet that changed underneath them.
+    send_lock = threading.Lock()
     local_node = LocalNodeController(enabled=allow_node_control)
     # A public seed is a different animal from the loopback convenience node
     # above: it binds 0.0.0.0 (reachable from the internet if the operator
@@ -1201,42 +1207,46 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
             return Wallet.from_dict({"private_key_hex": clean})
 
         def _send_tx(self, body: dict[str, Any]) -> dict[str, Any]:
-            wallet = state["wallet"]
-            if wallet is None:
-                raise ValueError("no wallet loaded")
-            to = str(body.get("to", "")).strip()
-            if not to:
-                raise ValueError("destination address required")
-            amount_sats = amount_to_sats(str(body.get("amount", "")))
-            fee_sats = amount_to_sats(str(body.get("fee", "0") or "0"))
-            from_type = str(body.get("from_type") or "segwit")
-            rbf = bool(body.get("rbf"))
-            return build_and_broadcast(wallet, to, amount_sats, fee_sats, from_type, node_url, rbf=rbf)
+            with send_lock:
+                wallet = state["wallet"]
+                if wallet is None:
+                    raise ValueError("no wallet loaded")
+                to = str(body.get("to", "")).strip()
+                if not to:
+                    raise ValueError("destination address required")
+                amount_sats = amount_to_sats(str(body.get("amount", "")))
+                fee_sats = amount_to_sats(str(body.get("fee", "0") or "0"))
+                from_type = str(body.get("from_type") or "segwit")
+                rbf = bool(body.get("rbf"))
+                return build_and_broadcast(wallet, to, amount_sats, fee_sats, from_type, node_url, rbf=rbf)
 
         def _rbf_bump(self, body: dict[str, Any]) -> dict[str, Any]:
-            wallet = state["wallet"]
-            if wallet is None:
-                raise ValueError("no wallet loaded")
-            original = Transaction.from_dict(body.get("original_tx") or {})
-            prevouts = [SpendableOutput.from_dict(item) for item in body.get("prevouts") or []]
-            if not prevouts:
-                raise ValueError("prevouts are required to bump a fee")
-            new_fee = amount_to_sats(str(body.get("new_fee", "")))
-            change_address = str(body.get("change_address") or wallet.address_for("segwit")).strip()
-            old_fee = transaction_fee(original, prevouts)
-            plan = create_rbf_replacement(wallet, original, prevouts, new_fee=new_fee, change_address=change_address)
-            payload: dict[str, Any] = {
-                **plan.to_dict(),
-                "old_fee": old_fee,
-                "old_fee_net": old_fee / COIN,
-                "new_fee_net": new_fee / COIN,
-                "replacement_tx": plan.replacement.to_dict(),
-            }
-            if body.get("broadcast"):
-                response = _node_post(node_url, "/tx", plan.replacement.to_dict(), timeout=30)
-                payload["txid"] = response.get("txid") or plan.replacement.txid()
-                payload["node_response"] = response
-            return payload
+            with send_lock:
+                wallet = state["wallet"]
+                if wallet is None:
+                    raise ValueError("no wallet loaded")
+                original = Transaction.from_dict(body.get("original_tx") or {})
+                prevouts = [SpendableOutput.from_dict(item) for item in body.get("prevouts") or []]
+                if not prevouts:
+                    raise ValueError("prevouts are required to bump a fee")
+                new_fee = amount_to_sats(str(body.get("new_fee", "")))
+                change_address = str(body.get("change_address") or wallet.address_for("segwit")).strip()
+                old_fee = transaction_fee(original, prevouts)
+                plan = create_rbf_replacement(
+                    wallet, original, prevouts, new_fee=new_fee, change_address=change_address
+                )
+                payload: dict[str, Any] = {
+                    **plan.to_dict(),
+                    "old_fee": old_fee,
+                    "old_fee_net": old_fee / COIN,
+                    "new_fee_net": new_fee / COIN,
+                    "replacement_tx": plan.replacement.to_dict(),
+                }
+                if body.get("broadcast"):
+                    response = _node_post(node_url, "/tx", plan.replacement.to_dict(), timeout=30)
+                    payload["txid"] = response.get("txid") or plan.replacement.txid()
+                    payload["node_response"] = response
+                return payload
 
         def _multisig_create(self, body: dict[str, Any]) -> dict[str, Any]:
             wallet = state["wallet"]
@@ -1381,20 +1391,35 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
                     continue
             return {"error": "no block, transaction, or address matched"}
 
+    # Exposed so run_web_wallet can stop any node this wallet spawned when
+    # the server process exits -- otherwise a launched node/seed keeps
+    # running as an orphan, holding its port even after the wallet is gone.
+    Handler.owned_node_controllers = (local_node, seed_node)
     return Handler
 
 
 def run_web_wallet(node_url: str, faucet_url: str = "", host: str = "127.0.0.1", port: int = 8088) -> None:
     node_url = _normalize_node_url(node_url)
     allow_node_control = host in LOCAL_NODE_HOSTS
-    server = ThreadingHTTPServer(
-        (host, int(port)), make_handler(node_url, faucet_url, allow_node_control=allow_node_control)
-    )
+    handler_class = make_handler(node_url, faucet_url, allow_node_control=allow_node_control)
+    server = ThreadingHTTPServer((host, int(port)), handler_class)
     print(f"NetCoin web wallet on http://{host}:{port}  (node: {node_url})")
     print("Local tool — keys stay on this machine. Do not expose this port publicly.")
     if allow_node_control:
         print("Local node button enabled. It can start/stop only the node launched by this web wallet.")
+
+    def _stop_owned_nodes() -> None:
+        for controller in getattr(handler_class, "owned_node_controllers", ()):
+            try:
+                if controller.process and controller.process.poll() is None:
+                    controller.stop()
+            except Exception:
+                pass
+
+    atexit.register(_stop_owned_nodes)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         server.shutdown()
+    finally:
+        _stop_owned_nodes()
