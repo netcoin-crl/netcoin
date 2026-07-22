@@ -3,5 +3,5 @@ export { privToPub, p2wpkhAddress, p2trAddress, xonlyFromPriv, signMessage } fro
 export {
   newSeedPhrase, seedPhraseToEntropy, verifySeedPhrase,
   privateKeyFromSeedPhrase, newRandomPrivateKey, walletFromPrivateKey,
-  buildSignedPayment, buildUsernameClaim, buildUsernameTransfer, selectCoins, addressToScriptPubkey, allWalletAddresses,
+  buildSignedPayment, buildBatchPayment, buildUsernameClaim, buildUsernameTransfer, selectCoins, addressToScriptPubkey, allWalletAddresses,
 } from "./wallet.mjs";

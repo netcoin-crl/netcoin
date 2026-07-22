@@ -205,6 +205,30 @@ export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, cha
   return { ...signed, fee, change };
 }
 
+// Pay several recipients in a single transaction. One shared fee and one
+// change output instead of a separate signed tx (and separate fee) per
+// recipient -- same non-custodial build-and-sign path as a normal send.
+export function buildBatchPayment({ privHex, utxos, recipients, fee, changeAddress, maxInputs = 500, rbf = false }) {
+  fee = Number(fee);
+  if (!Number.isInteger(fee) || fee <= 0) throw new Error("fee must be a positive integer (sats)");
+  if (!Array.isArray(recipients) || recipients.length === 0) throw new Error("at least one recipient is required");
+  if (recipients.length > 100) throw new Error("batch sends are limited to 100 recipients");
+  let totalOut = 0;
+  const outputs = recipients.map(({ address, amount }, i) => {
+    amount = Number(amount);
+    if (!address) throw new Error(`recipient ${i + 1} is missing an address`);
+    if (!Number.isInteger(amount) || amount <= 0) throw new Error(`recipient ${i + 1} needs a positive integer amount (sats)`);
+    totalOut += amount;
+    return { amount, address };
+  });
+  const { chosen, total } = selectCoins(utxos, totalOut + fee, maxInputs);
+  const change = total - totalOut - fee;
+  const sequence = rbf ? 0xfffffffd : 0xffffffff;
+  if (change > DUST) outputs.push({ amount: change, address: changeAddress });
+  const signed = signInputsForOutputs(chosen, outputs, privHex, sequence, changeAddress);
+  return { ...signed, fee, change, recipientCount: recipients.length, totalOut };
+}
+
 const USERNAME_PATTERN = /^[a-z0-9_-]{1,32}$/;
 
 // Claim a username on-chain: a zero-value OP_RETURN output naming the

@@ -491,6 +491,16 @@ body{letter-spacing:-.01em}
         </div>
         <p id="sendMsg" role="status" aria-live="polite" aria-atomic="true"></p>
       </div>
+      <div class="card wallet-availability-card" id="batchSendCard">
+        <h2>Batch send</h2>
+        <p class="muted">Pay multiple addresses in one transaction &mdash; one fee instead of one per recipient. Signed locally in your browser.</p>
+        <label>Recipients, one per line: address, amount</label>
+        <textarea id="batchRecipients" class="mono" placeholder="net1q...,1.5&#10;net1q...,0.25" rows="5"></textarea>
+        <label for="batchFee">Network fee (NET)</label>
+        <input id="batchFee" inputmode="decimal" placeholder="0.00002000" />
+        <button id="btnBatchSend" type="button">Sign and broadcast batch</button>
+        <pre id="batchSendOut" class="mono muted" role="status" aria-live="polite" aria-atomic="true">Result appears here.</pre>
+      </div>
       <div class="card wallet-availability-card" id="speedUpCard">
         <h2>Speed up transaction</h2>
         <p class="muted">Bump the fee on a pending send that was created with speed-up support enabled. The replacement is signed locally in your browser -- your key never leaves this device. Preview is non-broadcast by default.</p>
@@ -654,9 +664,9 @@ body{letter-spacing:-.01em}
   @media(max-width:720px){.wallet-flow-guide{grid-template-columns:1fr}.tx-actions a,.tx-actions button{width:100%!important}}
 </style>
 
-  <script src="netcoin-wallet.js?v=20260722-username-transfer" integrity="sha384-TXMkXczWA9uar6+7O2hng9xH1Zau9Y5P6oI/1rcPO1tQh6irWibCkAVWMFV0TQrI" crossorigin="anonymous"></script>
+  <script src="netcoin-wallet.js?v=20260722-batch-send" integrity="sha384-LlDqBD+iOxjveix+VB+ubzEEem+TqI0PY3GkKIPQRJL3GOgw2DV08QmHowVI/MQA" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260722-escrow-expiry" integrity="sha384-AVTvyYADjAuZ1JoonNiimdlur2EqPd8RNiOa9kIFhHJXiPBvQ6en80dL/aQN50t0" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260722-batch-send" integrity="sha384-4Fwtli1ANTuyWL+KQxMQwi+2jSnyMxOYuKRYIu8W+CQ3km6iNqlrsd2VvD98kNxV" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260721-structured-ui"></script>
 
 <style id="wallet-mobile-hardening">

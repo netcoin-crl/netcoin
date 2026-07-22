@@ -248,6 +248,20 @@
       <p>${esc(m.rules || m.warning || "Testnet/play-money market. Resolves by manual operator review with an evidence trail.")}</p>
       <h4 style="margin:12px 0 6px">Evidence</h4><ul>${ev}</ul>`;
   }
+  function integrityTab(m) {
+    const sv = m.surveillance || {};
+    const alerts = sv.alerts || [];
+    const alertsHtml = alerts.length
+      ? alerts.map((a) => `<li><span class="tag${a.severity === "critical" || a.severity === "high" ? " err" : ""}">${esc(a.severity || "info")}</span> <b>${esc(a.code || "alert")}</b> — ${esc(a.detail || "")}</li>`).join("")
+      : `<li class="muted">No integrity alerts.</li>`;
+    const trail = (m.audit_trail || []).slice(-25).reverse();
+    const trailHtml = trail.length
+      ? trail.map((e) => `<li><span class="muted">${fmtTime(e.created_at)}</span> ${esc(e.event || "")}</li>`).join("")
+      : `<li class="muted">No recorded events yet.</li>`;
+    return `<p class="muted">Automated surveillance, not enforcement &mdash; operators use these to investigate, not to auto-block. ${sv.alert_count ? esc(sv.alert_count) + " alert(s)." : "Clean."}</p>
+      <h4 style="margin:12px 0 6px">Alerts</h4><ul>${alertsHtml}</ul>
+      <h4 style="margin:12px 0 6px">Audit trail (most recent 25)</h4><ul class="mono" style="font-size:12px">${trailHtml}</ul>`;
+  }
   function tradePanel(m) {
     const binary = isBinary(m);
     let outcomeId = state.tradeOutcomeId;
@@ -303,11 +317,13 @@
           <button class="mkt-tab${state.tab === "trades" ? " active" : ""}" data-tab="trades">Trades</button>
           <button class="mkt-tab${state.tab === "holders" ? " active" : ""}" data-tab="holders">Holders</button>
           <button class="mkt-tab${state.tab === "rules" ? " active" : ""}" data-tab="rules">Rules</button>
+          <button class="mkt-tab${state.tab === "integrity" ? " active" : ""}" data-tab="integrity">Integrity${(m.surveillance || {}).alert_count ? ` (${esc(m.surveillance.alert_count)})` : ""}</button>
         </div>
         <div class="tab-panel${state.tab === "orderbook" ? " active" : ""}" data-panel="orderbook">${bookTab(m)}</div>
         <div class="tab-panel${state.tab === "trades" ? " active" : ""}" data-panel="trades">${tradesTab(m)}</div>
         <div class="tab-panel${state.tab === "holders" ? " active" : ""}" data-panel="holders">${holdersTab(m)}</div>
         <div class="tab-panel${state.tab === "rules" ? " active" : ""}" data-panel="rules">${rulesTab(m)}</div>
+        <div class="tab-panel${state.tab === "integrity" ? " active" : ""}" data-panel="integrity">${integrityTab(m)}</div>
       </div>`;
     $("#tradePanel").innerHTML = tradePanel(m);
     wireDetail(m);

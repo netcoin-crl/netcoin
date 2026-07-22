@@ -437,7 +437,7 @@
       else if (card.querySelector("#receiveOut")) { tab = "wallet"; card.id = card.id || "wallet-receive"; }
       else if (card.querySelector("#btnSend")) { tab = "wallet"; card.id = card.id || "wallet-send"; }
       else if (card.querySelector("#txHistory")) { tab = "activity"; card.id = card.id || "wallet-activity"; }
-      else if (["speedUpCard", "psbtToolsCard", "multisigToolsCard"].includes(card.id)) tab = "advanced";
+      else if (["speedUpCard", "psbtToolsCard", "multisigToolsCard", "batchSendCard"].includes(card.id)) tab = "advanced";
       else if (card.classList.contains("wallet-availability-card")) tab = "wallet";
       else if (card.querySelector("#contactsImportFile")) { tab = "settings"; card.id = card.id || "wallet-settings-backups"; }
       else if (card.querySelector("#statementOut")) tab = "reports";
@@ -2444,6 +2444,27 @@
     return res.txid;
   }
 
+  function parseBatchRecipients(text) {
+    return String(text || "").split("\n").map((line) => line.trim()).filter(Boolean).map((line, i) => {
+      const [addressPart, amountPart] = line.split(",").map((s) => (s || "").trim());
+      if (!addressPart || !amountPart) throw new Error(`line ${i + 1} must be "address, amount"`);
+      return { address: addressPart, amount: netToSats(amountPart) };
+    });
+  }
+  async function batchSend() {
+    const out = $("batchSendOut");
+    if (!state) { out.className = "err"; out.textContent = "Unlock the wallet first."; return; }
+    try {
+      const recipients = parseBatchRecipients($("batchRecipients").value);
+      const fee = netToSats($("batchFee").value || "0");
+      const utxos = (await loadUtxos()).map((u) => ({ txid: u.txid, vout: u.vout, amount: u.amount, address: u.address }));
+      const signed = W.buildBatchPayment({ privHex: state.privHex, utxos, recipients, fee, changeAddress: state.address });
+      const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signed) });
+      out.className = "ok";
+      out.textContent = `Broadcast to ${signed.recipientCount} recipients (txid ${res.txid.slice(0, 12)}…), total ${satsToInput(signed.totalOut)} NET + ${satsToInput(fee)} NET fee.`;
+    } catch (e) { out.className = "err"; out.textContent = "Batch send failed: " + e.message; }
+  }
+
   // ---------- wiring ----------
   let backupQuiz = null; // { indices: [i, j] } while the create-flow phrase check is active
   function resetBackupQuiz() {
@@ -2836,6 +2857,7 @@
   if ($("btnRegisterUsername")) $("btnRegisterUsername").onclick = registerUsername;
   if ($("btnClaimUsernameOnChain")) $("btnClaimUsernameOnChain").onclick = claimUsernameOnChain;
   if ($("btnTransferUsername")) $("btnTransferUsername").onclick = transferUsernameOnChain;
+  if ($("btnBatchSend")) $("btnBatchSend").onclick = batchSend;
   if ($("btnLookupUsername")) $("btnLookupUsername").onclick = lookupUsername;
   if ($("btnCreateEscrow")) $("btnCreateEscrow").onclick = createEscrow;
   if ($("btnLoadEscrow")) $("btnLoadEscrow").onclick = loadEscrow;
