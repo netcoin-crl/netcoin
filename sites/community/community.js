@@ -36,16 +36,20 @@ function redditCard({ postId = '', score = 0, title = '', body = '', meta = [], 
   const actionHtml = actions.map(a => a.html || `<button type="button" ${a.attr || ''}>${esc(a.label)}</button>`).join('');
   return `<article class="reddit-card" data-post-id="${esc(postId)}"><div class="vote-rail"><button type="button" data-vote-post="${esc(postId)}" data-direction="up" aria-label="upvote">▲</button><strong>${esc(score)}</strong><button type="button" data-vote-post="${esc(postId)}" data-direction="down" aria-label="downvote">▼</button></div><div class="post-body"><div class="post-meta">${metaHtml}</div><h3>${esc(title)}</h3><p>${esc(body)}</p><div class="post-stats"><button type="button" data-open-comments="${esc(postId)}">${Number(commentCount || 0)} comments</button><span>${esc(postId)}</span></div>${actionHtml ? `<div class="post-actions">${actionHtml}</div>` : ''}</div></article>`;
 }
-function cardPost(p) {
+function cardPost(p, opts = {}) {
+  const actions = [{ html: `<button type="button" data-report-post="${esc(p.post_id || '')}">Report</button>` }];
+  if (opts.canPin) {
+    actions.push({ html: `<button type="button" data-pin-post="${esc(p.post_id || '')}" data-circle-id="${esc(opts.circleId || '')}">${opts.isPinned ? 'Unpin' : 'Pin'}</button>` });
+  }
   return redditCard({
     postId: p.post_id || '',
     score: Number(p.score || p.votes || 0),
-    title: p.title || (p.category === 'help' ? 'Help request' : 'Community post'),
+    title: (opts.isPinned ? '\u{1F4CC} ' : '') + (p.title || (p.category === 'help' ? 'Help request' : 'Community post')),
     body: p.message || '',
     tag: p.category || 'general',
     commentCount: p.comment_count || 0,
     meta: ['u/' + (p.name || p.author || 'Anonymous'), timeLabel(p.created_at), (p.sort ? 'sort:' + p.sort : '')].filter(Boolean),
-    actions: [{ html: `<button type="button" data-report-post="${esc(p.post_id || '')}">Report</button>` }]
+    actions
   });
 }
 function cardIdea(i) {
@@ -189,10 +193,19 @@ async function loadCircles() {
 let activeCircleId = '';
 async function loadCirclePosts(circleId) {
   const feed = $('#circlePostFeed');
+  const pinnedBox = $('#circlePinnedPost');
+  const c = allCircles.find((x) => x.circle_id === circleId) || {};
+  const isCreator = ($('#circleCreator')?.value || '').trim() === c.creator;
   try {
     const d = await api('/community/posts?limit=80&circle_id=' + encodeURIComponent(circleId));
     const posts = d.posts || [];
-    feed.innerHTML = posts.length ? posts.map(cardPost).join('') : '<div class="empty-state">No posts in this circle yet. Start the first thread.</div>';
+    const pinnedId = c.pinned_post_id || '';
+    const pinned = pinnedId ? posts.find((p) => p.post_id === pinnedId) : null;
+    pinnedBox.innerHTML = pinned ? cardPost(pinned, { canPin: isCreator, circleId, isPinned: true }) : '';
+    const rest = posts.filter((p) => p.post_id !== pinnedId);
+    feed.innerHTML = rest.length
+      ? rest.map((p) => cardPost(p, { canPin: isCreator, circleId, isPinned: false })).join('')
+      : (pinned ? '' : '<div class="empty-state">No posts in this circle yet. Start the first thread.</div>');
   } catch (e) { feed.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
 }
 function openCircleDetail(circleId) {
@@ -203,6 +216,9 @@ function openCircleDetail(circleId) {
   $('#circleDetail').classList.remove('hide');
   $('#circleDetailName').textContent = c.name || c.circle_id || 'Circle';
   $('#circleDetailDescription').textContent = c.description || 'No description yet.';
+  const rulesBox = $('#circleDetailRules');
+  if (c.rules) { rulesBox.classList.remove('hide'); $('#circleDetailRulesText').textContent = c.rules; }
+  else { rulesBox.classList.add('hide'); }
   $('#circleDetailStatus').textContent = c.status || 'proposed';
   $('#circleDetailStatus').className = 'tag' + (c.status === 'active' ? ' ok' : '');
   $('#circleDetailProgress').innerHTML = circleProgressHtml(c);
@@ -294,8 +310,8 @@ $$('[data-leader-tab]').forEach(btn => btn.addEventListener('click', () => {
 }));
 $('#submitCircle')?.addEventListener('click', async () => {
   try {
-    const d = await post('/community/circles', { name: $('#circleName').value, description: $('#circleDescription').value, creator: $('#circleCreator').value });
-    setToast('#circleResult', 'Proposed ' + (d.circle_id || ''), 'ok'); $('#circleName').value = ''; $('#circleDescription').value = ''; await loadCircles();
+    const d = await post('/community/circles', { name: $('#circleName').value, description: $('#circleDescription').value, rules: $('#circleRules').value, creator: $('#circleCreator').value });
+    setToast('#circleResult', 'Proposed ' + (d.circle_id || ''), 'ok'); $('#circleName').value = ''; $('#circleDescription').value = ''; $('#circleRules').value = ''; await loadCircles();
   } catch (e) { setToast('#circleResult', e.message, 'err'); }
 });
 document.addEventListener('click', async (ev) => {
@@ -308,6 +324,20 @@ document.addEventListener('click', async (ev) => {
     replyingToCommentId = replyTo.dataset.replyTo || '';
     $('#submitComment').textContent = replyingToCommentId ? 'Post reply' : 'Comment';
     $('#commentMessage').focus();
+    return;
+  }
+  const pinPost = ev.target.closest('[data-pin-post]');
+  if (pinPost) {
+    const circleId = pinPost.dataset.circleId;
+    const wasPinned = pinPost.textContent === 'Unpin';
+    try {
+      await post('/community/circles/' + encodeURIComponent(circleId) + '/pin', {
+        creator: ($('#circleCreator')?.value || '').trim(),
+        post_id: wasPinned ? '' : pinPost.dataset.pinPost,
+      });
+      await loadCircles();
+      await loadCirclePosts(circleId);
+    } catch (e) { alert('Could not pin: ' + e.message); }
     return;
   }
   const votePost = ev.target.closest('[data-vote-post]');

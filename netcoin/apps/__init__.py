@@ -3278,11 +3278,16 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         circles = data.setdefault("community_circles", {})
         if slug in circles and circles[slug].get("status") != "rejected":
             raise AppError(f"a circle with slug '{slug}' already exists")
+        rules = str(payload.get("rules") or "")[:1000].strip()
+        if looks_like_sensitive_secret(rules):
+            raise AppError("circle rules must not include private keys, seed phrases, passwords, or API secrets")
         rec = {
             "circle_id": slug,
             "name": name,
             "slug": slug,
             "description": description,
+            "rules": rules,
+            "pinned_post_id": "",
             "creator": creator,
             "status": "proposed",
             "members": [creator],
@@ -3309,6 +3314,29 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         if rec["status"] == "proposed" and len(rec["members"]) >= self.CIRCLE_ACTIVATION_THRESHOLD:
             rec["status"] = "active"
             rec["activated_at"] = now()
+        self.save(data)
+        return rec
+
+    def set_circle_pin(self, circle_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Pin/unpin a post at the top of a circle's feed. Community has no
+        wallet-signature auth (unlike escrow/tokens) -- consistent with that,
+        "creator" here is the same freeform-name trust level already used
+        for every other community action, not a cryptographic identity."""
+        creator = str(payload.get("creator") or "").strip()[:80]
+        post_id = str(payload.get("post_id") or "").strip()
+        data = self.load()
+        rec = data.get("community_circles", {}).get(circle_id)
+        if not rec:
+            raise AppError("circle not found")
+        if not creator or creator != rec.get("creator"):
+            raise AppError("only the circle creator can pin a post")
+        if post_id:
+            post = next((p for p in data.get("community_posts", []) if p.get("post_id") == post_id), None)
+            if not post:
+                raise AppError("post not found")
+            if str(post.get("circle_id") or "") != circle_id:
+                raise AppError("post does not belong to this circle")
+        rec["pinned_post_id"] = post_id
         self.save(data)
         return rec
 
@@ -5389,6 +5417,8 @@ def _route_app_post_uncached(
         return 200, store.propose_circle(body)
     if path.startswith("/community/circles/") and path.endswith("/join"):
         return 200, store.join_circle(path.split("/")[3], body)
+    if path.startswith("/community/circles/") and path.endswith("/pin"):
+        return 200, store.set_circle_pin(path.split("/")[3], body)
     if path == "/exchange/deposits":
         return 200, store.record_exchange_deposit(body)
     if path == "/exchange/withdrawals":

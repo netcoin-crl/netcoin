@@ -87,6 +87,7 @@
               <p class="muted">A circle is a focused group inside Community (e.g. "Mining Ops", "Merchant Builders"). Propose one, then share it &mdash; it goes live automatically once 5 people join.</p>
               <input id="circleName" placeholder="Circle name" maxlength="60" />
               <textarea id="circleDescription" placeholder="What is this circle for?" maxlength="500"></textarea>
+              <textarea id="circleRules" placeholder="Rules, optional (e.g. be kind, no spam, on-topic only)" maxlength="1000"></textarea>
               <input id="circleCreator" placeholder="Your name" maxlength="80" />
               <button id="submitCircle" type="button">Propose circle</button><p id="circleResult" class="toast"></p>
             </div>
@@ -101,6 +102,7 @@
             <div class="section-card card">
               <div class="section-head"><h2 id="circleDetailName">Circle</h2><span id="circleDetailStatus" class="tag"></span></div>
               <p id="circleDetailDescription" class="muted"></p>
+              <div id="circleDetailRules" class="hide"><h3 style="margin:10px 0 4px">Rules</h3><p id="circleDetailRulesText" class="muted"></p></div>
               <div id="circleDetailProgress"></div>
               <div class="post-actions"><button type="button" id="circleDetailJoin">Join</button></div>
             </div>
@@ -110,6 +112,7 @@
               <textarea id="circlePostMessage" placeholder="Share an update or question with this circle. Never post keys or seed phrases." maxlength="1200"></textarea>
               <button id="circlePostBtn" type="button">Post</button><p id="circlePostResult" class="toast"></p>
             </div>
+            <div id="circlePinnedPost"></div>
             <div id="circlePostFeed" class="reddit-feed"></div>
           </div>
         </section>
@@ -176,7 +179,7 @@
 
     <p class="footer">NetCoin Community is public testnet coordination.</p>
   </div>
-  <script src="community.js?v=20260722-comment-threading"></script>
+  <script src="community.js?v=20260722-circle-rules-pins"></script>
   <script src="site-shell.js?v=20260721-structured-ui"></script>
 </body>
 </html>
