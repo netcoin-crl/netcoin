@@ -39,8 +39,11 @@
   });
   $('#submitApproval')?.addEventListener('click',async()=>{
     const msg=$('#approvalMsg');
+    const token=$('#operatorToken').value.trim();
+    if(!token){ msg.className='err'; msg.textContent='Enter this exchange\'s operator token first.'; return; }
     try{
-      const d=await post('/exchange/withdrawals/'+encodeURIComponent($('#approveId').value)+'/approve',{approver:$('#approveName').value});
+      const r=await fetch('/api/exchange/withdrawals/'+encodeURIComponent($('#approveId').value)+'/approve',{method:'POST',headers:{'Content-Type':'application/json','X-Netcoin-Admin-Token':token},body:JSON.stringify({approver:$('#approveName').value})});
+      const text=await r.text(); let d; try{d=JSON.parse(text)}catch{d={}}; if(!r.ok||d.error) throw new Error(d.error||'HTTP '+r.status);
       msg.className='ok'; msg.textContent=d.withdrawal_id+' is now '+d.status+'.';
       refresh();
     }catch(e){ msg.className='err'; msg.textContent=e.message; }

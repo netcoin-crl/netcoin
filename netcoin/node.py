@@ -1446,28 +1446,55 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                         }
                     )
                 else:
-                    if (
-                        os.environ.get("NETCOIN_APP_REQUIRE_ADMIN", "0") == "1"
-                        and parsed.path.startswith(
-                            (
-                                "/admin",
-                                "/api/admin",
-                                "/merchant",
-                                "/api/merchant",
-                                "/wallet",
-                                "/api/wallet",
-                                "/custody",
-                                "/api/custody",
-                                "/security",
-                                "/api/security",
-                            )
-                        )
-                        and not self.require_app_admin()
-                    ):
+                    read_action = parsed.path[4:] if parsed.path.startswith("/api/") else parsed.path
+                    read_action = read_action[4:] if read_action.startswith("/app/") else read_action
+                    app_query = parse_qs(parsed.query)
+                    # NOT a bare "/wallet" prefix: that's the whole public wallet API
+                    # surface (workflow status, drafts, alerts, limits, ...) that every
+                    # wallet page reads with no operator token. Only the multisig
+                    # team-wallet feature is genuinely operator/custody-like.
+                    operator_read = read_action.startswith(("/admin", "/custody", "/treasury", "/security", "/wallet/team-wallets"))
+                    public_developer_read = read_action in {
+                        "/developer/sdk",
+                        "/developer/webhook-verifiers",
+                        "/developer/capabilities",
+                    }
+                    tenant_read = read_action.startswith("/merchant") or (
+                        read_action.startswith("/developer") and not public_developer_read
+                    )
+                    if operator_read and not self.require_node_admin():
                         return
+                    if tenant_read:
+                        read_key = self.app_api_key_from_headers()
+                        if read_key:
+                            app_query["_presented_api_key"] = [read_key]
+                        # merchant_id/developer_id are public identifiers, not secrets --
+                        # Merchant dashboards and the Developer Console are designed to
+                        # load by ID alone with no key. An API key is only required to
+                        # scope *which* tenant a presented key is trusted to read, so it
+                        # can't be reused to peek at a different tenant's data; a request
+                        # with no key at all is unauthenticated exactly as it always was.
+                        if read_key:
+                            key_record = app_store.api_key_record(read_key)
+                            if not key_record or key_record.get("self_service"):
+                                self.send_error_json("merchant or developer API key required", status=401)
+                                return
+                            tenant_id = str(key_record.get("merchant_id") or "")
+                            requested_ids = {
+                                value
+                                for name in ("merchant_id", "developer_id", "app_id")
+                                for value in app_query.get(name, [])
+                                if value
+                            }
+                            if requested_ids and requested_ids != {tenant_id}:
+                                self.send_error_json("API key does not belong to the requested tenant", status=403)
+                                return
+                            app_query.setdefault("merchant_id", [tenant_id])
+                            app_query.setdefault("developer_id", [tenant_id])
+                            app_query.setdefault("app_id", [tenant_id])
                     try:
                         status, payload, content_type = route_app_get(
-                            app_store, node.chain, parsed.path, parse_qs(parsed.query), node=node
+                            app_store, node.chain, parsed.path, app_query, node=node
                         )
                     except AppError as app_exc:
                         if str(app_exc) == "not an app-layer route":
@@ -1592,6 +1619,18 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     delivered = node.drain_relay_queue()
                     self.send_json({"ok": True, "delivered": delivered, "queue": len(node._relay_queue)})
                 else:
+                    app_action = parsed.path[4:] if parsed.path.startswith("/api/") else parsed.path
+                    app_action = app_action[4:] if app_action.startswith("/app/") else app_action
+                    # These mutate operator-controlled custody, treasury, or moderation
+                    # state. They must never be reachable through a public site key.
+                    operator_only = (
+                        app_action.startswith(("/admin", "/custody", "/treasury", "/community/moderation"))
+                        or (app_action.startswith("/exchange/withdrawals/") and app_action.endswith("/approve"))
+                    )
+                    if operator_only:
+                        if not self.require_node_admin():
+                            return
+                        data["__netcoin_operator_verified"] = True
                     public_app_write = parsed.path in {
                         "/community/posts",
                         "/api/community/posts",
@@ -1608,8 +1647,11 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                         )
                         and parsed.path.endswith("/vote")
                     )
-                    if not public_app_write and not self.require_app_admin():
-                        return
+                    if not public_app_write:
+                        if not self.require_app_admin():
+                            return
+                        if os.environ.get("NETCOIN_APP_REQUIRE_ADMIN", "0") == "1":
+                            data["__netcoin_operator_verified"] = True
                     header_api_key = self.app_api_key_from_headers()
                     if header_api_key and "api_key" not in data:
                         data["api_key"] = header_api_key

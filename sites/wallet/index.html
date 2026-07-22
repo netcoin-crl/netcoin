@@ -8,7 +8,7 @@
        relay is same-origin, so connect-src 'self' suffices. SRI is added to the
        <script> tags at build time. -->
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors https://markets.netcoin.online; base-uri 'none'; form-action 'none'" />
+    content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" />
   <style>
     :root { color-scheme: dark; --bg:#0b0e14; --card:#151a23; --fg:#e6e9ef; --mut:#9aa4b2; --acc:#3ddc97; --err:#ff6b6b; --bd:#222a36; }
     * { box-sizing: border-box; }
@@ -36,6 +36,9 @@
     .dot { width:9px; height:9px; border-radius:999px; background:var(--mut); display:inline-block; }
     .dot.okdot { background:var(--acc); } .dot.errdot { background:var(--err); }
     .review { border:1px solid var(--bd); border-radius:10px; padding:12px; background:#0e131b; margin-top:12px; }
+    .authorization-details { display:grid; grid-template-columns:minmax(100px,auto) minmax(0,1fr); gap:6px 12px; margin:12px 0; font-size:13px; }
+    .authorization-details dt { color:var(--muted); text-transform:capitalize; }
+    .authorization-details dd { margin:0; overflow-wrap:anywhere; }
     .kv { display:grid; grid-template-columns:110px 1fr; gap:6px 10px; font-size:13px; }
     .kv .k { color:var(--mut); } .kv .v { word-break:break-all; }
     .smallbtn { margin-top:8px; }
@@ -490,6 +493,7 @@ body{letter-spacing:-.01em}
       </div>
       <div class="card wallet-availability-card" id="speedUpCard">
         <h2>Speed up transaction</h2>
+        <p class="warn">Not available yet: the server-side fee-bump endpoint this needs hasn't been built. Nothing below will work.</p>
         <p class="muted">Bump the fee on a pending send that was created with speed-up support enabled. Preview is non-broadcast by default.</p>
         <label>Original transaction JSON</label>
         <textarea id="rbfOriginalTx" class="mono" placeholder="Paste original transaction JSON, or send with speed-up enabled to fill this automatically"></textarea>
@@ -502,7 +506,7 @@ body{letter-spacing:-.01em}
         <label class="wallet-option-check"><input id="rbfBroadcastNow" type="checkbox" /> Broadcast replacement immediately</label>
         <div class="row compact-row">
           <button id="btnUseLastRbfCandidate" class="secondary inline" type="button">Use last RBF send</button>
-          <button id="btnPreviewRbfBump" class="secondary inline" type="button">Preview fee bump</button>
+          <button id="btnPreviewRbfBump" class="secondary inline" type="button" disabled>Preview fee bump</button>
         </div>
         <pre id="rbfBumpOut" class="mono muted" role="status" aria-live="polite" aria-atomic="true">Replacement preview appears here. Broadcast stays off unless you explicitly check the box.</pre>
       </div>
@@ -576,19 +580,20 @@ body{letter-spacing:-.01em}
       </div>
       <div class="card wallet-availability-card" id="multisigToolsCard">
         <h2>Multisig wallet tools</h2>
+        <p class="warn">Not available yet: the server-side multisig/PSBT endpoints this needs haven't been built. Nothing below will work.</p>
         <p class="muted">Create M-of-N multisig and collect PSBT signatures.</p>
         <div class="row compact-row">
           <input id="multisigRequired" inputmode="numeric" value="2" aria-label="Required signatures" />
           <input id="multisigPubkeys" class="mono" placeholder="Cosigner pubkeys, comma or newline separated" autocomplete="off" />
         </div>
-        <button id="btnCreateMultisig" class="secondary inline" type="button">Create multisig wallet</button>
+        <button id="btnCreateMultisig" class="secondary inline" type="button" disabled>Create multisig wallet</button>
         <pre id="multisigCreateOut" class="mono muted">Address and redeem script appear here.</pre>
         <label>Multisig spend PSBT</label>
         <textarea id="multisigSpendPsbt" class="mono" placeholder="netpsbt:..."></textarea>
         <div class="row compact-row">
-          <button id="btnCreateMultisigSpend" class="secondary inline" type="button">Create multisig spend</button>
-          <button id="btnSignMultisigSpend" class="secondary inline" type="button">Add this cosigner signature</button>
-          <button id="btnExtractMultisigSpend" class="secondary inline" type="button">Extract when ready</button>
+          <button id="btnCreateMultisigSpend" class="secondary inline" type="button" disabled>Create multisig spend</button>
+          <button id="btnSignMultisigSpend" class="secondary inline" type="button" disabled>Add this cosigner signature</button>
+          <button id="btnExtractMultisigSpend" class="secondary inline" type="button" disabled>Extract when ready</button>
         </div>
         <p id="multisigProgress" class="muted">0 of 0 collected.</p>
       </div>
@@ -652,7 +657,7 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260720-signmessage" integrity="sha384-X66CYLkOnrHAkDZDVn9RLcaJzd3aCoXf8GAEInzhHZq7dp+XRdHWqejj2uFzxNBc" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260721-market-buy" integrity="sha384-suj0dEv9dKBuA1sjZiuo08GsQ2JLO1hT10MLSequH/tEGlKZQoyArP4Do5Mg9OrL" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260721-escrow-sig" integrity="sha384-v+1lZsCpzHqmGuoFCa4wUe33AHwZdg4LAavogmG8IcIA+nCO8TTByqvBasqMdkiT" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260721-structured-ui"></script>
 
 <style id="wallet-mobile-hardening">

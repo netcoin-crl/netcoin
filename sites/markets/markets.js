@@ -344,32 +344,36 @@
     return new Promise((resolve, reject) => {
       const walletOrigin = "https://wallet.netcoin.online";
       const requestId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-      const frame = document.createElement("iframe");
-      frame.hidden = true;
-      frame.src = `${walletOrigin}/?market_signer=1`;
-      const timeout = window.setTimeout(() => finish(new Error("Wallet did not respond. Unlock Wallet, then try again.")), 8000);
+      const walletWindow = window.open(`${walletOrigin}/`, "netcoin-wallet", "popup=yes,width=520,height=760");
+      if (!walletWindow) { reject(new Error("Allow the Wallet authorization window, then try again.")); return; }
+      const timeout = window.setTimeout(() => finish(new Error("Wallet authorization timed out.")), 120000);
+      const sender = window.setInterval(() => {
+        if (walletWindow.closed) { finish(new Error("Wallet authorization window was closed.")); return; }
+        walletWindow.postMessage({ type: "netcoin.signMarketOrder", requestId, path, body }, walletOrigin);
+      }, 500);
       function finish(error, result) {
         window.clearTimeout(timeout);
+        window.clearInterval(sender);
         window.removeEventListener("message", receive);
-        frame.remove();
         if (error) reject(error); else resolve(result);
       }
       function receive(event) {
-        if (event.origin !== walletOrigin || event.source !== frame.contentWindow) return;
+        if (event.origin !== walletOrigin || event.source !== walletWindow) return;
         const response = event.data || {};
         if (response.type !== "netcoin.marketOrderSignature" || response.requestId !== requestId) return;
         if (response.error) finish(new Error(response.error)); else finish(null, response);
       }
-      frame.addEventListener("load", () => frame.contentWindow.postMessage({ type: "netcoin.signMarketOrder", requestId, path, body }, walletOrigin), { once: true });
       window.addEventListener("message", receive);
-      document.body.appendChild(frame);
+      walletWindow.focus();
     });
   }
 
   async function doTradeBuy(m) {
     const body = orderPayloadFromForm();
     let status = $("#tradeStatus");
+    const button = $("#tradeBuy");
     if (!(body.quantity > 0)) { if (status) status.textContent = "Enter a number of shares first."; return; }
+    if (button) button.disabled = true;
     if (m.local_only || String(m.market_id).startsWith("local_")) {
       try {
         if (status) status.textContent = "Publishing this draft to the NetCoin testnet...";
@@ -378,11 +382,10 @@
         if (status) status.textContent = "Published. Opening Wallet authorization...";
       } catch (error) {
         if (status) status.textContent = `Could not publish: ${error.message}`;
+        if (button) button.disabled = false;
         return;
       }
     }
-    const button = $("#tradeBuy");
-    if (button) button.disabled = true;
     try {
       const path = `/markets/${encodeURIComponent(m.market_id)}/order`;
       const signed = await requestMarketOrderSignature(path, body);
@@ -407,6 +410,7 @@
       legal_acknowledged: true,
       sandbox_short_mode: true,
       mode: "testnet_demo",
+      idempotency_key: `publish-${m.market_id}`,
     };
     const published = await post("/markets", body);
     saveLocalMarkets(localMarkets().filter((item) => item.market_id !== m.market_id));

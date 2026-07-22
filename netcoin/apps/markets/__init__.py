@@ -154,6 +154,24 @@ def _normalize_trader_id(payload: dict[str, Any]) -> str:
     return f"demo:{cleaned}"
 
 
+def _verified_actor(payload: dict[str, Any], *, allow_demo: bool = False) -> str | None:
+    """Return the authenticated HTTP actor, never a caller-controlled alias."""
+    verified = payload.get("signed_envelope_verified")
+    if isinstance(verified, dict) and verified.get("verified"):
+        return str(verified.get("address") or "")
+    if payload.get("__netcoin_http_request") and not allow_demo:
+        raise AppError("a verified wallet signature is required for this market action")
+    return None
+
+
+def _require_market_owner(market: dict[str, Any], payload: dict[str, Any]) -> str:
+    actor = _verified_actor(payload)
+    owner = str(market.get("creator_address") or "")
+    if actor and owner and actor != owner:
+        raise AppError("only the market creator may perform this action")
+    return actor or owner or "operator"
+
+
 def _ensure_market_wallet(market: dict[str, Any], trader: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     wallets = market.setdefault("wallets", {})
@@ -747,6 +765,7 @@ def _hydrate_market(market: dict[str, Any]) -> dict[str, Any]:
 
 
 def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    verified_creator = _verified_actor(payload)
     question = str(payload.get("question") or "").strip()
     if not question:
         raise AppError("market question is required")
@@ -833,6 +852,7 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
     )
     record = {
         "market_id": market_id,
+        "creator_address": verified_creator or str(payload.get("creator_address") or "operator")[:120],
         "question": question[:240],
         "description": str(payload.get("description") or "")[:2000],
         "slug": slug,
@@ -953,11 +973,12 @@ def delete_prediction_market_impl(store: Any, market_id: str, payload: dict[str,
     market = data.get("prediction_markets", {}).get(market_id)
     if not market:
         raise AppError("prediction market not found")
+    actor = _require_market_owner(market, payload or {})
     if market.get("orders") or market.get("trades") or market.get("positions") or market.get("wallets"):
         raise AppError("only markets without orders, trades, or positions can be deleted")
     data["prediction_markets"].pop(market_id, None)
     data.get("contracts", {}).pop(market_id, None)
-    store._record_contract_event(data, "market.deleted", {"market_id": market_id, "actor": str((payload or {}).get("trader_address") or "wallet")})
+    store._record_contract_event(data, "market.deleted", {"market_id": market_id, "actor": actor})
     store.save(data)
     return {"deleted": True, "market_id": market_id}
 
@@ -1089,6 +1110,9 @@ def place_market_order_impl(store: Any, market_id: str, payload: dict[str, Any])
     if time_in_force not in ORDER_TIME_IN_FORCE:
         raise AppError("time_in_force must be GTC, IOC, FOK, DAY, or GTD")
     trader = _normalize_trader_id(payload)
+    verified_actor = _verified_actor(payload, allow_demo=trader.startswith("demo:"))
+    if verified_actor and trader != verified_actor:
+        raise AppError("signed wallet must match trader_address")
     wallet = _ensure_market_wallet(m, trader, payload)
     quantity = int(payload.get("quantity", payload.get("shares", 0)) or 0)
     if quantity <= 0:
@@ -1212,11 +1236,9 @@ def cancel_market_order_impl(
         raise AppError("market order not found")
     if order.get("status") != "open":
         raise AppError("only open market orders can be canceled")
-    actor = str(payload.get("trader_address") or payload.get("address") or payload.get("trader") or "").strip()
-    if actor:
-        actor_norm = _normalize_trader_id(payload)
-        if actor_norm != order.get("trader_address") and not payload.get("operator_override"):
-            raise AppError("only the order owner or an operator override can cancel this order")
+    verified_actor = _verified_actor(payload, allow_demo=str(order.get("trader_address", "")).startswith("demo:"))
+    if verified_actor and verified_actor != order.get("trader_address"):
+        raise AppError("only the order owner may cancel this order")
     wallet = _ensure_market_wallet(m, order["trader_address"])
     _release(wallet, int(order.get("reserved_sats_remaining", 0) or 0))
     order["reserved_sats_remaining"] = 0
@@ -1235,6 +1257,7 @@ def request_market_resolution_impl(store: Any, market_id: str, payload: dict[str
     m = data.get("prediction_markets", {}).get(market_id)
     if not m:
         raise AppError("prediction market not found")
+    actor = _require_market_owner(m, payload)
     winning = str(payload.get("winning_outcome_id") or payload.get("winner") or "").strip()
     if winning not in {o["outcome_id"] for o in m.get("outcomes", [])}:
         raise AppError("invalid winning outcome")
@@ -1248,7 +1271,7 @@ def request_market_resolution_impl(store: Any, market_id: str, payload: dict[str
         "resolution_note": str(payload.get("resolution_note") or "")[:1000],
         "evidence_url": evidence.get("url", ""),
         "evidence": evidence,
-        "proposer": str(payload.get("proposer") or payload.get("actor") or "operator")[:120],
+        "proposer": actor,
         "bond_sats": int(payload.get("bond_sats", 0) or 0),
         "requested_at": now(),
         "dispute_deadline": now() + int(m.get("dispute_window_seconds", 86400) or 86400),
@@ -1265,7 +1288,7 @@ def dispute_market_resolution_impl(store: Any, market_id: str, payload: dict[str
     m = data.get("prediction_markets", {}).get(market_id)
     if not m:
         raise AppError("prediction market not found")
-    actor = str(payload.get("actor") or payload.get("trader_address") or payload.get("trader") or "operator")[:120]
+    actor = _require_market_owner(m, payload)
     evidence = evidence_object(
         payload | {"actor": actor, "url": payload.get("evidence_url") or payload.get("url") or ""}
     )
@@ -1320,6 +1343,7 @@ def resolve_prediction_market_impl(store: Any, market_id: str, payload: dict[str
     m = data.get("prediction_markets", {}).get(market_id)
     if not m:
         raise AppError("prediction market not found")
+    _require_market_owner(m, payload)
     winning = str(payload.get("winning_outcome_id") or payload.get("winner") or "").strip()
     pending = m.get("resolution_workflow", {}).get("pending_resolution") or {}
     if not winning and pending:
@@ -1570,11 +1594,16 @@ def cancel_all_market_orders_impl(store: Any, market_id: str, payload: dict[str,
     m = data.get("prediction_markets", {}).get(market_id)
     if not m:
         raise AppError("prediction market not found")
+    verified_actor = _verified_actor(payload, allow_demo=bool(payload.get("demo_wallet")))
     trader = None
     if payload.get("trader") or payload.get("trader_address") or payload.get("address"):
         trader = _normalize_trader_id(
             payload | {"allow_unverified_demo": True, "demo_wallet": bool(payload.get("demo_wallet", True))}
         )
+    if verified_actor and not trader:
+        trader = verified_actor
+    if verified_actor and trader != verified_actor:
+        raise AppError("signed wallet must match trader_address")
     canceled = 0
     for order in m.get("orders", []):
         if order.get("status") != "open":
@@ -1621,11 +1650,12 @@ def transition_market_state_impl(
     m = data.get("prediction_markets", {}).get(market_id)
     if not m:
         raise AppError("prediction market not found")
+    actor = _require_market_owner(m, payload)
     previous = m.get("status")
     m["status"] = target
     m["updated_at"] = now()
     _market_event(
-        m, "market.state_changed", {"from": previous, "to": target, "actor": str(payload.get("actor") or "operator")}
+        m, "market.state_changed", {"from": previous, "to": target, "actor": actor}
     )
     store._record_contract_event(data, "market.state_changed", {"market_id": market_id, "from": previous, "to": target})
     store.save(data)

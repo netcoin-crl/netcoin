@@ -73,11 +73,13 @@ def test_wallet_app_sri_matches_site_html():
     assert match.group(1) == actual
 
 
-def test_wallet_accepts_market_signing_requests_only_from_markets():
+def test_wallet_accepts_visible_signing_requests_only_from_netcoin_sites():
     js = _read(SITE_WALLET / "wallet-app.js")
-    assert 'event.origin !== "https://markets.netcoin.online"' in js
-    assert 'type !== "netcoin.signMarketOrder"' in js
-    assert 'type: "netcoin.marketOrderSignature"' in js
+    assert 'requesterHost !== "netcoin.online"' in js
+    assert 'requesterHost.endsWith(".netcoin.online")' in js
+    assert 'request.type !== "netcoin.signAppRequest"' in js
+    assert '"netcoin.marketOrderSignature" : "netcoin.appRequestSignature"' in js
+    assert 'id="btnAuthorizeMarketRequest"' in js
 
 
 def test_wallet_api_helper_never_surfaces_a_raw_non_json_response_body():

@@ -517,6 +517,7 @@ def make_handler(chain: Blockchain, rate_limit_per_min: int = 240, *, trust_prox
 
         def do_POST(self) -> None:
             parsed = urlparse(self.path)
+            operator_verified = self.admin_required(parsed.path, "POST")
             if not self.require_admin(parsed.path, "POST"):
                 return
             if not rate_limiter.allow((self.client_ip(), "POST", parsed.path)):
@@ -528,6 +529,8 @@ def make_handler(chain: Blockchain, rate_limit_per_min: int = 240, *, trust_prox
                 if header_api_key and "api_key" not in data:
                     data["api_key"] = header_api_key
                 data["__netcoin_http_request"] = True
+                if operator_verified:
+                    data["__netcoin_operator_verified"] = True
                 try:
                     status, payload = route_app_post(app_store, chain, parsed.path, data)
                 except AppError as app_exc:

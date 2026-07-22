@@ -100,7 +100,8 @@ def test_app_store_invoice_username_merchant_community_wallet_and_network(tmp_pa
     assert "blocks_remaining" in store.reward_countdown(chain)
 
 
-def test_node_app_layer_routes(tmp_path: Path):
+def test_node_app_layer_routes(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("NETCOIN_APP_ALLOW_UNSIGNED_SENSITIVE", "1")
     chain = Blockchain(tmp_path / "chain")
     payer = Wallet.create()
     merchant = Wallet.create()
@@ -119,7 +120,8 @@ def test_node_app_layer_routes(tmp_path: Path):
     assert network["height"] >= 102
 
 
-def test_explorer_api_prefixed_app_layer_routes(tmp_path: Path):
+def test_explorer_api_prefixed_app_layer_routes(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("NETCOIN_APP_ALLOW_UNSIGNED_SENSITIVE", "1")
     chain = Blockchain(tmp_path / "chain")
     payer = Wallet.create()
     merchant = Wallet.create()

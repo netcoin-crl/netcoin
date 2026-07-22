@@ -22,23 +22,60 @@ def test_developer_api_keys_are_available_and_revocable(tmp_path: Path):
     assert created["api_key"].startswith("nck_")
     assert store.check_api_key(created["api_key"])
 
-    get_status, listed, _ = route_app_get(store, chain, "/api/developer/api-keys", {"developer_id": ["game-studio"]})
+    # Without proving you hold an active key for this account, listing must not
+    # leak the revokable key_id (it's a public developer_id, not a secret).
+    anon_status, anon_listed, _ = route_app_get(store, chain, "/api/developer/api-keys", {"developer_id": ["game-studio"]})
+    assert anon_status == 200
+    assert anon_listed["count"] == 1
+    assert "key_id" not in anon_listed["api_keys"][0]
+
+    get_status, listed, _ = route_app_get(
+        store,
+        chain,
+        "/api/developer/api-keys",
+        {"developer_id": ["game-studio"], "_presented_api_key": [created["api_key"]]},
+    )
     assert get_status == 200
     assert listed["count"] == 1
     assert listed["api_keys"][0]["key_id"] == created["key_id"]
     assert "key_hash" not in listed["api_keys"][0]
     assert "api_key" not in listed["api_keys"][0]
+    assert "owner_address" not in listed["api_keys"][0]
     assert listed["api_keys"][0]["active"] is True
 
+    # Revoking without a wallet signature requires proving possession of a
+    # currently-active key for this same account -- key_id alone is not enough.
     revoke_status, revoked = route_app_post(
         store,
         chain,
         "/api/developer/api-keys/revoke",
-        {"developer_id": "game-studio", "key_id": created["key_id"]},
+        {"developer_id": "game-studio", "key_id": created["key_id"], "api_key": created["api_key"]},
     )
     assert revoke_status == 200
     assert revoked["active"] is False
     assert not store.check_api_key(created["api_key"])
+
+
+def test_api_key_cannot_be_enumerated_or_revoked_by_an_unrelated_caller(tmp_path: Path):
+    """Regression: knowing a public developer_id + a listed key_id used to be
+    enough to revoke someone else's key with zero authentication."""
+    chain = Blockchain(tmp_path / "chain")
+    store = AppStore(chain.data_dir)
+    _, created = route_app_post(store, chain, "/api/developer/api-keys", {"developer_id": "victim"})
+
+    # An unrelated caller who only knows the (public) developer_id cannot see key_id.
+    _, listed, _ = route_app_get(store, chain, "/api/developer/api-keys", {"developer_id": ["victim"]})
+    assert "key_id" not in listed["api_keys"][0]
+
+    # And cannot revoke it even if they somehow learn the key_id another way.
+    with pytest.raises(AppError, match="valid API key"):
+        route_app_post(
+            store,
+            chain,
+            "/api/developer/api-keys/revoke",
+            {"developer_id": "victim", "key_id": created["key_id"]},
+        )
+    assert store.check_api_key(created["api_key"])
 
 
 @pytest.mark.parametrize(

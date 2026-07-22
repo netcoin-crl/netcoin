@@ -348,6 +348,39 @@ def verify_app_action_signature(
     return {"required": required, "verified": True, "signer": signer, "message": expected}
 
 
+def verified_http_actor(payload: dict[str, Any], *, required: bool = False) -> str | None:
+    """Return the verified request wallet for HTTP writes, if one was presented.
+
+    Whether a signature is actually mandatory for a given path is decided once,
+    up front, by should_require_signed_envelope()/SENSITIVE_WRITE_PREFIXES --
+    a route that isn't sensitive must keep working for unsigned callers exactly
+    as before signing support existed here. This helper only binds an action to
+    a real wallet *when one was voluntarily verified* (required=True is for
+    call sites on paths that are independently already gated as sensitive,
+    where skipping verification would otherwise silently no-op the check).
+    Direct in-process calls remain available to maintenance tools and unit
+    tests; an HTTP caller must never select its authority with a payload field.
+    """
+    verified = payload.get("signed_envelope_verified")
+    if isinstance(verified, dict) and verified.get("verified"):
+        return normalize_address(verified.get("address"))
+    if required and payload.get("__netcoin_http_request"):
+        raise AppError("a verified wallet signature is required")
+    return None
+
+
+def require_verified_actor(
+    payload: dict[str, Any], claimed: Any, *, label: str = "actor", normalizer: Any = normalize_address
+) -> str:
+    actor = verified_http_actor(payload)
+    if actor:
+        claimed_address = normalizer(claimed)
+        if claimed_address != actor:
+            raise AppError(f"signed wallet must match {label}")
+        return actor
+    return normalizer(claimed)
+
+
 def app_html_page(title: str, body: str) -> str:
     return f"""<!doctype html>
 <html lang="en">
@@ -815,6 +848,7 @@ class AppStore:
 
     # ----- merchant / webhooks -----
     def create_api_key(self, payload: dict[str, Any]) -> dict[str, Any]:
+        actor = verified_http_actor(payload)
         merchant_id = str(payload.get("merchant_id") or "default")[:80]
         raw = "nck_" + secrets.token_urlsafe(24)
         key_id = clean_id("key")
@@ -822,6 +856,7 @@ class AppStore:
         data["api_keys"][key_id] = {
             "key_id": key_id,
             "merchant_id": merchant_id,
+            "owner_address": actor or str(payload.get("owner_address") or "")[:140],
             "key_hash": hashlib.sha256(raw.encode()).hexdigest(),
             "permissions": payload.get(
                 "permissions", ["payments:create", "payments:read", "merchant:write", "webhooks:deliver"]
@@ -841,19 +876,31 @@ class AppStore:
             "warning": "Store this API key now. Only its hash is saved.",
         }
 
-    def list_api_keys(self, merchant_id: str | None = None) -> dict[str, Any]:
+    def list_api_keys(self, merchant_id: str | None = None, presented_key: str | None = None) -> dict[str, Any]:
         merchant_id = str(merchant_id or "")[:80]
+        # key_id is what revocation trusts as proof of "which key" -- it must not be
+        # handed to a caller who hasn't already shown they hold a currently-active key
+        # for this same account. developer_id/merchant_id are public identifiers, not
+        # secrets, so listing must stay usable without one (dashboards load by ID),
+        # but the actual revokable key_id is only included once self-authenticated.
+        self_authenticated = False
+        if presented_key:
+            record = self.api_key_record(presented_key)
+            self_authenticated = bool(record and (not merchant_id or record.get("merchant_id") == merchant_id))
         keys = []
         for item in self.load().get("api_keys", {}).values():
             if merchant_id and item.get("merchant_id") != merchant_id:
                 continue
-            public = {k: v for k, v in item.items() if k != "key_hash"}
+            public = {k: v for k, v in item.items() if k not in {"key_hash", "owner_address"}}
+            if not self_authenticated:
+                public.pop("key_id", None)
             public["active"] = public.get("active", True) and not public.get("revoked_at")
             keys.append(public)
         keys.sort(key=lambda row: int(row.get("created_at", 0) or 0), reverse=True)
         return {"api_keys": keys, "count": len(keys)}
 
     def revoke_api_key(self, payload: dict[str, Any]) -> dict[str, Any]:
+        actor = verified_http_actor(payload)
         key_id = str(payload.get("key_id") or "").strip()
         if not key_id:
             raise AppError("key_id is required")
@@ -864,6 +911,16 @@ class AppStore:
             raise AppError("api key not found")
         if merchant_id and record.get("merchant_id") != merchant_id:
             raise AppError("api key does not belong to this developer")
+        if actor:
+            if record.get("owner_address") != actor:
+                raise AppError("only the API-key owner may revoke it")
+        else:
+            # No wallet signature: the caller must already hold a currently-active key
+            # for this same account (self-service, proof of possession) -- knowing a
+            # public developer_id and a key_id alone is not enough.
+            presented = self.api_key_record(payload.get("api_key"))
+            if not presented or presented.get("merchant_id") != record.get("merchant_id"):
+                raise AppError("a valid API key for this developer is required to revoke a key")
         record["active"] = False
         record["revoked_at"] = now()
         self.save(data)
@@ -906,22 +963,27 @@ class AppStore:
             "warning": "Store this API key now. Only its hash is saved. Send it as the X-Netcoin-Api-Key header on write requests.",
         }
 
-    def check_api_key(self, raw: Any) -> bool:
+    def api_key_record(self, raw: Any) -> dict[str, Any] | None:
+        """Resolve an active key without ever exposing its stored digest."""
+        candidate = str(raw or "")
+        if not candidate:
+            return None
+        digest = hashlib.sha256(candidate.encode()).hexdigest()
+        for rec in self.load()["api_keys"].values():
+            if rec.get("active", True) and not rec.get("revoked_at") and hmac.compare_digest(
+                rec.get("key_hash", ""), digest
+            ):
+                return dict(rec)
+        return None
+
+    def check_api_key(self, raw: Any, *, allow_self_service: bool = True) -> bool:
         """True if the presented key matches any active stored key hash.
 
         The check avoids a disk write per request, so it does not update
         last_used_at here. Revoked keys are ignored.
         """
-        candidate = str(raw or "")
-        if not candidate:
-            return False
-        digest = hashlib.sha256(candidate.encode()).hexdigest()
-        return any(
-            rec.get("active", True)
-            and not rec.get("revoked_at")
-            and hmac.compare_digest(rec.get("key_hash", ""), digest)
-            for rec in self.load()["api_keys"].values()
-        )
+        record = self.api_key_record(raw)
+        return bool(record and (allow_self_service or not record.get("self_service")))
 
     def _hash_idempotent_payload(self, action: str, payload: dict[str, Any]) -> str:
         clean = {
@@ -1047,11 +1109,13 @@ class AppStore:
         action_row["last_used_at"] = now()
         self.save(data)
 
-    def api_usage_report(self) -> dict[str, Any]:
+    def api_usage_report(self, merchant_id: str | None = None) -> dict[str, Any]:
         data = self.load()
         rows = []
         for key_id, usage in data.get("api_usage", {}).items():
             rec = data.get("api_keys", {}).get(key_id, {})
+            if merchant_id and rec.get("merchant_id") != merchant_id:
+                continue
             rows.append(
                 {
                     "key_id": key_id,
@@ -1094,6 +1158,7 @@ class AppStore:
         return bool(roles & allowed or "admin" in roles)
 
     def register_webhook(self, payload: dict[str, Any]) -> dict[str, Any]:
+        actor = verified_http_actor(payload)
         merchant_id = str(payload.get("merchant_id") or "default")[:80]
         url = str(payload.get("url") or payload.get("webhook_url") or "").strip()
         assert_public_webhook_url(url)  # SSRF guard: public https hosts only
@@ -1102,6 +1167,7 @@ class AppStore:
         record = {
             "webhook_id": hook_id,
             "merchant_id": merchant_id,
+            "owner_address": actor or str(payload.get("owner_address") or "")[:140],
             "url": url,
             "events": payload.get("events", ["payment.confirmed", "payment.pending", "payment.expired"]),
             "secret_hash": hashlib.sha256(secret.encode()).hexdigest(),
@@ -1706,6 +1772,20 @@ class AppStore:
         return data["refunds"][record["refund_id"]]
 
     # ----- developer rewards / withdrawals / payment links -----
+    def _authorize_developer_actor(
+        self, data: dict[str, Any], developer_id: str, payload: dict[str, Any]
+    ) -> str | None:
+        actor = verified_http_actor(payload)
+        app = data.setdefault("developer_apps", {}).setdefault(
+            developer_id, {"developer_id": developer_id, "created_at": now()}
+        )
+        owner = str(app.get("owner_address") or "")
+        if actor and owner and actor != owner:
+            raise AppError("signed wallet does not own this developer account")
+        if actor and not owner:
+            app["owner_address"] = actor
+        return actor
+
     def _developer_funding_policy_record(self, data: dict[str, Any], developer_id: str) -> dict[str, Any]:
         policies = data.setdefault("developer_funding_policies", {})
         policy = policies.setdefault(
@@ -1730,6 +1810,7 @@ class AppStore:
     def set_developer_funding_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
         developer_id = str(payload.get("developer_id") or payload.get("app_id") or "default")[:80]
         data = self.load()
+        self._authorize_developer_actor(data, developer_id, payload)
         policy = self._developer_funding_policy_record(data, developer_id)
         if "daily_cap_sats" in payload:
             policy["daily_cap_sats"] = max(0, parse_amount_sats(payload.get("daily_cap_sats", 0), "daily cap"))
@@ -1792,6 +1873,7 @@ class AppStore:
         address = normalize_address(payload.get("address"))
         amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "reward amount")
         data = self.load()
+        self._authorize_developer_actor(data, developer_id, payload)
         self._enforce_developer_funding_policy(data, developer_id, player_id, address, amount_sats)
         reward_payload = dict(payload)
         reward_payload.setdefault("reason", payload.get("event") or payload.get("reason") or "developer reward")
@@ -1842,6 +1924,7 @@ class AppStore:
         fee_sats = parse_amount_sats(payload.get("fee_sats", payload.get("fee", 0)), "withdrawal fee")
         player_id = str(payload.get("player_id") or payload.get("user_id") or "")[:120]
         data = self.load()
+        self._authorize_developer_actor(data, developer_id, payload)
         self._enforce_developer_funding_policy(data, developer_id, player_id, address, amount_sats)
         record = {
             "withdrawal_id": withdrawal_id,
@@ -2418,7 +2501,12 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         decimals = int(payload.get("decimals", 8) or 0)
         if not 0 <= decimals <= 8:
             raise AppError("token decimals must be between 0 and 8")
-        creator = normalize_token_account(payload.get("creator") or payload.get("creator_address"))
+        creator = require_verified_actor(
+            payload,
+            payload.get("creator") or payload.get("creator_address"),
+            label="creator",
+            normalizer=normalize_token_account,
+        )
         initial_units = parse_token_units(payload.get("initial_supply", 0), decimals, "initial supply", allow_zero=True)
         max_units = parse_token_units(payload.get("max_supply", 0), decimals, "max supply", allow_zero=True)
         if max_units and initial_units > max_units:
@@ -2508,7 +2596,9 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         token = self._find_token(data, token_ref)
         if not token.get("mintable"):
             raise AppError("token is not mintable")
-        minter = normalize_token_account(payload.get("minter") or payload.get("creator"))
+        minter = require_verified_actor(
+            payload, payload.get("minter") or payload.get("creator"), label="minter", normalizer=normalize_token_account
+        )
         if minter != token["creator"]:
             raise AppError("only the token creator may mint")
         signature_status = verify_app_action_signature("tokens.mint", minter, payload)
@@ -2527,7 +2617,9 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
     def transfer_token(self, token_ref: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = self.load()
         token = self._find_token(data, token_ref)
-        sender = normalize_token_account(payload.get("from") or payload.get("sender"))
+        sender = require_verified_actor(
+            payload, payload.get("from") or payload.get("sender"), label="sender", normalizer=normalize_token_account
+        )
         recipient = normalize_token_account(payload.get("to") or payload.get("recipient"))
         if sender == recipient:
             raise AppError("cannot transfer a token to the same account")
@@ -2556,7 +2648,9 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
     def burn_token(self, token_ref: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = self.load()
         token = self._find_token(data, token_ref)
-        account = normalize_token_account(payload.get("from") or payload.get("account"))
+        account = require_verified_actor(
+            payload, payload.get("from") or payload.get("account"), label="account", normalizer=normalize_token_account
+        )
         signature_status = verify_app_action_signature("tokens.burn", account, payload)
         units = parse_token_units(payload.get("amount"), token["decimals"], "burn amount")
         balance = int(token["balances"].get(account, 0))
@@ -2621,6 +2715,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         raise AppError("gift not found")
 
     def create_bounty(self, payload: dict[str, Any]) -> dict[str, Any]:
+        actor = verified_http_actor(payload)
         bounty_id = str(payload.get("bounty_id") or clean_id("bty"))
         reward_sats = parse_amount_sats(
             payload.get("reward_sats", payload.get("reward", payload.get("amount", 0))), "bounty reward"
@@ -2631,7 +2726,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             "description": str(payload.get("description") or "")[:2000],
             "reward_sats": reward_sats,
             "reward": sats_to_amount(reward_sats),
-            "sponsor_address": str(payload.get("sponsor_address") or ""),
+            "sponsor_address": actor or str(payload.get("sponsor_address") or ""),
             "status": "open",
             "submissions": [],
             "winner_address": None,
@@ -2648,10 +2743,13 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         bounty = data["bounties"].get(bounty_id)
         if not bounty:
             raise AppError("bounty not found")
+        actor = verified_http_actor(payload)
+        if actor and payload.get("address") and normalize_address(payload.get("address")) != actor:
+            raise AppError("signed wallet must match submission address")
         submission = {
             "submission_id": clean_id("sub"),
             "submitter": str(payload.get("submitter") or "")[:120],
-            "address": str(payload.get("address") or "")[:140],
+            "address": actor or str(payload.get("address") or "")[:140],
             "url": str(payload.get("url") or "")[:500],
             "note": str(payload.get("note") or "")[:1000],
             "created_at": now(),
@@ -2665,6 +2763,13 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         bounty = data["bounties"].get(bounty_id)
         if not bounty:
             raise AppError("bounty not found")
+        # /bounties isn't in SENSITIVE_WRITE_PREFIXES, so a signed envelope is only
+        # verified if the caller happens to supply one -- required=True here means
+        # awarding (unlike listing/submitting) always demands one, since it decides
+        # a real payout winner.
+        actor = verified_http_actor(payload, required=True)
+        if actor and actor != bounty.get("sponsor_address"):
+            raise AppError("only the bounty sponsor may award it")
         winner = normalize_address(payload.get("winner_address") or payload.get("address"))
         bounty.update(
             {
@@ -3056,7 +3161,8 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         return rec
 
     def approve_exchange_withdrawal(self, withdrawal_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        approver = str((payload or {}).get("approver") or "operator")[:80]
+        actor = verified_http_actor(payload)
+        approver = actor or str((payload or {}).get("approver") or "operator")[:140]
         data = self.load()
         withdrawals = data.setdefault("exchange_withdrawals", [])
         rec = next((w for w in withdrawals if w.get("withdrawal_id") == withdrawal_id), None)
@@ -3411,11 +3517,16 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
 
     def create_team_wallet(self, payload: dict[str, Any]) -> dict[str, Any]:
         wallet_id = str(payload.get("wallet_id") or clean_id("team"))
+        actor = verified_http_actor(payload)
+        members = [str(item)[:140] for item in (payload.get("members") or [])]
+        if actor and actor not in members:
+            members.append(actor)
         record = {
             "wallet_id": wallet_id,
             "name": str(payload.get("name") or "Team wallet")[:120],
             "addresses": payload.get("addresses", []),
-            "members": payload.get("members", []),
+            "members": members,
+            "created_by": actor or str(payload.get("created_by") or "")[:140],
             "required_approvals": int(payload.get("required_approvals", 1) or 1),
             "proposals": [],
             "created_at": now(),
@@ -3430,6 +3541,9 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         wallet = data.get("team_wallets", {}).get(wallet_id)
         if not wallet:
             raise AppError("team wallet not found")
+        actor = verified_http_actor(payload)
+        if actor and actor not in wallet.get("members", []):
+            raise AppError("only a team-wallet member may create proposals")
         outputs = payload.get("outputs") or []
         if not outputs and payload.get("to_address"):
             outputs = [{"address": payload.get("to_address"), "amount": payload.get("amount", 0)}]
@@ -3437,7 +3551,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         proposal = {
             "proposal_id": str(payload.get("proposal_id") or clean_id("prop")),
             "payout_plan": plan,
-            "created_by": str(payload.get("created_by") or "")[:120],
+            "created_by": actor or str(payload.get("created_by") or "")[:120],
             "approvals": [],
             "status": "pending_approval",
             "created_at": now(),
@@ -3451,9 +3565,12 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         wallet = data.get("team_wallets", {}).get(wallet_id)
         if not wallet:
             raise AppError("team wallet not found")
-        signer = str(payload.get("member") or payload.get("signer") or "")[:120]
+        actor = verified_http_actor(payload)
+        signer = actor or str(payload.get("member") or payload.get("signer") or "")[:120]
         if not signer:
             raise AppError("member/signer is required")
+        if actor and signer not in wallet.get("members", []):
+            raise AppError("only a team-wallet member may approve proposals")
         for proposal in wallet.get("proposals", []):
             if proposal.get("proposal_id") != proposal_id:
                 continue
@@ -3795,6 +3912,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         return rec
 
     def create_escrow(self, payload: dict[str, Any]) -> dict[str, Any]:
+        actor = verified_http_actor(payload)
         buyer_pub = self._valid_pubkey_hex(payload.get("buyer_pubkey"), "buyer_pubkey")
         seller_pub = self._valid_pubkey_hex(payload.get("seller_pubkey"), "seller_pubkey")
         mediator_pub = self._valid_pubkey_hex(payload.get("mediator_pubkey"), "mediator_pubkey")
@@ -3822,6 +3940,11 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             "approvals": [],
             "created_at": now(),
         }
+        participants = {
+            value for value in (record["buyer_address"], record["seller_address"], record["mediator_address"]) if value
+        }
+        if actor and actor not in participants:
+            raise AppError("escrow creator must be the buyer, seller, or mediator")
         if record["funding_txid"]:
             record["status"] = "funded"
         data = self.load()
@@ -3864,12 +3987,34 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         if not rec:
             raise AppError("escrow not found")
         action = str(payload.get("action") or "").lower()
-        signer = str(payload.get("signer") or payload.get("participant") or "")[:120]
         if action not in {"release", "refund", "dispute", "cancel"}:
             raise AppError("escrow action must be release, refund, dispute, or cancel")
+        actor = verified_http_actor(payload)
+        signer = actor or str(payload.get("signer") or payload.get("participant") or "")[:120]
+        participants = {
+            value for value in (rec.get("buyer_address"), rec.get("seller_address"), rec.get("mediator_address")) if value
+        }
+        if not signer:
+            raise AppError("signer is required")
+        if payload.get("__netcoin_http_request"):
+            # A real HTTP caller must actually be a participant, and -- absent a
+            # generic wallet-envelope signature -- must prove control of the
+            # claimed participant address directly, the same way poll votes do.
+            # This still moves or freezes real (testnet) funds, so a bare claim
+            # is never enough here. Direct in-process calls (maintenance tools,
+            # tests) are unaffected, same as everywhere else in this module.
+            if signer not in participants:
+                raise AppError("only an escrow participant may perform this action")
+            if not actor:
+                signature = str(payload.get("signature") or "")
+                message = f"NetCoin escrow action\nescrow-action-v1\n{escrow_id}\n{action}\n{signer}"
+                if not signature or not verify_message(signer, message, signature):
+                    raise AppError("a valid signature from the claimed participant address is required")
         if action == "dispute":
             rec["status"] = "disputed"
         elif action == "cancel":
+            if rec.get("status") not in {"funding_ready", "canceled"}:
+                raise AppError("a funded escrow cannot be canceled")
             rec["status"] = "canceled"
         else:
             if not signer:
@@ -3880,14 +4025,14 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
                 "created_at": now(),
                 "signature": str(payload.get("signature") or "")[:300],
             }
-            if approval not in rec.setdefault("approvals", []):
+            if not any(
+                item.get("action") == action and item.get("signer") == signer
+                for item in rec.setdefault("approvals", [])
+            ):
                 rec["approvals"].append(approval)
             signers = {a.get("signer") for a in rec.get("approvals", []) if a.get("action") == action}
             if len(signers) >= 2:
-                to_addr = normalize_address(
-                    payload.get("to_address")
-                    or (rec.get("seller_address") if action == "release" else rec.get("buyer_address"))
-                )
+                to_addr = normalize_address(rec.get("seller_address") if action == "release" else rec.get("buyer_address"))
                 rec["payout_plan"] = self.plan_payout(
                     "escrow_" + action,
                     [{"address": to_addr, "amount_sats": int(rec["amount_sats"])}],
@@ -3904,6 +4049,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         return rec
 
     def create_poll(self, payload: dict[str, Any]) -> dict[str, Any]:
+        actor = verified_http_actor(payload)
         title = str(payload.get("title") or "").strip()
         if not title:
             raise AppError("poll title is required")
@@ -3916,7 +4062,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             "title": title[:200],
             "description": str(payload.get("description") or "")[:2000],
             "options": [{"option_id": f"opt{i+1}", "label": opt[:120]} for i, opt in enumerate(options)],
-            "creator_address": str(payload.get("creator_address") or "")[:140],
+            "creator_address": actor or str(payload.get("creator_address") or "")[:140],
             "voting_method": str(payload.get("voting_method") or "signed_message"),
             "weighting": str(payload.get("weighting") or "one_address_one_vote"),
             "status": str(payload.get("status") or "open"),
@@ -3951,7 +4097,10 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             poll["status"] = "closed"
             self.save(data)
             raise AppError("poll is closed")
-        voter = normalize_address(payload.get("voter_address") or payload.get("address"))
+        actor = verified_http_actor(payload)
+        voter = require_verified_actor(
+            payload, payload.get("voter_address") or payload.get("address"), label="voter_address"
+        )
         option_id = str(payload.get("option_id") or payload.get("option") or "").strip()
         if option_id not in {o["option_id"] for o in poll.get("options", [])}:
             raise AppError("invalid poll option")
@@ -3962,9 +4111,9 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             verified = verify_message(voter, message, signature)
             if not verified:
                 raise AppError("vote signature is invalid")
-        elif not bool(payload.get("allow_unverified_demo", False)):
+        elif not actor and not bool(payload.get("allow_unverified_demo", False)):
             raise AppError("signature is required for signed-message polls")
-        weight = int(payload.get("weight", 1) or 1)
+        weight = 1 if actor else int(payload.get("weight", 1) or 1)
         poll.setdefault("votes", {})[voter] = {
             "voter_address": voter,
             "option_id": option_id,
@@ -3995,11 +4144,18 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         return poll | {"results": totals, "winner_option_id": winner, "vote_count": len(poll.get("votes", {}))}
 
     def close_poll(self, poll_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = payload or {}
         data = self.load()
         poll = data.get("polls", {}).get(poll_id)
         if not poll:
             raise AppError("poll not found")
-        poll["status"] = str((payload or {}).get("status") or "closed")
+        # /polls isn't in SENSITIVE_WRITE_PREFIXES either; closing early can cut
+        # off votes, so -- unlike casting a vote itself -- it always requires proof
+        # of being the creator.
+        actor = verified_http_actor(payload, required=True)
+        if actor and actor != poll.get("creator_address"):
+            raise AppError("only the poll creator may close this poll")
+        poll["status"] = str(payload.get("status") or "closed")
         poll["closed_at"] = now()
         self._record_contract_event(data, "poll.closed", {"poll_id": poll_id})
         self.save(data)
@@ -4384,7 +4540,8 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         return record
 
     def approve_treasury_proposal(self, proposal_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        signer = str(payload.get("signer") or payload.get("operator") or payload.get("address") or "").strip()
+        actor = verified_http_actor(payload)
+        signer = actor or str(payload.get("signer") or payload.get("operator") or payload.get("address") or "").strip()
         if not signer:
             raise AppError("approval signer is required")
         data = self.load()
@@ -4527,18 +4684,33 @@ def route_app_get(
     if path == "/merchant/export.csv":
         return 200, store.invoices_csv(chain, merchant_id=q("merchant_id") or None), "text/csv"
     if path == "/merchant/webhooks":
+        merchant_id = q("merchant_id")
+        data = store.load()
         return (
             200,
-            {"webhooks": list(store.load()["webhooks"].values()), "events": store.load()["webhook_events"][-100:]},
+            {
+                "webhooks": [
+                    {k: v for k, v in item.items() if k not in {"secret", "secret_hash"}}
+                    for item in data["webhooks"].values()
+                    if not merchant_id or item.get("merchant_id") == merchant_id
+                ],
+                "events": [
+                    item for item in data["webhook_events"] if not merchant_id or item.get("merchant_id") == merchant_id
+                ][-100:],
+            },
             "application/json",
         )
     if path == "/merchant/refunds":
-        return 200, {"refunds": list(store.load()["refunds"].values())}, "application/json"
+        merchant_id = q("merchant_id")
+        refunds = [
+            item for item in store.load()["refunds"].values()
+            if not merchant_id or item.get("merchant_id") == merchant_id
+        ]
+        return 200, {"refunds": refunds}, "application/json"
     if path == "/merchant/api-keys":
-        keys = [{k: v for k, v in item.items() if k != "key_hash"} for item in store.load()["api_keys"].values()]
-        return 200, {"api_keys": keys}, "application/json"
+        return 200, store.list_api_keys(q("merchant_id") or None, q("_presented_api_key") or None), "application/json"
     if path == "/merchant/api-usage":
-        return 200, store.api_usage_report(), "application/json"
+        return 200, store.api_usage_report(q("merchant_id") or None), "application/json"
     if path == "/developer/dashboard":
         return 200, store.developer_dashboard(chain, q("developer_id") or q("app_id") or None), "application/json"
     if path == "/developer/console":
@@ -4574,11 +4746,14 @@ def route_app_get(
             links = [item for item in links if item.get("developer_id") == developer_id]
         return 200, {"payment_links": links, "count": len(links)}, "application/json"
     if path == "/developer/api-keys":
-        return 200, store.list_api_keys(q("developer_id") or q("app_id") or None), "application/json"
+        return 200, store.list_api_keys(q("developer_id") or q("app_id") or None, q("_presented_api_key") or None), "application/json"
     if path == "/developer/webhooks":
         data = store.load()
         developer_id = q("developer_id") or q("app_id")
-        webhooks = list(data.get("webhooks", {}).values())
+        webhooks = [
+            {k: v for k, v in item.items() if k not in {"secret", "secret_hash"}}
+            for item in data.get("webhooks", {}).values()
+        ]
         events = data.get("webhook_events", [])[-100:]
         if developer_id:
             webhooks = [item for item in webhooks if item.get("merchant_id") == developer_id]

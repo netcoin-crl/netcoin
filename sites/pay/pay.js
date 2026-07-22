@@ -138,6 +138,18 @@ $('#loadInvoice').onclick=async()=>{const id=$('#invoiceId').value.trim();if(!id
     checkoutTimer = setInterval(() => pollCheckout(id), 4000);
   }
 
+  $('#checkoutCopy')?.addEventListener('click', async () => {
+    const uri = $('#checkoutUri')?.textContent || '';
+    const btn = $('#checkoutCopy');
+    if (!uri) return;
+    try {
+      await navigator.clipboard.writeText(uri);
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    } catch (e) { btn.textContent = 'Copy failed'; }
+  });
+
   document.addEventListener('DOMContentLoaded', initCheckout);
   if (document.readyState !== 'loading') initCheckout();
 })();

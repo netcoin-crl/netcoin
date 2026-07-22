@@ -77,7 +77,6 @@
   function applyPendingPrefill() {
     if (prefillApplied) return;
     const params = new URLSearchParams(location.search);
-    if (params.get("buy_market")) { applyPendingMarketBuy(params); return; }
     let to = params.get("to") || "";
     let amt = params.get("amount") || "";
     const label = params.get("label") || "";
@@ -124,76 +123,70 @@
     const message = ["NetCoin signed request", "netcoin-signed-envelope-v1", address, "POST", path, bodyHash, String(timestamp), nonce].join("\n");
     return { message, bodyHash, timestamp, nonce };
   }
+  let activeMarketRequestId = "";
   window.addEventListener("message", async (event) => {
-    if (event.origin !== "https://markets.netcoin.online") return;
+    let requesterHost = "";
+    try { requesterHost = new URL(event.origin).hostname; } catch { return; }
+    if (requesterHost !== "netcoin.online" && !requesterHost.endsWith(".netcoin.online")) return;
     const request = event.data || {};
-    if (request.type !== "netcoin.signMarketOrder" || typeof request.requestId !== "string") return;
-    const reply = (payload) => event.source.postMessage({ type: "netcoin.marketOrderSignature", requestId: request.requestId, ...payload }, event.origin);
-    try {
-      if (!state) resumeUnlockedSession();
-      if (!state) throw new Error("Unlock Wallet in another tab before buying.");
-      const path = String(request.path || "");
-      if (!/^\/markets\/[^/]+\/(order|delete)$/.test(path)) throw new Error("Invalid market request.");
-      const requestedBody = request.body && typeof request.body === "object" ? request.body : null;
-      if (!requestedBody) throw new Error("Invalid market order payload.");
-      const body = { ...requestedBody, trader_address: state.address };
-      const envelope = await marketOrderEnvelopeMessage(path, body, state.address);
-      const signature = W.signMessage(state.privHex, envelope.message);
-      reply({ address: state.address, envelope: { address: state.address, method: "POST", path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature } });
-    } catch (error) {
-      reply({ error: error.message || "Wallet could not sign this market order." });
-    }
-  });
-  async function applyPendingMarketBuy(params) {
-    ensureWalletTabShell();
+    const marketRequest = request.type === "netcoin.signMarketOrder";
+    if (!marketRequest && request.type !== "netcoin.signAppRequest") return;
+    if (typeof request.requestId !== "string") return;
+    const responseType = marketRequest ? "netcoin.marketOrderSignature" : "netcoin.appRequestSignature";
+    const reply = (payload) => event.source.postMessage({ type: responseType, requestId: request.requestId, ...payload }, event.origin);
+    const path = String(request.path || "");
+    if (!/^\/[a-z0-9][a-z0-9_./-]*$/i.test(path) || path.includes("..")) { reply({ error: "Invalid application request." }); return; }
+    if (marketRequest && !/^\/markets\/[^/]+\/(order|delete)$/.test(path)) { reply({ error: "Invalid market request." }); return; }
+    const requestedBody = request.body && typeof request.body === "object" ? request.body : null;
+    if (!requestedBody) { reply({ error: "Invalid market order payload." }); return; }
     if (!state) resumeUnlockedSession();
-    if (!state) { show(hasProfiles() ? "unlock" : "welcome"); return; }
-    prefillApplied = true;
-    const marketId = params.get("buy_market");
-    const outcomeId = params.get("buy_outcome") || "";
-    const body = {
-      outcome_id: outcomeId,
-      side: params.get("buy_side") || "buy",
-      order_type: params.get("buy_order_type") || "limit",
-      time_in_force: params.get("buy_tif") || "GTC",
-      quantity: Number(params.get("buy_qty") || 0),
-      price_bps: params.get("buy_price_bps") ? Number(params.get("buy_price_bps")) : undefined,
-      trader_address: state ? state.address : "",
-    };
-    // Developer is an admin-only tab; force admin view since arriving here
-    // via a buy link means the user explicitly wants it.
-    try { localStorage.setItem("nc.viewLevel.v1", "admin"); document.body.dataset.ncView = "admin"; } catch { /* ignore */ }
+    ensureWalletTabShell();
     setActiveWalletTab("developer");
     const box = $("marketBuyPanel");
-    if (!box) return;
+    if (!box) { reply({ error: "Wallet authorization panel is unavailable." }); return; }
     box.classList.remove("hide");
-    box.innerHTML = `<h3>Buy from Markets</h3>
-      <p class="muted">Market <span class="mono">${esc(marketId)}</span> &middot; outcome <span class="mono">${esc(outcomeId)}</span> &middot; ${esc(body.quantity)} shares${body.price_bps ? " @ " + esc(body.price_bps / 100) + "&cent;" : " (market price)"}</p>
-      <p class="muted">Using your wallet address <span class="mono">${esc(state ? state.address : "")}</span>.</p>
-      <button id="btnSubmitMarketBuy" type="button">Confirm &amp; buy</button>
-      <p id="marketBuyMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>`;
-    const path = `/markets/${encodeURIComponent(marketId)}/order`;
-    $("btnSubmitMarketBuy").onclick = async () => {
-      $("btnSubmitMarketBuy").disabled = true;
-      $("marketBuyMsg").className = "muted";
-      $("marketBuyMsg").textContent = "Signing and submitting…";
+    if (!state) {
+      box.innerHTML = `<h3>Market authorization</h3><p class="muted">Unlock this Wallet window to review the request from Markets.</p>`;
+      show(hasProfiles() ? "unlock" : "welcome");
+      return;
+    }
+    if (activeMarketRequestId === request.requestId && $("btnAuthorizeMarketRequest")) return;
+    activeMarketRequestId = request.requestId;
+    const isDelete = path.endsWith("/delete");
+    const body = marketRequest ? { ...requestedBody, trader_address: state.address } : { ...requestedBody };
+    const summary = isDelete
+      ? "Delete this unused market"
+      : marketRequest
+        ? `${Number(body.quantity || 0)} shares${body.price_bps ? " at " + Number(body.price_bps) / 100 + " cents" : " at market price"}`
+        : `Allow ${requesterHost} to submit ${path}`;
+    const detailRows = Object.entries(body)
+      .filter(([key]) => !key.startsWith("__") && key !== "api_key" && key !== "signed_envelope")
+      .slice(0, 8)
+      .map(([key, value]) => `<dt>${esc(key.replaceAll("_", " "))}</dt><dd>${esc(typeof value === "object" ? JSON.stringify(value) : value)}</dd>`)
+      .join("");
+    box.innerHTML = `<h3>${isDelete ? "Delete market" : marketRequest ? "Authorize market order" : "Authorize application action"}</h3>
+      <p>${esc(summary)}</p><p class="muted">Signing as <span class="mono">${esc(state.address)}</span></p>
+      ${detailRows ? `<dl class="authorization-details">${detailRows}</dl>` : ""}
+      <button id="btnAuthorizeMarketRequest" type="button">${isDelete ? "Confirm delete" : marketRequest ? "Confirm order" : "Authorize"}</button>
+      <button id="btnRejectMarketRequest" class="secondary" type="button">Cancel</button>
+      <p id="marketAuthorizationMsg" class="muted" role="status"></p>`;
+    $("btnRejectMarketRequest").onclick = () => { activeMarketRequestId = ""; reply({ error: "Request canceled in Wallet." }); window.close(); };
+    $("btnAuthorizeMarketRequest").onclick = async () => {
+      $("btnAuthorizeMarketRequest").disabled = true;
       try {
         const envelope = await marketOrderEnvelopeMessage(path, body, state.address);
         const signature = W.signMessage(state.privHex, envelope.message);
-        const result = await api(path, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...body, signed_envelope: { address: state.address, method: "POST", path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature } }),
-        });
-        $("marketBuyMsg").className = "ok";
-        $("marketBuyMsg").textContent = `Order placed. Trades: ${(result.trades || []).length}.`;
-      } catch (e) {
-        $("marketBuyMsg").className = "err";
-        $("marketBuyMsg").textContent = "Failed: " + e.message;
-        $("btnSubmitMarketBuy").disabled = false;
+        activeMarketRequestId = "";
+        reply({ address: state.address, envelope: { address: state.address, method: "POST", path, body_hash: envelope.bodyHash, timestamp: envelope.timestamp, nonce: envelope.nonce, signature } });
+        $("marketAuthorizationMsg").textContent = "Authorized. Returning to Markets...";
+        window.setTimeout(() => window.close(), 250);
+      } catch (error) {
+        $("marketAuthorizationMsg").className = "err";
+        $("marketAuthorizationMsg").textContent = error.message || "Wallet could not sign this request.";
+        $("btnAuthorizeMarketRequest").disabled = false;
       }
     };
-  }
+  });
   const enc = new TextEncoder();
   const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
   const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -1981,10 +1974,14 @@
     if (!id || !state) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Load an escrow first."; return; }
     try {
       const signer = state.address;
+      // The server verifies this against the escrow's own participant addresses --
+      // release/refund move real (testnet) funds, so a bare claim isn't enough.
+      const message = `NetCoin escrow action\nescrow-action-v1\n${id}\n${action}\n${signer}`;
+      const signature = W.signMessage(state.privHex, message);
       const rec = await api(`/escrows/${encodeURIComponent(id)}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, signer }),
+        body: JSON.stringify({ action, signer, signature }),
       });
       $("escrowStatus").textContent = rec.status;
       $("escrowMsg").className = "ok";

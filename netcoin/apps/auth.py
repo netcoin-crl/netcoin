@@ -23,6 +23,13 @@ SENSITIVE_WRITE_PREFIXES = (
     "/treasury",
     "/wallet/team-wallets",
 )
+PUBLIC_WRITE_PATHS = {
+    "/community/posts",
+    "/community/improvements",
+    "/community/reports",
+    "/invoices",
+    "/payments",
+}
 DEFAULT_SCOPE_MAP = {
     "read": {"GET"},
     "write": {"POST", "PUT", "PATCH", "DELETE"},
@@ -129,7 +136,14 @@ def should_require_signed_envelope(method: str, path: str, body: Mapping[str, An
         return True
     if os.environ.get("NETCOIN_APP_ALLOW_UNSIGNED_SENSITIVE", "0").lower() in {"1", "true", "yes", "on"}:
         return False
-    sensitive = any(path.startswith(prefix) for prefix in SENSITIVE_WRITE_PREFIXES)
+    operator_signature_required = (
+        path.startswith("/treasury/proposals/") and path.endswith("/approve")
+    ) or (path.startswith("/exchange/withdrawals/") and path.endswith("/approve"))
+    if bool(body.get("__netcoin_operator_verified")) and not operator_signature_required:
+        return False
+    if path in PUBLIC_WRITE_PATHS or (path.startswith("/community/improvements/") and path.endswith("/vote")):
+        return False
+    sensitive = any(path.startswith(prefix) for prefix in SENSITIVE_WRITE_PREFIXES) or operator_signature_required
     if not sensitive:
         return False
     # Public HTTP writes are strict by default. Direct in-process calls remain
@@ -142,11 +156,25 @@ def should_require_signed_envelope(method: str, path: str, body: Mapping[str, An
 
 
 def require_signed_envelope_if_needed(method: str, path: str, body: Mapping[str, Any]) -> dict[str, Any]:
-    if not should_require_signed_envelope(method, path, body):
-        return {"required": False, "verified": False}
-    verified = verify_signed_envelope(method, path, body)
-    verified["required"] = True
-    return verified
+    if should_require_signed_envelope(method, path, body):
+        verified = verify_signed_envelope(method, path, body)
+        verified["required"] = True
+        return verified
+    # Not required for this path -- but if the caller voluntarily attached a
+    # signed envelope anyway (e.g. a poll vote, escrow action, or bounty
+    # submission that wants its actor bound to a real wallet), verify it
+    # opportunistically so ownership checks downstream can use it. A missing
+    # or invalid envelope on an optional path is not an error: it just means
+    # no verified actor is available, and callers fall back to unauthenticated
+    # behavior exactly as before this endpoint's signing support existed.
+    if body.get("signed_envelope") or body.get("signed_request"):
+        try:
+            verified = verify_signed_envelope(method, path, body)
+            verified["required"] = False
+            return verified
+        except AppError:
+            return {"required": False, "verified": False}
+    return {"required": False, "verified": False}
 
 
 def scope_allows(scopes: list[str], method: str, path: str) -> bool:

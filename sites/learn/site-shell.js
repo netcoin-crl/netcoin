@@ -476,9 +476,8 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 
-/* NetCoin API-key shim (NIP-0004): the hosted relay requires a free developer
-   key for app-layer writes. Transparently register one per browser and attach
-   it to same-origin /api POSTs so every NetCoin site keeps working unchanged. */
+/* Authenticated app writes: a site key identifies the client for throttling;
+   Wallet visibly approves the action and supplies the authority signature. */
 (function () {
   var KEY_STORE = "nc.apiKey.v1";
   var origFetch = window.fetch.bind(window);
@@ -489,6 +488,18 @@
     if (!sameOrigin || sameOrigin.indexOf("/api") !== 0) return false;
     if (sameOrigin.indexOf("/keys/register") !== -1) return false;
     return String(method || "GET").toUpperCase() !== "GET";
+  }
+  // Mirrors netcoin/apps/auth.py's SENSITIVE_WRITE_PREFIXES + the two operator-approve
+  // paths -- this is the single real authority on what needs a signature; only pop up
+  // Wallet for paths the server actually gates, so every other write (comments, escrow
+  // creation, watch-addresses, webhook registration, ...) keeps working unsigned exactly
+  // as it always did. Do not add a second, independently-maintained list here.
+  var SENSITIVE_PREFIXES = ["/tokens", "/markets", "/merchant", "/admin", "/custody", "/treasury", "/wallet/team-wallets"];
+  function isSensitiveWrite(path) {
+    if (SENSITIVE_PREFIXES.some(function (p) { return path.indexOf(p) === 0; })) return true;
+    if (/^\/treasury\/proposals\/[^/]+\/approve$/.test(path)) return true;
+    if (/^\/exchange\/withdrawals\/[^/]+\/approve$/.test(path)) return true;
+    return false;
   }
   async function ensureKey(force) {
     try {
@@ -502,6 +513,33 @@
     } catch (e) { /* offline or old node: proceed without a key */ }
     return "";
   }
+  function requestWalletSignature(path, body) {
+    return new Promise(function (resolve, reject) {
+      var walletOrigin = "https://wallet.netcoin.online";
+      var requestId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random();
+      var walletWindow = window.open(walletOrigin + "/", "netcoin-wallet", "popup=yes,width=520,height=760");
+      if (!walletWindow) { reject(new Error("Allow the Wallet authorization window, then try again.")); return; }
+      var timeout = window.setTimeout(function () { finish(new Error("Wallet authorization timed out.")); }, 120000);
+      var sender = window.setInterval(function () {
+        if (walletWindow.closed) { finish(new Error("Wallet authorization window was closed.")); return; }
+        walletWindow.postMessage({ type: "netcoin.signAppRequest", requestId: requestId, path: path, body: body }, walletOrigin);
+      }, 500);
+      function finish(error, result) {
+        window.clearTimeout(timeout);
+        window.clearInterval(sender);
+        window.removeEventListener("message", receive);
+        if (error) reject(error); else resolve(result);
+      }
+      function receive(event) {
+        if (event.origin !== walletOrigin || event.source !== walletWindow) return;
+        var response = event.data || {};
+        if (response.type !== "netcoin.appRequestSignature" || response.requestId !== requestId) return;
+        if (response.error) finish(new Error(response.error)); else finish(null, response);
+      }
+      window.addEventListener("message", receive);
+      walletWindow.focus();
+    });
+  }
   window.fetch = async function (input, init) {
     var url = typeof input === "string" ? input : (input && input.url) || "";
     var method = (init && init.method) || (input && input.method) || "GET";
@@ -510,6 +548,21 @@
       init = init || {};
       var headers = new Headers(init.headers || (typeof input !== "string" && input && input.headers) || {});
       if (key) headers.set("X-Netcoin-Api-Key", key);
+      var sameOrigin = String(url).indexOf("/") === 0 ? String(url) : String(url).slice(location.origin.length);
+      var path = sameOrigin.replace(/^\/api/, "").split("?", 1)[0] || "/";
+      // Only ever parse+rewrite a JSON body for a path the server actually treats as
+      // sensitive. Non-JSON bodies (form-encoded, etc.) and everything else pass
+      // through completely untouched, exactly as before this signing scheme existed.
+      if (isSensitiveWrite(path) && typeof init.body === "string" && init.body) {
+        var body;
+        try { body = JSON.parse(init.body); } catch (_) { body = null; }
+        if (body && typeof body === "object" && !body.signed_envelope) {
+          var signed = await requestWalletSignature(path, body);
+          body.signed_envelope = signed.envelope;
+          init.body = JSON.stringify(body);
+          headers.set("Content-Type", "application/json");
+        }
+      }
       init.headers = headers;
       var res = await origFetch(input, init);
       if (res.status === 401) {

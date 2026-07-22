@@ -60,12 +60,16 @@ $('#createPos').onclick = async () => {
     await loadOverview();
   } catch (e) { $('#posResult').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
 };
+// /developer/webhooks and /developer/api-keys are the same underlying feature as
+// /merchant/webhooks and /merchant/api-keys, but the /merchant/* paths require a
+// signed wallet envelope with no signing UI on this page -- these aliases are
+// the ones the (keyless) Developer Console already uses successfully.
 $('#registerWebhook').onclick = async () => {
-  try { out('#webhookResult', await post('/merchant/webhooks', { merchant_id: $('#merchantId').value || 'default', url: $('#webhookUrl').value })); }
+  try { out('#webhookResult', await post('/developer/webhooks', { developer_id: $('#merchantId').value || 'default', url: $('#webhookUrl').value })); }
   catch (e) { out('#webhookResult', { ok:false, error:e.message }); }
 };
 $('#createKey').onclick = async () => {
-  try { out('#keyResult', await post('/merchant/api-keys', { merchant_id: $('#merchantId').value || 'default' })); }
+  try { out('#keyResult', await post('/developer/api-keys', { developer_id: $('#merchantId').value || 'default' })); }
   catch (e) { out('#keyResult', { ok:false, error:e.message }); }
 };
 $('#createRefund').onclick = async () => {

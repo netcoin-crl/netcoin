@@ -874,8 +874,10 @@ _TOP_FIXES: tuple[dict[str, Any], ...] = (
 
 
 def _availability_for(feature: FeatureRating) -> dict[str, Any]:
+    if feature.category not in _CATEGORY_DEFAULTS or feature.category not in _EXPOSURE_DEFAULTS:
+        raise ValueError(f"unknown feature category: {feature.category}")
     surface = dict(DEFAULT_AVAILABILITY)
-    surface.update(_CATEGORY_DEFAULTS.get(feature.category, {}))
+    surface.update(_CATEGORY_DEFAULTS[feature.category])
     surface.update(_SURFACE_OVERRIDES.get((feature.category, feature.name), {}))
     if feature.status in {"available", "strong", "solid"} and surface["availability"] == "Internal/testnet":
         surface["availability"] = "Available on testnet"
