@@ -1638,6 +1638,11 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     node.invalidate_read_cache()
                     self.send_json({"ok": True, "evicted": evicted})
                 elif parsed.path == "/peers":
+                    # Deliberately unauthenticated: this is the P2P gossip
+                    # endpoint nodes use to announce themselves to each other
+                    # (see NetCoinNode.announce_self) -- an admin gate here
+                    # would break normal peer discovery across the whole
+                    # network, not just lock down an admin action.
                     for peer in data.get("peers", []):
                         node.add_peer(str(peer))
                     self.send_json({"ok": True, "peers": sorted(node.peers)})

@@ -1830,11 +1830,16 @@ class AppStore:
     def _authorize_developer_actor(
         self, data: dict[str, Any], developer_id: str, payload: dict[str, Any]
     ) -> str | None:
-        actor = verified_http_actor(payload)
         app = data.setdefault("developer_apps", {}).setdefault(
             developer_id, {"developer_id": developer_id, "created_at": now()}
         )
         owner = str(app.get("owner_address") or "")
+        # Once a developer account has an owner, a real HTTP caller must prove
+        # it via signature -- required=True here (rather than the default
+        # optional check) closes the gap where an unsigned request skipped
+        # this ownership check entirely and could rewrite someone else's
+        # funding policy/rewards/withdrawals.
+        actor = verified_http_actor(payload, required=bool(owner and payload.get("__netcoin_http_request")))
         if actor and owner and actor != owner:
             raise AppError("signed wallet does not own this developer account")
         if actor and not owner:
@@ -1990,12 +1995,17 @@ class AppStore:
             "amount": sats_to_amount(amount_sats),
             "fee_sats": fee_sats,
             "fee": sats_to_amount(fee_sats),
-            "status": str(payload.get("status") or "ready_for_wallet_signing"),
+            # status is never taken from the caller -- it's derived below from
+            # whether a payout_txid is present, the same fixed vocabulary used
+            # by every other payout record in this module. A caller-supplied
+            # status previously let a request claim e.g. "broadcasted" with no
+            # real payout having happened at all.
             "reason": str(payload.get("reason") or "developer withdrawal")[:250],
             "created_at": now(),
             "payout_txid": str(payload.get("payout_txid") or ""),
             "metadata": payload.get("metadata", {}),
         }
+        record["status"] = "broadcast_recorded" if record["payout_txid"] else "ready_for_wallet_signing"
         if not record["payout_txid"]:
             record["payout_plan"] = self.plan_payout(
                 "developer_withdrawal",
