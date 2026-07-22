@@ -228,3 +228,25 @@ export function buildUsernameClaim({ privHex, utxos, username, fee, changeAddres
   const signed = signInputsForOutputs(chosen, outputs, privHex, 0xffffffff, changeAddress);
   return { ...signed, fee, change, username: name };
 }
+
+// Transfer an already-claimed username to a new owner. Only honored on-chain
+// if this same transaction also spends a coin recorded as belonging to the
+// CURRENT owner -- so `privHex` must control the current owner's address
+// (one of `utxos` must actually belong to it), the same proof-of-control
+// every other spend already requires.
+export function buildUsernameTransfer({ privHex, utxos, username, toAddress, fee, changeAddress, maxInputs = 500 }) {
+  fee = Number(fee);
+  if (!Number.isInteger(fee) || fee <= 0) throw new Error("fee must be a positive integer (sats)");
+  const name = String(username || "").trim().toLowerCase();
+  if (!USERNAME_PATTERN.test(name)) throw new Error("username must be 1-32 characters: letters, numbers, dash, underscore");
+  const { chosen, total } = selectCoins(utxos, fee + DUST * 2, maxInputs);
+  const change = total - fee - DUST;
+  if (change < 0) throw new Error("insufficient funds to cover the transfer fee");
+  const outputs = [
+    { amount: DUST, address: toAddress },
+    { amount: 0, address: "", script_pubkey: `OP_RETURN NETCOIN_USERNAME_TRANSFER ${name}` },
+  ];
+  if (change > DUST) outputs.push({ amount: change, address: changeAddress });
+  const signed = signInputsForOutputs(chosen, outputs, privHex, 0xffffffff, changeAddress);
+  return { ...signed, fee, username: name, toAddress };
+}

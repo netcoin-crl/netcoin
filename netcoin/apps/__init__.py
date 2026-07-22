@@ -30,7 +30,7 @@ from threading import RLock
 from typing import Any
 from urllib.parse import quote, urlencode, urlparse
 
-from ..chain import username_claim_script_pubkey
+from ..chain import username_claim_script_pubkey, username_transfer_script_pubkey
 from ..crypto import decode_address, public_key_to_p2wpkh_address, validate_address, verify_message
 from ..descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
 from ..emission import next_reduction_height
@@ -4699,11 +4699,26 @@ def route_app_get(
         if not record:
             raise AppError("no on-chain claim for this username")
         return 200, record, "application/json"
+    if path.startswith("/usernames/by-address/"):
+        addr = path.split("/", 3)[3]
+        if not validate_address(addr):
+            raise AppError("address is not a valid NetCoin address")
+        record = chain.username_for_address(addr)
+        if not record:
+            raise AppError("no on-chain username claimed by this address")
+        return 200, record, "application/json"
     if path.startswith("/usernames/claim-script/"):
         name = path.split("/", 3)[3]
         return (
             200,
             {"username": normalize_username(name), "script_pubkey": username_claim_script_pubkey(normalize_username(name))},
+            "application/json",
+        )
+    if path.startswith("/usernames/transfer-script/"):
+        name = path.split("/", 3)[3]
+        return (
+            200,
+            {"username": normalize_username(name), "script_pubkey": username_transfer_script_pubkey(normalize_username(name))},
             "application/json",
         )
     if path == "/usernames":

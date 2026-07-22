@@ -206,7 +206,21 @@
   const setAddressDisplay = (a) => {
     const el = $("addr"); if (el) { el.textContent = truncAddr(a); el.title = a || ""; }
     const settingsEl = $("settingsAddrOut"); if (settingsEl) settingsEl.textContent = a || "";
+    refreshOwnedUsername(a);
   };
+  async function refreshOwnedUsername(address) {
+    const out = $("ownedUsernameOut");
+    if (!out) return;
+    if (!address) { out.textContent = ""; return; }
+    try {
+      const rec = await api("/usernames/by-address/" + encodeURIComponent(address));
+      out.className = "ok";
+      out.textContent = `This address owns @${rec.username} on-chain.`;
+    } catch {
+      out.className = "muted";
+      out.textContent = "No on-chain username claimed by this address yet.";
+    }
+  }
   const esc = (value) => String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   function satsToInput(sats) {
     const n = BigInt(Math.max(0, Number(sats)));
@@ -515,6 +529,7 @@
       <p class="muted">Your address is your identity. Optionally attach a username so people can find you by name instead &mdash; on the leaderboard, tip/donate pages, and public profiles at <span class="mono">community.netcoin.online/u/&lt;username&gt;</span>.</p>
       <label class="muted">This wallet's address</label>
       <pre id="settingsAddrOut" class="mono muted"></pre>
+      <p id="ownedUsernameOut" class="muted"></p>
       <label for="usernameInput">Attach a username, optional</label>
       <input id="usernameInput" placeholder="letters, numbers, dash, underscore" autocomplete="off" />
       <label for="usernameDisplay">Display name, optional</label>
@@ -527,6 +542,14 @@
       <label for="usernameClaimFee" style="margin-top:8px">On-chain claim fee (NET)</label>
       <input id="usernameClaimFee" inputmode="decimal" value="0.00002000" />
       <p id="usernameMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>
+      <h3 style="margin-top:16px">Transfer an on-chain username you own</h3>
+      <p class="muted">Only works if this wallet's address is the current on-chain owner &mdash; the transfer transaction has to spend a coin from that address to prove it.</p>
+      <div class="row compact-row">
+        <input id="usernameTransferName" placeholder="username to transfer" autocomplete="off" />
+        <input id="usernameTransferTo" class="mono" placeholder="new owner's address" autocomplete="off" />
+      </div>
+      <button id="btnTransferUsername" class="secondary" type="button">Transfer on-chain</button>
+      <p id="usernameTransferMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>
       <h3 style="margin-top:16px">Look up any username</h3>
       <p class="muted">Check whether a username is tied to a NetCoin address. Works anywhere someone can be tipped, paid, or added to escrow.</p>
       <div class="row compact-row">
@@ -1889,6 +1912,23 @@
     } catch (e) { msg.className = "err"; msg.textContent = "Could not broadcast claim: " + e.message; }
   }
 
+  async function transferUsernameOnChain() {
+    const msg = $("usernameTransferMsg");
+    if (!state) { msg.className = "err"; msg.textContent = "Unlock the wallet first."; return; }
+    const username = ($("usernameTransferName").value || "").trim();
+    const toAddress = ($("usernameTransferTo").value || "").trim();
+    if (!username) { msg.className = "err"; msg.textContent = "Enter the username to transfer."; return; }
+    if (!toAddress) { msg.className = "err"; msg.textContent = "Enter the new owner's address."; return; }
+    try {
+      const fee = netToSats($("usernameClaimFee").value || "0");
+      const utxos = (await loadUtxos()).map((u) => ({ txid: u.txid, vout: u.vout, amount: u.amount, address: u.address }));
+      const signed = W.buildUsernameTransfer({ privHex: state.privHex, utxos, username, toAddress, fee, changeAddress: state.address });
+      const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signed) });
+      msg.className = "ok";
+      msg.textContent = `Transfer broadcast (txid ${res.txid.slice(0, 12)}…). @${signed.username} will belong to ${toAddress.slice(0, 14)}… once this confirms.`;
+    } catch (e) { msg.className = "err"; msg.textContent = "Could not broadcast transfer: " + e.message; }
+  }
+
   async function resolveEscrowParty(input) {
     const raw = (input || "").trim();
     if (!raw) throw new Error("required");
@@ -2792,6 +2832,7 @@
   ensureWalletTabShell();
   if ($("btnRegisterUsername")) $("btnRegisterUsername").onclick = registerUsername;
   if ($("btnClaimUsernameOnChain")) $("btnClaimUsernameOnChain").onclick = claimUsernameOnChain;
+  if ($("btnTransferUsername")) $("btnTransferUsername").onclick = transferUsernameOnChain;
   if ($("btnLookupUsername")) $("btnLookupUsername").onclick = lookupUsername;
   if ($("btnCreateEscrow")) $("btnCreateEscrow").onclick = createEscrow;
   if ($("btnLoadEscrow")) $("btnLoadEscrow").onclick = loadEscrow;

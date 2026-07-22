@@ -78,6 +78,12 @@ from .tx import (
 # indexing. Building/broadcasting the claim tx is entirely client-side, using
 # the same generic signed-transaction path as an ordinary send.
 USERNAME_CLAIM_PREFIX = "OP_RETURN NETCOIN_USERNAME"
+# A transfer moves an already-claimed username to a new owner. It's only
+# honored if the same transaction also spends a coin that was, at the time,
+# recorded as belonging to the CURRENT owner -- i.e. only the current owner
+# can authorize handing it off, the same way spending any other coin requires
+# a valid signature. A transfer of a name nobody has claimed yet is ignored.
+USERNAME_TRANSFER_PREFIX = "OP_RETURN NETCOIN_USERNAME_TRANSFER"
 USERNAME_MAX_LEN = 32
 USERNAME_ALLOWED_CHARS = set("abcdefghijklmnopqrstuvwxyz0123456789-_")
 
@@ -86,16 +92,28 @@ def username_claim_script_pubkey(username: str) -> str:
     return f"{USERNAME_CLAIM_PREFIX} {str(username or '').strip().lower()}"
 
 
-def parse_username_claim(script_pubkey: str) -> str | None:
-    prefix = USERNAME_CLAIM_PREFIX + " "
-    if not script_pubkey.startswith(prefix):
+def username_transfer_script_pubkey(username: str) -> str:
+    return f"{USERNAME_TRANSFER_PREFIX} {str(username or '').strip().lower()}"
+
+
+def _parse_tagged_username(script_pubkey: str, prefix: str) -> str | None:
+    tagged_prefix = prefix + " "
+    if not script_pubkey.startswith(tagged_prefix):
         return None
-    name = script_pubkey[len(prefix) :].strip().lower()
+    name = script_pubkey[len(tagged_prefix) :].strip().lower()
     if not name or len(name) > USERNAME_MAX_LEN:
         return None
     if any(ch not in USERNAME_ALLOWED_CHARS for ch in name):
         return None
     return name
+
+
+def parse_username_claim(script_pubkey: str) -> str | None:
+    return _parse_tagged_username(script_pubkey, USERNAME_CLAIM_PREFIX)
+
+
+def parse_username_transfer(script_pubkey: str) -> str | None:
+    return _parse_tagged_username(script_pubkey, USERNAME_TRANSFER_PREFIX)
 
 
 class ChainError(ValueError):
@@ -167,10 +185,12 @@ class Blockchain:
             }
             # Address index: a tx touches an address if it pays to it or spends
             # one of its outputs.
+            spent_addresses: set[str] = set()
             if not tx.is_coinbase:
                 for txin in tx.inputs:
                     spent_addr = self._utxo_addr.get(txin.outpoint())
                     if spent_addr:
+                        spent_addresses.add(spent_addr)
                         self.address_index.setdefault(spent_addr, set()).add(txid)
             for index, output in enumerate(tx.outputs):
                 if output.address:
@@ -195,6 +215,24 @@ class Blockchain:
                             "block_hash": block.hash(),
                             "claimed_at": block.header.timestamp,
                         }
+                transferred = next(
+                    (parse_username_transfer(o.effective_script_pubkey()) for o in tx.outputs if not o.address),
+                    None,
+                )
+                if transferred:
+                    current = self.username_claims.get(transferred)
+                    if current and current.get("address") in spent_addresses:
+                        new_owner = next((o.address for o in tx.outputs if o.address), "")
+                        if new_owner:
+                            self.username_claims[transferred] = {
+                                "username": transferred,
+                                "address": new_owner,
+                                "txid": txid,
+                                "height": block.header.height,
+                                "block_hash": block.hash(),
+                                "claimed_at": block.header.timestamp,
+                                "transferred_from": current["address"],
+                            }
 
     def _reindex_indexes_only(self) -> None:
         self.block_index = {}
@@ -214,6 +252,17 @@ class Blockchain:
 
     def list_onchain_usernames(self) -> dict[str, dict[str, Any]]:
         return {name: dict(record) for name, record in self.username_claims.items()}
+
+    def username_for_address(self, address: str) -> dict[str, Any] | None:
+        # An address can only ever be the owner of one on-chain claim at a
+        # time in practice (each claim needs its own funded input), but if
+        # more than one somehow resolves to the same address, the earliest
+        # confirmed claim wins -- same precedence rule as name squatting.
+        candidates = [r for r in self.username_claims.values() if r.get("address") == address]
+        if not candidates:
+            return None
+        best = min(candidates, key=lambda r: (r.get("height", 0), r.get("txid", "")))
+        return dict(best)
 
     def reindex(self) -> None:
         """Rebuild the block, transaction, address, and UTXO indexes from the chain."""
