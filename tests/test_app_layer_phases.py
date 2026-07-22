@@ -83,7 +83,17 @@ def test_app_store_invoice_username_merchant_community_wallet_and_network(tmp_pa
     hook = store.register_webhook({"merchant_id": "shop", "url": "https://example.com/hook"})
     assert hook["webhook_id"]
 
-    gift = store.create_gift({"amount": "0.5", "memo": "welcome"})
+    gift_funding = Wallet.create()
+    gift_fund_block = chain.mine_block(gift_funding.address)
+    gift = store.create_gift(
+        chain,
+        {
+            "amount": "0.5",
+            "memo": "welcome",
+            "funding_address": gift_funding.address,
+            "funding_txid": gift_fund_block.transactions[0].txid(),
+        },
+    )
     claimed = store.claim_gift({"claim_code": gift["claim_code"], "address": merchant.address})
     assert claimed["status"] == "claimed"
 

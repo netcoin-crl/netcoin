@@ -110,7 +110,16 @@ def test_community_payout_plans_rewards_and_tip_buttons(tmp_path: Path):
 
     airdrop = store.airdrop({"addresses": [miner.address], "amount": "0.1", "dry_run": False})
     assert airdrop["payout_plan"]["kind"] == "airdrop"
-    gift = store.create_gift({"amount": "0.2", "funded": True})
+    gift_funding = Wallet.create()
+    gift_fund_block = chain.mine_block(gift_funding.address)
+    gift = store.create_gift(
+        chain,
+        {
+            "amount": "0.2",
+            "funding_address": gift_funding.address,
+            "funding_txid": gift_fund_block.transactions[0].txid(),
+        },
+    )
     claimed = store.claim_gift({"claim_code": gift["claim_code"], "address": miner.address})
     assert claimed["payout_plan"]["kind"] == "gift"
     bounty = store.create_bounty({"title": "fix", "reward": "1"})

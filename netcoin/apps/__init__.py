@@ -2709,10 +2709,27 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return self.token_balance_of(token["token_id"], account) | {"signature": signature_status}
 
-    def create_gift(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_gift(self, chain: Any, payload: dict[str, Any]) -> dict[str, Any]:
         amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "gift amount")
         code = str(payload.get("claim_code") or secrets.token_urlsafe(16))
         gift_id = clean_id("gift")
+        funding_txid = str(payload.get("funding_txid") or "")
+        funding_address = str(payload.get("funding_address") or "")
+        # "funded" is never a caller-supplied boolean -- it's only true once
+        # verify_chain_funding confirms the txid actually pays funding_address
+        # at least amount_sats. Without this, anyone could mint a claimable
+        # gift out of thin air by just claiming funded=true.
+        funded = False
+        confirmations = None
+        if funding_txid:
+            if not funding_address:
+                raise AppError("funding_address is required to verify a gift's funding_txid")
+            proof = self.verify_chain_funding(
+                chain, funding_txid, funding_address, amount_sats, min_confirmations=1, already_claimed_by=gift_id
+            )
+            funding_txid = proof["txid"]
+            confirmations = proof["confirmations"]
+            funded = True
         record = {
             "gift_id": gift_id,
             "claim_code_hash": hashlib.sha256(code.encode()).hexdigest(),
@@ -2724,9 +2741,10 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             "expires_at": now() + int(payload.get("expires_in", 86400) or 86400),
             "claimed_by_address": None,
             "claim_txid": None,
-            "funding_txid": str(payload.get("funding_txid") or ""),
-            "funding_address": str(payload.get("funding_address") or ""),
-            "funded": bool(payload.get("funded", bool(payload.get("funding_txid")))),
+            "funding_txid": funding_txid,
+            "funding_address": funding_address,
+            "funded": funded,
+            "funded_confirmations": confirmations,
         }
         data = self.load()
         data["gifts"][gift_id] = record
@@ -2742,6 +2760,8 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             if gift.get("claim_code_hash") == code_hash:
                 if gift.get("status") != "unclaimed":
                     raise AppError("gift already claimed or closed")
+                if not gift.get("funded"):
+                    raise AppError("gift has not been chain-verified as funded yet")
                 if now() > int(gift.get("expires_at", 0)):
                     gift["status"] = "expired"
                     self.save(data)
@@ -5513,7 +5533,7 @@ def _route_app_post_uncached(
     if path == "/community/airdrops":
         return 200, store.airdrop(body)
     if path == "/community/gifts":
-        return 200, store.create_gift(body)
+        return 200, store.create_gift(chain, body)
     if path == "/community/rewards":
         return 200, store.create_reward(body)
     if path == "/community/tip-buttons":
