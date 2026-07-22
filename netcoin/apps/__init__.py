@@ -1166,6 +1166,42 @@ class AppStore:
         roles = set(self.load().get("rbac_roles", {}).get(principal, []))
         return bool(roles & allowed or "admin" in roles)
 
+    def reset_developer_sandbox(self, developer_id: str) -> dict[str, Any]:
+        """Revoke every API key and deactivate every webhook for one developer.
+
+        Deliberately does NOT touch payment_links/invoices -- those represent
+        real (testnet) payment history, not throwaway sandbox config, and
+        wiping them silently would erase a receipt trail. Keys and webhooks
+        are pure credentials/config with no financial history, so they're
+        safe to reset wholesale for a fresh start.
+        """
+        developer_id = str(developer_id or "").strip()
+        if not developer_id:
+            raise AppError("developer_id is required")
+        data = self.load()
+        revoked_keys = 0
+        for key in data.get("api_keys", {}).values():
+            if key.get("merchant_id") == developer_id and key.get("active", True):
+                key["active"] = False
+                key["revoked_at"] = now()
+                revoked_keys += 1
+        deactivated_webhooks = 0
+        for hook in data.get("webhooks", {}).values():
+            if hook.get("merchant_id") == developer_id and hook.get("active", True):
+                hook["active"] = False
+                deactivated_webhooks += 1
+        self.save(data)
+        self.audit(
+            "developer.sandbox_reset",
+            {"developer_id": developer_id, "revoked_keys": revoked_keys, "deactivated_webhooks": deactivated_webhooks},
+        )
+        return {
+            "developer_id": developer_id,
+            "revoked_keys": revoked_keys,
+            "deactivated_webhooks": deactivated_webhooks,
+            "note": "Payment links and invoice history were left untouched -- they're real payment records, not sandbox config.",
+        }
+
     def register_webhook(self, payload: dict[str, Any]) -> dict[str, Any]:
         actor = verified_http_actor(payload)
         merchant_id = str(payload.get("merchant_id") or "default")[:80]
@@ -5277,6 +5313,10 @@ def _route_app_post_uncached(
         return 200, store.build_unsigned_transaction(chain, body)
     if path == "/developer/simulate/rewards":
         return 200, store.simulate_rewards(body)
+    if path == "/developer/sandbox/reset":
+        developer_id = str(body.get("developer_id") or body.get("app_id") or body.get("merchant_id") or "")[:80]
+        store.maybe_require_api_key(body, developer_id, "merchant:write")
+        return 200, store.reset_developer_sandbox(developer_id)
     if path == "/developer/webhooks":
         developer_id = str(body.get("developer_id") or body.get("app_id") or body.get("merchant_id") or "default")[:80]
         payload = dict(body)

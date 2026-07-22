@@ -36,8 +36,10 @@
       <div class="actions">
         <button id="loadBtn" type="button">Load console</button>
         <button id="refreshAllBtn" type="button" class="secondary">Refresh all</button>
+        <button id="resetSandboxBtn" type="button" class="secondary">Reset sandbox</button>
       </div>
       <p id="loadMsg" class="muted"></p>
+      <p class="muted">Reset sandbox revokes this developer_id's API keys and deactivates its webhooks &mdash; a fresh start for credentials. Payment links and invoice history are never touched.</p>
     </section>
 
     <section id="consoleBody" hidden>
@@ -218,7 +220,7 @@
 
     <p class="footer">Developer Console writes are testnet-only. API keys and webhook secrets are sensitive; copy them once and store them outside the browser.</p>
   </div>
-  <script src="console.js?v=20260722-rate-limit-status"></script>
+  <script src="console.js?v=20260722-sandbox-reset"></script>
   <script src="site-shell.js?v=20260721-structured-ui"></script>
 </body>
 </html>

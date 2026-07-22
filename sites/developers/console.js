@@ -407,6 +407,19 @@ $('#submitTokenBtn').addEventListener('click', async () => {
   }
 });
 
+$('#resetSandboxBtn')?.addEventListener('click', async () => {
+  const developerId = getDeveloperId();
+  if (!developerId) { $('#loadMsg').textContent = 'Enter a developer_id first.'; return; }
+  if (!confirm(`Revoke all API keys and deactivate all webhooks for "${developerId}"? Payment links and invoice history are kept.`)) return;
+  try {
+    const result = await api('/developer/sandbox/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ developer_id: developerId }) });
+    $('#loadMsg').textContent = `Reset: revoked ${result.revoked_keys} key(s), deactivated ${result.deactivated_webhooks} webhook(s).`;
+    await loadConsole();
+  } catch (e) {
+    $('#loadMsg').textContent = 'Reset failed: ' + e.message;
+  }
+});
+
 async function loadRateLimitStatus() {
   const summary = $('#rateLimitSummary');
   const tbody = $('#rateLimitTable tbody');
