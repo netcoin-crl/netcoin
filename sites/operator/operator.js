@@ -2,7 +2,16 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  async function get(path) { const r = await fetch('/api' + path); const text = await r.text(); let data; let parsed = true; try { data = JSON.parse(text); } catch { parsed = false; data = {}; } if (!r.ok || data.error) throw new Error(parsed ? (data.error || 'HTTP ' + r.status) : 'HTTP ' + r.status + ' (non-JSON response)'); return data; }
+  const ADMIN_TOKEN_KEY = 'nc.operatorAdminToken.v1';
+  async function get(path) { const token = localStorage.getItem(ADMIN_TOKEN_KEY) || ''; const r = await fetch('/api' + path, { headers: token ? { 'X-Netcoin-Admin-Token': token } : {} }); const text = await r.text(); let data; let parsed = true; try { data = JSON.parse(text); } catch { parsed = false; data = {}; } if (!r.ok || data.error) throw new Error(parsed ? (data.error || 'HTTP ' + r.status) : 'HTTP ' + r.status + ' (non-JSON response)'); return data; }
+  async function post(path, body) {
+    const token = localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+    const r = await fetch('/api' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Netcoin-Admin-Token': token }, body: JSON.stringify(body || {}) });
+    const text = await r.text();
+    let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    if (!r.ok || data.error) throw new Error(data.error || ('HTTP ' + r.status));
+    return data;
+  }
   function pill(status) { return '<span class="pill ' + esc(status || 'partial') + '">' + esc(status || 'partial') + '</span>'; }
   function kv(k, v) { return '<div class="kv"><span>' + esc(k) + '</span><b>' + esc(v) + '</b></div>'; }
   function codeLine(text) { return '<code class="op-code">' + esc(text) + '</code>'; }
@@ -88,4 +97,68 @@
   }
   async function refresh() { $('#summaryCards').innerHTML = '<div class="stat"><b>Loading…</b><small>Reading live operator payload</small></div>'; try { const [health,live]=await Promise.all([get('/health-center'),get('/operator/live')]); render(health,live); } catch (e) { $('#summaryCards').innerHTML = '<div class="stat"><b>Offline</b><small>' + esc(e.message) + '</small></div>'; } }
   $('#refresh')?.addEventListener('click', refresh); refresh();
+
+  // ---- Payout plans: review, sign (offline, by the operator), broadcast (by
+  // the operator), and record it here. This page never holds a key or
+  // broadcasts anything itself -- it only reads/writes plan status. ----
+  let payoutStatusFilterValue = '';
+  const PAYOUT_STATUS_FILTERS = ['', 'pending_operator_review', 'ready_for_wallet_signing', 'signed_ready_to_broadcast', 'broadcast_recorded', 'rejected'];
+  function payoutCard(plan) {
+    const outputs = (plan.outputs || []).map((o) => '<div class="kv"><span>' + esc(o.address) + '</span><b>' + esc(o.amount) + ' NET</b></div>').join('');
+    const canReview = plan.status === 'pending_operator_review';
+    const canSign = plan.status === 'ready_for_wallet_signing';
+    const canBroadcast = plan.status === 'signed_ready_to_broadcast';
+    return '<article class="panel" data-payout-id="' + esc(plan.payout_id) + '" style="margin-bottom:10px">' +
+      '<div class="row" style="justify-content:space-between"><b>' + esc(plan.payout_id) + '</b>' + pill(plan.status) + '</div>' +
+      '<p class="muted">' + esc(plan.kind || '') + ' &middot; total ' + esc(plan.total) + ' NET' + (plan.memo ? ' &middot; ' + esc(plan.memo) : '') + '</p>' +
+      outputs +
+      '<div class="row compact-row" style="margin-top:8px">' +
+      (canReview ? '<button class="secondary" type="button" data-payout-action="approve" data-payout-id="' + esc(plan.payout_id) + '">Approve</button><button class="secondary" type="button" data-payout-action="reject" data-payout-id="' + esc(plan.payout_id) + '">Reject</button>' : '') +
+      (canSign ? '<input placeholder="signed txid" class="payout-txid-input" data-payout-id="' + esc(plan.payout_id) + '" /><button class="secondary" type="button" data-payout-action="signed" data-payout-id="' + esc(plan.payout_id) + '">Record signed</button>' : '') +
+      (canBroadcast ? '<input placeholder="broadcast txid" class="payout-txid-input" data-payout-id="' + esc(plan.payout_id) + '" /><button class="secondary" type="button" data-payout-action="broadcasted" data-payout-id="' + esc(plan.payout_id) + '">Record broadcast</button>' : '') +
+      '</div>' +
+      (plan.broadcast_txid ? '<p class="muted" style="margin-top:6px">Broadcast: ' + esc(shortHash(plan.broadcast_txid)) + '</p>' : '') +
+      '</article>';
+  }
+  async function loadPayouts() {
+    const box = $('#payoutList');
+    if (!box) return;
+    box.innerHTML = 'Loading…';
+    try {
+      const d = await get('/admin/payouts' + (payoutStatusFilterValue ? '?status=' + encodeURIComponent(payoutStatusFilterValue) : ''));
+      const plans = d.payout_plans || [];
+      $('#payoutStatusFilter').innerHTML = PAYOUT_STATUS_FILTERS.map((s) =>
+        '<button type="button" class="secondary payout-filter-btn' + (s === payoutStatusFilterValue ? ' active' : '') + '" data-payout-filter="' + esc(s) + '">' + esc(s || 'all') + (d.status_counts && d.status_counts[s] ? ' (' + d.status_counts[s] + ')' : '') + '</button>'
+      ).join('');
+      box.innerHTML = plans.length ? plans.map(payoutCard).join('') : '<p class="muted">No payout plans' + (payoutStatusFilterValue ? ' with this status' : '') + '.</p>';
+    } catch (e) {
+      box.innerHTML = '<p class="muted">' + esc(e.message) + '</p>';
+    }
+  }
+  $('#btnSaveAdminToken')?.addEventListener('click', () => {
+    localStorage.setItem(ADMIN_TOKEN_KEY, $('#operatorAdminToken').value || '');
+    $('#operatorAdminToken').value = '';
+    $('#operatorAdminToken').placeholder = 'Token saved (hidden)';
+  });
+  $('#btnRefreshPayouts')?.addEventListener('click', loadPayouts);
+  document.addEventListener('click', async (ev) => {
+    const filterBtn = ev.target.closest('[data-payout-filter]');
+    if (filterBtn) { payoutStatusFilterValue = filterBtn.dataset.payoutFilter || ''; await loadPayouts(); return; }
+    const actionBtn = ev.target.closest('[data-payout-action]');
+    if (!actionBtn) return;
+    const payoutId = actionBtn.dataset.payoutId;
+    const action = actionBtn.dataset.payoutAction;
+    try {
+      if (action === 'approve') await post('/admin/payouts/' + encodeURIComponent(payoutId) + '/review', { approved: true });
+      else if (action === 'reject') await post('/admin/payouts/' + encodeURIComponent(payoutId) + '/reject', {});
+      else if (action === 'signed' || action === 'broadcasted') {
+        const input = document.querySelector('.payout-txid-input[data-payout-id="' + payoutId + '"]');
+        const txid = (input?.value || '').trim();
+        if (!txid) { alert('Enter a txid first.'); return; }
+        await post('/admin/payouts/' + encodeURIComponent(payoutId) + '/' + action, { txid });
+      }
+      await loadPayouts();
+    } catch (e) { alert('Action failed: ' + e.message); }
+  });
+  loadPayouts();
 })();

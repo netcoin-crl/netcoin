@@ -37,10 +37,21 @@
       <section class="panel"><h2>Live feature wiring</h2><div id="liveFeatures" class="mini-list"></div></section><section class="panel"><h2>Runbook shortcuts</h2><div class="shortcut-grid">
         <a href="https://status.netcoin.online">Status page</a><a href="https://nodes.netcoin.online">Node map</a><a href="https://security.netcoin.online">Security</a><a href="https://features.netcoin.online">Feature catalog</a><a href="https://api.netcoin.online">API docs</a><a href="https://download.netcoin.online">Downloads</a>
       </div></section>
-      <p class="footer">Read-only operator dashboard. Public-testnet software, not audited production infrastructure.</p>
+      <section class="panel" id="payoutsPanel">
+        <h2>Payout plans (refunds, airdrops, rewards, escrow settlements)</h2>
+        <p class="muted">Every payout is a manually-reviewed plan, never an auto-broadcast hot wallet. Review outputs, sign with your own wallet or offline signer, broadcast yourself, then record the txid here.</p>
+        <div class="row compact-row">
+          <input id="operatorAdminToken" type="password" placeholder="Operator admin token" autocomplete="off" />
+          <button id="btnSaveAdminToken" class="secondary" type="button">Save token</button>
+          <button id="btnRefreshPayouts" class="secondary" type="button">Refresh payouts</button>
+        </div>
+        <div id="payoutStatusFilter" class="shortcut-grid" style="margin-top:8px"></div>
+        <div id="payoutList" style="margin-top:10px"></div>
+      </section>
+      <p class="footer">Read-only status dashboard; the payout panel above is the one place this page can take an action, and only with your own admin token. Public-testnet software, not audited production infrastructure.</p>
     </main>
   </div>
   <script src="site-shell.js?v=20260721-structured-ui"></script>
-  <script src="operator.js?v=20260716-cleanup"></script>
+  <script src="operator.js?v=20260722-payout-panel"></script>
 </body>
 </html>

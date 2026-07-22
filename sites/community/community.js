@@ -62,8 +62,23 @@ function cardIdea(i) {
 function cardBounty(b) {
   return `<article class="bounty-card"><div class="bounty-meta"><span>${esc(b.status || 'open')}</span><span class="reward">${esc(b.reward || b.amount || '0')} NET</span></div><h3>${esc(b.title || b.bounty_id || 'Bounty')}</h3><p class="muted">${esc(b.description || 'No description yet.')}</p><div class="post-actions"><a href="https://explorer.netcoin.online#/community">Submit work</a></div></article>`;
 }
-function commentCard(c) {
-  return `<article class="comment-card"><div><b>u/${esc(c.name || 'Anonymous')}</b><span>${esc(timeLabel(c.created_at))}</span></div><p>${esc(c.message || '')}</p></article>`;
+function commentCard(c, depth = 0) {
+  const indent = depth > 0 ? ` style="margin-left:${Math.min(depth, 6) * 20}px"` : '';
+  return `<article class="comment-card" data-comment-id="${esc(c.comment_id || '')}"${indent}><div><b>u/${esc(c.name || 'Anonymous')}</b><span>${esc(timeLabel(c.created_at))}</span></div><p>${esc(c.message || '')}</p><button type="button" class="link-btn" data-reply-to="${esc(c.comment_id || '')}" style="font-size:11px">Reply</button></article>`;
+}
+// Comments come back flat (post_id + optional parent_comment_id); build a
+// reply tree client-side so nesting is just a display concern, not a
+// separate storage/query shape on the server.
+function renderCommentTree(comments) {
+  const byParent = new Map();
+  for (const c of comments) {
+    const key = c.parent_comment_id || '';
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key).push(c);
+  }
+  const walk = (parentId, depth) => (byParent.get(parentId) || [])
+    .map((c) => commentCard(c, depth) + walk(c.comment_id, depth + 1)).join('');
+  return walk('', 0);
 }
 function circleProgressHtml(c) {
   const members = (c.members || []).length;
@@ -98,7 +113,7 @@ async function loadComments(postId) {
   $('#commentPostId').value = id;
   try {
     const d = await api('/community/posts/' + encodeURIComponent(id) + '/comments');
-    out.innerHTML = (d.comments || []).length ? d.comments.map(commentCard).join('') : '<p class="muted">No comments yet.</p>';
+    out.innerHTML = (d.comments || []).length ? renderCommentTree(d.comments) : '<p class="muted">No comments yet.</p>';
   } catch (e) { out.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
 }
 async function loadIdeas() {
@@ -232,11 +247,16 @@ $('#postMessageBtn')?.addEventListener('click', async () => {
     setToast('#postResult', 'Posted ' + (d.post_id || ''), 'ok'); $('#postMessage').value = ''; await loadPosts();
   } catch (e) { setToast('#postResult', e.message, 'err'); }
 });
+let replyingToCommentId = '';
 $('#submitComment')?.addEventListener('click', async () => {
   try {
     const id = $('#commentPostId').value || activeCommentPost;
-    const d = await post('/community/posts/' + encodeURIComponent(id) + '/comments', { name: $('#commentName').value, message: $('#commentMessage').value });
-    setToast('#commentResult', 'Commented ' + (d.comment_id || ''), 'ok'); $('#commentMessage').value = ''; await loadComments(id); await loadPosts();
+    const d = await post('/community/posts/' + encodeURIComponent(id) + '/comments', { name: $('#commentName').value, message: $('#commentMessage').value, parent_comment_id: replyingToCommentId });
+    setToast('#commentResult', replyingToCommentId ? 'Replied ' + (d.comment_id || '') : 'Commented ' + (d.comment_id || ''), 'ok');
+    $('#commentMessage').value = '';
+    replyingToCommentId = '';
+    $('#submitComment').textContent = 'Comment';
+    await loadComments(id); await loadPosts();
   } catch (e) { setToast('#commentResult', e.message, 'err'); }
 });
 $('#submitIdea')?.addEventListener('click', async () => {
@@ -283,6 +303,13 @@ document.addEventListener('click', async (ev) => {
   if (report) { openTab('tools'); $('#reportPostId').value = report.dataset.reportPost || ''; $('#reportReason').focus(); return; }
   const comments = ev.target.closest('[data-open-comments]');
   if (comments) { openTab('comments'); await loadComments(comments.dataset.openComments || ''); return; }
+  const replyTo = ev.target.closest('[data-reply-to]');
+  if (replyTo) {
+    replyingToCommentId = replyTo.dataset.replyTo || '';
+    $('#submitComment').textContent = replyingToCommentId ? 'Post reply' : 'Comment';
+    $('#commentMessage').focus();
+    return;
+  }
   const votePost = ev.target.closest('[data-vote-post]');
   if (votePost && votePost.dataset.votePost) {
     try { await post('/community/posts/' + encodeURIComponent(votePost.dataset.votePost) + '/vote', { direction: votePost.dataset.direction || 'up', voter: localStorage.getItem('nc.apiKey.v1') || 'browser' }); await loadPosts(); }

@@ -2952,9 +2952,16 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         data = self.load()
         if not any(p.get("post_id") == post_id for p in data.get("community_posts", [])):
             raise AppError("community post not found")
+        parent_comment_id = str(payload.get("parent_comment_id") or "").strip()
+        if parent_comment_id and not any(
+            c.get("comment_id") == parent_comment_id and c.get("post_id") == post_id
+            for c in data.get("community_comments", [])
+        ):
+            raise AppError("parent comment not found on this post")
         rec = {
             "comment_id": clean_id("comment"),
             "post_id": post_id,
+            "parent_comment_id": parent_comment_id,
             "name": name,
             "message": message,
             "created_at": now(),
@@ -3961,6 +3968,9 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             "funding_txid": str(payload.get("funding_txid") or ""),
             "approvals": [],
             "created_at": now(),
+            # If nobody ever funds it, an escrow would otherwise sit as a
+            # phantom "funding_ready" record forever. Default window: 7 days.
+            "funding_expires_at": now() + int(payload.get("funding_expiry_seconds", 604800) or 604800),
         }
         participants = {
             value for value in (record["buyer_address"], record["seller_address"], record["mediator_address"]) if value
@@ -3984,11 +3994,43 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return record
 
+    def _expire_escrow_if_stale(self, data: dict[str, Any], esc_rec: dict[str, Any]) -> bool:
+        """Auto-cancel an escrow that was never funded before its window closed.
+
+        Only "funding_ready" is eligible -- once real funds have arrived
+        (status "funded" or later) an expiry timestamp is meaningless; the
+        funds are already locked and need release/refund/dispute, not a
+        silent cancel.
+        """
+        if esc_rec.get("status") != "funding_ready":
+            return False
+        expires_at = int(esc_rec.get("funding_expires_at", 0) or 0)
+        if not expires_at or now() < expires_at:
+            return False
+        esc_rec["status"] = "canceled"
+        esc_rec["canceled_reason"] = "funding window expired without payment"
+        esc_rec["canceled_at"] = now()
+        data["escrows"][esc_rec["escrow_id"]] = esc_rec
+        return True
+
+    def expire_stale_escrows(self) -> int:
+        data = self.load()
+        changed = 0
+        for esc_rec in list(data.get("escrows", {}).values()):
+            if self._expire_escrow_if_stale(data, esc_rec):
+                changed += 1
+        if changed:
+            self.save(data)
+        return changed
+
     def escrow_status(self, chain: Any, escrow_id: str) -> dict[str, Any]:
         data = self.load()
         esc_rec = data.get("escrows", {}).get(escrow_id)
         if not esc_rec:
             raise AppError("escrow not found")
+        if self._expire_escrow_if_stale(data, esc_rec):
+            self.save(data)
+            return esc_rec
         try:
             bal = chain.address_balance_summary(esc_rec["escrow_address"])
             esc_rec["funded_seen_sats"] = int(bal.get("total_sats", 0) or 0)

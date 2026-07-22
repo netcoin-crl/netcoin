@@ -2022,15 +2022,18 @@
       btns.innerHTML = "";
       return;
     }
+    const expiryNote = rec.funding_expires_at
+      ? ` Funding window closes ${new Date(rec.funding_expires_at * 1000).toLocaleString()} — it auto-cancels if nothing arrives by then.`
+      : "";
     const actionsByStatus = {
-      funding_ready: "Waiting for funds to arrive at the escrow address.",
+      funding_ready: "Waiting for funds to arrive at the escrow address." + expiryNote,
       funded: "Funds are in. Approve release (pay the seller) or refund (return to buyer), or dispute.",
       pending_release: "Release requested — needs a second approval from another party.",
       pending_refund: "Refund requested — needs a second approval from another party.",
       released: "Released. Nothing more to do.",
       refunded: "Refunded. Nothing more to do.",
       disputed: "Disputed — the mediator should review and approve release or refund.",
-      canceled: "Canceled.",
+      canceled: rec.canceled_reason ? `Canceled: ${rec.canceled_reason}.` : "Canceled.",
     };
     next.textContent = actionsByStatus[rec.status] || "";
     const canAct = ["funded", "pending_release", "pending_refund", "disputed"].includes(rec.status);

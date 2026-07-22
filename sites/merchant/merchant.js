@@ -74,8 +74,16 @@ $('#createKey').onclick = async () => {
   catch (e) { out('#keyResult', { ok:false, error:e.message }); }
 };
 $('#createRefund').onclick = async () => {
-  try { out('#refundResult', await post('/merchant/refunds/plan', { merchant_id: $('#merchantId').value || 'default', invoice_id: $('#refundInvoice').value, address: $('#refundAddress').value, amount: $('#refundAmount').value, reason: $('#refundReason').value })); }
-  catch (e) { out('#refundResult', { ok:false, error:e.message }); }
+  const el = $('#refundResult');
+  try {
+    const refund = await post('/merchant/refunds/plan', { merchant_id: $('#merchantId').value || 'default', invoice_id: $('#refundInvoice').value, address: $('#refundAddress').value, amount: $('#refundAmount').value, reason: $('#refundReason').value });
+    const plan = refund.payout_plan || {};
+    // A refund never auto-broadcasts -- it's a plan an operator has to
+    // review, sign with their own wallet, and broadcast themselves. There's
+    // no execute button here on purpose; that's a deliberate non-custodial
+    // safeguard, not a missing feature.
+    el.innerHTML = `<b>Refund plan created</b> (${esc(refund.refund_id)})<br>Payout ${esc(plan.payout_id || '')} &middot; ${esc(plan.total || '0')} NET &middot; status: ${esc(plan.status || 'unknown')}<br><a href="https://operator.netcoin.online/#payoutsPanel" target="_blank" rel="noreferrer">Review and execute in the Operator dashboard</a>`;
+  } catch (e) { el.textContent = 'Failed: ' + e.message; }
 };
 $('#refreshInvoices').onclick = loadOverview;
 $('#loadRecurring').onclick = async () => { try { out('#agreementResult', await api('/recurring')); } catch(e) { out('#agreementResult', { ok:false, error:e.message }); } };
