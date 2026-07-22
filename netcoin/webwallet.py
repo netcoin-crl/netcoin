@@ -987,7 +987,15 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("X-Frame-Options", "DENY")
             self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'")
+            # PAGE is a single self-contained document with its own inline
+            # <style>/<script> blocks (there are no external site assets to
+            # attack via CDN injection here) -- a bare default-src 'self'
+            # silently blocks both, breaking the wallet's own UI/behavior.
+            self.send_header(
+                "Content-Security-Policy",
+                "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+            )
 
         def _same_origin(self) -> bool:
             """A same-site browser POST cannot be forged from another origin
