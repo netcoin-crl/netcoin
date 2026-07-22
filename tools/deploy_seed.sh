@@ -63,6 +63,19 @@ install_venv() {
   chmod -R a+rX "$UV_PYTHON_INSTALL_DIR" "$VENV"
 }
 
+alert_on_failure() {
+  # Opt-in, best-effort deploy-failure notification -- silent no-op unless
+  # NETCOIN_DEPLOY_ALERT_WEBHOOK is set (a Slack incoming-webhook or any URL
+  # that accepts a JSON {"text": ...} POST). A failed deploy used to just sit
+  # there with a down service until someone happened to check.
+  local message="$1"
+  if [ -n "${NETCOIN_DEPLOY_ALERT_WEBHOOK:-}" ]; then
+    curl -fsS -m 10 -X POST -H 'Content-Type: application/json' \
+      -d "{\"text\":\"NetCoin deploy failure on $(hostname): ${message}\"}" \
+      "$NETCOIN_DEPLOY_ALERT_WEBHOOK" >/dev/null 2>&1 || true
+  fi
+}
+
 configure_fast_crypto() {
   if [ "$ENABLE_FAST_CRYPTO" = "1" ]; then
     echo "==> Enabling NETCOIN_FAST_CRYPTO for $SERVICE"
@@ -70,6 +83,15 @@ configure_fast_crypto() {
     printf "[Service]\nEnvironment=NETCOIN_FAST_CRYPTO=1\n" >"/etc/systemd/system/$SERVICE.d/fastcrypto.conf"
   fi
 }
+
+echo "==> Clearing stale deploy artifacts from a previous run"
+# Small seeds run /tmp as a size-capped tmpfs (RAM-backed) -- leftover
+# mktemp -d staging/backup dirs, old uploaded zips, and stale rollback
+# directories from earlier deploys accumulate there indefinitely otherwise.
+# A full tmpfs eats into the same RAM budget the test run and node need,
+# and was a direct contributor to an out-of-memory kill during a deploy.
+find /tmp -maxdepth 1 -mindepth 1 \( -name 'tmp.*' -o -name 'netcoin-*.zip' \) -mmin +120 -exec rm -rf {} + 2>/dev/null || true
+find "$PREFIX" -maxdepth 1 -name '*.prev-*' -o -name '*.broken-*' 2>/dev/null | while read -r stale; do rm -rf "$stale" 2>/dev/null || true; done
 
 echo "==> Backing up before deploy"
 if [ -x "$SRC_DIR/tools/backup_node.sh" ]; then
@@ -94,8 +116,18 @@ if [ -n "$ZIP" ]; then
 else
   NEW="$SOURCE"
 fi
-rm -rf "$SRC_DIR"
+# Move the old tree aside instead of `rm -rf` in place: a recursive delete can
+# fail partway (a file busy from a just-killed process, a stale handle after
+# an OOM event) and, under `set -e`, that failure used to abort the script
+# before the new source was even copied in. Renaming is a single atomic
+# operation that can't fail that way; the old tree is deleted best-effort
+# afterward and never blocks the deploy either direction.
+OLD_SRC="${SRC_DIR}.prev-$(date +%s)"
+if [ -d "$SRC_DIR" ]; then
+  mv "$SRC_DIR" "$OLD_SRC" 2>/dev/null || rm -rf "$SRC_DIR" || true
+fi
 cp -a "$NEW" "$SRC_DIR"
+rm -rf "$OLD_SRC" 2>/dev/null || true
 # Zip archives don't reliably carry correct Unix permission bits (some
 # tooling omits them entirely), and cp -a preserves whatever unzip produced.
 # Force sane, service-readable permissions regardless of what the archive
@@ -106,11 +138,39 @@ chmod -R a+rX "$SRC_DIR"
 install_venv
 configure_fast_crypto
 
+# Preflight: the full suite plus its own subprocess churn needs real headroom.
+# A box with no swap and little free memory will get the pytest run itself
+# OOM-killed outright (seen for real: a ~900MB instance with 0 swap died mid
+# run). Warn loudly, and add swap automatically rather than silently letting
+# the deploy crash-loop the same way again.
+MIN_AVAILABLE_KB="${NETCOIN_DEPLOY_MIN_MEM_KB:-1048576}"  # 1GB, override via env
+available_kb="$(awk '/MemAvailable/{print $2}' /proc/meminfo 2>/dev/null || echo 0)"
+swap_total_kb="$(awk '/SwapTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)"
+if [ "$available_kb" -lt "$MIN_AVAILABLE_KB" ] && [ "$swap_total_kb" -eq 0 ]; then
+  echo "==> Low memory ($((available_kb / 1024))MB available, no swap) -- adding a 2GB swapfile so the test run doesn't get OOM-killed"
+  if [ ! -f /swapfile ]; then
+    fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile
+  fi
+  swapon /swapfile 2>/dev/null || true
+  grep -q '^/swapfile ' /etc/fstab 2>/dev/null || echo '/swapfile none swap sw 0 0' >>/etc/fstab
+fi
+
 echo "==> Running tests"
 if ! ( cd "$SRC_DIR" && "$VENV/bin/python" -m pytest -q ); then
   echo "!! tests failed; rolling back source"
-  rm -rf "$SRC_DIR"; cp -a "$PREV/netcoin-v2" "$SRC_DIR"
+  # Same move-aside-first approach as above: a failed `rm -rf` here used to
+  # abort the whole rollback under `set -e`, leaving the service down with no
+  # working source at all and no restart attempted -- exactly the failure
+  # mode that took seed3 offline. Every step below is best-effort so the
+  # restore and restart always happen regardless of what the cleanup does.
+  BROKEN_SRC="${SRC_DIR}.broken-$(date +%s)"
+  mv "$SRC_DIR" "$BROKEN_SRC" 2>/dev/null || rm -rf "$SRC_DIR" || true
+  cp -a "$PREV/netcoin-v2" "$SRC_DIR"
+  chmod -R a+rX "$SRC_DIR"
+  rm -rf "$BROKEN_SRC" 2>/dev/null || true
+  systemctl daemon-reload || true
   systemctl start "$SERVICE" || true
+  alert_on_failure "test suite failed deploying to $SRC_DIR; rolled back and restarted $SERVICE"
   exit 1
 fi
 
@@ -150,7 +210,15 @@ if [ -n "$HEALTHY" ]; then
 else
   echo "!! health check failed; rolling back source and restarting"
   systemctl stop "$SERVICE" || true
-  rm -rf "$SRC_DIR"; cp -a "$PREV/netcoin-v2" "$SRC_DIR"
+  # Same move-aside-first rollback as the test-failure path above -- a failed
+  # `rm -rf` here must never block the restore or restart.
+  BROKEN_SRC="${SRC_DIR}.broken-$(date +%s)"
+  mv "$SRC_DIR" "$BROKEN_SRC" 2>/dev/null || rm -rf "$SRC_DIR" || true
+  cp -a "$PREV/netcoin-v2" "$SRC_DIR"
+  chmod -R a+rX "$SRC_DIR"
+  rm -rf "$BROKEN_SRC" 2>/dev/null || true
+  systemctl daemon-reload || true
   systemctl start "$SERVICE" || true
+  alert_on_failure "health check failed after deploying to $SRC_DIR; rolled back and restarted $SERVICE"
   exit 1
 fi
