@@ -163,13 +163,18 @@ class LocalNodeController:
                 cmd += ["--bandwidth-mode", self.bandwidth_mode]
             if self.p2p_port is not None:
                 cmd += ["--p2p-port", str(self.p2p_port)]
-            self.process = subprocess.Popen(
-                cmd,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                text=True,
-                close_fds=True,
-            )
+            try:
+                self.process = subprocess.Popen(
+                    cmd,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    close_fds=True,
+                )
+            finally:
+                # Popen dup()s this fd into the child; our own handle on it
+                # must be closed here or it leaks one descriptor per start().
+                log.close()
             deadline = time.time() + 8
             while time.time() < deadline:
                 info = self._external_info()
@@ -966,11 +971,43 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
         def log_message(self, *args: Any) -> None:  # quiet
             return
 
+        # Maximum JSON request body this local wallet server will read into
+        # memory at once. Without a ceiling, any localhost/network client can
+        # exhaust memory just by sending a large Content-Length.
+        _MAX_BODY_BYTES = 5 * 1024 * 1024
+
+        def _security_headers(self) -> None:
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'")
+
+        def _same_origin(self) -> bool:
+            """A same-site browser POST cannot be forged from another origin
+            when we require the request to actually target this server's own
+            Host. A cross-site <form> submit or fetch() carries an Origin (or
+            Referer) header naming the attacker's page, not this one -- so
+            rejecting a mismatch blocks that CSRF path outright. Non-browser
+            callers (curl, scripts) send no Origin at all and are unaffected."""
+            host = self.headers.get("Host", "")
+            origin = self.headers.get("Origin")
+            referer = self.headers.get("Referer")
+            candidate = origin or referer
+            if not candidate:
+                return True
+            try:
+                candidate_host = urlparse(candidate).netloc
+            except ValueError:
+                return False
+            return candidate_host == host
+
         def _send(self, payload: dict[str, Any], status: int = 200) -> None:
             body = json.dumps(payload).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            self._security_headers()
             self.end_headers()
             self.wfile.write(body)
 
@@ -978,6 +1015,8 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
             length = int(self.headers.get("Content-Length", 0) or 0)
             if length <= 0:
                 return {}
+            if length > self._MAX_BODY_BYTES:
+                raise ValueError("request body is too large")
             return json.loads(self.rfile.read(length).decode("utf-8") or "{}")
 
         def do_GET(self) -> None:
@@ -988,6 +1027,7 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
                     self.send_header("Content-Length", str(len(data)))
+                    self._security_headers()
                     self.end_headers()
                     self.wfile.write(data)
                 elif parsed.path == "/api/config":
@@ -1061,6 +1101,9 @@ def make_handler(node_url: str, faucet_url: str = "", *, allow_node_control: boo
 
         def do_POST(self) -> None:
             parsed = urlparse(self.path)
+            if not self._same_origin():
+                self._send({"error": "cross-origin request rejected"}, status=403)
+                return
             try:
                 if parsed.path == "/api/wallet/new":
                     wallet, mnemonic = Wallet.create_with_mnemonic()

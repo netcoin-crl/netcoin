@@ -2388,7 +2388,12 @@
         };
       });
     } catch (e) {
-      $("txHistory").innerHTML = `<span class="err">Could not load transaction history: ${e.message}</span>`;
+      const span = document.createElement("span");
+      span.className = "err";
+      span.textContent = `Could not load transaction history: ${e.message}`;
+      const host = $("txHistory");
+      host.innerHTML = "";
+      host.appendChild(span);
     }
   }
 
