@@ -888,6 +888,8 @@ def _availability_for(feature: FeatureRating) -> dict[str, Any]:
 
 
 def _exposure_for(feature: FeatureRating, availability: dict[str, Any]) -> dict[str, str]:
+    if feature.category not in _EXPOSURE_DEFAULTS:
+        raise ValueError(f"unknown feature category: {feature.category}")
     exposure = dict(_EXPOSURE_DEFAULTS[feature.category])
     exposure.update(_EXPOSURE_OVERRIDES.get((feature.category, feature.name), {}))
     exposure.setdefault("ui_entrypoint", "")

@@ -156,3 +156,13 @@ body{letter-spacing:-.01em}
   .grid,.split,.dashboard-grid{gap:14px!important;margin-bottom:14px!important;}
   pre{max-height:200px!important;}
 }
+
+/* Admin dashboard (moved from an inline <style> so the page can drop
+   'unsafe-inline' from its style-src CSP). */
+.admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.admin-card{border:1px solid var(--line,#273244);border-radius:16px;background:rgba(255,255,255,.035);padding:16px}
+.meter{height:10px;border-radius:999px;background:#121923;overflow:hidden;border:1px solid var(--line,#273244)}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,#3ddc97,#ffcc66);width:38%}
+.admin-table{width:100%;border-collapse:collapse}
+.admin-table th,.admin-table td{text-align:left;padding:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+.muted{color:var(--mut,#9aa8b8)}

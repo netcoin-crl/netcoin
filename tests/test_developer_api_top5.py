@@ -109,8 +109,12 @@ def test_developer_api_top_five_app_layer(tmp_path: Path, monkeypatch: pytest.Mo
     assert hook_status == 200
     assert hook["merchant_id"] == "game-studio"
 
+    dev_dash_key = store.create_api_key({"merchant_id": "game-studio"})
     dash_status, dashboard, ctype = route_app_get(
-        store, chain, "/api/developer/dashboard", {"developer_id": ["game-studio"]}
+        store,
+        chain,
+        "/api/developer/dashboard",
+        {"developer_id": ["game-studio"], "api_key": [dev_dash_key["api_key"]]},
     )
     assert dash_status == 200
     assert ctype == "application/json"
@@ -201,8 +205,12 @@ def test_developer_api_next_seven_features(tmp_path: Path, monkeypatch: pytest.M
     assert sim["dust_risk"] is True
     assert "off-chain" in sim["recommendation"]
 
+    dev_key = store.create_api_key({"merchant_id": "game-studio"})
     console_status, console, _ = route_app_get(
-        store, chain, "/api/developer/console", {"developer_id": ["game-studio"]}
+        store,
+        chain,
+        "/api/developer/console",
+        {"developer_id": ["game-studio"], "api_key": [dev_key["api_key"]]},
     )
     assert console_status == 200
     assert "build_unsigned_transaction" in console["quick_actions"]

@@ -2479,6 +2479,8 @@
     try {
       const recipients = parseBatchRecipients($("batchRecipients").value);
       const fee = netToSats($("batchFee").value || "0");
+      const totalOut = recipients.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+      await checkSpendingLimits(totalOut, fee);
       const utxos = (await loadUtxos()).map((u) => ({ txid: u.txid, vout: u.vout, amount: u.amount, address: u.address }));
       const signed = W.buildBatchPayment({ privHex: state.privHex, utxos, recipients, fee, changeAddress: state.address });
       const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signed) });

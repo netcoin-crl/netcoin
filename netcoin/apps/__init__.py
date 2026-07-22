@@ -822,6 +822,16 @@ class AppStore:
         address = normalize_address(payload.get("address"))
         data = self.load()
         existing = data["usernames"].get(name, {})
+        # Once an off-chain username record has a bound address, only a
+        # caller who actually controls that address may update it -- without
+        # this, any caller could silently hijack another user's profile
+        # (display_name, bio, pubkey, merchant_id) just by reusing their name.
+        existing_address = str(existing.get("address") or "")
+        if existing_address:
+            actor = verified_http_actor(payload, required=bool(payload.get("__netcoin_http_request")))
+            claimant = actor or address
+            if claimant != existing_address:
+                raise AppError("this username is already bound to a different address")
         pubkey_hex = str(payload.get("pubkey") or existing.get("pubkey") or "").strip().lower()
         if pubkey_hex and not re.fullmatch(r"[0-9a-f]{66}", pubkey_hex):
             raise AppError("pubkey must be 33-byte compressed hex")
@@ -2040,9 +2050,19 @@ class AppStore:
         self.save(data)
         return record | {"invoice": invoice}
 
-    def developer_dashboard(self, chain: Any, developer_id: str | None = None) -> dict[str, Any]:
+    def developer_dashboard(
+        self, chain: Any, developer_id: str | None = None, presented_key: str | None = None
+    ) -> dict[str, Any]:
         data = self.load()
         dev = developer_id or ""
+        # A developer_id is a public identifier, not a secret -- without proof
+        # of holding one of that developer's own API keys, anyone could pull
+        # another developer's reward/withdrawal/invoice totals just by
+        # guessing or reusing their id.
+        if dev:
+            record = self.api_key_record(presented_key) if presented_key else None
+            if not record or record.get("merchant_id") != dev:
+                raise AppError("a valid API key for this developer_id is required")
 
         def belongs(item: dict[str, Any]) -> bool:
             return not dev or item.get("developer_id") == dev or item.get("merchant_id") == dev
@@ -2449,10 +2469,12 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return simulation
 
-    def developer_console(self, chain: Any, developer_id: str | None = None) -> dict[str, Any]:
+    def developer_console(
+        self, chain: Any, developer_id: str | None = None, presented_key: str | None = None
+    ) -> dict[str, Any]:
         return {
             "schema": "netcoin-developer-console-v1",
-            "dashboard": self.developer_dashboard(chain, developer_id),
+            "dashboard": self.developer_dashboard(chain, developer_id, presented_key),
             "sdk": self.developer_sdk_packages(),
             "webhook_verifiers": self.webhook_verifier_packages(),
             "deposits": self.developer_deposits(chain, developer_id),
@@ -3984,6 +4006,19 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         record = data.get("contracts", {}).get(contract_id)
         if not record:
             raise AppError("contract not found")
+        # A verified HTTP caller must actually be one of this contract's own
+        # participants -- otherwise anyone could force any contract (escrow,
+        # poll, recurring payment, ...) into any allowed status. Contracts
+        # store their creation payload under "terms"; check every address
+        # field found there rather than assuming one schema for all types.
+        actor = verified_http_actor(payload, required=bool(payload.get("__netcoin_http_request")))
+        if actor:
+            terms = record.get("terms") or {}
+            participants = {
+                str(v) for k, v in terms.items() if k.endswith("_address") and isinstance(v, (str, type(None))) and v
+            }
+            if participants and actor not in participants:
+                raise AppError("only a participant in this contract may transition its status")
         next_status = str(payload.get("status") or payload.get("next_status") or "").strip()
         allowed = set(record.get("template", {}).get("states", [])) | {
             "draft",
@@ -4055,6 +4090,12 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         rec = data.get("recurring_agreements", {}).get(agreement_id)
         if not rec:
             raise AppError("recurring agreement not found")
+        # Only the payer -- the party this agreement actually charges -- may
+        # pause/resume/cancel/skip it. Without this, any caller could disrupt
+        # (or, via skip, silently postpone) someone else's subscription.
+        actor = verified_http_actor(payload, required=bool(payload.get("__netcoin_http_request")))
+        if actor and actor != str(rec.get("payer_address") or ""):
+            raise AppError("only the paying party may update this recurring agreement")
         action = str(payload.get("action") or "").lower()
         if action in {"pause", "paused"}:
             rec["status"] = "paused"
@@ -5041,9 +5082,21 @@ def route_app_get(
     if path == "/merchant/api-usage":
         return 200, store.api_usage_report(q("merchant_id") or None), "application/json"
     if path == "/developer/dashboard":
-        return 200, store.developer_dashboard(chain, q("developer_id") or q("app_id") or None), "application/json"
+        return (
+            200,
+            store.developer_dashboard(
+                chain, q("developer_id") or q("app_id") or None, q("_presented_api_key") or q("api_key") or None
+            ),
+            "application/json",
+        )
     if path == "/developer/console":
-        return 200, store.developer_console(chain, q("developer_id") or q("app_id") or None), "application/json"
+        return (
+            200,
+            store.developer_console(
+                chain, q("developer_id") or q("app_id") or None, q("_presented_api_key") or q("api_key") or None
+            ),
+            "application/json",
+        )
     if path == "/developer/sdk":
         return 200, store.developer_sdk_packages(), "application/json"
     if path == "/developer/funding-policy":

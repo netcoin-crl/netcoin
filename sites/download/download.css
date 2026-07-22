@@ -156,3 +156,11 @@ body{letter-spacing:-.01em}
   .grid,.split,.dashboard-grid{gap:14px!important;margin-bottom:14px!important;}
   pre{max-height:200px!important;}
 }
+
+/* Verify page (moved from an inline <style> so the page can drop
+   'unsafe-inline' from its style-src CSP). */
+.verify-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.verify-card{border:1px solid var(--line,#273244);border-radius:16px;background:rgba(255,255,255,.035);padding:16px}
+.verify-card textarea{width:100%;min-height:120px}
+.mono{font-family:ui-monospace,Menlo,monospace;word-break:break-all}
+.muted{color:var(--mut,#9aa8b8)}
