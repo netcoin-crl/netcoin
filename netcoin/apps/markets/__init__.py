@@ -817,10 +817,13 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
     ):
         raise AppError("prediction market creation requires legal_acknowledged=true in this deployment")
     lowered_question = question.lower()
-    if any(term in lowered_question for term in RESTRICTED_MARKET_TERMS) and not bool(
-        payload.get("operator_override", False)
-    ):
-        raise AppError("restricted prediction-market topic requires operator_override=true and legal review")
+    if any(term in lowered_question for term in RESTRICTED_MARKET_TERMS):
+        # operator_override is never honored on a real HTTP request -- a
+        # caller-supplied boolean proved nothing about operator authority.
+        # Only a direct/internal call (an operator's own maintenance tool,
+        # never something a public API request can trigger) may set it.
+        if payload.get("__netcoin_http_request") or not bool(payload.get("operator_override", False)):
+            raise AppError("restricted prediction-market topic requires operator_override=true and legal review")
     unit_payout_sats = parse_amount_sats(
         payload.get("unit_payout_sats", payload.get("unit_payout", "1")), "unit payout"
     )
@@ -1139,7 +1142,11 @@ def place_market_order_impl(store: Any, market_id: str, payload: dict[str, Any])
     if not 1 <= price_bps <= 9999:
         raise AppError("price_bps must be 1..9999")
     tick = max(1, int(m.get("min_tick_bps", 1) or 1))
-    if not synthetic_market_price and price_bps % tick != 0 and not bool(payload.get("allow_subtick", False)):
+    # allow_subtick is never honored on a real HTTP request -- an individual
+    # order otherwise could unilaterally bypass the market's own tick-size
+    # rule, which is meant to be a market-wide setting, not a per-order one.
+    subtick_allowed = bool(payload.get("allow_subtick", False)) and not payload.get("__netcoin_http_request")
+    if not synthetic_market_price and price_bps % tick != 0 and not subtick_allowed:
         raise AppError(f"price_bps must be a multiple of market min_tick_bps={tick}")
     if bool(payload.get("post_only", False)) and _crossing_depth(m, outcome_id, side, price_bps) > 0:
         raise AppError("post_only order would immediately cross the book")
@@ -1148,7 +1155,9 @@ def place_market_order_impl(store: Any, market_id: str, payload: dict[str, Any])
     unit = int(m.get("unit_payout_sats", DEFAULT_UNIT_PAYOUT_SATS) or DEFAULT_UNIT_PAYOUT_SATS)
     current_pos = _available_position(m, trader, outcome_id)
     short_needed = side == "sell" and current_pos < quantity
-    if short_needed and not bool(m.get("sandbox_short_mode", False) or payload.get("sandbox_short_mode", False)):
+    # sandbox_short_mode is a market-wide setting decided at market creation --
+    # a per-order payload can no longer flip it on for a market that disabled it.
+    if short_needed and not bool(m.get("sandbox_short_mode", False)):
         raise AppError("cannot sell more shares than the trader holds unless sandbox_short_mode is enabled")
     reserve_sats = (
         _share_cost_sats(price_bps, quantity, unit)
@@ -1291,7 +1300,14 @@ def dispute_market_resolution_impl(store: Any, market_id: str, payload: dict[str
     m = data.get("prediction_markets", {}).get(market_id)
     if not m:
         raise AppError("prediction market not found")
-    actor = _require_market_owner(m, payload)
+    # A resolution dispute affects everyone holding a position, not just the
+    # market creator -- restricting the endpoint to the owner meant an
+    # affected trader could never contest a bad resolution.
+    verified = _verified_actor(payload)
+    holds_position = bool(verified and any(int(q or 0) != 0 for q in m.get("positions", {}).get(verified, {}).values()))
+    if verified and verified != str(m.get("creator_address") or "") and not holds_position:
+        raise AppError("only the market creator or a trader with a position may dispute a resolution")
+    actor = verified or str(m.get("creator_address") or "") or "operator"
     evidence = evidence_object(
         payload | {"actor": actor, "url": payload.get("evidence_url") or payload.get("url") or ""}
     )
