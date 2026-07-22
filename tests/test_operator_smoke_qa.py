@@ -221,7 +221,8 @@ def test_full_operator_manual_qa_smoke(tmp_path: Path, monkeypatch):
     assert recorded["last_payment_txid"] == pay_tx.txid()
 
     # 15. Escrow setup and two-party approval plan.
-    escrow = store.create_escrow(
+    escrow_stub = store.create_escrow(
+        chain,
         {
             "buyer_pubkey": customer.public_key_hex,
             "seller_pubkey": merchant.public_key_hex,
@@ -231,9 +232,16 @@ def test_full_operator_manual_qa_smoke(tmp_path: Path, monkeypatch):
             "mediator_address": mediator.address,
             "amount": "1",
             "terms": "QA escrow",
-            "funding_txid": "funded-demo",
         }
     )
+    escrow_fund_block = chain.mine_block(escrow_stub["escrow_address"])
+    escrow = store.escrow_status(chain, escrow_stub["escrow_id"])
+    if escrow["status"] != "funded":
+        edata = store.load()
+        edata["escrows"][escrow["escrow_id"]]["funding_txid"] = escrow_fund_block.transactions[0].txid()
+        store.save(edata)
+        escrow = store.escrow_status(chain, escrow["escrow_id"])
+    assert escrow["status"] == "funded"
     store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": merchant.address})
     released = store.escrow_action(
         escrow["escrow_id"], {"action": "release", "signer": "mediator", "to_address": merchant.address}

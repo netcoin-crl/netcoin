@@ -49,6 +49,7 @@ def test_phase7_templates_recurring_escrow_polls_and_markets(tmp_path: Path):
 
     # Escrow generates a 2-of-3 multisig address and payout plan after two approvals.
     escrow = store.create_escrow(
+        chain,
         {
             "buyer_pubkey": buyer.public_key_hex,
             "seller_pubkey": seller.public_key_hex,
@@ -61,6 +62,12 @@ def test_phase7_templates_recurring_escrow_polls_and_markets(tmp_path: Path):
         }
     )
     assert escrow["escrow_address"]
+    escrow_fund_block = chain.mine_block(escrow["escrow_address"])
+    edata = store.load()
+    edata["escrows"][escrow["escrow_id"]]["funding_txid"] = escrow_fund_block.transactions[0].txid()
+    store.save(edata)
+    escrow = store.escrow_status(chain, escrow["escrow_id"])
+    assert escrow["status"] == "funded"
     first = store.escrow_action(
         escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": seller.address}
     )

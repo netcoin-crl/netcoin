@@ -4087,11 +4087,13 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return rec
 
-    def create_escrow(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_escrow(self, chain: Any, payload: dict[str, Any]) -> dict[str, Any]:
         actor = verified_http_actor(payload)
         buyer_pub = self._valid_pubkey_hex(payload.get("buyer_pubkey"), "buyer_pubkey")
         seller_pub = self._valid_pubkey_hex(payload.get("seller_pubkey"), "seller_pubkey")
         mediator_pub = self._valid_pubkey_hex(payload.get("mediator_pubkey"), "mediator_pubkey")
+        if len({buyer_pub, seller_pub, mediator_pub}) != 3:
+            raise AppError("buyer, seller, and mediator must be three distinct pubkeys")
         amount_sats = parse_amount_sats(payload.get("amount_sats", payload.get("amount", 0)), "escrow amount")
         if amount_sats <= 0:
             raise AppError("escrow amount must be greater than zero")
@@ -4134,6 +4136,11 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         if actor and actor not in participants:
             raise AppError("escrow creator must be the buyer, seller, or mediator")
         if record["funding_txid"]:
+            proof = self.verify_chain_funding(
+                chain, record["funding_txid"], address, amount_sats, min_confirmations=1, already_claimed_by=escrow_id
+            )
+            record["funding_txid"] = proof["txid"]
+            record["funded_confirmations"] = proof["confirmations"]
             record["status"] = "funded"
         data = self.load()
         data["escrows"][escrow_id] = record
@@ -4185,20 +4192,31 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         if not esc_rec:
             raise AppError("escrow not found")
         if self._expire_escrow_if_stale(data, esc_rec):
+            data["contracts"].setdefault(escrow_id, {})["status"] = esc_rec["status"]
             self.save(data)
             return esc_rec
-        try:
-            bal = chain.address_balance_summary(esc_rec["escrow_address"])
-            esc_rec["funded_seen_sats"] = int(bal.get("total_sats", 0) or 0)
-            esc_rec["funded_seen"] = sats_to_amount(esc_rec["funded_seen_sats"])
-            if esc_rec.get("status") == "funding_ready" and esc_rec["funded_seen_sats"] >= int(
-                esc_rec.get("amount_sats", 0)
-            ):
+        # An escrow's own aggregate address balance can be inflated by a second,
+        # unrelated escrow reusing the same buyer/seller/mediator pubkeys (the
+        # descriptor -- and therefore address -- would collide). A specific,
+        # per-escrow-claimed txid via verify_chain_funding avoids that double
+        # count instead of trusting the address's current total.
+        if esc_rec.get("status") == "funding_ready" and esc_rec.get("funding_txid"):
+            try:
+                proof = self.verify_chain_funding(
+                    chain,
+                    esc_rec["funding_txid"],
+                    esc_rec["escrow_address"],
+                    esc_rec.get("amount_sats", 0),
+                    min_confirmations=1,
+                    already_claimed_by=escrow_id,
+                )
+                esc_rec["funded_confirmations"] = proof["confirmations"]
                 esc_rec["status"] = "funded"
                 data["escrows"][escrow_id] = esc_rec
+                data["contracts"].setdefault(escrow_id, {})["status"] = esc_rec["status"]
                 self.save(data)
-        except Exception:
-            pass
+            except AppError:
+                pass
         return esc_rec
 
     def escrow_action(self, escrow_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -4230,13 +4248,20 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
                 message = f"NetCoin escrow action\nescrow-action-v1\n{escrow_id}\n{action}\n{signer}"
                 if not signature or not verify_message(signer, message, signature):
                     raise AppError("a valid signature from the claimed participant address is required")
+        terminal_states = {"released", "refunded", "canceled"}
+        if rec.get("status") in terminal_states:
+            raise AppError(f"escrow is already {rec['status']} and cannot accept further actions")
         if action == "dispute":
+            if rec.get("status") not in {"funded", "pending_release", "pending_refund"}:
+                raise AppError("only a funded escrow can be disputed")
             rec["status"] = "disputed"
         elif action == "cancel":
             if rec.get("status") not in {"funding_ready", "canceled"}:
                 raise AppError("a funded escrow cannot be canceled")
             rec["status"] = "canceled"
         else:
+            if rec.get("status") not in {"funded", "disputed", "pending_release", "pending_refund"}:
+                raise AppError("escrow must be funded before it can be released or refunded")
             if not signer:
                 raise AppError("signer is required")
             approval = {
@@ -4262,6 +4287,10 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             else:
                 rec["status"] = "pending_" + action
         rec["updated_at"] = now()
+        contract = data.setdefault("contracts", {}).setdefault(escrow_id, {"contract_id": escrow_id})
+        contract["status"] = rec["status"]
+        contract["terms"] = rec
+        contract["updated_at"] = now()
         self._record_contract_event(
             data, "escrow.action", {"escrow_id": escrow_id, "action": action, "status": rec["status"]}
         )
@@ -5550,7 +5579,7 @@ def _route_app_post_uncached(
     if path.startswith("/recurring/") and path.endswith("/action"):
         return 200, store.update_recurring_agreement(path.split("/")[2], body)
     if path == "/escrows":
-        return 200, store.create_escrow(body)
+        return 200, store.create_escrow(chain, body)
     if path.startswith("/escrows/") and path.endswith("/action"):
         return 200, store.escrow_action(path.split("/")[2], body)
     if path == "/polls":

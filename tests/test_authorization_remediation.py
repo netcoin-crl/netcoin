@@ -162,6 +162,7 @@ def test_escrow_action_requires_a_real_signature_from_the_claimed_participant(tm
     buyer, seller, mediator = Wallet.create(), Wallet.create(), Wallet.create()
     attacker = Wallet.create()
     escrow = store.create_escrow(
+        chain,
         {
             "buyer_pubkey": buyer.public_key.hex(),
             "seller_pubkey": seller.public_key.hex(),
@@ -195,6 +196,13 @@ def test_escrow_action_requires_a_real_signature_from_the_claimed_participant(tm
         )
 
     # The real buyer's own signature over the exact message is accepted.
+    fund_block = chain.mine_block(escrow["escrow_address"])
+    edata = store.load()
+    edata["escrows"][escrow_id]["funding_txid"] = fund_block.transactions[0].txid()
+    edata["escrows"][escrow_id]["amount_sats"] = 1  # coinbase output covers this trivially
+    store.save(edata)
+    escrow = store.escrow_status(chain, escrow_id)
+    assert escrow["status"] == "funded"
     good_message = f"NetCoin escrow action\nescrow-action-v1\n{escrow_id}\nrelease\n{buyer.segwit_address}"
     good_signature = sign_message(buyer.private_key, good_message)
     result = store.escrow_action(

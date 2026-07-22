@@ -200,7 +200,8 @@ def test_operator_launch_manual_qa_flow(tmp_path: Path, monkeypatch):
     assert recurring_paid["last_payment_txid"] == invoice_payment_txid
 
     # 15. Escrow creates a 2-of-3 address and requires two approvals for a payout plan.
-    escrow = store.create_escrow(
+    escrow_stub = store.create_escrow(
+        chain,
         {
             "buyer_pubkey": customer.public_key_hex,
             "seller_pubkey": merchant.public_key_hex,
@@ -210,9 +211,14 @@ def test_operator_launch_manual_qa_flow(tmp_path: Path, monkeypatch):
             "mediator_address": mediator.address,
             "amount": "0.75",
             "terms": "QA escrow terms",
-            "funding_txid": first_txid,
         }
     )
+    escrow_fund_block = chain.mine_block(escrow_stub["escrow_address"])
+    edata = store.load()
+    edata["escrows"][escrow_stub["escrow_id"]]["funding_txid"] = escrow_fund_block.transactions[0].txid()
+    store.save(edata)
+    escrow = store.escrow_status(chain, escrow_stub["escrow_id"])
+    assert escrow["status"] == "funded"
     first_release = store.escrow_action(
         escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": merchant.address}
     )
