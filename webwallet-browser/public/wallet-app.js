@@ -519,7 +519,13 @@
       <input id="usernameInput" placeholder="letters, numbers, dash, underscore" autocomplete="off" />
       <label for="usernameDisplay">Display name, optional</label>
       <input id="usernameDisplay" placeholder="Shown instead of the raw username" autocomplete="off" />
-      <button id="btnRegisterUsername" type="button">Save username for this wallet</button>
+      <div class="row compact-row">
+        <button id="btnClaimUsernameOnChain" type="button">Claim on-chain (recommended)</button>
+        <button id="btnRegisterUsername" class="secondary" type="button">Save instantly (off-chain)</button>
+      </div>
+      <p class="muted">On-chain claims are a small confirmed transaction that permanently proves ownership &mdash; nobody, including this node, can reassign it later. Off-chain is instant and free but can be overridden by a later on-chain claim of the same name.</p>
+      <label for="usernameClaimFee" style="margin-top:8px">On-chain claim fee (NET)</label>
+      <input id="usernameClaimFee" inputmode="decimal" value="0.00002000" />
       <p id="usernameMsg" class="muted" role="status" aria-live="polite" aria-atomic="true"></p>
       <h3 style="margin-top:16px">Look up any username</h3>
       <p class="muted">Check whether a username is tied to a NetCoin address. Works anywhere someone can be tipped, paid, or added to escrow.</p>
@@ -527,7 +533,7 @@
         <input id="usernameLookup" placeholder="username" autocomplete="off" />
         <button id="btnLookupUsername" class="secondary inline" type="button">Look up</button>
       </div>
-      <pre id="usernameLookupOut" class="mono muted">Address appears here.</pre>`, "settings"));
+      <pre id="usernameLookupOut" class="mono muted">Address appears here.</pre>`, "wallet"));
   }
   function applyWalletMode() {
     const wallet = $("walletView");
@@ -1868,6 +1874,21 @@
     } catch (e) { msg.className = "err"; msg.textContent = "Could not save username: " + e.message; }
   }
 
+  async function claimUsernameOnChain() {
+    const msg = $("usernameMsg");
+    if (!state) { msg.className = "err"; msg.textContent = "Unlock the wallet first."; return; }
+    const username = ($("usernameInput").value || "").trim();
+    if (!username) { msg.className = "err"; msg.textContent = "Enter a username."; return; }
+    try {
+      const fee = netToSats($("usernameClaimFee").value || "0");
+      const utxos = (await loadUtxos()).map((u) => ({ txid: u.txid, vout: u.vout, amount: u.amount, address: u.address }));
+      const signed = W.buildUsernameClaim({ privHex: state.privHex, utxos, username, fee, changeAddress: state.address });
+      const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signed) });
+      msg.className = "ok";
+      msg.textContent = `Claim broadcast (txid ${res.txid.slice(0, 12)}…). @${signed.username} will resolve to your address once this confirms -- nobody can reassign it after that.`;
+    } catch (e) { msg.className = "err"; msg.textContent = "Could not broadcast claim: " + e.message; }
+  }
+
   async function resolveEscrowParty(input) {
     const raw = (input || "").trim();
     if (!raw) throw new Error("required");
@@ -2770,6 +2791,7 @@
   // ---------- boot ----------
   ensureWalletTabShell();
   if ($("btnRegisterUsername")) $("btnRegisterUsername").onclick = registerUsername;
+  if ($("btnClaimUsernameOnChain")) $("btnClaimUsernameOnChain").onclick = claimUsernameOnChain;
   if ($("btnLookupUsername")) $("btnLookupUsername").onclick = lookupUsername;
   if ($("btnCreateEscrow")) $("btnCreateEscrow").onclick = createEscrow;
   if ($("btnLoadEscrow")) $("btnLoadEscrow").onclick = loadEscrow;

@@ -71,6 +71,33 @@ from .tx import (
 )
 
 
+# On-chain username claims: a zero-value OP_RETURN output, same convention as
+# the coinbase witness commitment. "First confirmed claim wins" (Namecoin-style
+# squatting resolution) -- ownership is whichever address the SAME transaction
+# also pays a real (non-claim) output to, so no prevout lookup is needed during
+# indexing. Building/broadcasting the claim tx is entirely client-side, using
+# the same generic signed-transaction path as an ordinary send.
+USERNAME_CLAIM_PREFIX = "OP_RETURN NETCOIN_USERNAME"
+USERNAME_MAX_LEN = 32
+USERNAME_ALLOWED_CHARS = set("abcdefghijklmnopqrstuvwxyz0123456789-_")
+
+
+def username_claim_script_pubkey(username: str) -> str:
+    return f"{USERNAME_CLAIM_PREFIX} {str(username or '').strip().lower()}"
+
+
+def parse_username_claim(script_pubkey: str) -> str | None:
+    prefix = USERNAME_CLAIM_PREFIX + " "
+    if not script_pubkey.startswith(prefix):
+        return None
+    name = script_pubkey[len(prefix) :].strip().lower()
+    if not name or len(name) > USERNAME_MAX_LEN:
+        return None
+    if any(ch not in USERNAME_ALLOWED_CHARS for ch in name):
+        return None
+    return name
+
+
 class ChainError(ValueError):
     """Raised when chain state or consensus validation fails."""
 
@@ -115,6 +142,7 @@ class Blockchain:
         self.block_index: dict[str, Block] = {}
         self.tx_index: dict[str, dict[str, Any]] = {}
         self.address_index: dict[str, set] = {}
+        self.username_claims: dict[str, dict[str, Any]] = {}
         self._utxo_addr: dict[str, str] = {}  # outpoint -> address, for the address index
         self._utxos: dict[str, SpendableOutput] = {}  # persistent authoritative UTXO set
         # Per-address UTXO index (address -> {outpoint -> SpendableOutput}) so
@@ -151,14 +179,41 @@ class Blockchain:
             if not tx.is_coinbase:
                 for txin in tx.inputs:
                     self._utxo_addr.pop(txin.outpoint(), None)
+            if not tx.is_coinbase:
+                claimed = next(
+                    (parse_username_claim(o.effective_script_pubkey()) for o in tx.outputs if not o.address),
+                    None,
+                )
+                if claimed and claimed not in self.username_claims:
+                    owner = next((o.address for o in tx.outputs if o.address), "")
+                    if owner:
+                        self.username_claims[claimed] = {
+                            "username": claimed,
+                            "address": owner,
+                            "txid": txid,
+                            "height": block.header.height,
+                            "block_hash": block.hash(),
+                            "claimed_at": block.header.timestamp,
+                        }
 
     def _reindex_indexes_only(self) -> None:
         self.block_index = {}
         self.tx_index = {}
         self.address_index = {}
         self._utxo_addr = {}
+        self.username_claims = {}
         for block in self.chain:
             self._index_block(block)
+
+    def resolve_onchain_username(self, name: str) -> dict[str, Any] | None:
+        normalized = parse_username_claim(f"{USERNAME_CLAIM_PREFIX} {name}")
+        if not normalized:
+            return None
+        record = self.username_claims.get(normalized)
+        return dict(record) if record else None
+
+    def list_onchain_usernames(self) -> dict[str, dict[str, Any]]:
+        return {name: dict(record) for name, record in self.username_claims.items()}
 
     def reindex(self) -> None:
         """Rebuild the block, transaction, address, and UTXO indexes from the chain."""

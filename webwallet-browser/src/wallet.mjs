@@ -153,27 +153,16 @@ export function selectCoins(utxos, target, maxInputs = 500) {
 
 const DUST = 546;
 
-// Build + sign a P2WPKH->P2WPKH payment. Returns the signed tx dict for POST /tx.
-// All inputs must be P2WPKH controlled by `privHex` (single-key wallet).
-export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, changeAddress, maxInputs = 500, rbf = false }) {
-  amount = Number(amount); fee = Number(fee);
-  if (!Number.isInteger(amount) || amount <= 0) throw new Error("amount must be a positive integer (sats)");
-  if (!Number.isInteger(fee) || fee <= 0) throw new Error("fee must be a positive integer (sats)");
-  const { chosen, total } = selectCoins(utxos, amount + fee, maxInputs);
-  const change = total - amount - fee;
-  // BIP125 opt-in RBF: any sequence below 0xfffffffe signals replaceability.
-  const sequence = rbf ? 0xfffffffd : 0xffffffff;
-
-  const outputs = [{ amount, address: toAddress }];
-  if (change > DUST) outputs.push({ amount: change, address: changeAddress });
-
+// Sign `chosen` UTXOs as inputs against a fixed `outputs` array. Shared by
+// buildSignedPayment and buildUsernameClaim -- everything about a NetCoin
+// spend is the same except what the outputs actually pay for.
+function signInputsForOutputs(chosen, outputs, privHex, sequence, changeAddress) {
   const txCore = {
     version: 1,
     locktime: 0,
     inputs: chosen.map((u) => ({ txid: u.txid, vout: u.vout, sequence })),
     outputs,
   };
-
   const inputs = chosen.map((u, i) => {
     const prevout = {
       txid: u.txid, vout: u.vout, amount: u.amount,
@@ -195,6 +184,47 @@ export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, cha
     }
     return { txid: u.txid, vout: u.vout, sequence, signature: "", public_key: "", coinbase: "", witness: signP2wpkhInput(txCore, i, privHex, prevout) };
   });
+  return { version: 1, locktime: 0, inputs, outputs };
+}
 
-  return { version: 1, locktime: 0, inputs, outputs, fee, change };
+// Build + sign a P2WPKH->P2WPKH payment. Returns the signed tx dict for POST /tx.
+// All inputs must be P2WPKH controlled by `privHex` (single-key wallet).
+export function buildSignedPayment({ privHex, utxos, toAddress, amount, fee, changeAddress, maxInputs = 500, rbf = false }) {
+  amount = Number(amount); fee = Number(fee);
+  if (!Number.isInteger(amount) || amount <= 0) throw new Error("amount must be a positive integer (sats)");
+  if (!Number.isInteger(fee) || fee <= 0) throw new Error("fee must be a positive integer (sats)");
+  const { chosen, total } = selectCoins(utxos, amount + fee, maxInputs);
+  const change = total - amount - fee;
+  // BIP125 opt-in RBF: any sequence below 0xfffffffe signals replaceability.
+  const sequence = rbf ? 0xfffffffd : 0xffffffff;
+
+  const outputs = [{ amount, address: toAddress }];
+  if (change > DUST) outputs.push({ amount: change, address: changeAddress });
+
+  const signed = signInputsForOutputs(chosen, outputs, privHex, sequence, changeAddress);
+  return { ...signed, fee, change };
+}
+
+const USERNAME_PATTERN = /^[a-z0-9_-]{1,32}$/;
+
+// Claim a username on-chain: a zero-value OP_RETURN output naming the
+// username, alongside a real self-payment output in the same transaction.
+// The chain indexer reads "whoever this tx also pays for real" as the
+// claimant, so no separate proof-of-ownership step is needed -- owning the
+// signing key that spent the inputs already proves it, the same way a normal
+// send does.
+export function buildUsernameClaim({ privHex, utxos, username, fee, changeAddress, maxInputs = 500 }) {
+  fee = Number(fee);
+  if (!Number.isInteger(fee) || fee <= 0) throw new Error("fee must be a positive integer (sats)");
+  const name = String(username || "").trim().toLowerCase();
+  if (!USERNAME_PATTERN.test(name)) throw new Error("username must be 1-32 characters: letters, numbers, dash, underscore");
+  const { chosen, total } = selectCoins(utxos, fee + DUST, maxInputs);
+  const change = total - fee;
+  if (change < DUST) throw new Error("insufficient funds to cover the claim fee");
+  const outputs = [
+    { amount: change, address: changeAddress },
+    { amount: 0, address: "", script_pubkey: `OP_RETURN NETCOIN_USERNAME ${name}` },
+  ];
+  const signed = signInputsForOutputs(chosen, outputs, privHex, 0xffffffff, changeAddress);
+  return { ...signed, fee, change, username: name };
 }

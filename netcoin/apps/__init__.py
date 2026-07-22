@@ -30,6 +30,7 @@ from threading import RLock
 from typing import Any
 from urllib.parse import quote, urlencode, urlparse
 
+from ..chain import username_claim_script_pubkey
 from ..crypto import decode_address, public_key_to_p2wpkh_address, validate_address, verify_message
 from ..descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
 from ..emission import next_reduction_height
@@ -840,11 +841,19 @@ class AppStore:
         self.save(data)
         return record
 
-    def resolve_username(self, name: str) -> dict[str, Any]:
-        record = self.load()["usernames"].get(normalize_username(name))
+    def resolve_username(self, name: str, chain: Any | None = None) -> dict[str, Any]:
+        normalized = normalize_username(name)
+        # An on-chain claim (a confirmed username-claim transaction) is
+        # authoritative when one exists -- it can't be reassigned by an API
+        # call the way the legacy off-chain record can. Fall back to the
+        # off-chain record for names nobody has claimed on-chain yet.
+        onchain = chain.resolve_onchain_username(normalized) if chain is not None else None
+        record = self.load()["usernames"].get(normalized)
+        if onchain:
+            return (record or {}) | onchain | {"onchain": True}
         if not record:
             raise AppError("username not found")
-        return record
+        return record | {"onchain": False}
 
     # ----- merchant / webhooks -----
     def create_api_key(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1427,8 +1436,8 @@ class AppStore:
 </div><p class=muted>This page refreshes when reopened. API status is available at /api/checkout/{esc(invoice_id)}.</p>"""
         return app_html_page("NetCoin checkout", body)
 
-    def profile_html(self, name: str) -> str:
-        profile = self.resolve_username(name)
+    def profile_html(self, name: str, chain: Any | None = None) -> str:
+        profile = self.resolve_username(name, chain=chain)
         uri = payment_uri(profile["address"], label=profile.get("display_name") or profile["username"])
         body = f"""<h1>{esc(profile.get('display_name') or profile['username'])}</h1>
 <div class=card><p>{esc(profile.get('bio',''))}</p><p>Address:</p><p class=mono>{esc(profile['address'])}</p>
@@ -1436,8 +1445,8 @@ class AppStore:
 <p class=muted>Verified: {esc(profile.get('verified', False))}</p></div>"""
         return app_html_page("NetCoin profile", body)
 
-    def tip_html(self, name: str) -> str:
-        profile = self.resolve_username(name)
+    def tip_html(self, name: str, chain: Any | None = None) -> str:
+        profile = self.resolve_username(name, chain=chain)
         uri = payment_uri(
             profile["address"],
             label="Tip " + (profile.get("display_name") or profile["username"]),
@@ -4643,9 +4652,9 @@ def route_app_get(
     if not is_api_route and path.startswith("/pay/"):
         return 200, store.checkout_html(chain, path.split("/", 2)[2]), "text/html; charset=utf-8"
     if not is_api_route and path.startswith(("/tip/", "/donate/")):
-        return 200, store.tip_html(path.split("/", 2)[2]), "text/html; charset=utf-8"
+        return 200, store.tip_html(path.split("/", 2)[2], chain=chain), "text/html; charset=utf-8"
     if not is_api_route and path.startswith(("/u/", "/profile/")):
-        return 200, store.profile_html(path.split("/", 2)[2]), "text/html; charset=utf-8"
+        return 200, store.profile_html(path.split("/", 2)[2], chain=chain), "text/html; charset=utf-8"
     if path.startswith("/receipt/") and path.endswith(".pdf"):
         txid = path.split("/", 2)[2][:-4]
         return 200, store.receipt_pdf(chain, txid), "application/pdf"
@@ -4682,13 +4691,28 @@ def route_app_get(
     if path.startswith(("/receipt/", "/receipts/")):
         txid = path.split("/", 2)[2]
         return 200, store.receipt(chain, txid), "application/json"
+    if path == "/usernames/onchain":
+        return 200, {"usernames": list(chain.list_onchain_usernames().values())}, "application/json"
+    if path.startswith("/usernames/onchain/"):
+        name = path.split("/", 3)[3]
+        record = chain.resolve_onchain_username(name)
+        if not record:
+            raise AppError("no on-chain claim for this username")
+        return 200, record, "application/json"
+    if path.startswith("/usernames/claim-script/"):
+        name = path.split("/", 3)[3]
+        return (
+            200,
+            {"username": normalize_username(name), "script_pubkey": username_claim_script_pubkey(normalize_username(name))},
+            "application/json",
+        )
     if path == "/usernames":
         return 200, {"usernames": list(store.load()["usernames"].values())}, "application/json"
     if path.startswith("/usernames/"):
-        return 200, store.resolve_username(path.split("/", 2)[2]), "application/json"
+        return 200, store.resolve_username(path.split("/", 2)[2], chain=chain), "application/json"
     if path.startswith(("/profiles/", "/u/")):
         name = path.split("/", 2)[2]
-        return 200, store.resolve_username(name), "application/json"
+        return 200, store.resolve_username(name, chain=chain), "application/json"
     if path == "/labels":
         return 200, {"labels": store.load()["known_labels"]}, "application/json"
     if path.startswith("/labels/"):
