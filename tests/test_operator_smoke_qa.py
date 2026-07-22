@@ -257,10 +257,9 @@ def test_full_operator_manual_qa_smoke(tmp_path: Path, monkeypatch):
             "voter_address": customer.address,
             "option_id": "opt1",
             "allow_unverified_demo": True,
-            "weight": 2,
         },
     )
-    assert voted["results"]["opt1"]["weight"] == 2
+    assert voted["results"]["opt1"]["weight"] == 1
     assert store.close_poll(poll["poll_id"], {})["status"] == "closed"
 
     # 17. Testnet/demo prediction market creation, matching, and resolution.

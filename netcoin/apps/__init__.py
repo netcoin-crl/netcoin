@@ -2782,6 +2782,8 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
     def create_bounty(self, payload: dict[str, Any]) -> dict[str, Any]:
         actor = verified_http_actor(payload)
         bounty_id = str(payload.get("bounty_id") or clean_id("bty"))
+        if bounty_id in self.load().get("bounties", {}):
+            raise AppError(f"bounty_id {bounty_id} already exists")
         reward_sats = parse_amount_sats(
             payload.get("reward_sats", payload.get("reward", payload.get("amount", 0))), "bounty reward"
         )
@@ -2980,10 +2982,20 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         previous = int(votes.get(key, 0) or 0)
         score_delta = 0 if previous == delta else delta - previous
         if previous != delta:
+            # Switching a vote must move it out of its old bucket, not just add
+            # to the new one -- otherwise upvotes/downvotes drift out of sync
+            # with the actual number of voters (finding: score updates but the
+            # stale counter is never decremented).
+            if previous == 1:
+                rec["upvotes"] = max(0, int(rec.get("upvotes", 0) or 0) - 1)
+            elif previous == -1:
+                rec["downvotes"] = max(0, int(rec.get("downvotes", 0) or 0) - 1)
+            if delta == 1:
+                rec["upvotes"] = int(rec.get("upvotes", 0) or 0) + 1
+            else:
+                rec["downvotes"] = int(rec.get("downvotes", 0) or 0) + 1
             votes[key] = delta
         rec["score"] = int(rec.get("score", 0) or 0) + score_delta
-        rec["upvotes"] = int(rec.get("upvotes", 0) or 0) + (1 if score_delta > 0 else 0)
-        rec["downvotes"] = int(rec.get("downvotes", 0) or 0) + (1 if score_delta < 0 else 0)
         rec["updated_at"] = now()
         self.save(data)
         return rec
@@ -3179,11 +3191,19 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return rec
 
-    def vote_improvement(self, idea_id: str) -> dict[str, Any]:
+    def vote_improvement(self, idea_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = payload or {}
+        voter = str(payload.get("voter") or payload.get("address") or "").strip()[:80]
+        if not voter:
+            raise AppError("voter is required")
         data = self.load()
         rec = data.get("community_improvements", {}).get(idea_id)
         if not rec:
             raise AppError("improvement idea not found")
+        voters = rec.setdefault("voters", [])
+        if voter in voters:
+            raise AppError("this voter has already voted on this idea")
+        voters.append(voter)
         rec["votes"] = int(rec.get("votes", 0)) + 1
         self.save(data)
         return rec
@@ -4326,6 +4346,8 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         if len(options) < 2:
             raise AppError("poll requires at least two options")
         poll_id = str(payload.get("poll_id") or clean_id("poll"))
+        if poll_id in self.load().get("polls", {}):
+            raise AppError(f"poll_id {poll_id} already exists")
         record = {
             "poll_id": poll_id,
             "title": title[:200],
@@ -4366,6 +4388,8 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             poll["status"] = "closed"
             self.save(data)
             raise AppError("poll is closed")
+        if now() < int(poll.get("start_time", 0) or 0):
+            raise AppError("voting has not started yet")
         actor = verified_http_actor(payload)
         voter = require_verified_actor(
             payload, payload.get("voter_address") or payload.get("address"), label="voter_address"
@@ -4382,13 +4406,15 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
                 raise AppError("vote signature is invalid")
         elif not actor and not bool(payload.get("allow_unverified_demo", False)):
             raise AppError("signature is required for signed-message polls")
-        weight = 1 if actor else int(payload.get("weight", 1) or 1)
+        # weight is always exactly 1 -- one address, one vote. A caller-supplied
+        # "weight" was previously honored for any unverified/demo vote, letting
+        # a single unsigned caller outweigh every real signed voter.
         poll.setdefault("votes", {})[voter] = {
             "voter_address": voter,
             "option_id": option_id,
             "signature": signature,
             "verified": verified,
-            "weight": max(1, weight),
+            "weight": 1,
             "message": message,
             "created_at": now(),
         }
@@ -4424,7 +4450,11 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         actor = verified_http_actor(payload, required=True)
         if actor and actor != poll.get("creator_address"):
             raise AppError("only the poll creator may close this poll")
-        poll["status"] = str(payload.get("status") or "closed")
+        # Closing can only ever move a poll to a terminal closed state -- a
+        # caller-supplied status (e.g. "open") previously let a poll be
+        # reported closed_at while still marked open.
+        requested_status = str(payload.get("status") or "closed")
+        poll["status"] = requested_status if requested_status in {"closed", "canceled"} else "closed"
         poll["closed_at"] = now()
         self._record_contract_event(data, "poll.closed", {"poll_id": poll_id})
         self.save(data)
@@ -5553,7 +5583,7 @@ def _route_app_post_uncached(
     if path == "/community/reports":
         return 200, store.create_community_report(body)
     if path.startswith("/community/improvements/") and path.endswith("/vote"):
-        return 200, store.vote_improvement(path.split("/")[3])
+        return 200, store.vote_improvement(path.split("/")[3], body)
     if path == "/community/circles":
         return 200, store.propose_circle(body)
     if path.startswith("/community/circles/") and path.endswith("/join"):
