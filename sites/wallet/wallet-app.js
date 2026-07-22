@@ -1329,9 +1329,26 @@
     autoLockTimer = null;
   }
 
+  function scrubSensitiveFields() {
+    // `state = null` drops the in-memory reference, but a few DOM form
+    // fields hold raw secret material independent of `state` -- a typed
+    // private key, a displayed seed phrase, backup-quiz answers -- and
+    // those survive in the DOM until explicitly cleared, even after lock.
+    const ids = [
+      "privateKeyInput", "newPhrase", "quizWord1", "quizWord2",
+      "createPw", "privateKeyPw", "unlockPw", "backupPw", "contactsBackupPw",
+    ];
+    for (const id of ids) {
+      const el = $(id);
+      if (!el) continue;
+      if ("value" in el) el.value = "";
+      else el.textContent = "";
+    }
+  }
   function lockWallet(reason = "") {
     state = null;
     pendingSend = null;
+    scrubSensitiveFields();
     clearAutoLockTimer();
     clearUnlockedSession();
     renderProfiles();
