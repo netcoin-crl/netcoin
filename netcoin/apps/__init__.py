@@ -3168,7 +3168,46 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return rec
 
-    def record_exchange_deposit(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def verify_chain_funding(
+        self,
+        chain: Any,
+        txid: str,
+        expected_address: str,
+        expected_amount_sats: int,
+        *,
+        min_confirmations: int = 1,
+        already_claimed_by: str | None = None,
+    ) -> dict[str, Any]:
+        """Resolve a real, confirmed, sufficiently-paying, not-already-claimed
+        transaction output. This is the single verification path shared by
+        exchange deposits, escrow funding, and gift claims -- previously each
+        of those trusted a caller-supplied txid/boolean as proof outright."""
+        txid = str(txid or "").strip().lower()
+        if not txid:
+            raise AppError("a funding txid is required")
+        found = chain.get_transaction(txid)
+        if not found:
+            raise AppError("transaction not found on this node's chain or mempool")
+        tx, block = found
+        if block is None:
+            raise AppError("transaction is unconfirmed; wait for at least one confirmation")
+        confirmations = chain.height() - block.header.height + 1
+        if confirmations < min_confirmations:
+            raise AppError(f"transaction has {confirmations} confirmation(s), needs at least {min_confirmations}")
+        matching = [o for o in tx.outputs if o.address == expected_address and int(o.amount) >= int(expected_amount_sats)]
+        if not matching:
+            raise AppError("transaction does not pay the expected address for at least the expected amount")
+        data = self.load()
+        claims = data.setdefault("chain_funding_claims", {})
+        existing = claims.get(txid)
+        if existing and existing.get("claimed_by") != already_claimed_by:
+            raise AppError(f"txid {txid} was already used to fund {existing.get('claimed_by', 'another record')}")
+        if already_claimed_by:
+            claims[txid] = {"claimed_by": already_claimed_by, "claimed_at": now()}
+            self.save(data)
+        return {"txid": txid, "confirmations": confirmations, "amount_sats": int(matching[0].amount)}
+
+    def record_exchange_deposit(self, chain: Any, payload: dict[str, Any]) -> dict[str, Any]:
         customer_id = str(payload.get("customer_id") or "").strip()[:80]
         if not customer_id:
             raise AppError("customer_id is required")
@@ -3178,23 +3217,39 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         tier = str(payload.get("tier") or "hot").strip().lower()
         if tier not in {"hot", "warm", "cold"}:
             tier = "hot"
+        custody_address = str(payload.get("custody_address") or "").strip()
+        if not custody_address:
+            raise AppError("custody_address is required so the deposit can be chain-verified")
+        deposit_id = clean_id("dep")
+        # Chain-verify before recording anything: a deposit is only real once
+        # a confirmed transaction actually pays the exchange's own custody
+        # address for at least the claimed amount, and that txid hasn't
+        # already been counted toward a different deposit.
+        proof = self.verify_chain_funding(
+            chain, payload.get("txid"), custody_address, amount_sats, min_confirmations=1, already_claimed_by=deposit_id
+        )
         data = self.load()
         rec = {
-            "deposit_id": clean_id("dep"),
+            "deposit_id": deposit_id,
             "customer_id": customer_id,
             "amount_sats": amount_sats,
             "amount": sats_to_amount(amount_sats),
             "tier": tier,
-            "txid": str(payload.get("txid") or "")[:140],
+            "custody_address": custody_address,
+            "txid": proof["txid"],
+            "confirmations": proof["confirmations"],
             "created_at": now(),
         }
         data.setdefault("exchange_deposits", []).append(rec)
         custody = data.setdefault("exchange_custody", {"hot": 0, "warm": 0, "cold": 0})
         custody[tier] = int(custody.get(tier, 0) or 0) + amount_sats
+        balances = data.setdefault("exchange_customer_balances", {})
+        balances[customer_id] = int(balances.get(customer_id, 0) or 0) + amount_sats
         self.save(data)
         return rec
 
     def request_exchange_withdrawal(self, payload: dict[str, Any]) -> dict[str, Any]:
+        actor = verified_http_actor(payload, required=True)
         customer_id = str(payload.get("customer_id") or "").strip()[:80]
         if not customer_id:
             raise AppError("customer_id is required")
@@ -3203,6 +3258,18 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             raise AppError("withdrawal amount must be greater than zero")
         to_address = normalize_address(payload.get("to_address") or payload.get("address"))
         data = self.load()
+        # A real HTTP caller must prove they control the customer_id they're
+        # withdrawing from -- previously any caller could request a
+        # withdrawal for any customer_id with no ownership check at all.
+        if payload.get("__netcoin_http_request") and actor:
+            owner = data.setdefault("exchange_customer_owners", {}).get(customer_id)
+            if owner and owner != actor:
+                raise AppError("signed wallet does not own this customer_id")
+            data["exchange_customer_owners"].setdefault(customer_id, actor)
+        balances = data.setdefault("exchange_customer_balances", {})
+        available = int(balances.get(customer_id, 0) or 0)
+        if amount_sats > available:
+            raise AppError(f"withdrawal amount exceeds available balance ({sats_to_amount(available)} NET)")
         rec = {
             "withdrawal_id": clean_id("wd"),
             "customer_id": customer_id,
@@ -3217,7 +3284,11 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         return rec
 
     def approve_exchange_withdrawal(self, withdrawal_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        actor = verified_http_actor(payload)
+        # node.py's operator_only gate already requires an admin token to
+        # reach this route over HTTP; this verified-actor check is defense in
+        # depth so the approver identity in the audit trail is a real
+        # signature, not a free-form string an unsigned caller could invent.
+        actor = verified_http_actor(payload, required=bool(payload.get("__netcoin_http_request")))
         approver = actor or str((payload or {}).get("approver") or "operator")[:140]
         data = self.load()
         withdrawals = data.setdefault("exchange_withdrawals", [])
@@ -3230,27 +3301,48 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         approvals.append({"withdrawal_id": withdrawal_id, "approver": approver, "created_at": now()})
         signers = {a["approver"] for a in approvals if a["withdrawal_id"] == withdrawal_id}
         if len(signers) >= 2:
-            rec["status"] = "released"
+            balances = data.setdefault("exchange_customer_balances", {})
+            available = int(balances.get(rec["customer_id"], 0) or 0)
+            amount_sats = int(rec["amount_sats"])
+            if amount_sats > available:
+                raise AppError("customer balance no longer covers this withdrawal; cannot release")
             custody = data.setdefault("exchange_custody", {"hot": 0, "warm": 0, "cold": 0})
-            custody["hot"] = max(0, int(custody.get("hot", 0) or 0) - int(rec["amount_sats"]))
+            hot_available = int(custody.get("hot", 0) or 0)
+            if amount_sats > hot_available:
+                raise AppError(f"hot custody ({sats_to_amount(hot_available)} NET) cannot cover this withdrawal")
+            custody["hot"] = hot_available - amount_sats
+            balances[rec["customer_id"]] = available - amount_sats
+            rec["status"] = "released"
+            rec["payout_plan"] = self.plan_payout("exchange_withdrawal", [{"address": rec["to_address"], "amount_sats": amount_sats}], memo=f"withdrawal {withdrawal_id}")
         else:
             rec["status"] = "approved"
         rec["updated_at"] = now()
         self.save(data)
         return rec
 
-    def run_reserve_attestation(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    def run_reserve_attestation(self, chain: Any, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         from ..exchange_reserves import reserve_attestation
 
+        actor = verified_http_actor(payload or {}, required=bool((payload or {}).get("__netcoin_http_request")))
         data = self.load()
-        deposits = data.get("exchange_deposits", [])
-        by_customer: dict[str, int] = {}
-        for d in deposits:
-            by_customer[d["customer_id"]] = by_customer.get(d["customer_id"], 0) + int(d.get("amount_sats", 0) or 0)
-        liabilities = [{"customer_id": cid, "amount_sats": amt} for cid, amt in by_customer.items()]
+        balances = data.get("exchange_customer_balances", {})
+        liabilities = [{"customer_id": cid, "amount_sats": int(amt or 0)} for cid, amt in balances.items() if amt]
+        # Reserves are recomputed by re-verifying each on-record deposit's
+        # custody address still holds chain-confirmed funds, not by trusting
+        # the app's own running custody counters at face value.
+        custody_addresses = {str(d.get("custody_address") or "") for d in data.get("exchange_deposits", [])}
+        chain_verified_sats = 0
+        for addr in custody_addresses:
+            if not addr:
+                continue
+            try:
+                chain_verified_sats += int(chain.address_balance_summary(addr).get("total_sats", 0) or 0)
+            except Exception:
+                continue
         custody = data.get("exchange_custody", {"hot": 0, "warm": 0, "cold": 0})
         reserves = [{"tier": tier, "amount_sats": int(amt or 0)} for tier, amt in custody.items() if amt]
-        attestation = reserve_attestation(liabilities=liabilities, reserves=reserves, operator=str((payload or {}).get("operator") or "exchange"))
+        attestation = reserve_attestation(liabilities=liabilities, reserves=reserves, operator=actor or "exchange")
+        attestation["chain_verified_reserve_sats"] = chain_verified_sats
         data.setdefault("reserve_attestations", []).append(attestation)
         self.save(data)
         return attestation
@@ -5420,13 +5512,13 @@ def _route_app_post_uncached(
     if path.startswith("/community/circles/") and path.endswith("/pin"):
         return 200, store.set_circle_pin(path.split("/")[3], body)
     if path == "/exchange/deposits":
-        return 200, store.record_exchange_deposit(body)
+        return 200, store.record_exchange_deposit(chain, body)
     if path == "/exchange/withdrawals":
         return 200, store.request_exchange_withdrawal(body)
     if path.startswith("/exchange/withdrawals/") and path.endswith("/approve"):
         return 200, store.approve_exchange_withdrawal(path.split("/")[3], body)
     if path == "/exchange/reserve-attestations":
-        return 200, store.run_reserve_attestation(body)
+        return 200, store.run_reserve_attestation(chain, body)
     if path == "/community/bounties":
         return 200, store.create_bounty(body)
     if path.startswith("/community/bounties/") and path.endswith("/submit"):

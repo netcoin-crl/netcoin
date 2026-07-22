@@ -124,6 +124,19 @@ def test_exchange_approvals_use_two_verified_wallets(tmp_path: Path):
     store = AppStore(chain.data_dir)
     alice = Wallet.create()
     bob = Wallet.create()
+    custody = Wallet.create()
+    block = chain.mine_block(custody.segwit_address)
+    deposit_txid = block.transactions[0].txid()
+    store.record_exchange_deposit(
+        chain,
+        {
+            "customer_id": "customer",
+            "amount_sats": 10,
+            "tier": "hot",
+            "custody_address": custody.segwit_address,
+            "txid": deposit_txid,
+        },
+    )
     withdrawal = store.request_exchange_withdrawal(
         {"customer_id": "customer", "amount_sats": 10, "to_address": alice.segwit_address}
     )
