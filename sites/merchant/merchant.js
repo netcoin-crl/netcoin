@@ -16,7 +16,8 @@ function invoiceCard(inv) {
   const id = inv.invoice_id || inv.payment_id || 'invoice';
   const status = inv.status || 'unknown';
   const amount = inv.amount ?? inv.amount_net ?? inv.expected_amount ?? '';
-  const checkout = inv.checkout_url || (id ? `https://pay.netcoin.online/?invoice=${encodeURIComponent(id)}` : '');
+  const rawCheckout = inv.checkout_url || inv.checkout_path || (id ? `/pay/${encodeURIComponent(id)}` : '');
+  const checkout = rawCheckout ? (rawCheckout.startsWith('http') ? rawCheckout : `https://pay.netcoin.online${rawCheckout}`) : '';
   return `<article class="invoice"><h3>${esc(id)}</h3><div class="meta"><span>${esc(status)}</span><span>${esc(money(amount))} NET</span><span>${esc(inv.order_id || '')}</span></div><p class="mono">${esc(inv.address || inv.recipient_address || '')}</p>${checkout ? `<a href="${esc(checkout)}" target="_blank" rel="noreferrer">Open checkout</a>` : ''}</article>`;
 }
 async function loadOverview() {
@@ -46,7 +47,7 @@ async function createInvoiceFrom(prefix, isPos = false) {
   };
   const inv = await post('/invoices', payload);
   const id = inv.invoice_id || inv.payment_id || '';
-  const payUrl = id ? `https://pay.netcoin.online/?invoice=${encodeURIComponent(id)}` : 'https://pay.netcoin.online';
+  const payUrl = id ? `https://pay.netcoin.online/pay/${encodeURIComponent(id)}` : 'https://pay.netcoin.online';
   return { inv, payUrl };
 }
 $('#createInvoice').onclick = async () => {

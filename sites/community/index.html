@@ -6,7 +6,7 @@
   <title>NetCoin Community</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
   <link rel="stylesheet" href="site-shell.css?v=20260721-structured-ui" />
-  <link rel="stylesheet" href="community.css?v=20260719-full-width-tabs" />
+  <link rel="stylesheet" href="community.css?v=20260721-leaderboard-fix" />
 </head>
 <body>
   <div class="shell community-shell">
@@ -81,30 +81,48 @@
         </section>
 
         <section class="tab-panel" id="tab-circles">
-          <div class="compose-card card">
-            <div class="compose-top"><h2>Propose a circle</h2><button id="refreshCircles" class="secondary small" type="button">Refresh</button></div>
-            <p class="muted">A circle is a focused group inside Community (e.g. "Mining Ops", "Merchant Builders"). Propose one, then share it &mdash; it goes live automatically once 5 people join.</p>
-            <input id="circleName" placeholder="Circle name" maxlength="60" />
-            <textarea id="circleDescription" placeholder="What is this circle for?" maxlength="500"></textarea>
-            <input id="circleCreator" placeholder="Your name" maxlength="80" />
-            <button id="submitCircle" type="button">Propose circle</button><p id="circleResult" class="toast"></p>
+          <div id="circleBrowse">
+            <div class="compose-card card">
+              <div class="compose-top"><h2>Propose a circle</h2><button id="refreshCircles" class="secondary small" type="button">Refresh</button></div>
+              <p class="muted">A circle is a focused group inside Community (e.g. "Mining Ops", "Merchant Builders"). Propose one, then share it &mdash; it goes live automatically once 5 people join.</p>
+              <input id="circleName" placeholder="Circle name" maxlength="60" />
+              <textarea id="circleDescription" placeholder="What is this circle for?" maxlength="500"></textarea>
+              <input id="circleCreator" placeholder="Your name" maxlength="80" />
+              <button id="submitCircle" type="button">Propose circle</button><p id="circleResult" class="toast"></p>
+            </div>
+            <div class="section-card card">
+              <div class="section-head"><h2>Find a circle</h2></div>
+              <input id="circleSearch" type="search" placeholder="Search circles by name or description" autocomplete="off" />
+            </div>
+            <div id="circleFeed" class="reddit-feed"></div>
           </div>
-          <div class="section-card card">
-            <div class="section-head"><h2>Find a circle</h2></div>
-            <input id="circleSearch" type="search" placeholder="Search circles by name or description" autocomplete="off" />
+          <div id="circleDetail" class="hide">
+            <button id="btnBackToCircles" class="secondary small" type="button">&larr; All circles</button>
+            <div class="section-card card">
+              <div class="section-head"><h2 id="circleDetailName">Circle</h2><span id="circleDetailStatus" class="tag"></span></div>
+              <p id="circleDetailDescription" class="muted"></p>
+              <div id="circleDetailProgress"></div>
+              <div class="post-actions"><button type="button" id="circleDetailJoin">Join</button></div>
+            </div>
+            <div class="compose-card card">
+              <h2>Post in this circle</h2>
+              <input id="circlePostName" placeholder="Name" maxlength="80" />
+              <textarea id="circlePostMessage" placeholder="Share an update or question with this circle. Never post keys or seed phrases." maxlength="1200"></textarea>
+              <button id="circlePostBtn" type="button">Post</button><p id="circlePostResult" class="toast"></p>
+            </div>
+            <div id="circlePostFeed" class="reddit-feed"></div>
           </div>
-          <div id="circleFeed" class="reddit-feed"></div>
         </section>
 
         <section class="tab-panel" id="tab-leaderboards">
           <div class="section-card card">
             <div class="section-head"><h2>Leaderboards</h2><button id="refreshLeaderboards" class="secondary small" type="button">Refresh</button></div>
             <nav class="leaderboard-tabs" aria-label="Leaderboard category">
-              <button type="button" class="secondary small active" data-leader-tab="top_miners">Miners</button>
-              <button type="button" class="secondary small" data-leader-tab="top_earners">Earners</button>
-              <button type="button" class="secondary small" data-leader-tab="top_donors">Donors</button>
+              <button type="button" class="secondary small active" data-leader-tab="top_miners">Miners <span class="leader-tab-count" data-count-for="top_miners"></span></button>
+              <button type="button" class="secondary small" data-leader-tab="top_earners">Earners <span class="leader-tab-count" data-count-for="top_earners"></span></button>
+              <button type="button" class="secondary small" data-leader-tab="top_donors">Donors <span class="leader-tab-count" data-count-for="top_donors"></span></button>
             </nav>
-            <div id="leaderboardsOut" class="leaderboard-grid"></div>
+            <div id="leaderboardsOut" class="leaderboard-single"></div>
           </div>
         </section>
 
@@ -158,7 +176,7 @@
 
     <p class="footer">NetCoin Community is public testnet coordination.</p>
   </div>
-  <script src="community.js?v=20260720-circle-search"></script>
+  <script src="community.js?v=20260721-leaderboard-fix"></script>
   <script src="site-shell.js?v=20260721-structured-ui"></script>
 </body>
 </html>

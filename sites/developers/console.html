@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetCoin Developer Console</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
-  <link rel="stylesheet" href="developers.css?v=20260720-stat-overflow-fix" />
+  <link rel="stylesheet" href="developers.css?v=20260721-collapsible-sign-panel" />
   <link rel="stylesheet" href="site-shell.css?v=20260721-structured-ui" />
 </head>
 <body>
@@ -130,13 +130,19 @@
           <input id="tokenCreatorAddr" class="mono" placeholder="netcoin testnet address" autocomplete="off" />
           <button id="prepareTokenBtn" type="button">Prepare token creation</button>
           <div id="tokenSignPanel" class="result-box hide">
-            <label>1. Sign this exact text</label>
-            <textarea id="tokenSignMsg" class="mono" rows="3" readonly></textarea>
-            <button type="button" class="secondary" id="copyTokenSignMsg">Copy message</button>
-            <label style="margin-top:8px">Using the CLI</label>
-            <pre class="mono" id="tokenSignCli"></pre>
-            <button type="button" class="secondary" id="copyTokenSignCli">Copy command</button>
-            <label style="margin-top:8px">2. Paste the signature</label>
+            <p class="muted">1. Sign the request message with the creator address's key, offline or via the CLI. 2. Paste the signature below.</p>
+            <div class="row compact-row">
+              <button type="button" class="secondary" id="copyTokenSignMsg">Copy message to sign</button>
+              <button type="button" class="secondary" id="copyTokenSignCli">Copy CLI command</button>
+            </div>
+            <details class="raw-details">
+              <summary>Show raw text and CLI command</summary>
+              <label style="margin-top:8px">Exact text to sign</label>
+              <textarea id="tokenSignMsg" class="mono" rows="3" readonly></textarea>
+              <label style="margin-top:8px">Using the CLI</label>
+              <pre class="mono" id="tokenSignCli"></pre>
+            </details>
+            <label style="margin-top:8px">Paste the signature</label>
             <input id="tokenSigInput" class="mono" placeholder="base64 signature" autocomplete="off" />
             <button id="submitTokenBtn" type="button">Create token</button>
           </div>

@@ -493,8 +493,7 @@ body{letter-spacing:-.01em}
       </div>
       <div class="card wallet-availability-card" id="speedUpCard">
         <h2>Speed up transaction</h2>
-        <p class="warn">Not available yet: the server-side fee-bump endpoint this needs hasn't been built. Nothing below will work.</p>
-        <p class="muted">Bump the fee on a pending send that was created with speed-up support enabled. Preview is non-broadcast by default.</p>
+        <p class="muted">Bump the fee on a pending send that was created with speed-up support enabled. The replacement is signed locally in your browser -- your key never leaves this device. Preview is non-broadcast by default.</p>
         <label>Original transaction JSON</label>
         <textarea id="rbfOriginalTx" class="mono" placeholder="Paste original transaction JSON, or send with speed-up enabled to fill this automatically"></textarea>
         <label>Previous outputs JSON</label>
@@ -506,7 +505,7 @@ body{letter-spacing:-.01em}
         <label class="wallet-option-check"><input id="rbfBroadcastNow" type="checkbox" /> Broadcast replacement immediately</label>
         <div class="row compact-row">
           <button id="btnUseLastRbfCandidate" class="secondary inline" type="button">Use last RBF send</button>
-          <button id="btnPreviewRbfBump" class="secondary inline" type="button" disabled>Preview fee bump</button>
+          <button id="btnPreviewRbfBump" class="secondary inline" type="button">Preview fee bump</button>
         </div>
         <pre id="rbfBumpOut" class="mono muted" role="status" aria-live="polite" aria-atomic="true">Replacement preview appears here. Broadcast stays off unless you explicitly check the box.</pre>
       </div>
@@ -657,7 +656,7 @@ body{letter-spacing:-.01em}
 
   <script src="netcoin-wallet.js?v=20260720-signmessage" integrity="sha384-X66CYLkOnrHAkDZDVn9RLcaJzd3aCoXf8GAEInzhHZq7dp+XRdHWqejj2uFzxNBc" crossorigin="anonymous"></script>
   <script src="wallet-vault.js?v=20260708-vault" integrity="sha384-8NpUDPASipwWrbsnDwuZ1xeEHOgAhj0mcQ7aX2i54bPNIlWfdCHLgH0Aeq0PZWlU" crossorigin="anonymous"></script>
-  <script src="wallet-app.js?v=20260721-escrow-sig" integrity="sha384-v+1lZsCpzHqmGuoFCa4wUe33AHwZdg4LAavogmG8IcIA+nCO8TTByqvBasqMdkiT" crossorigin="anonymous"></script>
+  <script src="wallet-app.js?v=20260721-contract-templates" integrity="sha384-pjFKL/BeQXEaE75xLvOOZSzcTBRKSVi1KET0SHWTuQg0qGel86EXPnX4L5pnzity" crossorigin="anonymous"></script>
 <script src="site-shell.js?v=20260721-structured-ui"></script>
 
 <style id="wallet-mobile-hardening">
@@ -875,6 +874,16 @@ body{letter-spacing:-.01em}
     #walletView #walletTabs{overflow-x:auto!important}
     #walletView #walletTabs button{flex:0 0 auto!important}
   }
+</style>
+<style id="wallet-activity-fill">
+  /* Activity tab was a narrow single column with most of the screen empty.
+     Let it use the full workspace width and lay transactions out as a
+     responsive grid instead of one skinny stack. */
+  #walletView:not(.hide) > #wallet-activity.active-section{
+    max-width:none!important;width:100%!important;grid-column:1/-1!important;padding:18px 20px!important;
+  }
+  #txHistory{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))!important;align-items:start!important}
+  #txHistory .tx-row{height:100%!important}
 </style>
 </body>
 </html>

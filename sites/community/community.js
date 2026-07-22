@@ -65,15 +65,16 @@ function cardBounty(b) {
 function commentCard(c) {
   return `<article class="comment-card"><div><b>u/${esc(c.name || 'Anonymous')}</b><span>${esc(timeLabel(c.created_at))}</span></div><p>${esc(c.message || '')}</p></article>`;
 }
-function cardCircle(c) {
+function circleProgressHtml(c) {
   const members = (c.members || []).length;
   const threshold = c.activation_threshold || 5;
   const pct = Math.min(100, Math.round((members / threshold) * 100));
-  const isActive = c.status === 'active';
-  const progress = isActive
+  return c.status === 'active'
     ? `<span class="tag ok">active</span>`
     : `<div class="circle-progress"><div class="circle-progress-bar" style="width:${pct}%"></div></div><span class="muted">${members}/${threshold} to activate</span>`;
-  return `<article class="reddit-card" data-post-id="${esc(c.circle_id || '')}"><div class="post-body"><div class="post-meta"><span class="tag">${esc(c.status || 'proposed')}</span><span>u/${esc(c.creator || 'Anonymous')}</span><span>${esc(timeLabel(c.created_at))}</span></div><h3>${esc(c.name || c.circle_id || 'Circle')}</h3><p>${esc(c.description || 'No description yet.')}</p>${progress}<div class="post-actions"><button type="button" data-join-circle="${esc(c.circle_id || '')}">Join</button></div></div></article>`;
+}
+function cardCircle(c) {
+  return `<article class="reddit-card" data-post-id="${esc(c.circle_id || '')}"><div class="post-body"><div class="post-meta"><span class="tag">${esc(c.status || 'proposed')}</span><span>u/${esc(c.creator || 'Anonymous')}</span><span>${esc(timeLabel(c.created_at))}</span></div><h3><button type="button" class="link-btn" data-open-circle="${esc(c.circle_id || '')}">${esc(c.name || c.circle_id || 'Circle')}</button></h3><p>${esc(c.description || 'No description yet.')}</p>${circleProgressHtml(c)}<div class="post-actions"><button type="button" data-join-circle="${esc(c.circle_id || '')}">Join</button></div></div></article>`;
 }
 function modCard(item) {
   const r = item.report || {};
@@ -130,8 +131,19 @@ function renderLeaderboardTab() {
   const out = $('#leaderboardsOut');
   const d = lastLeaderboardData;
   if (!d) return;
-  const summary = d.summary ? `<div class="leader-summary"><span>${esc(d.summary.miner_count || 0)} miners</span><span>${esc(d.summary.earner_count || 0)} earners</span><span>${esc(d.summary.donor_count || 0)} donors</span></div>` : '';
-  out.innerHTML = summary + leaderboardTable(LEADER_TAB_TITLES[activeLeaderTab], d[activeLeaderTab]);
+  out.innerHTML = leaderboardTable(LEADER_TAB_TITLES[activeLeaderTab], d[activeLeaderTab]);
+  // Counts live on the tab buttons themselves (one horizontal row) instead of
+  // a separate summary bar -- the summary used to sit as a sibling of the
+  // table inside a CSS grid, so each count pill got stretched into its own
+  // tall empty column at the table's height.
+  const counts = d.summary
+    ? { top_miners: d.summary.miner_count, top_earners: d.summary.earner_count, top_donors: d.summary.donor_count }
+    : {};
+  document.querySelectorAll('.leader-tab-count').forEach((el) => {
+    const key = el.dataset.countFor;
+    const n = counts[key];
+    el.textContent = n == null ? '' : `(${n})`;
+  });
 }
 async function loadLeaderboards() {
   const out = $('#leaderboardsOut');
@@ -159,6 +171,36 @@ async function loadCircles() {
     renderCircleFeed();
   } catch (e) { feed.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
 }
+let activeCircleId = '';
+async function loadCirclePosts(circleId) {
+  const feed = $('#circlePostFeed');
+  try {
+    const d = await api('/community/posts?limit=80&circle_id=' + encodeURIComponent(circleId));
+    const posts = d.posts || [];
+    feed.innerHTML = posts.length ? posts.map(cardPost).join('') : '<div class="empty-state">No posts in this circle yet. Start the first thread.</div>';
+  } catch (e) { feed.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+}
+function openCircleDetail(circleId) {
+  const c = allCircles.find((x) => x.circle_id === circleId);
+  if (!c) return;
+  activeCircleId = circleId;
+  $('#circleBrowse').classList.add('hide');
+  $('#circleDetail').classList.remove('hide');
+  $('#circleDetailName').textContent = c.name || c.circle_id || 'Circle';
+  $('#circleDetailDescription').textContent = c.description || 'No description yet.';
+  $('#circleDetailStatus').textContent = c.status || 'proposed';
+  $('#circleDetailStatus').className = 'tag' + (c.status === 'active' ? ' ok' : '');
+  $('#circleDetailProgress').innerHTML = circleProgressHtml(c);
+  $('#circleDetailJoin').dataset.joinCircle = circleId;
+  loadCirclePosts(circleId);
+  if (history.replaceState) history.replaceState(null, '', '#circles/' + encodeURIComponent(circleId));
+}
+function backToCircles() {
+  activeCircleId = '';
+  $('#circleDetail').classList.add('hide');
+  $('#circleBrowse').classList.remove('hide');
+  if (history.replaceState) history.replaceState(null, '', '#circles');
+}
 async function loadModQueue() {
   const out = $('#modQueue');
   try {
@@ -168,10 +210,13 @@ async function loadModQueue() {
 }
 async function boot() {
   const initial = (location.hash || '#posts').slice(1);
-  if (['posts', 'comments', 'ideas', 'bounties', 'circles', 'leaderboards', 'tools', 'mod'].includes(initial)) openTab(initial);
+  const circleMatch = initial.match(/^circles\/(.+)$/);
+  if (circleMatch) openTab('circles');
+  else if (['posts', 'comments', 'ideas', 'bounties', 'circles', 'leaderboards', 'tools', 'mod'].includes(initial)) openTab(initial);
   try {
     await Promise.all([loadPosts(), loadIdeas(), loadBounties(), loadCircles(), loadLeaderboards(), loadModQueue()]);
     $('#communityDot').className = 'dot ok'; setText('#communityStatus', 'API online');
+    if (circleMatch) openCircleDetail(decodeURIComponent(circleMatch[1]));
   } catch { $('#communityDot').className = 'dot err'; setText('#communityStatus', 'API unavailable'); }
 }
 $$('.community-tabs button').forEach(btn => btn.addEventListener('click', () => openTab(btn.dataset.tab)));
@@ -214,6 +259,14 @@ $('#refreshLeaderboards')?.addEventListener('click', loadLeaderboards);
 $('#refreshMod')?.addEventListener('click', loadModQueue);
 $('#refreshCircles')?.addEventListener('click', loadCircles);
 $('#circleSearch')?.addEventListener('input', renderCircleFeed);
+$('#btnBackToCircles')?.addEventListener('click', backToCircles);
+$('#circlePostBtn')?.addEventListener('click', async () => {
+  if (!activeCircleId) return;
+  try {
+    const d = await post('/community/posts', { name: $('#circlePostName').value, category: 'general', message: $('#circlePostMessage').value, circle_id: activeCircleId });
+    setToast('#circlePostResult', 'Posted ' + (d.post_id || ''), 'ok'); $('#circlePostMessage').value = ''; await loadCirclePosts(activeCircleId);
+  } catch (e) { setToast('#circlePostResult', e.message, 'err'); }
+});
 $$('[data-leader-tab]').forEach(btn => btn.addEventListener('click', () => {
   activeLeaderTab = btn.dataset.leaderTab || 'top_miners';
   $$('[data-leader-tab]').forEach(b => b.classList.toggle('active', b === btn));
@@ -242,6 +295,8 @@ document.addEventListener('click', async (ev) => {
     catch (e) { setToast('#ideaResult', e.message, 'err'); }
     return;
   }
+  const openCircle = ev.target.closest('[data-open-circle]');
+  if (openCircle && openCircle.dataset.openCircle) { openCircleDetail(openCircle.dataset.openCircle); return; }
   const join = ev.target.closest('[data-join-circle]');
   if (join && join.dataset.joinCircle) {
     try {
@@ -249,6 +304,7 @@ document.addEventListener('click', async (ev) => {
       if (!member) return;
       await post('/community/circles/' + encodeURIComponent(join.dataset.joinCircle) + '/join', { member });
       await loadCircles();
+      if (activeCircleId) openCircleDetail(activeCircleId);
     } catch (e) { $('#circleFeed').insertAdjacentHTML('afterbegin', `<div class="empty-state">${esc(e.message)}</div>`); }
     return;
   }

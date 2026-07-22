@@ -30,7 +30,7 @@ from threading import RLock
 from typing import Any
 from urllib.parse import quote, urlencode, urlparse
 
-from ..crypto import decode_address, validate_address, verify_message
+from ..crypto import decode_address, public_key_to_p2wpkh_address, validate_address, verify_message
 from ..descriptors import DescriptorError, descriptor_to_address, multisig_descriptor
 from ..emission import next_reduction_height
 from ..feature_catalog import feature_catalog
@@ -2872,8 +2872,8 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return record
 
-    def list_community_posts(self, limit: int = 50, sort: str = "hot") -> dict[str, Any]:
-        return self.community_feed(sort=sort, limit=limit)
+    def list_community_posts(self, limit: int = 50, sort: str = "hot", circle_id: str = "") -> dict[str, Any]:
+        return self.community_feed(sort=sort, limit=limit, circle_id=circle_id)
 
     def create_community_post(self, payload: dict[str, Any]) -> dict[str, Any]:
         name = str(payload.get("name") or "Anonymous")[:80].strip() or "Anonymous"
@@ -2891,6 +2891,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             "message": message,
             "category": category,
             "address": str(payload.get("address") or "")[:140],
+            "circle_id": str(payload.get("circle_id") or "")[:80],
             "created_at": now(),
             "status": "visible",
         }
@@ -2960,9 +2961,12 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return rec
 
-    def community_feed(self, sort: str = "hot", limit: int = 80) -> dict[str, Any]:
+    def community_feed(self, sort: str = "hot", limit: int = 80, circle_id: str = "") -> dict[str, Any]:
         data = self.load()
         posts = [p for p in data.get("community_posts", []) if p.get("status", "visible") == "visible"]
+        circle_id = str(circle_id or "").strip()
+        if circle_id:
+            posts = [p for p in posts if str(p.get("circle_id") or "") == circle_id]
         counts: dict[str, int] = {}
         for comment in data.get("community_comments", []):
             if comment.get("status", "visible") == "visible":
@@ -3922,13 +3926,22 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         descriptor = multisig_descriptor(2, [buyer_pub, seller_pub, mediator_pub])
         address = descriptor_to_address(descriptor)
         escrow_id = str(payload.get("escrow_id") or clean_id("esc"))
+        # A participant's own wallet address is deterministic from their pubkey
+        # (same P2WPKH derivation the wallet itself uses). Callers that only know
+        # pubkeys (e.g. the wallet's own escrow UI, which resolves usernames to
+        # pubkeys) don't have to separately supply addresses -- without this,
+        # escrow_action's participant/signature check below has nothing to match
+        # against and every release/refund/dispute call fails outright.
+        buyer_address = str(payload.get("buyer_address") or "").strip() or public_key_to_p2wpkh_address(bytes.fromhex(buyer_pub))
+        seller_address = str(payload.get("seller_address") or "").strip() or public_key_to_p2wpkh_address(bytes.fromhex(seller_pub))
+        mediator_address = str(payload.get("mediator_address") or "").strip() or public_key_to_p2wpkh_address(bytes.fromhex(mediator_pub))
         record = {
             "escrow_id": escrow_id,
             "amount_sats": amount_sats,
             "amount": sats_to_amount(amount_sats),
-            "buyer_address": str(payload.get("buyer_address") or "")[:140],
-            "seller_address": str(payload.get("seller_address") or "")[:140],
-            "mediator_address": str(payload.get("mediator_address") or "")[:140],
+            "buyer_address": buyer_address[:140],
+            "seller_address": seller_address[:140],
+            "mediator_address": mediator_address[:140],
             "buyer_pubkey": buyer_pub,
             "seller_pubkey": seller_pub,
             "mediator_pubkey": mediator_pub,
@@ -4945,7 +4958,11 @@ def route_app_get(
         return 200, store.leaderboards(chain), "application/json"
     if path == "/community/posts":
         limit = int(q("limit", "50") or 50)
-        return 200, store.list_community_posts(limit=limit, sort=q("sort", "hot") or "hot"), "application/json"
+        return (
+            200,
+            store.list_community_posts(limit=limit, sort=q("sort", "hot") or "hot", circle_id=q("circle_id", "") or ""),
+            "application/json",
+        )
     if path.startswith("/community/posts/") and path.endswith("/comments"):
         return (
             200,

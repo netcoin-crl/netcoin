@@ -26,7 +26,12 @@ def test_all_site_indexes_reference_existing_local_scripts_and_stylesheets():
         for ref in refs:
             if not _is_local(ref):
                 continue
-            target = (index.parent / _strip_query(ref)).resolve()
+            path = _strip_query(ref)
+            # A leading "/" is root-relative to this site's own domain (each
+            # site is served from its own subdomain root), not filesystem-root
+            # -- resolve it against the site's directory, same as a plain
+            # relative path.
+            target = (index.parent / path.lstrip("/")).resolve()
             if not target.exists():
                 missing.append(f"{index.relative_to(ROOT)} -> {ref}")
     assert missing == []

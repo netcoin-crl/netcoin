@@ -344,7 +344,6 @@
   const WALLET_TABS = [
     { id: "wallet", label: "Wallet", modes: EVERYDAY },
     { id: "activity", label: "Activity", modes: EVERYDAY },
-    { id: "mining", label: "Mining", modes: EVERYDAY },
     { id: "advanced", label: "Advanced", modes: ADMIN_ONLY },
     { id: "tokens", label: "Tokens", modes: ADMIN_ONLY },
     { id: "reports", label: "Reports", modes: ADMIN_ONLY },
@@ -434,15 +433,6 @@
       card.dataset.walletTab = tab;
     }
 
-    addWalletSection(walletSection("Mining", `
-      <p class="muted">Mine NetCoin on your own computer and get the block reward paid to this wallet. No pools, no signup.</p>
-      <p id="miningStats" class="muted">Checking chain status…</p>
-      <p class="muted">1. Install NetCoin once (see the Learn site). 2. Activate your virtualenv. 3. Run the browser-address command below, or use the auto-harvest command if you mine with a local wallet file.</p>
-      <pre id="mineCommand" class="mono">Unlock your wallet to see your personal mining command.</pre>
-      <pre id="harvestMineCommand" class="mono">python -m netcoin miner --node http://18.220.89.128:28444 --wallet miner.json --blocks 0 --auto-harvest --harvest-every 25 --harvest-min-utxos 50</pre>
-      <button id="btnCopyMineCommand" class="secondary" type="button">Copy mining command</button>
-      <p class="muted">Mining rewards show under your balance as "maturing" and unlock after 100 blocks. If the netcoin.online domain is blocked on your network, the command above already uses the raw seed IP.</p>
-      <div class="section-links"><a href="https://learn.netcoin.online/"><b>Full mining guide</b><br><span class="muted">Install steps, Windows/macOS/Linux notes, troubleshooting.</span></a></div>`, "mining"));
     addWalletSection(walletSection("Tokens", `
       <p class="muted">App-layer NET-20 tokens tracked by this node. Read-only here: token writes support wallet-signed app actions plus developer keys, but this browser wallet does not move app-layer tokens yet.</p>
       <button id="btnRefreshTokens" class="secondary" type="button">Refresh token balances</button>
@@ -1618,20 +1608,40 @@
   async function bumpFeeFromCard() {
     const out = $("rbfBumpOut");
     try {
+      if (!state?.privHex) throw new Error("unlock this wallet first -- fee bumps are signed locally in your browser");
       const originalTx = readJsonField("rbfOriginalTx", lastRbfCandidate?.tx);
       const prevouts = readJsonField("rbfPrevouts", lastRbfCandidate?.prevouts);
       if (!originalTx) throw new Error("paste the original transaction JSON or use the last RBF send");
       if (!Array.isArray(prevouts) || !prevouts.length) throw new Error("paste the previous outputs JSON");
-      const newFee = ($("rbfNewFee")?.value || "").trim();
-      if (!newFee) throw new Error("enter a higher fee in NET");
+      const paymentOutput = (originalTx.outputs || [])[0];
+      if (!paymentOutput) throw new Error("the original transaction has no payment output to preserve");
+      const newFeeInput = ($("rbfNewFee")?.value || "").trim();
+      if (!newFeeInput) throw new Error("enter a higher fee in NET");
+      const newFeeSats = netToSats(newFeeInput);
+      const oldFeeSats = Number(originalTx.fee ?? lastRbfCandidate?.feeSats ?? 0);
+      if (oldFeeSats && newFeeSats <= oldFeeSats) throw new Error("the new fee must be higher than the original fee");
       const changeAddress = ($("rbfChangeAddress")?.value || state?.address || "").trim();
       if (!changeAddress) throw new Error("enter a change address or unlock this wallet");
       const broadcast = Boolean($("rbfBroadcastNow")?.checked);
-      const bumped = await api("/wallet/rbf-bump", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ original_tx: originalTx, prevouts, new_fee: newFee, change_address: changeAddress, broadcast }) });
-      lastRbfCandidate = { ...lastRbfCandidate, tx: bumped.replacement_tx || bumped.tx, feeSats: bumped.new_fee, prevouts };
+      // Reuse exactly the same inputs as the original transaction so this replaces
+      // it in the mempool (netcoin/chain.py rejects a bump that conflicts with
+      // nothing, or that doesn't beat the original fee/fee-rate).
+      const utxos = prevouts.map((p) => ({
+        txid: p.txid, vout: p.vout, amount: p.output.amount, address: p.output.address, script_pubkey: p.output.script_pubkey,
+      }));
+      const replacement = W.buildSignedPayment({
+        privHex: state.privHex, utxos, toAddress: paymentOutput.address, amount: paymentOutput.amount,
+        fee: newFeeSats, changeAddress, maxInputs: utxos.length, rbf: true,
+      });
+      let txid = null;
+      if (broadcast) {
+        const res = await api("/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(replacement) });
+        txid = res.txid;
+      }
+      lastRbfCandidate = { tx: replacement, feeSats: newFeeSats, prevouts };
       if (out) {
         out.className = "mono ok";
-        out.textContent = JSON.stringify({ broadcast, txid: bumped.txid || bumped.replacement_txid || null, old_fee: bumped.old_fee, new_fee: bumped.new_fee, replacement_tx: bumped.replacement_tx || bumped.tx }, null, 2);
+        out.textContent = JSON.stringify({ broadcast, txid, old_fee: oldFeeSats || null, new_fee: newFeeSats, replacement_tx: replacement }, null, 2);
       }
     } catch (e) {
       if (out) { out.className = "mono err"; out.textContent = "Fee bump failed: " + e.message; }
@@ -1991,6 +2001,20 @@
     } catch (e) { $("escrowMsg").className = "err"; $("escrowMsg").textContent = "Could not submit action: " + e.message; }
   }
 
+  // Where each contract template's actual "create" UI lives -- these are
+  // reference cards, not just descriptions, so each one should take you
+  // straight to somewhere you can act. Templates with no dedicated UI yet
+  // (timelock, vesting, recurring payment) fall back to the API docs rather
+  // than a dead end.
+  const CONTRACT_TEMPLATE_DESTINATIONS = {
+    escrow_2_of_3: { label: "Open in Escrow tab", action: () => setActiveWalletTab("escrow") },
+    multisig: { label: "Open in Advanced tab", action: () => setActiveWalletTab("advanced") },
+    prediction_market: { label: "Open Markets", href: "https://markets.netcoin.online" },
+    poll: { label: "API docs (no UI yet)", href: "https://api.netcoin.online/" },
+    timelock: { label: "API docs (no UI yet)", href: "https://api.netcoin.online/" },
+    vesting: { label: "API docs (no UI yet)", href: "https://api.netcoin.online/" },
+    recurring_payment: { label: "API docs (no UI yet)", href: "https://api.netcoin.online/" },
+  };
   async function loadContractTemplates() {
     const box = $("contractTemplateList");
     box.innerHTML = "Loading…";
@@ -1998,8 +2022,19 @@
       const data = await api("/contracts/templates");
       const items = Object.values(data.templates || data || {});
       box.innerHTML = items.length
-        ? items.map((t) => `<div class="watch-item"><b>${esc(t.title || t.type || "")}</b><div class="muted">${esc(t.description || "")}</div></div>`).join("")
+        ? items.map((t) => {
+            const dest = CONTRACT_TEMPLATE_DESTINATIONS[t.type] || {};
+            const button = dest.action
+              ? `<button type="button" class="secondary inline" data-contract-template-open="${esc(t.type)}">${esc(dest.label)}</button>`
+              : dest.href
+                ? `<a class="secondary inline" href="${esc(dest.href)}" target="_blank" rel="noreferrer">${esc(dest.label)}</a>`
+                : "";
+            return `<div class="watch-item"><b>${esc(t.title || t.type || "")}</b><div class="muted">${esc(t.description || "")}</div>${button ? `<div class="row compact-row" style="margin-top:6px">${button}</div>` : ""}</div>`;
+          }).join("")
         : '<span class="muted">No templates available.</span>';
+      box.querySelectorAll("[data-contract-template-open]").forEach((btn) => {
+        btn.onclick = () => (CONTRACT_TEMPLATE_DESTINATIONS[btn.dataset.contractTemplateOpen] || {}).action?.();
+      });
     } catch (e) { box.innerHTML = '<span class="err">Could not load templates: ' + esc(e.message) + "</span>"; }
   }
 

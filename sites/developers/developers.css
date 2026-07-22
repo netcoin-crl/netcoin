@@ -173,3 +173,6 @@ body{letter-spacing:-.01em}
 #apiKeyOut{white-space:normal}
 .stat .v{word-break:normal;overflow-wrap:normal;font-size:clamp(14px,1.6vw,20px)}
 #statsGrid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important}
+.raw-details{margin-top:10px;border:1px solid var(--line,var(--bd,#263244));border-radius:10px;padding:8px 10px}
+.raw-details summary{cursor:pointer;color:var(--mut,#9aa7b5);font-size:13px;font-weight:700}
+.raw-details[open] summary{margin-bottom:8px}
