@@ -243,3 +243,10 @@ details.operator[open] > summary { border-bottom: 1px solid var(--line); }
   .discover-actions { justify-content: stretch; }
   .discover-actions button { width: 100% !important; }
 }
+
+/* Layout utilities (moved from inline style="" attributes so the page can
+   drop 'unsafe-inline' from its style-src CSP). */
+.u-gap-8 { gap: 8px; }
+.u-flex-1 { flex: 1; }
+.u-w-auto { width: auto; }
+.u-col-span-all { grid-column: 1 / -1; }

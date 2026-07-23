@@ -139,12 +139,12 @@
             </div>
             <details class="raw-details">
               <summary>Show raw text and CLI command</summary>
-              <label style="margin-top:8px">Exact text to sign</label>
+              <label class="u-mt-8">Exact text to sign</label>
               <textarea id="tokenSignMsg" class="mono" rows="3" readonly></textarea>
-              <label style="margin-top:8px">Using the CLI</label>
+              <label class="u-mt-8">Using the CLI</label>
               <pre class="mono" id="tokenSignCli"></pre>
             </details>
-            <label style="margin-top:8px">Paste the signature</label>
+            <label class="u-mt-8">Paste the signature</label>
             <input id="tokenSigInput" class="mono" placeholder="base64 signature" autocomplete="off" />
             <button id="submitTokenBtn" type="button">Create token</button>
           </div>
@@ -175,7 +175,7 @@
         <h2>Rate limit status</h2>
         <p class="muted">Your own current quota usage, keyed by your IP and API key (if any) &mdash; checking this never counts against your quota.</p>
         <button id="refreshRateLimitBtn" type="button" class="secondary">Refresh</button>
-        <div id="rateLimitSummary" class="muted" style="margin-top:8px"></div>
+        <div id="rateLimitSummary" class="muted u-mt-8"></div>
         <div class="table-scroll"><table id="rateLimitTable"><thead><tr><th>Method</th><th>Path</th><th>Remaining / capacity</th></tr></thead><tbody></tbody></table></div>
       </section>
 

@@ -56,16 +56,16 @@
             <h4>Create market</h4>
             <label for="question">Question</label>
             <input id="question" required placeholder="Will NetCoin ship X this week?" />
-            <div class="op-actions" style="gap:8px">
-              <div style="flex:1"><label for="outcomes">Outcomes</label><input id="outcomes" value="YES,NO" /></div>
-              <div style="flex:1"><label for="closeTime">Close</label><input id="closeTime" type="datetime-local" /></div>
+            <div class="op-actions u-gap-8">
+              <div class="u-flex-1"><label for="outcomes">Outcomes</label><input id="outcomes" value="YES,NO" /></div>
+              <div class="u-flex-1"><label for="closeTime">Close</label><input id="closeTime" type="datetime-local" /></div>
             </div>
             <label for="marketCategory">Category</label><input id="marketCategory" value="Technology" />
             <label for="marketTags">Tags</label><input id="marketTags" value="netcoin,labs" />
             <label for="marketRules">Resolution rules</label>
             <textarea id="marketRules" rows="2" placeholder="What counts as YES, and which source resolves it."></textarea>
             <input id="resolutionSource" placeholder="manual operator review" />
-            <label class="op-actions"><input id="legalAck" type="checkbox" checked style="width:auto" /> Testnet/play-money only</label>
+            <label class="op-actions"><input id="legalAck" type="checkbox" checked class="u-w-auto" /> Testnet/play-money only</label>
             <div class="op-actions"><button type="submit" class="primary">Create</button><button id="seedMarket" type="button">Sample</button></div>
           </form>
 
@@ -74,15 +74,15 @@
             <label for="orderTrader">Trader</label><input id="orderTrader" value="demo:alice" />
             <label for="orderOutcome">Outcome</label><select id="orderOutcome"></select>
             <div class="op-actions">
-              <div style="flex:1"><label for="orderSide">Side</label><select id="orderSide"><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
-              <div style="flex:1"><label for="orderQuantity">Shares</label><input id="orderQuantity" type="number" min="1" value="5" /></div>
+              <div class="u-flex-1"><label for="orderSide">Side</label><select id="orderSide"><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
+              <div class="u-flex-1"><label for="orderQuantity">Shares</label><input id="orderQuantity" type="number" min="1" value="5" /></div>
             </div>
             <div class="op-actions">
-              <div style="flex:1"><label for="orderType">Type</label><select id="orderType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC</option><option value="fok">FOK</option></select></div>
-              <div style="flex:1"><label for="timeInForce">TIF</label><select id="timeInForce"><option value="GTC">GTC</option><option value="IOC">IOC</option><option value="FOK">FOK</option></select></div>
+              <div class="u-flex-1"><label for="orderType">Type</label><select id="orderType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC</option><option value="fok">FOK</option></select></div>
+              <div class="u-flex-1"><label for="timeInForce">TIF</label><select id="timeInForce"><option value="GTC">GTC</option><option value="IOC">IOC</option><option value="FOK">FOK</option></select></div>
             </div>
             <label for="orderPrice">Price (bps 1–9999)</label><input id="orderPrice" type="number" min="1" max="9999" value="5000" />
-            <label class="op-actions"><input id="postOnly" type="checkbox" style="width:auto" /> Post-only</label>
+            <label class="op-actions"><input id="postOnly" type="checkbox" class="u-w-auto" /> Post-only</label>
             <div class="op-actions"><button type="submit" class="primary">Place order</button></div>
           </form>
 
@@ -96,7 +96,7 @@
             <div class="op-actions"><button id="submitEvidence" type="button">Evidence</button><button id="submitDispute" type="button">Dispute</button><button id="requestResolution" type="button">Request</button><button type="submit" class="primary">Resolve</button></div>
           </form>
 
-          <div style="grid-column:1/-1">
+          <div class="u-col-span-all">
             <div class="op-actions"><button id="refreshMarkets" type="button">Refresh</button></div>
             <pre id="activityLog" class="op-log">Ready.</pre>
           </div>
