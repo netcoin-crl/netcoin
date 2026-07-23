@@ -232,6 +232,91 @@ def explorer_block_live(chain: Any, block_id: str) -> dict[str, Any]:
     return {"ok": True, **payload}
 
 
+def explorer_search_live(chain: Any, store: Any, query: str, *, limit: int = 25) -> dict[str, Any]:
+    """Full-text search across every explorer-relevant data type.
+
+    Previously the explorer site's search box was purely a client-side
+    heuristic (netcoin/../sites/explorer/explorer-app.js's doSearch): it
+    guessed a single destination -- height, address, txid, or block hash --
+    from the query's shape and navigated straight there with no way to search
+    by name/label/title, and no way to see more than one candidate result.
+    This does a real lookup: exact resolution for chain primitives (address,
+    txid, block height/hash), plus a case-insensitive substring match across
+    usernames, address labels, merchants, bounties, community posts, and
+    prediction markets -- anything a person might plausibly be looking for
+    by name rather than by raw id.
+    """
+    q = str(query or "").strip()
+    result: dict[str, Any] = {"ok": True, "query": q, "exact": None, "matches": []}
+    if not q:
+        return result
+
+    needle = q.lower().lstrip("@")
+
+    # Exact chain-primitive resolution first -- these are unambiguous, so
+    # surface them as `exact` for a client to jump straight to.
+    if len(q) == 64 and all(c in "0123456789abcdefABCDEF" for c in q):
+        tx_payload = _tx_payload(chain, q)
+        if tx_payload is not None:
+            result["exact"] = {"type": "tx", "id": q}
+        else:
+            block_payload = _block_payload(chain, q)
+            if block_payload is not None:
+                result["exact"] = {"type": "block", "id": block_payload.get("hash", q)}
+    elif q.isdigit():
+        block_payload = _block_payload(chain, q)
+        if block_payload is not None:
+            result["exact"] = {"type": "block", "id": block_payload.get("hash", q)}
+    else:
+        try:
+            balance = chain.address_balance_summary(q)
+            if balance and not balance.get("error"):
+                result["exact"] = {"type": "address", "id": q}
+        except Exception:
+            pass
+
+    if result["exact"] is None:
+        try:
+            record = store.load().get("usernames", {}).get(needle)
+            if record and record.get("address"):
+                result["exact"] = {"type": "address", "id": record["address"], "label": "@" + needle}
+        except Exception:
+            pass
+
+    data: dict[str, Any] = {}
+    try:
+        data = store.load()
+    except Exception:
+        pass
+
+    def add_match(kind: str, item_id: str, label: str, haystacks: list[str]) -> None:
+        if len(result["matches"]) >= limit:
+            return
+        if any(needle in str(h or "").lower() for h in haystacks):
+            result["matches"].append({"type": kind, "id": item_id, "label": label})
+
+    for name, rec in data.get("usernames", {}).items():
+        add_match("username", rec.get("address", ""), "@" + name, [name])
+    try:
+        for name, addr in chain.list_onchain_usernames().items():
+            add_match("username", addr.get("address", "") if isinstance(addr, dict) else str(addr), "@" + name, [name])
+    except Exception:
+        pass
+    for addr, label_rec in data.get("known_labels", {}).items():
+        label_text = label_rec.get("label", "") if isinstance(label_rec, dict) else str(label_rec)
+        add_match("label", addr, label_text or addr, [label_text, addr])
+    for mid, rec in data.get("merchants", {}).items():
+        add_match("merchant", mid, str(rec.get("display_name") or rec.get("name") or mid), [mid, rec.get("display_name"), rec.get("name")])
+    for bid, rec in data.get("bounties", {}).items():
+        add_match("bounty", bid, str(rec.get("title") or bid), [rec.get("title"), rec.get("description")])
+    for post in data.get("community_posts", []):
+        add_match("community_post", str(post.get("post_id", "")), str(post.get("title") or post.get("body", ""))[:80], [post.get("title"), post.get("body")])
+    for mid, rec in data.get("prediction_markets", {}).items():
+        add_match("market", mid, str(rec.get("title") or rec.get("question") or mid), [rec.get("title"), rec.get("question")])
+
+    return result
+
+
 def explorer_mempool_live(chain: Any, *, limit: int = 200) -> dict[str, Any]:
     try:
         info = chain.mempool_info()

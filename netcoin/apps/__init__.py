@@ -5353,6 +5353,10 @@ def route_app_get(
         from ..live_product import explorer_mempool_live
 
         return 200, explorer_mempool_live(chain, limit=int(q("limit", "200") or 200)), "application/json"
+    if path == "/explorer/search":
+        from ..live_product import explorer_search_live
+
+        return 200, explorer_search_live(chain, store, q("q", ""), limit=int(q("limit", "25") or 25)), "application/json"
     if path == "/explorer/watchlist":
         from ..live_product import explorer_watchlist_live
 

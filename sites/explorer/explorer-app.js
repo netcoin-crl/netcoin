@@ -641,30 +641,43 @@
   }
 
   // ---------- search ----------
+  // Full-text search across usernames, labels, merchants, bounties, community
+  // posts, and prediction markets, backed by the node's /explorer/search
+  // endpoint -- not just a client-side guess at height/address/txid/block-hash
+  // shape. An unambiguous exact match (address/tx/block/username) still jumps
+  // straight there; anything else shows a results list to pick from.
+  function matchHref(match) {
+    switch (match.type) {
+      case "username": case "address": case "label": return "#/address/" + match.id;
+      case "tx": return "#/tx/" + match.id;
+      case "block": return "#/block/" + match.id;
+      case "bounty": return "#/community";
+      case "merchant": return "#/merchant";
+      case "market": return "#/token/" + match.id;
+      case "community_post": return "#/community";
+      default: return "#/address/" + match.id;
+    }
+  }
+  function matchTypeLabel(type) {
+    return { username: "Username", address: "Address", label: "Labeled address", tx: "Transaction", block: "Block", bounty: "Bounty", merchant: "Merchant", market: "Market", community_post: "Community post" }[type] || type;
+  }
   async function doSearch(qRaw) {
-    const q = qRaw.trim().replace(/^@/, ""); if (!q) return;
+    const q = qRaw.trim(); if (!q) return;
+    setView(el(`<div class="card muted">Searching “${esc(q)}”…</div>`));
     try {
-      if (!q.startsWith("net1") && /^[A-Za-z0-9_-]{2,30}$/.test(q) && !/^\d+$/.test(q) && !/^[0-9a-fA-F]{64}$/.test(q)) {
-        try {
-          const u = await api("/usernames/" + encodeURIComponent(q));
-          if (u && u.address) return (location.hash = "#/address/" + u.address);
-        } catch { /* not a username, fall through to other checks */ }
+      const d = await api("/explorer/search?q=" + encodeURIComponent(q));
+      if (d.exact && d.exact.type === "tx") return (location.hash = "#/tx/" + d.exact.id);
+      if (d.exact && d.exact.type === "block") return (location.hash = "#/block/" + d.exact.id);
+      if (d.exact && d.exact.type === "address" && (!d.matches || d.matches.length === 0)) {
+        return (location.hash = "#/address/" + d.exact.id);
       }
-      if (/^\d+$/.test(q)) { // height
-        const d = await api(`/headers?start=${q}&limit=1`);
-        const hh = (d.headers || d)[0];
-        if (hh && hh.hash) return (location.hash = "#/block/" + hh.hash);
-        throw new Error("height not found");
+      const rows = (d.matches || []).map((m) => `<tr><td>${esc(matchTypeLabel(m.type))}</td><td><a href="${matchHref(m)}">${esc(m.label)}</a></td></tr>`).join("");
+      if (!d.exact && !rows) {
+        return setView(el(`<div class="card err">No result for “${esc(q)}”.</div>`));
       }
-      if (q.startsWith("net1") || /^[A-Za-z0-9]{26,40}$/.test(q) && !/^[0-9a-fA-F]{64}$/.test(q)) {
-        return (location.hash = "#/address/" + q); // address
-      }
-      if (/^[0-9a-fA-F]{64}$/.test(q)) { // block hash or txid
-        try { await api("/block/" + q); return (location.hash = "#/block/" + q); }
-        catch { return (location.hash = "#/tx/" + q); }
-      }
-      location.hash = "#/address/" + q;
-    } catch (e) { setView(el(`<div class="card err">No result for “${esc(q)}”: ${esc(e.message)}</div>`)); }
+      const exactRow = d.exact ? `<tr><td>${esc(matchTypeLabel(d.exact.type))}</td><td><a href="${matchHref(d.exact)}">${esc(d.exact.label || d.exact.id)}</a></td></tr>` : "";
+      setView(el(`<div><div class="card"><h2>Search results for “${esc(q)}”</h2><table><thead><tr><th>Type</th><th>Match</th></tr></thead><tbody>${exactRow}${rows}</tbody></table></div></div>`));
+    } catch (e) { setView(el(`<div class="card err">Search failed for “${esc(q)}”: ${esc(e.message)}</div>`)); }
   }
 
 
