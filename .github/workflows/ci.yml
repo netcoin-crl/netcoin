@@ -135,6 +135,12 @@ jobs:
       - name: Build workspace
         run: cargo build --workspace --manifest-path core-rs/Cargo.toml
         timeout-minutes: 15
+      - name: Clippy (core-rs)
+        run: cargo clippy --workspace --manifest-path core-rs/Cargo.toml -- -D warnings
+        timeout-minutes: 10
+      - name: Clippy (sdk/netcoin-rs)
+        run: cargo clippy --workspace --manifest-path sdk/netcoin-rs/Cargo.toml -- -D warnings
+        timeout-minutes: 10
       - name: Parity tests (Rust side must reproduce the frozen vectors)
         run: cargo test --workspace --manifest-path core-rs/Cargo.toml
         timeout-minutes: 10
