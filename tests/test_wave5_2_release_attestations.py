@@ -24,7 +24,7 @@ def load_planner():
 def test_release_workflow_generates_github_artifact_attestations():
     workflow = read(".github/workflows/release.yml")
     assert "attestations: write" in workflow
-    assert "actions/attest-build-provenance@v4" in workflow
+    assert "actions/attest-build-provenance@78e6cbd37d0ac1a40113c04f2037dacf1ea3f12e # v4" in workflow
     assert "NETCOIN_RELEASE_ARCHIVE" in workflow
     assert "subject-path: ${{ env.NETCOIN_RELEASE_ARCHIVE }}" in workflow
     assert "subject-path: dist/netcoin-sbom.json" in workflow

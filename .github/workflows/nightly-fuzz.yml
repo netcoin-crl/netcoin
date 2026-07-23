@@ -16,14 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
           cache: pip
       - uses: dtolnay/rust-toolchain@stable
       - name: Restore fuzz history cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: reports/fuzz_history
           key: nightly-fuzz-${{ github.ref_name }}-${{ github.run_id }}
@@ -39,7 +39,7 @@ jobs:
             --history-dir reports/fuzz_history \
             --out reports/nightly_fuzz_report.json
       - name: Upload fuzz evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: nightly-fuzz-evidence

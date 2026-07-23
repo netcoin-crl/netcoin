@@ -15,7 +15,7 @@ def _fast_job_block() -> str:
 def test_fast_ci_job_runs_m1_source_gate() -> None:
     fast = _fast_job_block()
     assert "Set up Node for source asset checks" in fast
-    assert "uses: actions/setup-node@v4" in fast
+    assert "uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4" in fast
     assert 'node-version: "22"' in fast
     assert "M1 source release-candidate gate" in fast
     assert (

@@ -73,7 +73,7 @@ def test_reproducible_build_workflow_compares_docker_and_local_outputs():
     assert "--output type=local,dest=/tmp/netcoin-repro-docker" in workflow
     assert "tools/compare_reproducible_builds.py" in workflow
     assert "reports/m2_evidence/independent_repro_build.json" in workflow
-    assert "actions/upload-artifact@v4" in workflow
+    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4" in workflow
 
 
 def test_reproducible_build_docs_and_make_target_are_wired():

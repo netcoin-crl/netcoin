@@ -105,8 +105,8 @@ def test_nightly_fuzz_workflow_is_wired():
     assert "schedule:" in workflow
     assert "tools/run_nightly_fuzz_accumulator.py" in workflow
     assert "reports/fuzz_history" in workflow
-    assert "actions/cache@v4" in workflow
-    assert "actions/upload-artifact@v4" in workflow
+    assert "actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4" in workflow
+    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4" in workflow
     assert "dtolnay/rust-toolchain" in workflow
 
 

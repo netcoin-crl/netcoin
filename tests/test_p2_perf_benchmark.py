@@ -97,6 +97,6 @@ def test_perf_workflow_and_docs_are_wired():
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert "tools/run_perf_benchmark.py" in workflow
     assert "reports/perf/perf_benchmark_report.json" in workflow
-    assert "actions/upload-artifact@v4" in workflow
+    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4" in workflow
     assert "netcoin-perf-benchmark-v1" in docs
     assert "perf-benchmark-check" in makefile
