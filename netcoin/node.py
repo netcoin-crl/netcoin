@@ -43,6 +43,7 @@ from .p2p_public_hardening import public_p2p_hardening_plan
 from .params import (
     DEFAULT_NODE_PORT,
     DEFAULT_P2P_PORT,
+    MAX_MEMPOOL_ANCESTORS,
     MAX_REQUEST_BODY_BYTES,
     NETWORK_NAME,
     NODE_VERSION,
@@ -1615,6 +1616,14 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     raw_txs = data.get("transactions", data if isinstance(data, list) else [])
                     if not isinstance(raw_txs, list):
                         raise NodeError("package body must contain a transactions list")
+                    # add_mempool_package rejects a package bigger than this
+                    # anyway, but only after every item below is already
+                    # parsed (a real deserialize + shape check per tx) --
+                    # check the cheap length first so an oversized list is
+                    # rejected before that work happens, bounded only by
+                    # MAX_REQUEST_BODY_BYTES otherwise.
+                    if len(raw_txs) > MAX_MEMPOOL_ANCESTORS:
+                        raise NodeError(f"package exceeds ancestor limit ({len(raw_txs)} > {MAX_MEMPOOL_ANCESTORS})")
                     txs = [Transaction.from_dict(item) for item in raw_txs]
                     txids = node.chain.add_mempool_package(txs)
                     node.invalidate_read_cache()
@@ -1668,8 +1677,12 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                     # endpoint nodes use to announce themselves to each other
                     # (see NetCoinNode.announce_self) -- an admin gate here
                     # would break normal peer discovery across the whole
-                    # network, not just lock down an admin action.
-                    for peer in data.get("peers", []):
+                    # network, not just lock down an admin action. Each entry
+                    # is cheap to process, but the incoming list itself was
+                    # only ever bounded by MAX_REQUEST_BODY_BYTES -- cap it at
+                    # this node's own peer limit, since nothing beyond that
+                    # could ever be added anyway.
+                    for peer in list(data.get("peers", []))[: node.max_peers]:
                         node.add_peer(str(peer))
                     self.send_json({"ok": True, "peers": sorted(node.peers)})
                 elif parsed.path == "/sync":
