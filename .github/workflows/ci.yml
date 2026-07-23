@@ -34,16 +34,14 @@ jobs:
       - name: Compile Python package
         run: python -m compileall -q netcoin tools
         timeout-minutes: 2
-      - name: Ruff lint (advisory)
+      - name: Ruff lint
         run: python -m ruff check netcoin tests tools
-        continue-on-error: true
         timeout-minutes: 3
       - name: Black formatting check
         run: python -m black --check netcoin tests tools
         timeout-minutes: 3
-      - name: Type check core modules (advisory)
+      - name: Type check core modules
         run: python -m mypy
-        continue-on-error: true
         timeout-minutes: 5
       - name: Validate professional upgrade manifest
         run: python tools/professional_upgrade_audit.py --fail-on-issues
