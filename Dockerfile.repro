@@ -2,7 +2,7 @@
 # This image builds from the checked-out source tree and emits a normalized
 # source tarball plus SBOM/provenance metadata. It is a recipe, not proof by
 # itself; strict M2 requires independent builders to compare outputs.
-FROM python:3.12-slim AS build
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS build
 
 ARG NETCOIN_VERSION=source
 ENV PYTHONDONTWRITEBYTECODE=1 \
