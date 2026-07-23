@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.proof_evidence import (  # noqa: E402
+from netcoin.proof_evidence import (
     build_evidence_bundle,
     evidence_summary,
     load_proof_evidence_manifest,

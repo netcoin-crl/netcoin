@@ -20,7 +20,7 @@ from .block import Block, BlockError
 from .chain import Blockchain
 from .node import NetCoinNode, make_handler
 from .p2p import Message, P2PError
-from .psbt import PSBTError, PartiallySignedTransaction
+from .psbt import PartiallySignedTransaction, PSBTError
 from .script import ScriptContext, classify_script, verify_script
 from .serialization import SerializationError, decode_raw_transaction
 from .tx import Transaction, TransactionError

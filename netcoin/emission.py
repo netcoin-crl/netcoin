@@ -160,9 +160,7 @@ def _legacy_cut_for_year(year: int, hash_at: HashAt, history: list[bool]) -> boo
     market_cut = _legacy_sampled_even_count(year, hash_at) >= LEGACY_NRE_EVEN_THRESHOLD
     if market_cut:
         return True
-    if len(history) >= LEGACY_NRE_DRY_YEAR_LIMIT and not any(history[-LEGACY_NRE_DRY_YEAR_LIMIT:]):
-        return True
-    return False
+    return len(history) >= LEGACY_NRE_DRY_YEAR_LIMIT and not any(history[-LEGACY_NRE_DRY_YEAR_LIMIT:])
 
 
 def _legacy_cut_history(up_to_year: int, hash_at: HashAt) -> list[bool]:

@@ -5078,7 +5078,7 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def validate_address_payload(address: str) -> dict[str, Any]:  # noqa: RET503
+def validate_address_payload(address: str) -> dict[str, Any]:
     valid = validate_address(address)
     details: dict[str, Any] | None = None
     error = None

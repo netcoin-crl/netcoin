@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .crypto import bytes_to_hex, ecdsa_sign, private_key_to_public_key
-from .script import ScriptError, op_n_value, script_hash160, tokenize
+from .script import ScriptError, op_n_value, tokenize
 from .tx import SIGHASH_ALL, SpendableOutput, Transaction, TxInput, TxOutput, _append_sighash
 
 
@@ -173,7 +173,7 @@ class PartiallySignedTransaction:
         key)."""
         if self._skeleton() != other._skeleton():
             raise PSBTError("cannot combine PSBTs of different transactions")
-        for index, (mine, theirs) in enumerate(zip(self.tx.inputs, other.tx.inputs)):
+        for index, (mine, theirs) in enumerate(zip(self.tx.inputs, other.tx.inputs, strict=True)):
             mine_signed = mine.signature or mine.script_sig or mine.witness
             theirs_signed = theirs.signature or theirs.script_sig or theirs.witness
             if not mine_signed and theirs_signed:

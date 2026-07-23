@@ -150,9 +150,7 @@ def should_require_signed_envelope(method: str, path: str, body: Mapping[str, An
     # compatible unless the operator explicitly forces signed envelopes globally.
     if bool(body.get("__netcoin_http_request")):
         return True
-    if os.environ.get("NETCOIN_APP_REQUIRE_SIGNED_ENVELOPES", "0").lower() in {"1", "true", "yes", "on"}:
-        return True
-    return False
+    return os.environ.get("NETCOIN_APP_REQUIRE_SIGNED_ENVELOPES", "0").lower() in {"1", "true", "yes", "on"}
 
 
 def require_signed_envelope_if_needed(method: str, path: str, body: Mapping[str, Any]) -> dict[str, Any]:

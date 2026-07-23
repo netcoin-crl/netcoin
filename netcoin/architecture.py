@@ -70,8 +70,8 @@ def architecture_summary(root: Path | None = None) -> dict[str, Any]:
     migration = None
     try:
         from .migration_status import (
-            migration_status,
             final_version_readiness,
+            migration_status,
             parity_bridge_status,
             rust_typescript_parity_expansion,
         )

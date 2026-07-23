@@ -1,4 +1,3 @@
-import json
 import time
 from pathlib import Path
 
@@ -6,12 +5,12 @@ import pytest
 
 from netcoin.exchange import ExchangeLedger
 from netcoin.faucet_abuse import daily_spend_report, issue_challenge, reputation_score, solve_pow, verify_pow
+from netcoin.peerdb import PeerDatabase
 from netcoin.psbt import PartiallySignedTransaction
 from netcoin.signer import HardwareSigner, SimulatedHardwareTransport, signer_status
-from netcoin.sync import HeaderSyncError, HeaderSyncScheduler, PeerSyncCoordinator, validate_headers_linked
+from netcoin.sync import HeaderSyncError, PeerSyncCoordinator, validate_headers_linked
 from netcoin.tx import SpendableOutput, TxOutput
 from netcoin.wallet import Wallet
-from netcoin.peerdb import PeerDatabase
 
 
 def _sample_psbt(wallet: Wallet) -> PartiallySignedTransaction:
@@ -51,7 +50,7 @@ def test_header_sync_rejects_bad_links_and_penalizes_peer(tmp_path: Path):
     bad = [{"height": 3, "previous_hash": "not-linked", "hash": "cc" * 32}]
     with pytest.raises(HeaderSyncError):
         validate_headers_linked(bad, expected_previous_hash="bb" * 32, expected_start_height=3)
-    with pytest.raises(Exception):
+    with pytest.raises(HeaderSyncError):
         coordinator.record_headers("127.0.0.1:18444", bad, local_tip_hash="bb" * 32, local_height=2)
     assert peerdb.get_peer("127.0.0.1:18444")["failures"] >= 1
 

@@ -35,7 +35,8 @@ def main() -> int:
     }
     text = json.dumps(payload, indent=2, sort_keys=True)
     if args.out:
-        open(args.out, "w", encoding="utf-8").write(text + "\n")
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(text + "\n")
     print(text)
     return 0
 

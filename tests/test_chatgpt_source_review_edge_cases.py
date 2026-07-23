@@ -13,7 +13,7 @@ from netcoin.genesis_manifest import validate_genesis_manifest
 from netcoin.hardware_wallet import stable_hash, validate_hardware_transcript
 from netcoin.offline_signing import OfflineSigningError, import_signed_psbt
 from netcoin.pex import PEXPolicy, select_pex_records
-from netcoin.psbt import PartiallySignedTransaction
+from netcoin.psbt import PartiallySignedTransaction, PSBTError
 from netcoin.tx import SpendableOutput, TxOutput
 from netcoin.versionbits import DEFINED, FAILED, LOCKED_IN, STARTED, VersionBitsDeployment, evaluate_period
 
@@ -144,7 +144,7 @@ def test_offline_signing_rejects_malformed_and_mismatched_psbts():
     signed = _psbt_text(signed=True, output_amount=800)
     with pytest.raises(OfflineSigningError, match="does not match"):
         import_signed_psbt(unsigned, signed)
-    with pytest.raises(Exception):
+    with pytest.raises(PSBTError):
         import_signed_psbt("netpsbt:not-base64", signed)
 
 

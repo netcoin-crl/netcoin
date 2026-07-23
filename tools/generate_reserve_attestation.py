@@ -17,7 +17,7 @@ def _ensure_repo_on_path() -> None:
 
 _ensure_repo_on_path()
 
-from netcoin.exchange_reserves import reserve_attestation  # noqa: E402
+from netcoin.exchange_reserves import reserve_attestation
 
 
 def main() -> int:

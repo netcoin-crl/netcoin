@@ -11,10 +11,11 @@ import json
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .proof_hardening import load_proof_manifest
 
@@ -252,7 +253,7 @@ def run_local_proof(
         if status in {"fail", "blocked"} and not continue_on_fail:
             break
 
-    status_counts = {status: 0 for status in sorted(ALLOWED_STATUSES)}
+    status_counts = dict.fromkeys(sorted(ALLOWED_STATUSES), 0)
     for gate in gate_reports:
         status_counts[str(gate.get("status"))] += 1
     blockers = [

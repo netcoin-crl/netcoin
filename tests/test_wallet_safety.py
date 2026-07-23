@@ -31,7 +31,7 @@ def test_verify_seed_phrase_accepts_valid_rejects_garbage():
     assert verify_seed_phrase("") is False
     # A valid phrase with its checksum word corrupted must fail.
     words = phrase.split()
-    bad_checksum = " ".join(words[:-1] + ["net000" if words[-1] != "net000" else "net001"])
+    bad_checksum = " ".join([*words[:-1], "net000" if words[-1] != "net000" else "net001"])
     assert verify_seed_phrase(bad_checksum) is False
 
 
@@ -67,7 +67,7 @@ def test_encrypted_wallet_round_trip_and_wrong_passphrase(tmp_path: Path):
     reopened = Wallet.load(path, passphrase="correct horse")
     assert reopened.private_key == wallet.private_key
 
-    with pytest.raises(WalletError, match="passphrase is incorrect|modified"):
+    with pytest.raises(WalletError, match=r"passphrase is incorrect|modified"):
         Wallet.load(path, passphrase="wrong passphrase")
 
 
@@ -95,7 +95,7 @@ def test_tampered_aead_metadata_is_rejected(tmp_path: Path):
     data["encrypted_private_key"]["associated_data"] = "wrong context"
     path.write_text(json.dumps(data))
 
-    with pytest.raises(WalletError, match="metadata is unsupported|modified"):
+    with pytest.raises(WalletError, match=r"metadata is unsupported|modified"):
         Wallet.load(path, passphrase="pw")
 
 

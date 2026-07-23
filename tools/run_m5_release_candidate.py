@@ -19,7 +19,8 @@ SOURCE_COMMANDS = [
     "python3 -m py_compile tools/check_m5_readiness.py tools/run_m5_release_candidate.py tools/validate_m5_launch_plan.py tests/test_m5_mainnet_launch.py",
 ]
 
-STRICT_COMMANDS = SOURCE_COMMANDS + [
+STRICT_COMMANDS = [
+    *SOURCE_COMMANDS,
     "python3 tools/check_m5_readiness.py --strict --out reports/m5_readiness_strict_report.json",
     "python3 tools/run_m4_release_candidate.py --profile strict --timeout 300 --out reports/m4_release_candidate_strict_for_m5_report.json",
 ]

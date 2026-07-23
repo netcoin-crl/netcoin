@@ -4,6 +4,7 @@ This pins that the ledger reversal happens automatically and that an
 already-spent credit is flagged rather than silently leaving the books wrong.
 """
 
+import contextlib
 from pathlib import Path
 
 from netcoin.chain import Blockchain, ChainError
@@ -29,10 +30,8 @@ def clone_prefix(tmp_path: Path, name: str, source: Blockchain, upto_height: int
 
 def feed(target: Blockchain, blocks) -> None:
     for block in blocks:
-        try:
+        with contextlib.suppress(ChainError):
             target.add_block(block)
-        except ChainError:
-            pass
 
 
 def _watcher(tmp_path: Path) -> tuple[ExchangeDepositWatcher, ExchangeLedger, AccountingLedger]:

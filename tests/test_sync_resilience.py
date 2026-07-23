@@ -1,6 +1,7 @@
 """Peer-sync resilience: unreachable peers, restart persistence, catch-up after
 downtime, peer loss mid-sync, and delayed (out-of-order) block delivery."""
 
+import contextlib
 import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -41,7 +42,7 @@ def test_sync_from_unreachable_peer_is_safe(tmp_path: Path):
 def test_node_reloads_chain_and_peers_after_restart(tmp_path: Path):
     miner = Wallet.create()
     chain = Blockchain(tmp_path / "node")
-    node = NetCoinNode(chain, peers=["http://seed1.example:28444"])
+    NetCoinNode(chain, peers=["http://seed1.example:28444"])
     for _ in range(3):
         chain.mine_block(miner.address)
     tip = chain.tip_hash()
@@ -107,10 +108,8 @@ def test_delayed_block_then_parent_connects(tmp_path: Path):
     node = NetCoinNode(target_chain, persist=False)
 
     # Block 3 arrives before its parent: held as a node orphan, no progress.
-    try:
+    with contextlib.suppress(Exception):
         node.accept_block(block3)
-    except Exception:
-        pass
     assert target_chain.height() == 1
 
     # Parent (block 2) arrives: it connects, and the delayed block 3 connects too.
@@ -126,10 +125,8 @@ def test_invalid_rejected_block_is_not_held_as_node_orphan(tmp_path: Path):
     block = solve_template(chain.get_block_template(miner_address=miner.address), miner.address)
     bad = Block(block.header, [chain.tip().transactions[0]])  # valid PoW header, bad merkle/contents
 
-    try:
+    with contextlib.suppress(Exception):
         node.accept_block(bad)
-    except Exception:
-        pass
 
     assert len(node.orphans) == 0
 
@@ -145,10 +142,8 @@ def test_node_orphan_queue_is_capped(tmp_path: Path):
     node.max_node_orphans = 2
 
     for block in source.chain[2:5]:
-        try:
+        with contextlib.suppress(Exception):
             node.accept_block(block)
-        except Exception:
-            pass
 
     assert len(node.orphans) == 2
 

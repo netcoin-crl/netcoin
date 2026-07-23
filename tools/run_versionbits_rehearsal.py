@@ -16,8 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.miner import solve_template  # noqa: E402
-from netcoin.versionbits import (  # noqa: E402
+from netcoin.miner import solve_template
+from netcoin.versionbits import (
     ACTIVE,
     ENV_ENABLE_REHEARSAL,
     VersionBitsRehearsalConfig,
@@ -25,8 +25,8 @@ from netcoin.versionbits import (  # noqa: E402
     extract_block_versions,
     load_rehearsal_config,
 )
-from netcoin.wallet import Wallet  # noqa: E402
-from tools.run_localnet import Localnet, LocalnetConfig, get_json, post_json  # noqa: E402
+from netcoin.wallet import Wallet
+from tools.run_localnet import Localnet, LocalnetConfig, get_json, post_json
 
 
 def mine_signaling_block(localnet: Localnet, node_index: int, address: str, bit: int) -> dict[str, Any]:

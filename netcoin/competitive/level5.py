@@ -393,7 +393,7 @@ def encrypt_wallet_payload(payload: Mapping[str, Any], passphrase: str) -> dict[
     key = _derive_key(passphrase, salt)
     plain = canonical_json(dict(payload)).encode()
     stream = _keystream(key, nonce, len(plain))
-    cipher = bytes(a ^ b for a, b in zip(plain, stream))
+    cipher = bytes(a ^ b for a, b in zip(plain, stream, strict=True))
     tag = hmac.new(key, nonce + cipher, hashlib.sha256).digest()
     return {
         "schema": "netcoin-testnet-wallet-vault-v1",
@@ -417,7 +417,7 @@ def decrypt_wallet_payload(vault: Mapping[str, Any], passphrase: str) -> dict[st
     if not hmac.compare_digest(tag, expected):
         raise ValueError("wallet vault authentication failed")
     stream = _keystream(key, nonce, len(cipher))
-    plain = bytes(a ^ b for a, b in zip(cipher, stream))
+    plain = bytes(a ^ b for a, b in zip(cipher, stream, strict=True))
     return json.loads(plain.decode())
 
 

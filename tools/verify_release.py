@@ -84,7 +84,7 @@ def verify_keyless_signatures(
 ) -> list[str]:
     cosign = shutil.which("cosign")
     results: list[str] = []
-    for name in verified_files + ["SHA256SUMS"]:
+    for name in [*verified_files, "SHA256SUMS"]:
         artifact = dist / name
         bundle = dist / f"{name}.sigstore.json"
         if not bundle.exists():

@@ -1,6 +1,7 @@
 """SQLite storage backend (#21): persistence, restart, reorg, mempool, migration."""
 
 import argparse
+import contextlib
 import json
 from pathlib import Path
 
@@ -52,10 +53,8 @@ def test_sqlite_handles_reorg(tmp_path: Path):
     for _ in range(3):
         b.mine_block(miner_b.address)
     for block in b.chain[2:]:
-        try:
+        with contextlib.suppress(Exception):
             a.add_block(block)
-        except Exception:
-            pass
 
     assert a.height() == 4
     assert a.tip_hash() == b.tip_hash()

@@ -18,8 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.crypto import sign_message  # noqa: E402
-from netcoin.wallet import Wallet  # noqa: E402
+from netcoin.crypto import sign_message
+from netcoin.wallet import Wallet
 
 
 def file_sha256(path: Path) -> str:

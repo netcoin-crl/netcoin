@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 DEFINED = "defined"
 STARTED = "started"
@@ -122,7 +122,7 @@ def extract_block_versions(blocks: Iterable[object]) -> list[int]:
                 header = block.get("header", block)
                 version = header["version"]
             else:
-                version = getattr(getattr(block, "header"), "version")
+                version = block.header.version
         except Exception as exc:  # pragma: no cover - defensive clarity
             raise ValueError(f"block {index} does not expose a header version") from exc
         versions.append(int(version))
@@ -159,9 +159,7 @@ def evaluate_period(
         state = STARTED
     elif previous_state == STARTED and signals >= deployment.threshold:
         state = LOCKED_IN
-    elif previous_state == LOCKED_IN:
-        state = ACTIVE
-    elif previous_state == ACTIVE:
+    elif previous_state in (LOCKED_IN, ACTIVE):
         state = ACTIVE
     return {
         "schema": "netcoin-versionbits-period-evaluation-v1",

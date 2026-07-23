@@ -98,9 +98,11 @@ def main(argv: list[str]) -> int:
     if len(argv) not in (3, 4):
         print("usage: python tools/faucet_admin.py <state.json> <out.html> [spendable_sats]", file=sys.stderr)
         return 2
-    state = json.loads(open(argv[1], encoding="utf-8").read())
+    with open(argv[1], encoding="utf-8") as f:
+        state = json.loads(f.read())
     spendable = int(argv[3]) if len(argv) == 4 else None
-    open(argv[2], "w", encoding="utf-8").write(render_faucet_admin(state, spendable))
+    with open(argv[2], "w", encoding="utf-8") as f:
+        f.write(render_faucet_admin(state, spendable))
     print(f"wrote {argv[2]}")
     return 0
 

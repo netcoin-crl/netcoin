@@ -12,7 +12,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.parity_suite import api_codegen_summary, vector_fingerprint  # noqa: E402
+from netcoin.parity_suite import api_codegen_summary, vector_fingerprint
 
 VECTOR_PATH = ROOT / "architecture" / "parity-vectors.json"
 

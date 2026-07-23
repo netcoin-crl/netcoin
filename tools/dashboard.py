@@ -100,8 +100,10 @@ def main(argv: list[str]) -> int:
     if len(argv) != 3:
         print("usage: python tools/dashboard.py <status.json> <out.html>", file=sys.stderr)
         return 2
-    status = json.loads(open(argv[1], encoding="utf-8").read())
-    open(argv[2], "w", encoding="utf-8").write(render_dashboard(status))
+    with open(argv[1], encoding="utf-8") as f:
+        status = json.loads(f.read())
+    with open(argv[2], "w", encoding="utf-8") as f:
+        f.write(render_dashboard(status))
     print(f"wrote {argv[2]}")
     return 0
 

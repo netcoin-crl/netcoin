@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.parity_suite import run_parity_suite  # noqa: E402
+from netcoin.parity_suite import run_parity_suite
 
 
 def main() -> int:

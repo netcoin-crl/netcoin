@@ -11,7 +11,6 @@ from pathlib import Path
 
 from netcoin.apps import AppStore, route_app_get
 from netcoin.chain import Blockchain
-from netcoin.live_product import exchange_listing_readiness
 
 ROOT = Path(__file__).resolve().parents[1]
 

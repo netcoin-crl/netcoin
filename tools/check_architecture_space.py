@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.architecture import architecture_status, architecture_summary  # noqa: E402
+from netcoin.architecture import architecture_status, architecture_summary
 
 
 def main() -> int:

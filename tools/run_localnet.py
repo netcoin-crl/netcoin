@@ -21,7 +21,6 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -408,7 +407,7 @@ def run_localnet(config: LocalnetConfig) -> dict[str, Any]:
                 f"node{config.nodes - 1}_peers": pex_peers[config.nodes - 1],
             }
 
-            mined = localnet.mine_blocks(localnet.nodes[0], miner.address, config.bootstrap_blocks)
+            localnet.mine_blocks(localnet.nodes[0], miner.address, config.bootstrap_blocks)
             convergence = localnet.wait_for_convergence(height=config.bootstrap_blocks)
             assertions["header_sync"] = {
                 "height": convergence["height"],

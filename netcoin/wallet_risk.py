@@ -26,12 +26,12 @@ def address_similarity(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
     prefix = 0
-    for x, y in zip(a, b):
+    for x, y in zip(a, b, strict=False):
         if x != y:
             break
         prefix += 1
     suffix = 0
-    for x, y in zip(reversed(a), reversed(b)):
+    for x, y in zip(reversed(a), reversed(b), strict=False):
         if x != y:
             break
         suffix += 1

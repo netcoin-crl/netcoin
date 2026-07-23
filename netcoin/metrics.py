@@ -70,15 +70,19 @@ def evaluate_alerts(
     alerts = []
     current_height = int(metrics.get("netcoin_block_height", 0))
     current_ts = int(metrics.get("netcoin_timestamp", time.time()))
-    if previous_height is not None and previous_timestamp is not None:
-        if current_height <= int(previous_height) and current_ts - int(previous_timestamp) >= int(stuck_seconds):
-            alerts.append(
-                {
-                    "alert": "NetCoinStuckChain",
-                    "severity": "critical",
-                    "message": "Block height has not advanced within the stuck-chain window.",
-                }
-            )
+    if (
+        previous_height is not None
+        and previous_timestamp is not None
+        and current_height <= int(previous_height)
+        and current_ts - int(previous_timestamp) >= int(stuck_seconds)
+    ):
+        alerts.append(
+            {
+                "alert": "NetCoinStuckChain",
+                "severity": "critical",
+                "message": "Block height has not advanced within the stuck-chain window.",
+            }
+        )
     if int(metrics.get("netcoin_peer_count", 0)) == 0:
         alerts.append({"alert": "NetCoinNoPeers", "severity": "warning", "message": "Node has zero known peers."})
     if int(metrics.get("netcoin_webhook_dead_letters", 0)) > 0:

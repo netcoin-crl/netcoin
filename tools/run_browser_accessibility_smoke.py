@@ -178,7 +178,7 @@ def main() -> int:
                     result["ok"] = False
             except Exception as exc:  # pragma: no cover - environment/browser dependent
                 result = {
-                    "ok": False if args.require_browser else True,
+                    "ok": not args.require_browser,
                     "mode": "browser-blocked",
                     "issues": [f"browser smoke could not run: {exc}"],
                     "browser_executed": False,

@@ -1,6 +1,7 @@
 """Chain reorganization tests: fork selection by cumulative work, rollback,
 out-of-order block connection, and mempool revalidation."""
 
+import contextlib
 import time
 from pathlib import Path
 
@@ -30,10 +31,8 @@ def clone_prefix(tmp_path: Path, name: str, source: Blockchain, upto_height: int
 def feed(target: Blockchain, blocks) -> None:
     """Submit blocks to target, tolerating not-yet-connecting ones."""
     for block in blocks:
-        try:
+        with contextlib.suppress(ChainError):
             target.add_block(block)
-        except ChainError:
-            pass
 
 
 def test_reorg_switches_to_heavier_fork(tmp_path: Path):

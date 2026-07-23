@@ -5,8 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -122,7 +120,7 @@ def source_gate() -> dict[str, Any]:
 def strict_gate() -> dict[str, Any]:
     result = source_gate()
     evidence_issues = []
-    for label, rel in STRICT_EVIDENCE.items():
+    for _label, rel in STRICT_EVIDENCE.items():
         path = ROOT / rel
         if not path.exists():
             evidence_issues.append(f"missing strict evidence: {rel}")

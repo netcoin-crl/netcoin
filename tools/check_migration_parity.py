@@ -10,8 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.migration_status import migration_status, parity_vectors, final_version_readiness  # noqa: E402
-from netcoin.parity_suite import run_parity_suite  # noqa: E402
+from netcoin.migration_status import final_version_readiness, migration_status, parity_vectors
+from netcoin.parity_suite import run_parity_suite
 
 
 def main() -> int:

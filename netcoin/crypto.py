@@ -14,16 +14,16 @@ from __future__ import annotations
 
 import base64
 import binascii
+import contextlib
 import hashlib
 import hmac
 import os
 import secrets
 from collections.abc import Iterable
-from typing import Optional
 
 from .params import P2PKH_ADDRESS_VERSION, P2SH_ADDRESS_VERSION, WITNESS_HRP
 
-Point = Optional[tuple[int, int]]
+Point = tuple[int, int] | None
 
 # secp256k1 domain parameters.
 P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -130,7 +130,7 @@ def bech32_polymod(values: Iterable[int]) -> int:
 def bech32_create_checksum(hrp: str, data: list[int], spec: str = "bech32") -> list[int]:
     const = 1 if spec == "bech32" else BECH32M_CONST
     values = bech32_hrp_expand(hrp) + data
-    polymod = bech32_polymod(values + [0, 0, 0, 0, 0, 0]) ^ const
+    polymod = bech32_polymod([*values, 0, 0, 0, 0, 0, 0]) ^ const
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
@@ -199,7 +199,7 @@ def encode_witness_address(version: int, program: bytes, hrp: str = WITNESS_HRP)
     if version == 0 and len(program) not in (20, 32):
         raise ValueError("version 0 witness program must be 20 or 32 bytes")
     spec = "bech32" if version == 0 else "bech32m"
-    data = [version] + convertbits(program, 8, 5, True)
+    data = [version, *convertbits(program, 8, 5, True)]
     return bech32_encode(hrp, data, spec)
 
 
@@ -462,10 +462,8 @@ def verify_message(address: str, message: str, signature_b64: str) -> bool:
         return False
     pub = _point_to_compressed(point)
     candidates = {public_key_to_address(pub)}
-    try:
+    with contextlib.suppress(ValueError):
         candidates.add(public_key_to_p2wpkh_address(pub))
-    except ValueError:
-        pass
     return address in candidates
 
 
@@ -575,9 +573,7 @@ def ecdsa_sign(private_key: int, digest: bytes) -> bytes:
 # they agree, a network of mixed fast/pure nodes cannot split on validity.
 def _fast_crypto_requested() -> bool:
     value = os.environ.get("NETCOIN_FAST_CRYPTO", "auto").strip().lower()
-    if value in {"0", "false", "no", "off", "pure"}:
-        return False
-    return True
+    return value not in {"0", "false", "no", "off", "pure"}
 
 
 def _coincurve_available() -> bool:
@@ -720,7 +716,7 @@ def schnorr_sign(private_key: int, digest: bytes, aux_rand: bytes | None = None)
     px = pub[0].to_bytes(32, "big")
     t = d.to_bytes(32, "big")
     rand = tagged_hash("BIP0340/aux", aux_rand)
-    t = bytes(a ^ b for a, b in zip(t, rand))
+    t = bytes(a ^ b for a, b in zip(t, rand, strict=True))
     k0 = int.from_bytes(tagged_hash("BIP0340/nonce", t + px + digest), "big") % N
     if k0 == 0:
         raise ValueError("schnorr nonce is zero")

@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.site_ui_polish import audit_site_ui_polish  # noqa: E402
+from netcoin.site_ui_polish import audit_site_ui_polish
 
 
 def main() -> int:

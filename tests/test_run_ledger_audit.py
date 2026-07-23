@@ -9,7 +9,6 @@ from pathlib import Path
 from netcoin.exchange_accounting import AccountingLedger
 from tools.run_ledger_audit import audit_ledger, independent_balances
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

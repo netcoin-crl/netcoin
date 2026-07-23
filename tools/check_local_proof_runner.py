@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.local_proof_runner import load_local_proof_manifest, validate_local_proof_manifest  # noqa: E402
+from netcoin.local_proof_runner import load_local_proof_manifest, validate_local_proof_manifest
 
 
 def main() -> int:

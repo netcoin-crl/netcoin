@@ -148,7 +148,7 @@ def test_wallet_limits_alerts_team_wallet_and_rotation(tmp_path: Path):
     spent = store.record_wallet_spend({"wallet_id": "w1", "amount": "0.5", "fee": "0.01"})
     assert spent["spent_today_sats"] > 0
 
-    alert = store.upsert_alert({"address": miner.address, "kind": "balance_above", "threshold": "0.01"})
+    store.upsert_alert({"address": miner.address, "kind": "balance_above", "threshold": "0.01"})
     events = store.evaluate_alerts(chain)
     assert events["triggered"] >= 1
 

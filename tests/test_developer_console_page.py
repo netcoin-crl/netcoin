@@ -46,8 +46,8 @@ def test_console_js_calls_the_real_developer_endpoints_only():
 
 
 def test_console_js_syntax_is_valid():
-    import subprocess
     import shutil
+    import subprocess
 
     node = shutil.which("node")
     if not node:

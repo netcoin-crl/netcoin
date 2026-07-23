@@ -23,9 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.chain import Blockchain  # noqa: E402
-from netcoin.tx import amount_to_sats  # noqa: E402
-from netcoin.wallet import Wallet  # noqa: E402
+from netcoin.chain import Blockchain
+from netcoin.tx import amount_to_sats
+from netcoin.wallet import Wallet
 
 DEFAULT_THRESHOLDS = {
     "block_validation_p50_ms_max": 250.0,

@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.proof_triage import (  # noqa: E402
+from netcoin.proof_triage import (
     build_proof_triage_report,
     load_proof_triage_manifest,
     proof_triage_summary,

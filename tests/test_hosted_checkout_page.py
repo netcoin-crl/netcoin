@@ -32,8 +32,8 @@ def test_pay_js_implements_checkout_polling_without_new_script_sources():
 
 
 def test_pay_js_syntax_is_valid():
-    import subprocess
     import shutil
+    import subprocess
 
     node = shutil.which("node")
     if not node:

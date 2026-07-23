@@ -14,7 +14,7 @@ def _market(store: AppStore, **overrides):
 def test_demo_wallet_balance_ignores_caller_supplied_initial_balance(tmp_path: Path):
     store = AppStore(tmp_path / "chain")
     market = _market(store)
-    order = store.place_market_order(
+    store.place_market_order(
         market["market_id"],
         {
             "trader_address": "demo:attacker",
@@ -33,7 +33,7 @@ def test_demo_wallet_balance_ignores_caller_supplied_initial_balance(tmp_path: P
 
 def test_market_id_collision_is_rejected(tmp_path: Path):
     store = AppStore(tmp_path / "chain")
-    market = _market(store, market_id="fixed-id")
+    _market(store, market_id="fixed-id")
     with pytest.raises(AppError, match="already exists"):
         _market(store, market_id="fixed-id", question="a different question entirely", allow_duplicate=True)
 

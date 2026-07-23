@@ -26,7 +26,7 @@ REQUIRED_EVIDENCE = [
 
 
 def _probe_seed(seed: str, timeout: float) -> dict[str, object]:
-    host, sep, port_text = seed.partition(":")
+    host, _sep, port_text = seed.partition(":")
     port = int(port_text or "28444")
     started = time.monotonic()
     try:

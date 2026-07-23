@@ -1,9 +1,8 @@
 from pathlib import Path
 
-from netcoin.apps import AppError, AppStore
+from netcoin.apps import AppStore
 from netcoin.chain import Blockchain
 from netcoin.wallet import Wallet
-import pytest
 
 
 def _make_escrow(store: AppStore, chain: Blockchain, **overrides):

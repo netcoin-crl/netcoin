@@ -39,7 +39,7 @@ def test_concurrent_start_calls_only_spawn_one_subprocess(tmp_path: Path, monkey
     def run():
         try:
             results.append(controller.start())
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors.append(exc)
 
     threads = [threading.Thread(target=run) for _ in range(5)]

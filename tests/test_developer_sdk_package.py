@@ -50,8 +50,8 @@ def test_sdk_netcoin_developer_package_exists_and_wraps_the_real_endpoints():
 
 
 def test_sdk_netcoin_developer_index_js_syntax_is_valid():
-    import subprocess
     import shutil
+    import subprocess
 
     node = shutil.which("node")
     if not node:

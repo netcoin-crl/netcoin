@@ -1,5 +1,6 @@
 """Persistent block/transaction indexes and chainstate integrity (#5, #6, #24)."""
 
+import contextlib
 from pathlib import Path
 
 from netcoin.chain import Blockchain
@@ -57,10 +58,8 @@ def test_index_follows_reorg(tmp_path: Path):
         b.mine_block(miner_b.address)
 
     for block in b.chain[2:]:
-        try:
+        with contextlib.suppress(Exception):
             a.add_block(block)
-        except Exception:
-            pass
 
     assert a.height() == 4
     assert a.tip_hash() == b.tip_hash()

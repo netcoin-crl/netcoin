@@ -11,7 +11,16 @@ from typing import Any
 from .block import Block
 from .chain import Blockchain
 from .crypto import decode_address, validate_address
-from .params import COINBASE_MATURITY, DEFAULT_RPC_PORT, MAX_REQUEST_BODY_BYTES, NETWORK_NAME, NODE_VERSION, PROTOCOL_VERSION, TICKER, USER_AGENT
+from .params import (
+    COINBASE_MATURITY,
+    DEFAULT_RPC_PORT,
+    MAX_REQUEST_BODY_BYTES,
+    NETWORK_NAME,
+    NODE_VERSION,
+    PROTOCOL_VERSION,
+    TICKER,
+    USER_AGENT,
+)
 from .serialization import block_to_raw_hex, decode_raw_transaction, tx_to_raw_hex
 from .tx import Transaction, sats_to_amount
 

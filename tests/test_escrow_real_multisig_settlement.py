@@ -6,9 +6,7 @@ genuinely spendable end-to-end, not just a plausible-looking artifact."""
 
 from pathlib import Path
 
-import pytest
-
-from netcoin.apps import AppError, AppStore
+from netcoin.apps import AppStore
 from netcoin.chain import Blockchain
 from netcoin.psbt import PartiallySignedTransaction
 from netcoin.wallet import Wallet
@@ -47,7 +45,7 @@ def _mature_funded_escrow(tmp_path: Path, amount_sats: int = 100_000):
 
 
 def test_escrow_release_settlement_psbt_is_really_spendable(tmp_path: Path):
-    chain, store, escrow, buyer, seller, mediator, miner = _mature_funded_escrow(tmp_path)
+    chain, store, escrow, buyer, seller, _mediator, miner = _mature_funded_escrow(tmp_path)
     escrow_id = escrow["escrow_id"]
 
     store.escrow_action(chain, escrow_id, {"action": "release", "signer": buyer.segwit_address})

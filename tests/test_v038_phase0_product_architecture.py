@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from netcoin.product_architecture import validate_product_architecture, load_product_architecture
+from netcoin.product_architecture import load_product_architecture, validate_product_architecture
 
 ROOT = Path(__file__).resolve().parents[1]
 

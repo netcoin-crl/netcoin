@@ -5,11 +5,9 @@ not just the pure mappers.
 """
 
 import json
-from pathlib import Path
 
 import pytest
 
-from netcoin import esplora
 from netcoin.chain import Blockchain
 from netcoin.node import NetCoinNode, make_handler
 from netcoin.wallet import Wallet
@@ -122,7 +120,7 @@ def test_esplora_address_and_utxo(node):
     utxos = json.loads(body)
     assert isinstance(utxos, list)
     for u in utxos:
-        assert set(("txid", "vout", "value", "status")).issubset(u.keys())
+        assert {"txid", "vout", "value", "status"}.issubset(u.keys())
 
 
 def test_esplora_fee_estimates_is_target_rate_map(node):

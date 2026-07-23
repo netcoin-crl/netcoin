@@ -14,11 +14,11 @@ from dataclasses import dataclass
 from socketserver import BaseRequestHandler, ThreadingTCPServer
 from typing import Any
 
-from .crypto import double_sha256
 from .addrv2 import addr_payload, parse_addr_payload
-from .pex import build_pex_response, ingest_pex_records
 from .compact import compact_missing_payload, make_compact_block
+from .crypto import double_sha256
 from .params import DEFAULT_P2P_PORT, MAX_REQUEST_BODY_BYTES, NETWORK_NAME, NODE_VERSION, P2P_MAGIC, PROTOCOL_VERSION
+from .pex import build_pex_response, ingest_pex_records
 from .serialization import block_from_binary, block_to_binary, tx_from_binary, tx_to_binary
 
 

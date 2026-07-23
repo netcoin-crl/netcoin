@@ -52,7 +52,7 @@ def check_source() -> list[dict]:
         missing = [path for path in files if not (ROOT / path).exists()]
         checks.append({"id": deliverable, "ok": not missing, "missing": missing})
 
-    psbt_text = encode_psbt(
+    _psbt_text = encode_psbt(
         {"magic": "netcoin-psbt-v1", "tx": {"version": 1, "locktime": 0, "inputs": [], "outputs": []}, "prevouts": []}
     )
     # Empty-input PSBTs are invalid for full workflow, so use existence/source check only here.

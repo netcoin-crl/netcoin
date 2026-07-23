@@ -26,7 +26,7 @@ def funded(tmp_path: Path):
 
 
 def test_utxo_snapshot_export_and_verify(tmp_path: Path):
-    chain, miner, _ = funded(tmp_path)
+    chain, _miner, _ = funded(tmp_path)
     snap = chain.export_utxo_snapshot()
     assert snap["height"] == 101
     assert snap["utxo_count"] == len(snap["utxos"])
@@ -36,14 +36,14 @@ def test_utxo_snapshot_export_and_verify(tmp_path: Path):
 
 
 def test_utxo_snapshot_detects_change(tmp_path: Path):
-    chain, miner, receiver = funded(tmp_path)
+    chain, miner, _receiver = funded(tmp_path)
     snap = chain.export_utxo_snapshot()
     chain.mine_block(miner.address)  # changes the UTXO set + tip
     assert chain.verify_utxo_snapshot(snap) is False
 
 
 def test_utxo_snapshot_cli_writes_file(tmp_path: Path, capsys):
-    chain, miner, _ = funded(tmp_path)
+    _chain, _miner, _ = funded(tmp_path)
     out = tmp_path / "snap.json"
     cli.cmd_utxo_snapshot(argparse.Namespace(data=str(tmp_path / "chain"), out=str(out)))
     result = json.loads(capsys.readouterr().out)

@@ -13,8 +13,9 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 SCHEMA_VERSION = 2
 
@@ -319,4 +320,4 @@ def run_indexer_db_smoke(path: str | Path = ":memory:") -> dict[str, Any]:
         db.close()
 
 
-__all__ = ["IndexerDB", "run_indexer_db_smoke", "sample_indexer_blocks", "SCHEMA_VERSION"]
+__all__ = ["SCHEMA_VERSION", "IndexerDB", "run_indexer_db_smoke", "sample_indexer_blocks"]

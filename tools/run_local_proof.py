@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.local_proof_runner import local_proof_summary, run_local_proof  # noqa: E402
+from netcoin.local_proof_runner import local_proof_summary, run_local_proof
 
 
 def main() -> int:

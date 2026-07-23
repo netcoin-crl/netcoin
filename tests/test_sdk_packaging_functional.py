@@ -1,8 +1,9 @@
 """Proof that the JS and Python SDKs are real distributable packages."""
 
 import json
-import tomllib
 from pathlib import Path
+
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 

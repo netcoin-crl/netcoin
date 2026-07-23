@@ -145,7 +145,7 @@ def test_rejects_block_with_wrong_previous_hash(tmp_path: Path):
     # the "does not connect" path rather than being rejected for bad PoW first.
     mine_header(block.header)
 
-    with pytest.raises(ChainError, match="does not connect|previous hash"):
+    with pytest.raises(ChainError, match=r"does not connect|previous hash"):
         chain.add_block(block)
     assert chain.height() == 0
     assert chain.tip().header.height == 0
@@ -161,7 +161,7 @@ def test_rejects_bad_transaction_that_changes_outputs_after_signing(tmp_path: Pa
         locktime=tx.locktime,
     )
 
-    with pytest.raises(ChainError, match="signature|spends more"):
+    with pytest.raises(ChainError, match=r"signature|spends more"):
         chain.add_mempool_transaction(tampered)
     assert chain.mempool_info()["size"] == 0
 
@@ -457,9 +457,11 @@ def test_node_headers_endpoint_caps_response(tmp_path: Path):
     for _ in range(3):
         chain.mine_block(miner.address)
 
-    with served_node(chain) as peer:
-        with urlopen(f"{peer.base_url}/headers?start=0&limit=10000000", timeout=5) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+    with (
+        served_node(chain) as peer,
+        urlopen(f"{peer.base_url}/headers?start=0&limit=10000000", timeout=5) as response,
+    ):
+        payload = json.loads(response.read().decode("utf-8"))
 
     assert len(payload["headers"]) <= 2000
 

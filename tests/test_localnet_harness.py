@@ -55,8 +55,7 @@ def test_run_localnet_cli_outputs_json_report(tmp_path: Path):
         ],
         cwd=Path(__file__).resolve().parents[1],
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         timeout=180,
         check=False,
     )

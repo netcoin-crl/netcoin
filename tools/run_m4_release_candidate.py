@@ -19,7 +19,8 @@ SOURCE_COMMANDS = [
     "python3 -m py_compile tools/check_m4_readiness.py tools/run_m4_release_candidate.py tools/validate_mainnet_distribution.py tests/test_m4_mainnet_ready.py",
 ]
 
-STRICT_COMMANDS = SOURCE_COMMANDS + [
+STRICT_COMMANDS = [
+    *SOURCE_COMMANDS,
     "python3 tools/check_m4_readiness.py --strict --out reports/m4_readiness_strict_report.json",
     "python3 tools/run_mainnet_readiness.py --strict --timeout 300 --out reports/mainnet_readiness_strict_report.json",
 ]

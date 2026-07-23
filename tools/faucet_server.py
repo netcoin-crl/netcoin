@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# ruff: noqa: E402
 """Small stdlib-only NetCoin testnet faucet.
 
 This is intentionally simple infrastructure glue. It validates a submitted

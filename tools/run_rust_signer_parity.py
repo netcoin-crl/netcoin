@@ -15,7 +15,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.parity_suite import run_signer_vectors, vector_fingerprint  # noqa: E402
+from netcoin.parity_suite import run_signer_vectors, vector_fingerprint
 
 VECTOR_PATH = ROOT / "architecture" / "parity-vectors.json"
 RUST_FIXTURE_PATH = ROOT / "core-rs" / "fixtures" / "parity-vectors.json"
@@ -34,11 +34,14 @@ def _source_checks(vectors: dict[str, Any]) -> list[str]:
     for path in required:
         if not path.exists():
             issues.append(f"missing {path.relative_to(ROOT)}")
-    if RUST_FIXTURE_PATH.exists() and VECTOR_PATH.exists():
-        if json.loads(RUST_FIXTURE_PATH.read_text(encoding="utf-8")) != vectors:
-            issues.append(
-                "core-rs/fixtures/parity-vectors.json is not synchronized with architecture/parity-vectors.json"
-            )
+    if (
+        RUST_FIXTURE_PATH.exists()
+        and VECTOR_PATH.exists()
+        and json.loads(RUST_FIXTURE_PATH.read_text(encoding="utf-8")) != vectors
+    ):
+        issues.append(
+            "core-rs/fixtures/parity-vectors.json is not synchronized with architecture/parity-vectors.json"
+        )
     lib_text = RUST_LIB_PATH.read_text(encoding="utf-8") if RUST_LIB_PATH.exists() else ""
     bin_text = RUST_BIN_PATH.read_text(encoding="utf-8") if RUST_BIN_PATH.exists() else ""
     workspace_text = (

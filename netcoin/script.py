@@ -144,9 +144,7 @@ def op_n_value(token: str) -> int:
 
 
 def cast_to_bool(value: str) -> bool:
-    if value in FALSE_VALUES:
-        return False
-    return True
+    return value not in FALSE_VALUES
 
 
 def _as_int(value: str) -> int:

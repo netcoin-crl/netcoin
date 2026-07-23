@@ -12,6 +12,7 @@ from netcoin.chain import Blockchain, ChainError
 from netcoin.tx import Transaction, TxInput, TxOutput, amount_to_sats
 from netcoin.wallet import (
     Wallet,
+    WalletError,
     decrypt_private_key,
     encrypt_private_key,
 )
@@ -53,7 +54,7 @@ def test_legacy_250k_wallet_still_opens():
         "mac": mac.hex(),
     }
     assert decrypt_private_key(legacy, "pw") == "cd" * 32
-    with pytest.raises(Exception):
+    with pytest.raises(WalletError):
         decrypt_private_key(legacy, "wrong")
 
 

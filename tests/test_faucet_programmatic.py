@@ -2,8 +2,6 @@
 
 import importlib
 
-import pytest
-
 faucet = importlib.import_module("tools.faucet_server")
 
 

@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.mainnet_readiness import aggregate_results, load_manifest, manifest_gate_map, validate_manifest, GateResult
+from netcoin.mainnet_readiness import GateResult, aggregate_results, load_manifest, manifest_gate_map, validate_manifest
 
 
 def run_command(command: str, timeout: int) -> dict[str, Any]:

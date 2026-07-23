@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from .psbt import PSBTError, PartiallySignedTransaction
+from .psbt import PartiallySignedTransaction
 
 OFFLINE_WORKFLOW_SCHEMA = "netcoin-offline-signing-workflow-v1"
 SIGNED_IMPORT_SCHEMA = "netcoin-signed-psbt-import-v1"

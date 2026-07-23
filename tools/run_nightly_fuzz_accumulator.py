@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_HISTORY_DIR = ROOT / "reports" / "fuzz_history"
 sys.path.insert(0, str(ROOT))
 
-from tools.accumulate_fuzz_history import accumulate  # noqa: E402
+from tools.accumulate_fuzz_history import accumulate
 
 
 def display_path(path: Path) -> str:

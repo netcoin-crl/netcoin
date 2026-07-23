@@ -27,6 +27,12 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
+from .fee_bump import DEFAULT_RBF_SEQUENCE, create_rbf_replacement, transaction_fee
+from .offline_signing import (
+    build_broadcast_package,
+    export_unsigned_psbt_bundle,
+    import_signed_psbt,
+)
 from .params import (
     COIN,
     COINBASE_MATURITY,
@@ -37,12 +43,6 @@ from .params import (
     NODE_VERSION,
     TICKER,
 )
-from .offline_signing import (
-    build_broadcast_package,
-    export_unsigned_psbt_bundle,
-    import_signed_psbt,
-)
-from .fee_bump import DEFAULT_RBF_SEQUENCE, create_rbf_replacement, transaction_fee
 from .psbt import PartiallySignedTransaction
 from .script import script_to_p2sh_address
 from .serialization import transaction_weight
@@ -701,28 +701,28 @@ PAGE = """<!doctype html>
     <div><label>Amount (NET)</label><input id="sendAmt" type="number" step="0.00000001" placeholder="1.0"></div>
     <div><label>Fee (NET)</label><input id="sendFee" type="number" step="0.00000001" value="0.01"></div>
    </div>
-	   <label>Fee selector</label><select id="feePreset" onchange="applyFeePreset()"><option value="normal">Normal</option><option value="fast">Fast</option><option value="economy">Economy</option><option value="custom">Custom</option></select>
-	   <label><input id="rbfSend" type="checkbox" checked> Make this send fee-bumpable with opt-in RBF</label>
+     <label>Fee selector</label><select id="feePreset" onchange="applyFeePreset()"><option value="normal">Normal</option><option value="fast">Fast</option><option value="economy">Economy</option><option value="custom">Custom</option></select>
+     <label><input id="rbfSend" type="checkbox" checked> Make this send fee-bumpable with opt-in RBF</label>
    <button class="act" onclick="send()">Send</button>
-	   <button class="ghost" onclick="bumpLastFee()">Bump fee on pending send</button>
+     <button class="ghost" onclick="bumpLastFee()">Bump fee on pending send</button>
    <div id="sendOut" style="margin-top:10px"></div>
   </div>
 
-	  <div class="card hide" id="multisigCard">
-	   <h2>Multisig wallet</h2>
-	   <p class="muted">Create an M-of-N P2SH multisig address, then build/export PSBTs for cosigners until enough signatures are collected.</p>
-	   <div class="row"><div><label>Required signatures</label><input id="msRequired" type="number" value="2" min="1"></div><div><label>Cosigner public keys</label><input id="msPubkeys" placeholder="02abc..., 03def..."></div></div>
-	   <button class="ghost" onclick="createMultisigWallet()">Create multisig wallet</button>
-	   <div id="msCreateOut" class="mono muted" style="margin-top:8px"></div>
-	   <div class="row"><div><label>Redeem script</label><input id="msRedeem" class="mono" placeholder="OP_2 ... OP_CHECKMULTISIG"></div><div><label>Destination</label><input id="msTo" placeholder="Nc... / net1..."></div></div>
-	   <div class="row"><div><label>Amount (NET)</label><input id="msAmount" type="number" step="0.00000001"></div><div><label>Fee (NET)</label><input id="msFee" type="number" step="0.00000001" value="0.01"></div></div>
-	   <button class="ghost" onclick="createMultisigPsbt()">Create multisig spend PSBT</button>
-	   <button class="ghost" onclick="signMultisigPsbt()">Sign with loaded wallet</button>
-	   <button class="ghost" onclick="extractMultisigPsbt()">Extract when ready</button>
-	   <label>PSBT exchange box</label><input id="msPsbt" class="mono" placeholder="netpsbt:...">
-	   <div id="msProgress" class="muted" style="margin-top:8px">0 of 0 collected</div>
-	   <div id="msSpendOut" class="mono muted" style="margin-top:8px"></div>
-	  </div>
+    <div class="card hide" id="multisigCard">
+     <h2>Multisig wallet</h2>
+     <p class="muted">Create an M-of-N P2SH multisig address, then build/export PSBTs for cosigners until enough signatures are collected.</p>
+     <div class="row"><div><label>Required signatures</label><input id="msRequired" type="number" value="2" min="1"></div><div><label>Cosigner public keys</label><input id="msPubkeys" placeholder="02abc..., 03def..."></div></div>
+     <button class="ghost" onclick="createMultisigWallet()">Create multisig wallet</button>
+     <div id="msCreateOut" class="mono muted" style="margin-top:8px"></div>
+     <div class="row"><div><label>Redeem script</label><input id="msRedeem" class="mono" placeholder="OP_2 ... OP_CHECKMULTISIG"></div><div><label>Destination</label><input id="msTo" placeholder="Nc... / net1..."></div></div>
+     <div class="row"><div><label>Amount (NET)</label><input id="msAmount" type="number" step="0.00000001"></div><div><label>Fee (NET)</label><input id="msFee" type="number" step="0.00000001" value="0.01"></div></div>
+     <button class="ghost" onclick="createMultisigPsbt()">Create multisig spend PSBT</button>
+     <button class="ghost" onclick="signMultisigPsbt()">Sign with loaded wallet</button>
+     <button class="ghost" onclick="extractMultisigPsbt()">Extract when ready</button>
+     <label>PSBT exchange box</label><input id="msPsbt" class="mono" placeholder="netpsbt:...">
+     <div id="msProgress" class="muted" style="margin-top:8px">0 of 0 collected</div>
+     <div id="msSpendOut" class="mono muted" style="margin-top:8px"></div>
+    </div>
 
   <div class="card hide" id="receiveCard">
    <h2>Request payment</h2>
@@ -796,13 +796,13 @@ PAGE = """<!doctype html>
   </div>
  </section>
 </div>
-	<script>
-		let CFG={}, ADDRS={}, curType="segwit", BAL={}, FEE_ESTIMATES=null, LAST_SENT=null;
-	const $=s=>document.querySelector(s);
-	const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-	const jsq=s=>JSON.stringify(String(s??''));
-	function safeUrl(u){try{const x=new URL(String(u),location.href);return ['http:','https:'].includes(x.protocol)?x.href:'';}catch{return '';}}
-	async function api(p,opt={},timeoutMs=35000){const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),timeoutMs);
+  <script>
+    let CFG={}, ADDRS={}, curType="segwit", BAL={}, FEE_ESTIMATES=null, LAST_SENT=null;
+  const $=s=>document.querySelector(s);
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const jsq=s=>JSON.stringify(String(s??''));
+  function safeUrl(u){try{const x=new URL(String(u),location.href);return ['http:','https:'].includes(x.protocol)?x.href:'';}catch{return '';}}
+  async function api(p,opt={},timeoutMs=35000){const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),timeoutMs);
   try{opt=Object.assign({},opt,{signal:ctrl.signal});const r=await fetch(p,opt);const text=await r.text();let j={};
     try{j=text?JSON.parse(text):{};}catch(e){throw new Error('node returned non-JSON response');}
     if(!r.ok&&j.error)throw new Error(j.error);if(!r.ok)throw new Error('HTTP '+r.status);return j;}
@@ -818,20 +818,20 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
 function nodeHelp(msg){return esc(msg)+'<div class="warn"><b>Node connection help</b><br>Use the public API proxy when home Wi-Fi blocks the seed port. If your network blocks api.netcoin.online, use the direct-IP API:<div class="mono">python -m netcoin web --node http://18.220.89.128/api --faucet https://faucet.netcoin.online</div><br>Configured node: <span class="mono">'+esc(CFG.node||'unknown')+'</span></div>';}
 async function boot(){CFG=await api('/api/config');$('#netinfo').textContent=CFG.network+' · node '+CFG.node;
   $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')search();});
-	  await loadFeeEstimates();const w=await api('/api/wallet/current');if(w.address)showWallet(w);refreshLocalNode();}
+    await loadFeeEstimates();const w=await api('/api/wallet/current');if(w.address)showWallet(w);refreshLocalNode();}
 function showWallet(w){ADDRS=w.addresses;const sel=$('#typeSel');sel.innerHTML='';
   Object.keys(ADDRS).forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
-	  $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');$('#historyCard').classList.remove('hide');$('#multisigCard').classList.remove('hide');
-	  if(w.mnemonic){$('#mnemonicBox').innerHTML='<div class="warn"><b>Recovery phrase (shown once):</b><div class="mono">'+esc(w.mnemonic)+'</div>Write it down. <a href="data:application/json,'+encodeURIComponent(JSON.stringify(w.wallet_file))+'" download="wallet.json">Download wallet.json</a></div>';}
-		  switchType();applyFeePreset();}
-	async function loadFeeEstimates(){try{FEE_ESTIMATES=await api('/api/fee-estimates',{},8000);applyFeePreset();}catch(e){FEE_ESTIMATES=null;}}
-	function presetFeeNet(name){const presets=(FEE_ESTIMATES&&FEE_ESTIMATES.presets)||{};const mapped={economy:'slow',normal:'normal',fast:'fast'}[name]||name;const entry=presets[mapped]||{};const sats=Number(entry.estimated_fee_sats||0);return sats>0?(sats/100000000).toFixed(8):'';}
-	function applyFeePreset(){const sel=$('#feePreset');if(!sel||sel.value==='custom')return;const fee=presetFeeNet(sel.value);if(fee)$('#sendFee').value=fee;}
+    $('#noWallet').classList.add('hide');$('#haveWallet').classList.remove('hide');$('#sendCard').classList.remove('hide');$('#receiveCard').classList.remove('hide');$('#historyCard').classList.remove('hide');$('#multisigCard').classList.remove('hide');
+    if(w.mnemonic){$('#mnemonicBox').innerHTML='<div class="warn"><b>Recovery phrase (shown once):</b><div class="mono">'+esc(w.mnemonic)+'</div>Write it down. <a href="data:application/json,'+encodeURIComponent(JSON.stringify(w.wallet_file))+'" download="wallet.json">Download wallet.json</a></div>';}
+      switchType();applyFeePreset();}
+  async function loadFeeEstimates(){try{FEE_ESTIMATES=await api('/api/fee-estimates',{},8000);applyFeePreset();}catch(e){FEE_ESTIMATES=null;}}
+  function presetFeeNet(name){const presets=(FEE_ESTIMATES&&FEE_ESTIMATES.presets)||{};const mapped={economy:'slow',normal:'normal',fast:'fast'}[name]||name;const entry=presets[mapped]||{};const sats=Number(entry.estimated_fee_sats||0);return sats>0?(sats/100000000).toFixed(8):'';}
+  function applyFeePreset(){const sel=$('#feePreset');if(!sel||sel.value==='custom')return;const fee=presetFeeNet(sel.value);if(fee)$('#sendFee').value=fee;}
 function switchType(){curType=$('#typeSel').value||'segwit';$('#addrType').textContent=curType;
   $('#addr').textContent=ADDRS[curType];$('#faucetAddr').textContent=ADDRS[curType];
-	  const faucet=safeUrl(CFG.faucet);
-	  $('#faucetLink').innerHTML=faucet?'<a class="act" style="display:inline-block;text-decoration:none" href="'+esc(faucet)+'" target="_blank" rel="noopener noreferrer">Open faucet ↗</a> <span class="muted">paste the address above</span>':'<span class="muted">No faucet configured.</span>';
-	  refreshBalance();loadHistory();}
+    const faucet=safeUrl(CFG.faucet);
+    $('#faucetLink').innerHTML=faucet?'<a class="act" style="display:inline-block;text-decoration:none" href="'+esc(faucet)+'" target="_blank" rel="noopener noreferrer">Open faucet ↗</a> <span class="muted">paste the address above</span>':'<span class="muted">No faucet configured.</span>';
+    refreshBalance();loadHistory();}
 function openTx(t){document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
   const eb=document.querySelector('.tabs button[data-tab="explorer"]');eb.classList.add('on');
   ['wallet','faucet','explorer','node','seed'].forEach(tb=>$('#tab-'+tb).classList.toggle('hide',tb!=='explorer'));
@@ -839,8 +839,8 @@ function openTx(t){document.querySelectorAll('.tabs button').forEach(x=>x.classL
 async function loadHistory(){const out=$('#historyOut');try{
   const d=await api('/api/history?address='+ADDRS[curType]);
   const ids=(d.transaction_ids||[]).slice(-15).reverse();
-	  out.innerHTML=ids.length?(`<div class="muted">${esc(d.transaction_count)} total · newest first</div>`+ids.map(t=>`<div class="lnk mono" onclick="openTx(${jsq(t)})">${esc(short(t))}</div>`).join('')):'<span class="muted">No transactions yet for this address.</span>';
-	}catch(e){out.innerHTML=nodeHelp(e.message);}}
+    out.innerHTML=ids.length?(`<div class="muted">${esc(d.transaction_count)} total · newest first</div>`+ids.map(t=>`<div class="lnk mono" onclick="openTx(${jsq(t)})">${esc(short(t))}</div>`).join('')):'<span class="muted">No transactions yet for this address.</span>';
+  }catch(e){out.innerHTML=nodeHelp(e.message);}}
 async function newWallet(){try{const w=await api('/api/wallet/new',{method:'POST'});showWallet(w);}catch(e){alert(e.message)}}
 async function loadWallet(){try{const w=await api('/api/wallet/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({json:$('#loadJson').value,passphrase:$('#loadPass').value})});showWallet(w);}catch(e){alert(e.message)}}
 async function loadPrivateKey(){try{const w=await api('/api/wallet/private-key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({private_key_hex:$('#privHex').value})});showWallet(w);}catch(e){alert(e.message)}}
@@ -870,15 +870,15 @@ async function startSeedNode(){const out=$('#seedStatus');out.textContent='Start
 async function stopSeedNode(){const out=$('#seedStatus');out.textContent='Stopping seed node...';try{renderSeedStatus(await api('/api/seed-node/stop',{method:'POST'},15000));}catch(e){out.innerHTML=nodeHelp(e.message);}}
 function copyAddr(){navigator.clipboard.writeText(ADDRS[curType]);}
 async function refreshBalance(){try{const b=await api('/api/balance?address='+ADDRS[curType]);BAL=b;
-	  $('#balSpendable').innerHTML=esc(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+esc(CFG.ticker)+'</span>';
+    $('#balSpendable').innerHTML=esc(b.spendable||'0')+' <span class="muted" style="font-size:14px">'+esc(CFG.ticker)+'</span>';
   $('#balDetail').textContent='immature '+(b.immature||'0')+' · total '+(b.total||'0')+' · '+(b.utxo_count||0)+' UTXOs';}catch(e){$('#balSpendable').textContent='—';$('#balDetail').innerHTML=nodeHelp(e.message);}}
 async function makePayLink(){const out=$('#reqOut');try{
   const p=new URLSearchParams({address:ADDRS[curType]});
   if($('#reqAmt').value)p.set('amount',$('#reqAmt').value);
   if($('#reqLabel').value)p.set('label',$('#reqLabel').value);
   const d=await api('/api/payment-uri?'+p.toString());
-	  out.innerHTML=`<div class="muted">Share this link:</div><div class="mono" id="payUriOut">${esc(d.uri)}</div><button class="ghost" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('payUriOut').textContent)">Copy link</button>`;
-	}catch(e){out.innerHTML=nodeHelp(e.message);}}
+    out.innerHTML=`<div class="muted">Share this link:</div><div class="mono" id="payUriOut">${esc(d.uri)}</div><button class="ghost" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('payUriOut').textContent)">Copy link</button>`;
+  }catch(e){out.innerHTML=nodeHelp(e.message);}}
 async function applyPayLink(){const v=$('#payLink').value.trim();if(!v.toLowerCase().startsWith('netcoin:'))return;try{
   const d=await api('/api/parse-uri?uri='+encodeURIComponent(v));
   $('#sendTo').value=d.address;if(d.amount)$('#sendAmt').value=d.amount;
@@ -891,58 +891,58 @@ async function send(){const out=$('#sendOut'),btn=$('#sendBtn');
   if(spendable>0&&(amount+fee)>spendable*0.9&&!confirm('This sends more than 90% of your spendable balance. Continue?'))return;
   if(btn){btn.disabled=true;btn.textContent='Sending…';}out.textContent='Preparing and broadcasting transaction…';try{
   const j=await api('/api/wallet/send',{method:'POST',headers:{'Content-Type':'application/json'},
-	   body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType,rbf:$('#rbfSend').checked})},45000);
-		  LAST_SENT=j;
-		  out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+esc(j.txid)+'</span><div class="muted">inputs '+esc(j.input_count||'?')+' · weight '+esc(j.weight||'?')+' · change '+esc(j.change||0)+' '+esc(CFG.ticker)+' · RBF '+(j.signals_rbf?'enabled':'off')+'</div>';refreshBalance();loadHistory();}
-	  catch(e){out.innerHTML=nodeHelp(e.message)+'<div class="warn">If this timed out after a large send, check the mempool and mine one block before trying again.</div>';}
+     body:JSON.stringify({to:$('#sendTo').value.trim(),amount:$('#sendAmt').value,fee:$('#sendFee').value,from_type:curType,rbf:$('#rbfSend').checked})},45000);
+      LAST_SENT=j;
+      out.innerHTML='<span class="ok">Sent!</span> txid <span class="mono">'+esc(j.txid)+'</span><div class="muted">inputs '+esc(j.input_count||'?')+' · weight '+esc(j.weight||'?')+' · change '+esc(j.change||0)+' '+esc(CFG.ticker)+' · RBF '+(j.signals_rbf?'enabled':'off')+'</div>';refreshBalance();loadHistory();}
+    catch(e){out.innerHTML=nodeHelp(e.message)+'<div class="warn">If this timed out after a large send, check the mempool and mine one block before trying again.</div>';}
   finally{if(btn){btn.disabled=false;btn.textContent='Send';}}}
-	async function bumpLastFee(){const out=$('#sendOut');try{if(!LAST_SENT||!LAST_SENT.tx||!LAST_SENT.prevouts)throw new Error('send an opt-in-RBF transaction first');
-	  const current=Number(LAST_SENT.fee||0);const next=(current>0?current*2:0.02).toFixed(8);
-	  const wanted=prompt('New replacement fee in NET',next);if(!wanted)return;
-	  const bumped=await api('/api/wallet/rbf-bump',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({original_tx:LAST_SENT.tx,prevouts:LAST_SENT.prevouts,new_fee:wanted,change_address:ADDRS[curType],broadcast:true})},45000);
-	  LAST_SENT={tx:bumped.replacement_tx,prevouts:LAST_SENT.prevouts,fee:bumped.new_fee_net,txid:bumped.txid};
-	  out.innerHTML='<span class="ok">Fee bumped!</span> replacement txid <span class="mono">'+esc(bumped.txid||bumped.replacement_txid)+'</span><div class="muted">old fee '+esc(bumped.old_fee_net)+' NET · new fee '+esc(bumped.new_fee_net)+' NET</div>';}
-	  catch(e){out.innerHTML=nodeHelp(e.message);}}
-	function msSetProgress(progress){const p=progress||{};$('#msProgress').textContent=`${p.collected||0} of ${p.required||0} collected${p.ready?' · ready to extract':''}`;}
-	async function createMultisigWallet(){const out=$('#msCreateOut');try{const d=await api('/api/wallet/multisig/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({required:$('#msRequired').value,pubkeys:$('#msPubkeys').value})});
-	  $('#msRedeem').value=d.redeem_script;out.innerHTML='Address: '+esc(d.address)+'\\nRedeem script: '+esc(d.redeem_script);}catch(e){out.innerHTML=nodeHelp(e.message);}}
-	async function createMultisigPsbt(){const out=$('#msSpendOut');try{const d=await api('/api/wallet/multisig/psbt/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({redeem_script:$('#msRedeem').value,to:$('#msTo').value,amount:$('#msAmount').value,fee:$('#msFee').value})},45000);
-	  $('#msPsbt').value=d.unsigned_psbt;msSetProgress(d.progress);out.textContent='Unsigned multisig PSBT created for '+d.multisig_address+'. Export/import this box between cosigners.';}catch(e){out.innerHTML=nodeHelp(e.message);}}
-	async function signMultisigPsbt(){const out=$('#msSpendOut');try{const d=await api('/api/wallet/multisig/psbt/sign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({psbt:$('#msPsbt').value,redeem_script:$('#msRedeem').value})},45000);
-	  $('#msPsbt').value=d.signed_psbt;msSetProgress(d.progress);out.textContent='Signature added. Share the updated PSBT with the next cosigner, or extract if ready.';}catch(e){out.innerHTML=nodeHelp(e.message);}}
-	async function extractMultisigPsbt(){const out=$('#msSpendOut');try{const d=await api('/api/wallet/psbt/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({psbt:$('#msPsbt').value})},45000);
-	  msSetProgress(d.progress);out.innerHTML='<span class="ok">Ready transaction extracted.</span> txid <span class="mono">'+esc(d.txid)+'</span>';}
-	  catch(e){out.innerHTML=nodeHelp(e.message);}}
+  async function bumpLastFee(){const out=$('#sendOut');try{if(!LAST_SENT||!LAST_SENT.tx||!LAST_SENT.prevouts)throw new Error('send an opt-in-RBF transaction first');
+    const current=Number(LAST_SENT.fee||0);const next=(current>0?current*2:0.02).toFixed(8);
+    const wanted=prompt('New replacement fee in NET',next);if(!wanted)return;
+    const bumped=await api('/api/wallet/rbf-bump',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({original_tx:LAST_SENT.tx,prevouts:LAST_SENT.prevouts,new_fee:wanted,change_address:ADDRS[curType],broadcast:true})},45000);
+    LAST_SENT={tx:bumped.replacement_tx,prevouts:LAST_SENT.prevouts,fee:bumped.new_fee_net,txid:bumped.txid};
+    out.innerHTML='<span class="ok">Fee bumped!</span> replacement txid <span class="mono">'+esc(bumped.txid||bumped.replacement_txid)+'</span><div class="muted">old fee '+esc(bumped.old_fee_net)+' NET · new fee '+esc(bumped.new_fee_net)+' NET</div>';}
+    catch(e){out.innerHTML=nodeHelp(e.message);}}
+  function msSetProgress(progress){const p=progress||{};$('#msProgress').textContent=`${p.collected||0} of ${p.required||0} collected${p.ready?' · ready to extract':''}`;}
+  async function createMultisigWallet(){const out=$('#msCreateOut');try{const d=await api('/api/wallet/multisig/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({required:$('#msRequired').value,pubkeys:$('#msPubkeys').value})});
+    $('#msRedeem').value=d.redeem_script;out.innerHTML='Address: '+esc(d.address)+'\\nRedeem script: '+esc(d.redeem_script);}catch(e){out.innerHTML=nodeHelp(e.message);}}
+  async function createMultisigPsbt(){const out=$('#msSpendOut');try{const d=await api('/api/wallet/multisig/psbt/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({redeem_script:$('#msRedeem').value,to:$('#msTo').value,amount:$('#msAmount').value,fee:$('#msFee').value})},45000);
+    $('#msPsbt').value=d.unsigned_psbt;msSetProgress(d.progress);out.textContent='Unsigned multisig PSBT created for '+d.multisig_address+'. Export/import this box between cosigners.';}catch(e){out.innerHTML=nodeHelp(e.message);}}
+  async function signMultisigPsbt(){const out=$('#msSpendOut');try{const d=await api('/api/wallet/multisig/psbt/sign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({psbt:$('#msPsbt').value,redeem_script:$('#msRedeem').value})},45000);
+    $('#msPsbt').value=d.signed_psbt;msSetProgress(d.progress);out.textContent='Signature added. Share the updated PSBT with the next cosigner, or extract if ready.';}catch(e){out.innerHTML=nodeHelp(e.message);}}
+  async function extractMultisigPsbt(){const out=$('#msSpendOut');try{const d=await api('/api/wallet/psbt/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({psbt:$('#msPsbt').value})},45000);
+    msSetProgress(d.progress);out.innerHTML='<span class="ok">Ready transaction extracted.</span> txid <span class="mono">'+esc(d.txid)+'</span>';}
+    catch(e){out.innerHTML=nodeHelp(e.message);}}
 function fmtTime(ts){return ts?new Date(ts*1000).toLocaleString():'';}
 function short(h){return h?(h.length>26?h.slice(0,14)+'…'+h.slice(-8):h):'';}
-	function card(t,b){return '<div class="rcard"><div class="rtitle">'+esc(t)+'</div>'+b+'</div>';}
-	function kv(k,v){return '<div class="kv"><span class="muted">'+esc(k)+'</span><span>'+v+'</span></div>';}
+  function card(t,b){return '<div class="rcard"><div class="rtitle">'+esc(t)+'</div>'+b+'</div>';}
+  function kv(k,v){return '<div class="kv"><span class="muted">'+esc(k)+'</span><span>'+v+'</span></div>';}
 function searchFor(q){$('#q').value=q;search();$('#searchOut').scrollIntoView({behavior:'smooth',block:'center'});}
 function renderResult(d){
-	  if(!d||d.error)return '<div class="err">'+esc((d&&d.error)||'no result')+'</div>';
-	  if(d.type==='address'){const r=d.result,b=r.balance_net||{};
-	    const txs=(r.transaction_ids||[]).slice(0,30).map(t=>`<div class="lnk mono" onclick="searchFor(${jsq(t)})">${esc(short(t))}</div>`).join('');
-	    return card('Address','<div class="mono sub">'+esc(r.address)+'</div>'+
-	      kv('Spendable','<b>'+esc(b.spendable||'0')+'</b> '+esc(CFG.ticker))+kv('Immature',esc(b.immature||'0')+' '+esc(CFG.ticker))+
-	      kv('Total',esc(b.total||'0')+' '+esc(CFG.ticker))+kv('Transactions',esc(r.transaction_count||0))+kv('UTXOs',esc(r.utxo_count||0))+
-	      (txs?'<div class="muted" style="margin:10px 0 4px">Transaction IDs</div>'+txs:''));}
-	  if(d.type==='transaction'){const r=d.result,tx=r.tx||{};
-	    return card('Transaction','<div class="mono sub">'+esc(r.txid||'')+'</div>'+
-	      kv('Status',r.confirmed?'confirmed ✓':'unconfirmed')+kv('Block',r.block_height!=null?('#'+esc(r.block_height)):'mempool')+
-	      kv('Inputs',esc((tx.inputs||[]).length))+kv('Outputs',esc((tx.outputs||[]).length))+
-	      (r.block_hash?`<div class="lnk mono" onclick="searchFor(${jsq(r.block_hash)})">in block ${esc(short(r.block_hash))}</div>`:''));}
-	  if(d.type==='block'){const r=d.result,h=r.header||{};
-	    return card('Block #'+esc(h.height),'<div class="mono sub">'+esc(r.hash||'')+'</div>'+
-	      kv('Time',esc(fmtTime(h.timestamp)))+kv('Transactions',esc((r.transactions||[]).length))+kv('Weight',esc(r.weight||''))+
-	      (h.previous_hash?`<div class="lnk mono" onclick="searchFor(${jsq(h.previous_hash)})">↑ previous ${esc(short(h.previous_hash))}</div>`:''));}
-	  return '<pre class="mono">'+esc(JSON.stringify(d,null,2))+'</pre>';}
+    if(!d||d.error)return '<div class="err">'+esc((d&&d.error)||'no result')+'</div>';
+    if(d.type==='address'){const r=d.result,b=r.balance_net||{};
+      const txs=(r.transaction_ids||[]).slice(0,30).map(t=>`<div class="lnk mono" onclick="searchFor(${jsq(t)})">${esc(short(t))}</div>`).join('');
+      return card('Address','<div class="mono sub">'+esc(r.address)+'</div>'+
+        kv('Spendable','<b>'+esc(b.spendable||'0')+'</b> '+esc(CFG.ticker))+kv('Immature',esc(b.immature||'0')+' '+esc(CFG.ticker))+
+        kv('Total',esc(b.total||'0')+' '+esc(CFG.ticker))+kv('Transactions',esc(r.transaction_count||0))+kv('UTXOs',esc(r.utxo_count||0))+
+        (txs?'<div class="muted" style="margin:10px 0 4px">Transaction IDs</div>'+txs:''));}
+    if(d.type==='transaction'){const r=d.result,tx=r.tx||{};
+      return card('Transaction','<div class="mono sub">'+esc(r.txid||'')+'</div>'+
+        kv('Status',r.confirmed?'confirmed ✓':'unconfirmed')+kv('Block',r.block_height!=null?('#'+esc(r.block_height)):'mempool')+
+        kv('Inputs',esc((tx.inputs||[]).length))+kv('Outputs',esc((tx.outputs||[]).length))+
+        (r.block_hash?`<div class="lnk mono" onclick="searchFor(${jsq(r.block_hash)})">in block ${esc(short(r.block_hash))}</div>`:''));}
+    if(d.type==='block'){const r=d.result,h=r.header||{};
+      return card('Block #'+esc(h.height),'<div class="mono sub">'+esc(r.hash||'')+'</div>'+
+        kv('Time',esc(fmtTime(h.timestamp)))+kv('Transactions',esc((r.transactions||[]).length))+kv('Weight',esc(r.weight||''))+
+        (h.previous_hash?`<div class="lnk mono" onclick="searchFor(${jsq(h.previous_hash)})">↑ previous ${esc(short(h.previous_hash))}</div>`:''));}
+    return '<pre class="mono">'+esc(JSON.stringify(d,null,2))+'</pre>';}
 async function search(){const out=$('#searchOut');if(!$('#q').value.trim()){out.innerHTML='';return;}out.innerHTML='<span class="muted">Searching…</span>';
   try{out.innerHTML=renderResult(await api('/api/search?q='+encodeURIComponent($('#q').value.trim())));}
-	  catch(e){out.innerHTML=nodeHelp(e.message);}}
-	async function loadLatest(){const tb=$('#latest').querySelector('tbody');tb.innerHTML='<tr><td class="muted">Loading…</td></tr>';
-	  try{const d=await api('/api/latest?n=15');tb.innerHTML='<tr><th>Height</th><th>Hash</th><th>Txns</th><th>Time</th></tr>'+
-	    d.blocks.map(b=>`<tr class="lnk" onclick="searchFor(${jsq(b.hash)})"><td>#${esc(b.height)}</td><td class="mono">${esc(short(b.hash))}</td><td>${esc(b.transactions)}</td><td class="muted">${esc(fmtTime(b.timestamp))}</td></tr>`).join('');}
-	  catch(e){tb.innerHTML='<tr><td>'+nodeHelp(e.message)+'</td></tr>';}}
+    catch(e){out.innerHTML=nodeHelp(e.message);}}
+  async function loadLatest(){const tb=$('#latest').querySelector('tbody');tb.innerHTML='<tr><td class="muted">Loading…</td></tr>';
+    try{const d=await api('/api/latest?n=15');tb.innerHTML='<tr><th>Height</th><th>Hash</th><th>Txns</th><th>Time</th></tr>'+
+      d.blocks.map(b=>`<tr class="lnk" onclick="searchFor(${jsq(b.hash)})"><td>#${esc(b.height)}</td><td class="mono">${esc(short(b.hash))}</td><td>${esc(b.transactions)}</td><td class="muted">${esc(fmtTime(b.timestamp))}</td></tr>`).join('');}
+    catch(e){tb.innerHTML='<tr><td>'+nodeHelp(e.message)+'</td></tr>';}}
 boot();
 </script></body></html>"""
 

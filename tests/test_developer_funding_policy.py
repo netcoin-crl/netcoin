@@ -75,7 +75,7 @@ def test_allowlist_rejects_a_non_listed_payout_address(tmp_path: Path):
     store = AppStore(chain.data_dir)
     store.set_developer_funding_policy({"developer_id": "game-studio", "allowlisted_addresses": [allowed.address]})
 
-    ok_status, ok_reward = route_app_post(
+    ok_status, _ok_reward = route_app_post(
         store,
         chain,
         "/api/developer/rewards",

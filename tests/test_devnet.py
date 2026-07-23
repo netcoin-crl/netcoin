@@ -15,8 +15,7 @@ def _run_devnet(data_dir: Path, funded: int):
         [sys.executable, "-m", "netcoin", "--data", str(data_dir), "devnet", "--funded", str(funded)],
         cwd=ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         timeout=120,
         check=False,
     )
@@ -50,8 +49,7 @@ def test_devnet_reset_rebuilds_cleanly(tmp_path):
         [sys.executable, "-m", "netcoin", "--data", str(d), "devnet", "--funded", "2", "--reset"],
         cwd=ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         timeout=120,
         check=False,
     )

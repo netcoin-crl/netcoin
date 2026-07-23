@@ -103,11 +103,11 @@ def main() -> int:
             result["browser_smoke_stderr_tail"] = smoke_proc.stderr[-2000:]
             result["ok"] = smoke_proc.returncode == 0
             if smoke_proc.returncode != 0:
-                result["issues"] = list(result.get("issues", [])) + ["browser accessibility smoke failed or browser was unavailable"]
+                result["issues"] = [*result.get("issues", []), "browser accessibility smoke failed or browser was unavailable"]
         except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
             result["mode"] = "strict-blocked"
             result["ok"] = False
-            result["issues"] = list(result.get("issues", [])) + [f"strict accessibility runner unavailable: {exc}"]
+            result["issues"] = [*result.get("issues", []), f"strict accessibility runner unavailable: {exc}"]
     text = json.dumps(result, indent=2, sort_keys=True)
     print(text)
     if args.out:

@@ -4,6 +4,7 @@ abuse log, and the wallet-balance gate."""
 import importlib.util
 import time
 from pathlib import Path
+from typing import ClassVar
 
 
 def load_faucet_module():
@@ -27,7 +28,7 @@ def test_client_ip_ignores_forwarded_header_unless_trusted(monkeypatch):
     faucet = load_faucet_module()
 
     class Handler:
-        headers = {"X-Forwarded-For": "203.0.113.55"}
+        headers: ClassVar = {"X-Forwarded-For": "203.0.113.55"}
         client_address = ("127.0.0.1", 12345)
 
     monkeypatch.setattr(faucet, "TRUST_PROXY_HEADERS", False)
@@ -41,7 +42,7 @@ def test_request_content_length_rejects_malformed_value():
     faucet = load_faucet_module()
 
     class Handler:
-        headers = {"Content-Length": "not-a-number"}
+        headers: ClassVar = {"Content-Length": "not-a-number"}
 
     assert faucet.request_content_length(Handler()) == -1
 

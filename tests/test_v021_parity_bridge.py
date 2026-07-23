@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from netcoin.parity_suite import run_parity_suite
-from netcoin.migration_status import migration_status, parity_bridge_status, final_version_readiness
-from netcoin.sync import HeaderSyncScheduler
+from netcoin.migration_status import final_version_readiness, migration_status, parity_bridge_status
 from netcoin.params import NODE_VERSION
+from netcoin.parity_suite import run_parity_suite
+from netcoin.sync import HeaderSyncScheduler
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,7 +51,7 @@ def test_header_sync_accepts_in_place_validating_chains():
 
         def validate_headers_from_tip(self, headers):
             self.headers_seen = headers
-            return None
+            return
 
         def tip_hash(self):
             return "tip"

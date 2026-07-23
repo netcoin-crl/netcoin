@@ -36,7 +36,7 @@ def test_concurrent_mempool_adds_do_not_corrupt_state(tmp_path: Path, monkeypatc
     def worker(tx):
         try:
             chain.add_mempool_transaction(tx)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors.append(exc)
 
     threads = [threading.Thread(target=worker, args=(tx,)) for tx in txs]
@@ -61,7 +61,7 @@ def test_concurrent_mine_block_calls_produce_a_consistent_chain(tmp_path: Path):
     def worker():
         try:
             results.append(chain.mine_block(miner.address))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors.append(exc)
 
     threads = [threading.Thread(target=worker) for _ in range(5)]

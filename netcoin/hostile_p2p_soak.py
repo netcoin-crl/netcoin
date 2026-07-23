@@ -101,7 +101,7 @@ def run_hostile_p2p_soak(path: str | Path = DEFAULT_SCENARIOS) -> dict[str, Any]
 
 __all__ = [
     "SoakSummary",
-    "run_hostile_p2p_soak_scenario",
     "load_soak_scenarios",
     "run_hostile_p2p_soak",
+    "run_hostile_p2p_soak_scenario",
 ]

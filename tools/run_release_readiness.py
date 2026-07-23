@@ -19,7 +19,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from netcoin.proof_hardening import (  # noqa: E402
+from netcoin.proof_hardening import (
     ProofGateResult,
     load_proof_manifest,
     scorecard_from_results,

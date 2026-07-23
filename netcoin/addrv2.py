@@ -164,7 +164,7 @@ class AddrV2Record:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "AddrV2Record":
+    def from_dict(cls, payload: dict[str, Any]) -> AddrV2Record:
         host = payload.get("host") or payload.get("address") or payload.get("endpoint")
         if host in (None, ""):
             raise AddrV2Error("host is required")

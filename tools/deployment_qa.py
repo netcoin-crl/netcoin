@@ -33,12 +33,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.apps import AppStore  # noqa: E402
-from netcoin.chain import Blockchain  # noqa: E402
-from netcoin.crypto import sign_message  # noqa: E402
-from netcoin.explorer_server import make_handler as make_explorer_handler  # noqa: E402
-from netcoin.tx import amount_to_sats  # noqa: E402
-from netcoin.wallet import Wallet  # noqa: E402
+from netcoin.apps import AppStore
+from netcoin.chain import Blockchain
+from netcoin.crypto import sign_message
+from netcoin.explorer_server import make_handler as make_explorer_handler
+from netcoin.tx import amount_to_sats
+from netcoin.wallet import Wallet
 
 
 class QAError(RuntimeError):

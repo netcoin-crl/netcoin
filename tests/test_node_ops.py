@@ -5,7 +5,7 @@ import json
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import pytest
@@ -154,7 +154,7 @@ def test_request_retry_and_timeout_are_configurable(tmp_path: Path):
     assert node.request_retries == 3
     assert node.request_timeout == 2
     # A dead peer still raises (after retries) without hanging.
-    with pytest.raises(Exception):
+    with pytest.raises(URLError):
         node.fetch_json("http://127.0.0.1:1/info", timeout=1)
 
 

@@ -1,6 +1,6 @@
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from netcoin.apps import AppStore, route_app_get
 from netcoin.chain import Blockchain

@@ -16,10 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.chain import Blockchain  # noqa: E402
-from netcoin.miner import solve_template  # noqa: E402
-from netcoin.pool import MiningPool, StratumLiteTCPServer  # noqa: E402
-from netcoin.wallet import Wallet  # noqa: E402
+from netcoin.chain import Blockchain
+from netcoin.miner import solve_template
+from netcoin.pool import MiningPool, StratumLiteTCPServer
+from netcoin.wallet import Wallet
 
 
 def pool_rpc(host: str, port: int, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

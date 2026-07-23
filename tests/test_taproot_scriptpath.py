@@ -68,7 +68,7 @@ def test_script_path_tampered_control_rejected(tmp_path):
 
 def test_uncommitted_leaf_rejected(tmp_path):
     preimage = b"open sesame"
-    utxo, leaf, control = _funded_hashlock(tmp_path, preimage)
+    utxo, _leaf, control = _funded_hashlock(tmp_path, preimage)
     # a valid script that isn't the committed leaf must not pass with that control block
     assert _spend(utxo, [b"x".hex(), b"OP_DROP OP_1 OP_1".hex(), control]) is False
 

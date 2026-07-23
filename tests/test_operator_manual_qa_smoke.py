@@ -107,7 +107,7 @@ def test_operator_launch_manual_qa_flow(tmp_path: Path, monkeypatch):
     assert contact["label"] == "QA Merchant"
 
     first_tx = miner.create_transaction(chain, customer.address, amount_to_sats("2"), amount_to_sats("0.01"))
-    first_txid = chain.add_mempool_transaction(first_tx)
+    chain.add_mempool_transaction(first_tx)
     chain.mine_block(miner.address)
     assert chain.balances_for_address(customer.address)["total"] == amount_to_sats("2")
 
@@ -131,7 +131,7 @@ def test_operator_launch_manual_qa_flow(tmp_path: Path, monkeypatch):
     assert merchant.address in receipt["outputs_to_address_sats"]
 
     # 8 and 18. Create a merchant API key, register a webhook, and deliver a signed test event.
-    key = store.create_api_key({"merchant_id": "shop", "permissions": ["*"]})
+    store.create_api_key({"merchant_id": "shop", "permissions": ["*"]})
     store.set_api_key_enforcement({"merchant_id": "shop", "required": True})
     received: list[dict[str, str | bytes | None]] = []
 

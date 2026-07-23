@@ -43,7 +43,7 @@ def test_wallet_recover_test_matches(tmp_path: Path, capsys):
 
 
 def test_wallet_recover_test_detects_wrong_phrase(tmp_path: Path):
-    wallet, phrase, path = make_wallet(tmp_path)
+    _wallet, phrase, path = make_wallet(tmp_path)
     other = new_seed_phrase()
     while other == phrase:
         other = new_seed_phrase()

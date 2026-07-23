@@ -14,10 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.bandwidth import budget_for_mode  # noqa: E402
-from netcoin.chain import Blockchain  # noqa: E402
-from netcoin.node import NetCoinNode  # noqa: E402
-from tools.run_localnet import Localnet, LocalnetConfig  # noqa: E402
+from netcoin.bandwidth import budget_for_mode
+from netcoin.chain import Blockchain
+from netcoin.node import NetCoinNode
+from tools.run_localnet import Localnet, LocalnetConfig
 
 
 def make_flood_payload(target_bytes: int) -> dict[str, Any]:

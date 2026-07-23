@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from .psbt import PSBTError, PartiallySignedTransaction
+from .psbt import PartiallySignedTransaction, PSBTError
 
 TRANSCRIPT_SCHEMA = "netcoin-hardware-device-transcript-v1"
 SUPPORTED_DEVICE_FAMILIES = ("ledger", "trezor")

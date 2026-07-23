@@ -240,9 +240,7 @@ def _items_from_local_report(report: dict[str, Any], *, manifest: dict[str, Any]
         status = str(gate.get("status"))
         if status in {"pass"}:
             continue
-        if report.get("profile") != "strict" and status == "source_only":
-            items.append(_item_from_gate(gate, manifest=manifest, source="local_proof_report"))
-        elif status in {"fail", "blocked", "not_run", "source_only"}:
+        if (report.get("profile") != "strict" and status == "source_only") or status in {"fail", "blocked", "not_run", "source_only"}:
             items.append(_item_from_gate(gate, manifest=manifest, source="local_proof_report"))
     return items
 
@@ -348,7 +346,7 @@ def build_proof_triage_report(
             )
 
     deduped = _dedupe_items(items)
-    severity_counts = {severity: 0 for severity in sorted(ALLOWED_SEVERITIES)}
+    severity_counts = dict.fromkeys(sorted(ALLOWED_SEVERITIES), 0)
     class_counts: dict[str, int] = {}
     for item in deduped:
         severity_counts[item.severity] = severity_counts.get(item.severity, 0) + 1

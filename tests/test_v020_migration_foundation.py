@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from netcoin.migration_status import migration_status, parity_vectors, final_version_readiness
 from netcoin.architecture import architecture_summary
+from netcoin.migration_status import final_version_readiness, migration_status, parity_vectors
 from netcoin.params import NODE_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]

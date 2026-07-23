@@ -39,13 +39,13 @@ def solve_template(
 
     for extra_nonce in range(max_extra_nonce + 1):
         coinbase = create_coinbase_transaction(height, payout_address, reward, extra_nonce=extra_nonce)
-        transactions = [coinbase] + selected
+        transactions = [coinbase, *selected]
         if any(tx.has_witness for tx in selected):
             commit = witness_commitment(transactions)
             coinbase = create_coinbase_transaction(
                 height, payout_address, reward, extra_nonce=extra_nonce, witness_commitment=commit
             )
-            transactions = [coinbase] + selected
+            transactions = [coinbase, *selected]
         header = BlockHeader(
             version=int(template.get("version", 1)),
             previous_hash=previous_hash,

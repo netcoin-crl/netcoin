@@ -458,7 +458,7 @@ def faucet_admin_status(state: dict[str, Any] | None = None) -> dict[str, Any]:
         "difficulty": int(state.get("difficulty", 0) or 0),
         "daily_cap_sats": int(state.get("daily_cap_sats", 0) or 0),
         "recent_requests": list(reversed(state.get("requests", []) or []))[:100],
-        "blocked_requests": [x for x in reversed(state.get("abuse", []) or [])][:100],
+        "blocked_requests": list(reversed(state.get("abuse", []) or []))[:100],
         "reputation": state.get("reputation", {}),
         "updated_at": int(time.time()),
     }

@@ -10,8 +10,7 @@ import tempfile
 import threading
 from http.server import ThreadingHTTPServer
 from urllib.error import HTTPError
-from urllib.request import Request
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import pytest
 

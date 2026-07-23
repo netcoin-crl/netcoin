@@ -1,5 +1,6 @@
 """Per-address UTXO index: correctness through spends/reorgs + O(coins) lookup."""
 
+import contextlib
 from pathlib import Path
 
 from netcoin.chain import Blockchain, ChainError
@@ -22,10 +23,8 @@ def _clone_prefix(tmp_path, name, source, upto_height):
 
 def _feed(target, blocks):
     for block in blocks:
-        try:
+        with contextlib.suppress(ChainError):
             target.add_block(block)
-        except ChainError:
-            pass
 
 
 def test_index_mirrors_utxos_through_spends(tmp_path: Path):

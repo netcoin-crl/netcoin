@@ -19,7 +19,8 @@ SOURCE_COMMANDS = [
     "python3 -m py_compile netcoin/addrv2.py netcoin/pex.py netcoin/bandwidth.py netcoin/p2p.py tools/check_m3_readiness.py tools/run_m3_release_candidate.py tools/export_node_map.py tools/validate_m3_soak_report.py",
 ]
 
-STRICT_COMMANDS = SOURCE_COMMANDS + [
+STRICT_COMMANDS = [
+    *SOURCE_COMMANDS,
     "python3 tools/check_m3_readiness.py --strict --out reports/m3_readiness_strict_report.json",
     "python3 tools/validate_m3_soak_report.py reports/m3_evidence/soak_30_day_report.json --out reports/m3_soak_validation_report.json",
 ]

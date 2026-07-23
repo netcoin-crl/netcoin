@@ -17,7 +17,7 @@ def _ensure_repo_on_path() -> None:
 
 _ensure_repo_on_path()
 
-from netcoin.ops_runbooks import write_diagnostic_bundle  # noqa: E402
+from netcoin.ops_runbooks import write_diagnostic_bundle
 
 
 def main() -> int:

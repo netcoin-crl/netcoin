@@ -1,5 +1,6 @@
 """Persistent/incremental UTXO set correctness (#22 foundation)."""
 
+import contextlib
 from pathlib import Path
 
 from netcoin.chain import Blockchain
@@ -48,10 +49,8 @@ def test_incremental_utxos_correct_after_reorg(tmp_path: Path):
     for _ in range(3):
         b.mine_block(miner_b.address)
     for block in b.chain[2:]:
-        try:
+        with contextlib.suppress(Exception):
             a.add_block(block)
-        except Exception:
-            pass
 
     assert a.tip_hash() == b.tip_hash()
     # After the reorg the cache was rebuilt and matches a recompute.

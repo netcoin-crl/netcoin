@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import ipaddress
 import json
 import os
@@ -47,7 +48,6 @@ from .soak import SoakConfig, run_soak
 from .tx import Transaction, amount_to_sats, sats_to_amount
 from .wallet import AutoLockWalletSession, Wallet, WalletError, confirm_seed_phrase, verify_seed_phrase
 from .webwallet import run_web_wallet
-
 
 
 def normalize_advertise_url(advertise: str | None) -> str | None:
@@ -1074,15 +1074,13 @@ def cmd_miner(args: argparse.Namespace) -> None:
                 )
                 sys.stdout.flush()
             if args.sync_after:
-                try:
-                    # The miner doesn't wait on or use the sync result --
-                    # ?wait=0 kicks it off on the node in the background
-                    # instead of blocking this request (and the node's
-                    # response to anything else) until every peer has been
-                    # contacted sequentially.
+                # The miner doesn't wait on or use the sync result --
+                # ?wait=0 kicks it off on the node in the background
+                # instead of blocking this request (and the node's
+                # response to anything else) until every peer has been
+                # contacted sequentially.
+                with contextlib.suppress(Exception):
                     post_json(f"{node}/sync?wait=0", {}, timeout=timeout)
-                except Exception:
-                    pass
     except KeyboardInterrupt:
         payload = {
             "ok": True,

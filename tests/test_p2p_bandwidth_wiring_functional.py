@@ -1,6 +1,5 @@
 """Proof that bandwidth budgeting and p2p hardening are wired into runtime paths."""
 
-import os
 
 from netcoin.node import _p2p_hardening_snapshot
 from netcoin.pex import build_pex_response

@@ -102,8 +102,7 @@ class CommandHardwareTransport:
                 self.command,
                 input=json.dumps(request, sort_keys=True),
                 text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 timeout=self.timeout_seconds,
                 check=False,
             )
@@ -272,9 +271,7 @@ class HardwareSigner:
     def can_sign(self) -> bool:
         if self.transport is None or not self.transport.available():
             return False
-        if self.require_real_device and bool(getattr(self.transport, "simulated", False)):
-            return False
-        return True
+        return not (self.require_real_device and bool(getattr(self.transport, "simulated", False)))
 
     def request_payload(self, psbt: PartiallySignedTransaction) -> dict[str, Any]:
         return {

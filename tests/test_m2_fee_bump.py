@@ -4,7 +4,7 @@ import pytest
 
 from netcoin.chain import Blockchain, ChainError
 from netcoin.fee_bump import create_cpfp_child, create_rbf_replacement, transaction_fee
-from netcoin.tx import SpendableOutput, TxOutput, amount_to_sats
+from netcoin.tx import amount_to_sats
 from netcoin.wallet import Wallet, WalletError
 
 

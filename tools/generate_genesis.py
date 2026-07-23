@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# ruff: noqa: E402
 """Mine a deterministic regtest/testnet-rehearsal genesis block from a manifest."""
 
 from __future__ import annotations

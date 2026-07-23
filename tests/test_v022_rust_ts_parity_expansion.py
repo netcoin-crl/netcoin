@@ -7,8 +7,8 @@ from pathlib import Path
 
 from netcoin.apps import AppStore, route_app_get
 from netcoin.chain import Blockchain
-from netcoin.migration_status import migration_status, parity_bridge_status, parity_vectors, final_version_readiness
-from netcoin.parity_suite import run_parity_suite, merkle_root_hex, subsidy_at_height, tx_fee_ok
+from netcoin.migration_status import final_version_readiness, migration_status, parity_bridge_status, parity_vectors
+from netcoin.parity_suite import merkle_root_hex, run_parity_suite, subsidy_at_height, tx_fee_ok
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -158,7 +158,7 @@ def strict_gate() -> dict[str, Any]:
     result = source_gate()
     evidence = dict(result.get("strict_evidence", {}))
     evidence_issues: list[str] = []
-    for label, rel in evidence.items():
+    for _label, rel in evidence.items():
         path = ROOT / str(rel)
         if not path.exists():
             evidence_issues.append(f"missing strict evidence: {rel}")

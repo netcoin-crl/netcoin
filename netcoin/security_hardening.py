@@ -55,4 +55,4 @@ def security_audit_manifest(root: Path | None = None) -> dict[str, Any]:
     }
 
 
-__all__ = ["security_audit_manifest", "load_security_vectors", "REQUIRED_SECURITY_FILES", "REQUIRED_DOCS"]
+__all__ = ["REQUIRED_DOCS", "REQUIRED_SECURITY_FILES", "load_security_vectors", "security_audit_manifest"]

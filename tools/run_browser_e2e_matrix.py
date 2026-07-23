@@ -88,7 +88,7 @@ def main() -> int:
     if args.run_playwright and result["ok"]:
         try:
             proc = subprocess.run(
-                playwright_cmd() + ["test", str(SPEC_PATH), str(M1_WALLET_SPEC_PATH), str(PHASE10_SPEC_PATH)],
+                playwright_cmd() + ["test", str(SPEC_PATH), str(M1_WALLET_SPEC_PATH), str(PHASE10_SPEC_PATH)],  # noqa: RUF005
                 cwd=ROOT,
                 text=True,
                 capture_output=True,

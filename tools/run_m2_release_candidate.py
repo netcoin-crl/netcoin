@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -21,7 +20,8 @@ SOURCE_COMMANDS = [
     "python3 tools/generate_slsa_provenance.py --subject dist/netcoin-sbom.json --out dist/netcoin-slsa-provenance.json",
 ]
 
-STRICT_COMMANDS = SOURCE_COMMANDS + [
+STRICT_COMMANDS = [
+    *SOURCE_COMMANDS,
     "python3 tools/check_m2_readiness.py --strict --out reports/m2_readiness_strict_report.json",
     "python3 tools/run_hardware_wallet_device_tests.py --strict --out reports/m2_hardware_wallet_strict_report.json",
     "python3 tools/run_security_audit_prep.py",

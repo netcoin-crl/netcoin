@@ -103,7 +103,8 @@ def main() -> int:
         "--cov-report=term-missing",
         f"--cov-report=json:{args.json_out}",
         f"--cov-fail-under={int(args.minimum)}",
-    ] + args.pytest_args
+        *args.pytest_args,
+    ]
     if _pytest_supports_timeout():
         cmd.insert(4, "--timeout=300")
     else:

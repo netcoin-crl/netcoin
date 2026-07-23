@@ -67,9 +67,11 @@ def test_address_endpoint_over_http(tmp_path: Path):
     chain = Blockchain(tmp_path / "chain")
     miner = Wallet.create()
     chain.mine_block(miner.address)
-    with served(NetCoinNode(chain, persist=False)) as s:
-        with urlopen(f"{s.url}/address/{miner.address}", timeout=5) as r:
-            data = json.loads(r.read().decode())
+    with (
+        served(NetCoinNode(chain, persist=False)) as s,
+        urlopen(f"{s.url}/address/{miner.address}", timeout=5) as r,
+    ):
+        data = json.loads(r.read().decode())
     assert data["address"] == miner.address
     assert data["transaction_count"] == 1
 

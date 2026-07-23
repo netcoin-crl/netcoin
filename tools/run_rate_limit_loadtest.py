@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from netcoin.chain import Blockchain  # noqa: E402
-from netcoin.node import NetCoinNode, make_handler  # noqa: E402
+from netcoin.chain import Blockchain
+from netcoin.node import NetCoinNode, make_handler
 
 
 class ServedNode:
@@ -32,7 +32,7 @@ class ServedNode:
         self.thread = Thread(target=self.server.serve_forever, daemon=True)
         self.url = ""
 
-    def __enter__(self) -> "ServedNode":
+    def __enter__(self) -> ServedNode:
         self.thread.start()
         self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
         return self
@@ -58,10 +58,9 @@ def request_info(base_url: str, api_key: str) -> dict[str, int]:
 
 def run_loadtest(rate_limit_per_min: int, requests: int, workers: int, api_key: str) -> dict[str, object]:
     started = time.time()
-    with ServedNode(rate_limit_per_min) as served:
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = [pool.submit(request_info, served.url, api_key) for _ in range(requests)]
-            results = [future.result() for future in as_completed(futures)]
+    with ServedNode(rate_limit_per_min) as served, ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(request_info, served.url, api_key) for _ in range(requests)]
+        results = [future.result() for future in as_completed(futures)]
     counts: dict[str, int] = {}
     retry_after_values = []
     for result in results:

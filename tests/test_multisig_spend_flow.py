@@ -13,7 +13,7 @@ from netcoin.chain import Blockchain
 from netcoin.crypto import bytes_to_hex, private_key_to_public_key
 from netcoin.psbt import PartiallySignedTransaction, PSBTError
 from netcoin.script import multisig_redeem_script, script_to_p2sh_address
-from netcoin.tx import TxInput, TxOutput, Transaction, amount_to_sats
+from netcoin.tx import Transaction, TxInput, TxOutput, amount_to_sats
 from netcoin.wallet import Wallet
 
 
@@ -48,7 +48,7 @@ def _fund_multisig(tmp_path: Path):
 
 
 def test_two_of_three_multisig_spend_end_to_end(tmp_path: Path):
-    chain, redeem_script, multisig_address, utxo, (m1, m2, m3) = _fund_multisig(tmp_path)
+    chain, redeem_script, _multisig_address, utxo, (m1, m2, _m3) = _fund_multisig(tmp_path)
     receiver = Wallet.create()
     spend_amount = utxo.output.amount - amount_to_sats("0.01")
 
@@ -77,7 +77,7 @@ def test_signers_out_of_redeem_script_order_still_finalizes_correctly(tmp_path: 
     """OP_CHECKMULTISIG matches sigs to pubkeys in a single forward pass, so
     signatures must be assembled in redeem-script pubkey order regardless of
     the order cosigners happened to sign in."""
-    chain, redeem_script, multisig_address, utxo, (m1, m2, m3) = _fund_multisig(tmp_path)
+    chain, redeem_script, _multisig_address, utxo, (m1, _m2, m3) = _fund_multisig(tmp_path)
     receiver = Wallet.create()
     spend_amount = utxo.output.amount - amount_to_sats("0.01")
 
@@ -94,7 +94,7 @@ def test_signers_out_of_redeem_script_order_still_finalizes_correctly(tmp_path: 
 
 
 def test_insufficient_signatures_cannot_extract(tmp_path: Path):
-    chain, redeem_script, multisig_address, utxo, (m1, m2, m3) = _fund_multisig(tmp_path)
+    _chain, redeem_script, _multisig_address, utxo, (m1, _m2, _m3) = _fund_multisig(tmp_path)
     receiver = Wallet.create()
     spend_amount = utxo.output.amount - amount_to_sats("0.01")
 
@@ -110,7 +110,7 @@ def test_insufficient_signatures_cannot_extract(tmp_path: Path):
 
 
 def test_signer_not_in_redeem_script_is_rejected(tmp_path: Path):
-    chain, redeem_script, multisig_address, utxo, (m1, m2, m3) = _fund_multisig(tmp_path)
+    _chain, redeem_script, _multisig_address, utxo, (_m1, _m2, _m3) = _fund_multisig(tmp_path)
     receiver = Wallet.create()
     spend_amount = utxo.output.amount - amount_to_sats("0.01")
     outsider = Wallet.create()
@@ -125,7 +125,7 @@ def test_signer_not_in_redeem_script_is_rejected(tmp_path: Path):
 
 
 def test_tampered_signature_is_rejected_by_chain_validation(tmp_path: Path):
-    chain, redeem_script, multisig_address, utxo, (m1, m2, m3) = _fund_multisig(tmp_path)
+    chain, redeem_script, _multisig_address, utxo, (m1, m2, _m3) = _fund_multisig(tmp_path)
     receiver = Wallet.create()
     spend_amount = utxo.output.amount - amount_to_sats("0.01")
 
@@ -151,7 +151,7 @@ def test_tampered_signature_is_rejected_by_chain_validation(tmp_path: Path):
 
 
 def test_psbt_round_trip_preserves_multisig_state(tmp_path: Path):
-    chain, redeem_script, multisig_address, utxo, (m1, m2, m3) = _fund_multisig(tmp_path)
+    chain, redeem_script, _multisig_address, utxo, (m1, m2, _m3) = _fund_multisig(tmp_path)
     receiver = Wallet.create()
     spend_amount = utxo.output.amount - amount_to_sats("0.01")
 

@@ -7,9 +7,10 @@ manifest and builds release-readiness scorecards from observed gate results.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST_PATH = ROOT / "architecture" / "proof-hardening.json"
@@ -119,7 +120,7 @@ def scorecard_from_results(
     """Build a release-readiness scorecard from observed gate results."""
 
     result_list = [item.to_dict() for item in results]
-    counts = {status: 0 for status in sorted(ALLOWED_GATE_STATUSES)}
+    counts = dict.fromkeys(sorted(ALLOWED_GATE_STATUSES), 0)
     for item in result_list:
         status = str(item.get("status"))
         if status in counts:

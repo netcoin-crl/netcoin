@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import gzip
+import hashlib
 import io
 import json
 import os
@@ -62,9 +62,8 @@ def create_archive(root: Path, out: Path) -> None:
             info.mtime = int(os.environ.get("SOURCE_DATE_EPOCH", "1704067200"))
             with path.open("rb") as fh:
                 tf.addfile(info, fh)
-    with out.open("wb") as raw:
-        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as gz:
-            gz.write(tar_buffer.getvalue())
+    with out.open("wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as gz:
+        gz.write(tar_buffer.getvalue())
 
 
 def main() -> int:
