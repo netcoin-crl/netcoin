@@ -7,18 +7,19 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "parity": "npm run build && node dist/run-parity.js",
+    "pretest": "npm run build",
     "test": "node --test",
     "start": "node dist/server.js",
     "contract": "npm run build && node -e \"import('./dist/openapi-enforce.js').then(m=>console.log(JSON.stringify(m.assertOpenApiContract(), null, 2)))\"",
-    "ci:api": "npm run build && npm run contract && npm run parity"
+    "ci:api": "npm run build && npm run contract && npm test && npm run parity"
   },
   "dependencies": {
-    "@fastify/cors": "latest",
-    "fastify": "latest",
-    "zod": "latest"
+    "@fastify/cors": "11.3.0",
+    "fastify": "5.10.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "typescript": "latest",
-    "@types/node": "latest"
+    "typescript": "7.0.2",
+    "@types/node": "26.1.1"
   }
 }

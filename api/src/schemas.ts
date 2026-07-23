@@ -15,20 +15,31 @@ export const SignedEnvelopeSchema = z.object({
   signature: z.string().min(1)
 });
 
-export const ExplorerAddressSchema = z.object({
-  address: z.string(),
-  balance_sats: z.number().int().optional(),
-  received_sats: z.number().int().optional(),
-  sent_sats: z.number().int().optional(),
-  events: z.array(z.unknown()).default([])
-});
+// Real shape returned by netcoin.live_product.explorer_address_live (netcoin/live_product.py:84).
+export const ExplorerAddressSchema = z
+  .object({
+    address: z.string(),
+    balance: z.record(z.string(), z.unknown()),
+    utxos: z.array(z.unknown()).default([]),
+    history: z.array(z.unknown()).default([]),
+    history_count: z.number().int().nonnegative().optional(),
+    profile: z.record(z.string(), z.unknown()).optional(),
+    exports: z.record(z.string(), z.unknown()).optional()
+  })
+  .passthrough();
 
-export const WalletDraftSchema = z.object({
-  draft_id: z.string(),
-  status: z.enum(['saved', 'review', 'blocked']).default('saved'),
-  amount_sats: z.number().int().nonnegative().optional(),
-  destination: z.string().optional()
-});
+// Real shape returned by netcoin.live_product.save_wallet_draft (netcoin/live_product.py:354).
+export const WalletDraftSchema = z
+  .object({
+    draft_id: z.string(),
+    status: z.string().default('draft'),
+    to: z.string().optional(),
+    amount: z.string().optional(),
+    fee: z.string().optional(),
+    memo: z.string().optional(),
+    created_at: z.number().int().nonnegative().optional()
+  })
+  .passthrough();
 
 export const MarketOrderSchema = z.object({
   market_id: z.string().min(1),
@@ -38,6 +49,67 @@ export const MarketOrderSchema = z.object({
   price: z.number().min(0).max(1).optional(),
   quantity: z.number().positive()
 });
+
+// Response shapes for the netcoin.apps.markets endpoints (netcoin/apps/markets/__init__.py).
+// These payloads are large and evolve with the market engine, so we anchor on the
+// stable identifying fields and pass the rest through rather than over-specify.
+export const MarketsListSchema = z
+  .object({
+    markets: z.array(z.unknown()).optional(),
+    count: z.number().int().nonnegative().optional()
+  })
+  .passthrough();
+
+export const MarketRecordSchema = z
+  .object({
+    market_id: z.string()
+  })
+  .passthrough();
+
+export const MarketOrderResultSchema = z
+  .object({
+    market_id: z.string().optional(),
+    order_id: z.string().optional()
+  })
+  .passthrough();
+
+export const MarketOrderbookSchema = z
+  .object({
+    market_id: z.string().optional(),
+    bids: z.array(z.unknown()).optional(),
+    asks: z.array(z.unknown()).optional()
+  })
+  .passthrough();
+
+export const MarketTickerSchema = z
+  .object({
+    market_id: z.string().optional()
+  })
+  .passthrough();
+
+// Real shape returned by netcoin.live_product.release_verify_payload (netcoin/live_product.py:661).
+export const NodeReleaseVerifySchema = z
+  .object({
+    tools: z.record(z.string(), z.boolean()),
+    checksum: z
+      .object({
+        provided: z.string(),
+        expected: z.string(),
+        match: z.boolean().nullable()
+      })
+      .passthrough(),
+    commands: z.record(z.string(), z.string()),
+    status: z.string()
+  })
+  .passthrough();
+
+// Generic upstream error envelope: { ok: false, error: "..." } (netcoin/explorer_server.py send_json paths).
+export const NodeErrorSchema = z
+  .object({
+    ok: z.literal(false),
+    error: z.string()
+  })
+  .passthrough();
 
 export const MigrationStatusSchema = z.object({
   ok: z.boolean(),
@@ -76,13 +148,42 @@ export const ParityStatusSchema = z.object({
 export type ParityLane = z.infer<typeof ParityLaneSchema>;
 export type ParityStatus = z.infer<typeof ParityStatusSchema>;
 
-export const ExplorerTransactionSchema = z.object({
-  txid: z.string(),
-  block_hash: z.string().optional(),
-  confirmations: z.number().int().nonnegative().optional(),
-  inputs: z.array(z.unknown()).default([]),
-  outputs: z.array(z.unknown()).default([])
-});
+// Real shape returned by netcoin.live_product.explorer_tx_live (netcoin/live_product.py:218).
+// On a missing transaction the node still returns 200 with { ok: false, error }.
+export const ExplorerTransactionSchema = z
+  .object({
+    ok: z.boolean(),
+    txid: z.string(),
+    error: z.string().optional(),
+    short_txid: z.string().optional(),
+    risk: z.record(z.string(), z.unknown()).optional(),
+    tx: z.record(z.string(), z.unknown()).optional()
+  })
+  .passthrough();
+
+// Real shape returned by netcoin.live_product.explorer_block_live (netcoin/live_product.py:227).
+// Accepts either a numeric height or a block hash as :id -- the node disambiguates.
+export const ExplorerBlockSchema = z
+  .object({
+    ok: z.boolean(),
+    id: z.string().optional(),
+    error: z.string().optional(),
+    height: z.number().int().nonnegative().optional(),
+    hash: z.string().optional(),
+    tx_count: z.number().int().nonnegative().optional(),
+    txids: z.array(z.string()).optional()
+  })
+  .passthrough();
+
+// Real shape returned by netcoin.live_product.explorer_mempool_live (netcoin/live_product.py:235).
+export const ExplorerMempoolSchema = z
+  .object({
+    summary: z.record(z.string(), z.unknown()).optional(),
+    transactions: z.array(z.unknown()).default([]),
+    count: z.number().int().nonnegative(),
+    generated_at: z.number().int().nonnegative().optional()
+  })
+  .passthrough();
 
 export const WalletPreviewSchema = z.object({
   decision: z.enum(['allow', 'review', 'block']),
