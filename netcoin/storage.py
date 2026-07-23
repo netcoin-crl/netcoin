@@ -60,6 +60,20 @@ class SqliteChainStore:
         )
         self.conn.commit()
 
+    def append_block(self, block: Any, position: int) -> None:
+        """Persist a single new tip block without rewriting the whole
+        active-chain ordering. save_chain() does a full DELETE+re-INSERT of
+        every block on every call -- fine for a genuine reorg/rebuild, but
+        the normal one-block-at-a-time append path was paying that same
+        O(chain length) cost on every single accepted block."""
+        cur = self.conn.cursor()
+        cur.execute(
+            "INSERT OR REPLACE INTO blocks(hash, height, prev_hash, data) VALUES(?,?,?,?)",
+            (block.hash(), block.header.height, block.header.previous_hash, json.dumps(block.to_dict())),
+        )
+        cur.execute("INSERT OR REPLACE INTO active_chain(position, hash) VALUES(?,?)", (position, block.hash()))
+        self.conn.commit()
+
     def load_chain(self) -> list[dict[str, Any]]:
         # Skip pruned blocks (NULL body); only full block bodies are returned.
         rows = self.conn.execute(

@@ -10,14 +10,16 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [{name = "NetCoin educational project"}]
 license = {text = "AGPL-3.0-or-later"}
-dependencies = ["cryptography>=42"]
+dependencies = ["cryptography>=42", "coincurve>=20"]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "pytest-timeout", "coincurve>=20"]
-dev = ["pytest", "pytest-cov", "pytest-timeout", "coincurve>=20", "ruff>=0.6.0", "black>=24.0", "mypy>=1.10", "bandit>=1.7.9", "pre-commit>=3.7"]
-# Optional libsecp256k1 acceleration for signature verification (enable with
-# NETCOIN_FAST_CRYPTO=1). Recommended for public nodes; never required.
-fast = ["coincurve>=20"]
+test = ["pytest", "pytest-cov", "pytest-timeout"]
+dev = ["pytest", "pytest-cov", "pytest-timeout", "ruff>=0.6.0", "black>=24.0", "mypy>=1.10", "bandit>=1.7.9", "pre-commit>=3.7"]
+# Kept as a no-op alias for existing install commands/scripts that reference
+# netcoin[fast] -- coincurve/libsecp256k1 acceleration is now a base
+# dependency (NETCOIN_FAST_CRYPTO=auto uses it whenever it's importable, and
+# it always is now) rather than an opt-in a fresh install could silently miss.
+fast = []
 
 [project.scripts]
 netcoin = "netcoin.cli:main"

@@ -476,6 +476,25 @@ class Blockchain:
             return
         self._atomic_write_json(self.chain_path, {"blocks": [block.to_dict() for block in self.chain]})
 
+    def _persist_appended_tip(self, block: Block) -> None:
+        """Persist just the newly-appended tip block -- the O(1) counterpart
+        to save_chain() for the normal single-block-append hot path (mining
+        a block / accepting one that extends the current tip). save_chain()
+        rewrites every block and the whole active-chain ordering every call,
+        which is fine for a rare full reorg/rebuild but was an unconditional
+        O(chain height) cost on every single accepted block. The JSON backend
+        has no incremental primitive, so it still does a full rewrite."""
+        if not self.autosave:
+            return
+        if self.store is not None:
+            # Use the block's own height, not len(self.chain) - 1 -- a pruned
+            # node keeps only a tail of blocks in memory, so the in-memory
+            # list length no longer matches this block's true position in
+            # the persisted active-chain ordering.
+            self.store.append_block(block, block.header.height)
+            return
+        self.save_chain()
+
     def save_mempool(self) -> None:
         if not self.autosave:
             return
@@ -1231,7 +1250,7 @@ class Blockchain:
         self._apply_block_to_persistent_utxos(candidate)
         self.remove_mempool_transactions(selected_txids)
         self.purge_invalid_mempool()
-        self.save_chain()
+        self._persist_appended_tip(candidate)
         return candidate
 
     def add_block(self, block: Block) -> str:
@@ -1249,7 +1268,7 @@ class Blockchain:
             included = [tx.txid() for tx in block.transactions[1:]]
             self.remove_mempool_transactions(included)
             self.purge_invalid_mempool()
-            self.save_chain()
+            self._persist_appended_tip(block)
             # A new tip can let a previously-stored fork branch connect.
             if self.orphan_blocks:
                 self._maybe_reorg()
