@@ -11,7 +11,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from ...crypto import validate_address
@@ -314,7 +314,7 @@ def _build_orderbook(market: dict[str, Any]) -> dict[str, Any]:
             continue
         side_key = "buys" if order.get("side") == "buy" else "sells"
         orderbook[oid][side_key].append(_public_order(order))
-    for oid, book in orderbook.items():
+    for book in orderbook.values():
         book["buys"].sort(key=_order_sort_key("buy"))
         book["sells"].sort(key=_order_sort_key("sell"))
         bid = int(book["buys"][0]["price_bps"]) if book["buys"] else None
@@ -817,13 +817,14 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
     ):
         raise AppError("prediction market creation requires legal_acknowledged=true in this deployment")
     lowered_question = question.lower()
-    if any(term in lowered_question for term in RESTRICTED_MARKET_TERMS):
-        # operator_override is never honored on a real HTTP request -- a
-        # caller-supplied boolean proved nothing about operator authority.
-        # Only a direct/internal call (an operator's own maintenance tool,
-        # never something a public API request can trigger) may set it.
-        if payload.get("__netcoin_http_request") or not bool(payload.get("operator_override", False)):
-            raise AppError("restricted prediction-market topic requires operator_override=true and legal review")
+    # operator_override is never honored on a real HTTP request -- a
+    # caller-supplied boolean proved nothing about operator authority.
+    # Only a direct/internal call (an operator's own maintenance tool,
+    # never something a public API request can trigger) may set it.
+    if any(term in lowered_question for term in RESTRICTED_MARKET_TERMS) and (
+        payload.get("__netcoin_http_request") or not bool(payload.get("operator_override", False))
+    ):
+        raise AppError("restricted prediction-market topic requires operator_override=true and legal review")
     unit_payout_sats = parse_amount_sats(
         payload.get("unit_payout_sats", payload.get("unit_payout", "1")), "unit payout"
     )
@@ -856,7 +857,7 @@ def create_prediction_market_impl(store: Any, payload: dict[str, Any]) -> dict[s
         if payload.get("auto_resolution") or payload.get("external_source") == "polymarket_gamma"
         else {}
     )
-    record = {
+    record: dict[str, Any] = {
         "market_id": market_id,
         "creator_address": verified_creator or str(payload.get("creator_address") or "operator")[:120],
         "question": question[:240],
@@ -962,7 +963,7 @@ def list_prediction_markets_impl(store: Any) -> dict[str, Any]:
         store.save(data)
     markets = [_hydrate_market(x) for x in data.get("prediction_markets", {}).values()]
     markets.sort(key=lambda m: (m.get("status") != "open", -int(m.get("created_at", 0) or 0)))
-    totals = {
+    totals: dict[str, Any] = {
         "count": len(markets),
         "open": sum(1 for m in markets if m.get("status") == "open"),
         "closed": sum(1 for m in markets if m.get("status") == "closed"),
@@ -1165,7 +1166,7 @@ def place_market_order_impl(store: Any, market_id: str, payload: dict[str, Any])
         else (_short_collateral_sats(price_bps, max(0, quantity - max(0, current_pos)), unit) if short_needed else 0)
     )
     _reserve(wallet, reserve_sats)
-    order = {
+    order: dict[str, Any] = {
         "order_id": clean_id("ord"),
         "market_id": market_id,
         "outcome_id": outcome_id,

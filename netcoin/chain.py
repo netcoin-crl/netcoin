@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import json
 import os
@@ -71,7 +72,6 @@ from .tx import (
     ensure_unique_inputs,
     sats_to_amount,
 )
-
 
 # On-chain username claims: a zero-value OP_RETURN output, same convention as
 # the coinbase witness commitment. "First confirmed claim wins" (Namecoin-style
@@ -489,10 +489,9 @@ class Blockchain:
         # Mirror the just-written good file as a backup. Copying *after* the
         # replace keeps .bak at the latest committed state, so recovery from a
         # corrupt live file does not lose the most recent write.
-        try:
+        with contextlib.suppress(OSError):
+            # a missing backup is not fatal; the live file is already committed
             (path.parent / (path.name + ".bak")).write_bytes(path.read_bytes())
-        except OSError:
-            pass  # a missing backup is not fatal; the live file is already committed
 
     def save_chain(self) -> None:
         if not self.autosave:
@@ -621,10 +620,11 @@ class Blockchain:
         if bits == self.expected_bits_for_height(height, prefix):
             return True
         chain_prefix = list(prefix) if prefix is not None else self.chain
-        if chain_prefix and bits == POW_LIMIT_BITS:
-            if timestamp > chain_prefix[-1].header.timestamp + min_difficulty_gap_at(height):
-                return True
-        return False
+        return bool(
+            chain_prefix
+            and bits == POW_LIMIT_BITS
+            and timestamp > chain_prefix[-1].header.timestamp + min_difficulty_gap_at(height)
+        )
 
     def _recompute_utxos_from_chain(self) -> dict[str, SpendableOutput]:
         """Authoritative full-scan UTXO computation (source of truth for rebuilds
@@ -959,10 +959,8 @@ class Blockchain:
             old_fees = 0
             old_vsize = 0
             for conflict in conflicts:
-                try:
+                with contextlib.suppress(ChainError):
                     old_fees += self.calculate_fee(conflict)
-                except ChainError:
-                    pass
                 old_vsize += max(1, transaction_vsize(conflict))
             new_fee = self.calculate_fee(tx)
             required_delta = (old_vsize * INCREMENTAL_RELAY_FEE + 999) // 1000
@@ -1213,10 +1211,8 @@ class Blockchain:
         # target-dependent bump.
         rates = []
         for tx in self.mempool:
-            try:
+            with contextlib.suppress(ChainError):
                 rates.append(self.fee_rate(tx))
-            except ChainError:
-                pass
         if rates:
             rates.sort()
             rate = rates[len(rates) // 2]
@@ -1263,21 +1259,21 @@ class Blockchain:
         needs_witness_commitment = any(tx.has_witness for tx in selected)
         while True:
             coinbase = create_coinbase_transaction(height, miner_address, reward, extra_nonce=extra_nonce)
-            txs = [coinbase] + selected
+            txs = [coinbase, *selected]
             if needs_witness_commitment:
                 commit = witness_commitment(txs)
                 coinbase = create_coinbase_transaction(
                     height, miner_address, reward, extra_nonce=extra_nonce, witness_commitment=commit
                 )
-                txs = [coinbase] + selected
+                txs = [coinbase, *selected]
             candidate = make_block(previous_hash, height, bits, txs, timestamp=mined_at)
             try:
                 self.validate_block_against(candidate, self.tip(), self.utxo_set(), self.chain)
                 break
-            except (ChainError, BlockError):
+            except (ChainError, BlockError) as exc:
                 extra_nonce += 1
                 if extra_nonce > 1_000_000:
-                    raise ChainError("failed to mine a valid block after many coinbase nonces")
+                    raise ChainError("failed to mine a valid block after many coinbase nonces") from exc
 
         self.chain.append(candidate)
         self._index_block(candidate)
@@ -1672,6 +1668,44 @@ class Blockchain:
     def import_chain_data(self, data: dict[str, Any]) -> list[Block]:
         return [Block.from_dict(item) for item in data["blocks"]]
 
+    # Compatibility aliases for the v2 CLI/node modules.
+    def header_list(self, start_height: int = 0, limit: int = 2000) -> list[dict[str, Any]]:
+        return self.headers(start_height, limit)
+
+    def block_by_hash(self, block_hash: str) -> Block | None:
+        return self.get_block_by_hash(block_hash)
+
+    def get_block_template(self, miner_address: str | None = None) -> dict[str, Any]:
+        if miner_address is None:
+            miner_address = (
+                self.chain[0].transactions[0].outputs[0].address if self.chain[0].transactions[0].outputs else ""
+            )
+            if not miner_address:
+                # Template without a payout address is still useful for inspection.
+                height = self.height() + 1
+                return {
+                    "version": 1,
+                    "previous_hash": self.tip_hash(),
+                    "height": height,
+                    "bits": self.expected_bits_for_height(height, self.chain),
+                    "subsidy": self.subsidy(height),
+                    "fees": 0,
+                    "max_block_weight": MAX_BLOCK_WEIGHT,
+                    "transactions": [],
+                    "coinbase_value": self.subsidy(height),
+                }
+        return self.block_template(miner_address)
+
+    def fee_lookup(self) -> dict[str, int]:
+        lookup: dict[str, int] = {}
+        for tx in self.mempool:
+            with contextlib.suppress(Exception):
+                lookup[tx.txid()] = self.calculate_fee(tx)
+        return lookup
+
+    def estimate_fee_rate(self, target_blocks: int = 1) -> int:
+        return max(1, int(self.estimate_smart_fee(target_blocks).get("fee_rate_per_kvb", MIN_RELAY_FEE_PER_KB)) // 1000)
+
 
 def create_genesis_block(allocation: dict[str, int] | None = None) -> Block:
     # An optional allocation pre-funds addresses in the genesis coinbase. This is
@@ -1699,55 +1733,3 @@ def create_genesis_block(allocation: dict[str, int] | None = None) -> Block:
     from .block import mine_header
 
     return Block(header=mine_header(header), transactions=[coinbase])
-
-
-# Compatibility helpers for the v2 CLI/node modules.
-def _chain_header_list(self, start_height: int = 0, limit: int = 2000):
-    return self.headers(start_height, limit)
-
-
-def _chain_block_by_hash(self, block_hash: str):
-    return self.get_block_by_hash(block_hash)
-
-
-def _chain_get_block_template(self, miner_address=None):
-    if miner_address is None:
-        miner_address = (
-            self.chain[0].transactions[0].outputs[0].address if self.chain[0].transactions[0].outputs else ""
-        )
-        if not miner_address:
-            # Template without a payout address is still useful for inspection.
-            height = self.height() + 1
-            return {
-                "version": 1,
-                "previous_hash": self.tip_hash(),
-                "height": height,
-                "bits": self.expected_bits_for_height(height, self.chain),
-                "subsidy": self.subsidy(height),
-                "fees": 0,
-                "max_block_weight": MAX_BLOCK_WEIGHT,
-                "transactions": [],
-                "coinbase_value": self.subsidy(height),
-            }
-    return self.block_template(miner_address)
-
-
-def _chain_fee_lookup(self):
-    lookup = {}
-    for tx in self.mempool:
-        try:
-            lookup[tx.txid()] = self.calculate_fee(tx)
-        except Exception:
-            pass
-    return lookup
-
-
-def _chain_estimate_fee_rate(self, target_blocks: int = 1):
-    return max(1, int(self.estimate_smart_fee(target_blocks).get("fee_rate_per_kvb", MIN_RELAY_FEE_PER_KB)) // 1000)
-
-
-Blockchain.header_list = _chain_header_list
-Blockchain.block_by_hash = _chain_block_by_hash
-Blockchain.get_block_template = _chain_get_block_template
-Blockchain.fee_lookup = _chain_fee_lookup
-Blockchain.estimate_fee_rate = _chain_estimate_fee_rate

@@ -101,7 +101,7 @@ def ancestor_count(tx: Transaction, mempool: Sequence[Transaction]) -> int:
 
 def descendant_count(parent: Transaction, mempool: Sequence[Transaction]) -> int:
     parent_txid = parent.txid()
-    descendants = set()
+    descendants: set[str] = set()
     changed = True
     while changed:
         changed = False

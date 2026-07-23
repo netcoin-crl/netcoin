@@ -14,7 +14,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from .block import Block, BlockHeader, cumulative_work
+from .block import Block, cumulative_work
 from .params import MAX_BLOCK_WEIGHT, ZERO_HASH
 from .serialization import block_weight
 from .tx import SpendableOutput
@@ -94,15 +94,14 @@ def deployment_report(height: int) -> dict[str, Any]:
     }
 
 
-def median_time_past(headers: Sequence[BlockHeader] | Sequence[Block], *, window: int = 11) -> int:
+def median_time_past(headers: Sequence[Block], *, window: int = 11) -> int:
     """Return the median timestamp of up to ``window`` ancestors."""
 
     if not headers:
         return 0
     timestamps: list[int] = []
-    for item in list(headers)[-max(1, int(window)) :]:
-        header = item.header if hasattr(item, "header") else item
-        timestamps.append(int(header.timestamp))
+    for block in list(headers)[-max(1, int(window)) :]:
+        timestamps.append(int(block.header.timestamp))
     timestamps.sort()
     return timestamps[len(timestamps) // 2]
 
@@ -169,7 +168,8 @@ def audit_cumulative_work(active: Sequence[Block], candidates: Iterable[Sequence
 
     active_work = cumulative_work(active) if active else 0
     rows = []
-    best = {"kind": "active", "height": active[-1].header.height if active else -1, "work": active_work}
+    best: dict[str, Any] = {"kind": "active", "height": active[-1].header.height if active else -1, "work": active_work}
+    best_work = active_work
     for index, branch in enumerate(candidates, start=1):
         if not branch:
             continue
@@ -183,7 +183,8 @@ def audit_cumulative_work(active: Sequence[Block], candidates: Iterable[Sequence
             "work_delta": work - active_work,
         }
         rows.append(row)
-        if work > int(best["work"]):
+        if work > best_work:
+            best_work = work
             best = {"kind": f"candidate:{index}", "height": row["height"], "work": work, "tip_hash": row["tip_hash"]}
     return {
         "active_work": active_work,

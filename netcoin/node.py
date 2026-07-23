@@ -188,7 +188,7 @@ class NetCoinNode:
         max_relay_bytes_per_second: int | None = None,
     ):
         self.chain = chain
-        self.peers = set()
+        self.peers: set[str] = set()
         self.orphans: dict[str, Block] = {}
         self.persist = persist
         self.max_peers = max_peers
@@ -1103,7 +1103,9 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                 "Link": f'<{successor}>; rel="successor-version"',
             }
 
-        def send_json(self, payload: dict[str, Any], status: int = 200, headers: dict[str, str] | None = None) -> None:
+        def send_json(
+            self, payload: dict[str, Any] | list[Any], status: int = 200, headers: dict[str, str] | None = None
+        ) -> None:
             body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
@@ -1549,7 +1551,7 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                             app_query.setdefault("developer_id", [tenant_id])
                             app_query.setdefault("app_id", [tenant_id])
                     try:
-                        status, payload, content_type = route_app_get(
+                        app_status, app_payload, app_content_type = route_app_get(
                             app_store, node.chain, parsed.path, app_query, node=node
                         )
                     except AppError as app_exc:
@@ -1558,13 +1560,14 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                         else:
                             self.send_error_json(str(app_exc), status=400)
                     else:
-                        if content_type == "application/json":
-                            self.send_json(payload, status=status)  # type: ignore[arg-type]
+                        if app_content_type == "application/json":
+                            assert isinstance(app_payload, dict)
+                            self.send_json(app_payload, status=app_status)
                         else:
                             self.send_text(
-                                payload if isinstance(payload, bytes) else str(payload),
-                                status=status,
-                                content_type=content_type,
+                                app_payload if isinstance(app_payload, bytes) else str(app_payload),
+                                status=app_status,
+                                content_type=app_content_type,
                             )
             except Exception as exc:
                 self.send_error_json(str(exc), status=400)

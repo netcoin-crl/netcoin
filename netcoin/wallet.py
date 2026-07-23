@@ -23,15 +23,17 @@ from .crypto import (
     generate_private_key,
     hash160,
     private_key_from_hex,
+    private_key_from_wif,
     private_key_to_bytes,
     private_key_to_public_key,
+    private_key_to_wif,
     private_key_to_xonly_public_key,
     public_key_to_address,
     public_key_to_p2wpkh_address,
     public_key_to_taproot_address,
     validate_address,
 )
-from .script import multisig_redeem_script, script_to_p2sh_address
+from .script import multisig_redeem_script, p2wpkh_script, script_to_p2sh_address
 from .tx import SpendableOutput, Transaction, TxInput, TxOutput
 
 
@@ -163,7 +165,7 @@ def _xor_stream(data: bytes, key: bytes, nonce: bytes) -> bytes:
         block = hmac.new(key, nonce + counter.to_bytes(8, "big"), hashlib.sha256).digest()
         out.extend(block)
         counter += 1
-    return bytes(a ^ b for a, b in zip(data, out[: len(data)]))
+    return bytes(a ^ b for a, b in zip(data, out[: len(data)], strict=True))
 
 
 def encrypt_private_key(private_key_hex: str, passphrase: str) -> dict[str, str]:
@@ -246,6 +248,47 @@ class Wallet:
     def taproot_address(self) -> str:
         return public_key_to_taproot_address(private_key_to_xonly_public_key(self.private_key))
 
+    @property
+    def wif(self) -> str:
+        return private_key_to_wif(self.private_key)
+
+    @property
+    def xonly_public_key(self) -> bytes:
+        return private_key_to_xonly_public_key(self.private_key)
+
+    @property
+    def p2sh_segwit_address(self) -> str:
+        redeem_script = p2wpkh_script(hash160(self.public_key).hex())
+        return script_to_p2sh_address(redeem_script)
+
+    @classmethod
+    def from_mnemonic(cls, words: str, passphrase: str = "") -> Wallet:
+        # Current NetCoin seed phrases already include their checksum. The optional
+        # passphrase is accepted for CLI compatibility but not mixed into this simple
+        # educational derivation.
+        return cls.create(seed_phrase=words)
+
+    @classmethod
+    def create_with_mnemonic(cls, strength_bytes: int = 16) -> tuple[Wallet, str]:
+        phrase = new_seed_phrase(strength_bytes)
+        return cls.create(seed_phrase=phrase), phrase
+
+    @classmethod
+    def from_wif(cls, wif: str) -> Wallet:
+        return cls(private_key=private_key_from_wif(wif))
+
+    @staticmethod
+    def watch_only(address: str) -> dict[str, Any]:
+        if not validate_address(address):
+            raise WalletError("address is not a valid NetCoin address")
+        return {"network": "NetCoin", "address": address, "watch_only": True, "encrypted": False}
+
+    def to_plain_dict(self) -> dict[str, Any]:
+        data = self.to_dict(passphrase=None)
+        data["wif"] = self.wif
+        data["addresses"]["p2sh_segwit"] = self.p2sh_segwit_address
+        return data
+
     def matches_seed_phrase(self, phrase: str, index: int = 0) -> bool:
         """Return True if the seed phrase regenerates this wallet's key.
 
@@ -268,6 +311,8 @@ class Wallet:
             return self.segwit_address
         if normalized in ("taproot", "p2tr", "bech32m"):
             return self.taproot_address
+        if normalized in ("p2sh-segwit", "p2sh", "sh-wpkh"):
+            return self.p2sh_segwit_address
         raise WalletError("address type must be legacy, segwit, or taproot")
 
     def public_dict(self, wallet_file: str | None = None) -> dict[str, Any]:
@@ -280,6 +325,7 @@ class Wallet:
                 "legacy": self.address,
                 "segwit": self.segwit_address,
                 "taproot": self.taproot_address,
+                "p2sh_segwit": self.p2sh_segwit_address,
             },
         }
         if wallet_file is not None:
@@ -468,95 +514,6 @@ class AutoLockWalletSession:
             "expires_at": int(self.expires_at),
             "seconds_remaining": max(0, int(self.expires_at - time.time())) if not self.locked else 0,
         }
-
-
-# ---------------------------------------------------------------------------
-# Compatibility helpers for the expanded v2 CLI.
-# ---------------------------------------------------------------------------
-from .crypto import private_key_from_wif, private_key_to_wif  # noqa: E402
-from .script import p2wpkh_script  # noqa: E402
-
-
-def _wallet_wif(self: Wallet) -> str:
-    return private_key_to_wif(self.private_key)
-
-
-def _wallet_xonly_public_key(self: Wallet) -> bytes:
-    return private_key_to_xonly_public_key(self.private_key)
-
-
-def _wallet_p2sh_segwit_address(self: Wallet) -> str:
-    redeem_script = p2wpkh_script(hash160(self.public_key).hex())
-    return script_to_p2sh_address(redeem_script)
-
-
-Wallet.wif = property(_wallet_wif)  # type: ignore[attr-defined]
-Wallet.xonly_public_key = property(_wallet_xonly_public_key)  # type: ignore[attr-defined]
-Wallet.p2sh_segwit_address = property(_wallet_p2sh_segwit_address)  # type: ignore[attr-defined]
-
-
-_original_address_for = Wallet.address_for
-
-
-def _address_for_extended(self: Wallet, address_type: str = "legacy") -> str:
-    normalized = address_type.lower()
-    if normalized in ("p2sh-segwit", "p2sh", "sh-wpkh"):
-        return self.p2sh_segwit_address
-    return _original_address_for(self, address_type)
-
-
-Wallet.address_for = _address_for_extended  # type: ignore[assignment]
-
-
-@classmethod
-def _from_mnemonic(cls, words: str, passphrase: str = "") -> Wallet:
-    # Current NetCoin seed phrases already include their checksum. The optional
-    # passphrase is accepted for CLI compatibility but not mixed into this simple
-    # educational derivation.
-    return cls.create(seed_phrase=words)
-
-
-@classmethod
-def _create_with_mnemonic(cls, strength_bytes: int = 16):
-    phrase = new_seed_phrase(strength_bytes)
-    return cls.create(seed_phrase=phrase), phrase
-
-
-@classmethod
-def _from_wif(cls, wif: str) -> Wallet:
-    return cls(private_key=private_key_from_wif(wif))
-
-
-def _to_plain_dict(self: Wallet) -> dict[str, Any]:
-    data = self.to_dict(passphrase=None)
-    data["wif"] = self.wif
-    data["addresses"]["p2sh_segwit"] = self.p2sh_segwit_address
-    return data
-
-
-def _watch_only(address: str) -> dict[str, Any]:
-    if not validate_address(address):
-        raise WalletError("address is not a valid NetCoin address")
-    return {"network": "NetCoin", "address": address, "watch_only": True, "encrypted": False}
-
-
-Wallet.from_mnemonic = _from_mnemonic  # type: ignore[attr-defined]
-Wallet.create_with_mnemonic = _create_with_mnemonic  # type: ignore[attr-defined]
-Wallet.from_wif = _from_wif  # type: ignore[attr-defined]
-Wallet.to_plain_dict = _to_plain_dict  # type: ignore[attr-defined]
-Wallet.watch_only = staticmethod(_watch_only)  # type: ignore[attr-defined]
-
-
-_original_public_dict = Wallet.public_dict
-
-
-def _public_dict_extended(self: Wallet, wallet_file: str | None = None) -> dict[str, Any]:
-    data = _original_public_dict(self, wallet_file=wallet_file)
-    data["addresses"]["p2sh_segwit"] = self.p2sh_segwit_address
-    return data
-
-
-Wallet.public_dict = _public_dict_extended  # type: ignore[assignment]
 
 
 _original_create_transaction = Wallet.create_transaction

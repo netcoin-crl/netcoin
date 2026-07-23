@@ -280,7 +280,7 @@ class Transaction:
         # Which inputs are committed. ANYONECANPAY commits only to this input
         # (anchored by `prevout`), so other inputs can be freely added/removed.
         if anyonecanpay:
-            inputs = []
+            inputs: list[dict[str, Any]] = []
         else:
             inputs = []
             for i, txin in enumerate(self.inputs):
@@ -477,6 +477,17 @@ class Transaction:
         sig64, flag = _split_sighash(signature)
         return ecdsa_verify(public_key, self.sighash(input_index, prevout, flag), sig64)
 
+    # Runtime convenience methods used by RPC/CLI/explorer.
+    def weight(self) -> int:
+        from .serialization import transaction_weight
+
+        return transaction_weight(self)
+
+    def vsize(self) -> int:
+        from .serialization import transaction_vsize
+
+        return transaction_vsize(self)
+
 
 @dataclass(frozen=True)
 class SpendableOutput:
@@ -571,20 +582,3 @@ def ensure_unique_inputs(inputs: Iterable[TxInput]) -> None:
         if outpoint in seen:
             raise TransactionError("transaction spends the same outpoint more than once")
         seen.add(outpoint)
-
-
-# Runtime convenience methods used by RPC/CLI/explorer.
-def _tx_weight(self: Transaction) -> int:
-    from .serialization import transaction_weight
-
-    return transaction_weight(self)
-
-
-def _tx_vsize(self: Transaction) -> int:
-    from .serialization import transaction_vsize
-
-    return transaction_vsize(self)
-
-
-Transaction.weight = _tx_weight  # type: ignore[attr-defined]
-Transaction.vsize = _tx_vsize  # type: ignore[attr-defined]
