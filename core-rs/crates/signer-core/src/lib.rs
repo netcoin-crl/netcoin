@@ -52,14 +52,11 @@ pub fn signer_policy_summary(case: &Value) -> Value {
     let required = value_i64(case, "required_signers", 1);
     let available = value_i64(case, "available_signers", 0);
     let amount = value_i64(case, "amount_sats", 0);
-    let limit = value_i64(case, "hardware_limit_sats", 0);
     let offline = value_bool(case, "offline", false);
     let hardware = value_bool(case, "hardware", false);
     let unknown_sighash = value_bool(case, "unknown_sighash", false);
     let decision = if amount < 0 || required <= 0 || available < required || unknown_sighash {
         "block"
-    } else if hardware && limit > 0 && amount > limit {
-        "review"
     } else if offline || hardware {
         "review"
     } else {

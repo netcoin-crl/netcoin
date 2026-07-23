@@ -362,7 +362,7 @@ pub fn run_consensus_parity_vectors(vectors: &Value, input_file_sha256: Option<S
 }
 
 fn hex_to_bytes(hex: &str) -> Option<Vec<u8>> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return None;
     }
     let mut out = Vec::with_capacity(hex.len() / 2);
@@ -430,7 +430,7 @@ pub fn block_weight_ok(weight: u64, max_weight: u64) -> bool {
     weight <= max_weight
 }
 
-pub fn checkpoint_ok(height: u64, hash: &str, checkpoint_hash: Option<&str>) -> bool {
+pub fn checkpoint_ok(_height: u64, hash: &str, checkpoint_hash: Option<&str>) -> bool {
     match checkpoint_hash {
         Some(expected) => expected == hash,
         None => true,
