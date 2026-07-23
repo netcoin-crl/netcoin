@@ -290,9 +290,9 @@ def run_qa(base_dir: Path) -> QAReport:
         store.save(qa_data)
         escrow = store.escrow_status(chain, escrow["escrow_id"])
         report.check("14b. Escrow chain-verified funding", escrow["status"] == "funded", escrow["escrow_id"])
-        store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": seller.address})
+        store.escrow_action(chain, escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": seller.address})
         escrow_released = store.escrow_action(
-            escrow["escrow_id"], {"action": "release", "signer": "seller", "to_address": seller.address}
+            chain, escrow["escrow_id"], {"action": "release", "signer": "seller", "to_address": seller.address}
         )
         report.check(
             "15. Create escrow",

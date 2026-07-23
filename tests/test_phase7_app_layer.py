@@ -69,11 +69,11 @@ def test_phase7_templates_recurring_escrow_polls_and_markets(tmp_path: Path):
     escrow = store.escrow_status(chain, escrow["escrow_id"])
     assert escrow["status"] == "funded"
     first = store.escrow_action(
-        escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": seller.address}
+        chain, escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": seller.address}
     )
     assert first["status"] == "pending_release"
     second = store.escrow_action(
-        escrow["escrow_id"], {"action": "release", "signer": "seller", "to_address": seller.address}
+        chain, escrow["escrow_id"], {"action": "release", "signer": "seller", "to_address": seller.address}
     )
     assert second["status"] == "released"
     assert second["payout_plan"]["kind"] == "escrow_release"

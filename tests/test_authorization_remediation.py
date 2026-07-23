@@ -177,6 +177,7 @@ def test_escrow_action_requires_a_real_signature_from_the_claimed_participant(tm
     # No signature at all, HTTP request, claiming to be the buyer -- must fail.
     with pytest.raises(AppError, match="valid signature"):
         store.escrow_action(
+            chain,
             escrow_id,
             {"action": "release", "signer": buyer.segwit_address, "__netcoin_http_request": True},
         )
@@ -186,6 +187,7 @@ def test_escrow_action_requires_a_real_signature_from_the_claimed_participant(tm
     bad_signature = sign_message(attacker.private_key, bad_message)
     with pytest.raises(AppError, match="valid signature"):
         store.escrow_action(
+            chain,
             escrow_id,
             {
                 "action": "release",
@@ -206,6 +208,7 @@ def test_escrow_action_requires_a_real_signature_from_the_claimed_participant(tm
     good_message = f"NetCoin escrow action\nescrow-action-v1\n{escrow_id}\nrelease\n{buyer.segwit_address}"
     good_signature = sign_message(buyer.private_key, good_message)
     result = store.escrow_action(
+        chain,
         escrow_id,
         {
             "action": "release",

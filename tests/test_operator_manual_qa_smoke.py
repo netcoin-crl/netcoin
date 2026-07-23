@@ -220,11 +220,11 @@ def test_operator_launch_manual_qa_flow(tmp_path: Path, monkeypatch):
     escrow = store.escrow_status(chain, escrow_stub["escrow_id"])
     assert escrow["status"] == "funded"
     first_release = store.escrow_action(
-        escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": merchant.address}
+        chain, escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": merchant.address}
     )
     assert first_release["status"] == "pending_release"
     second_release = store.escrow_action(
-        escrow["escrow_id"], {"action": "release", "signer": "mediator", "to_address": merchant.address}
+        chain, escrow["escrow_id"], {"action": "release", "signer": "mediator", "to_address": merchant.address}
     )
     assert second_release["status"] == "released"
     assert second_release["payout_plan"]["kind"] == "escrow_release"

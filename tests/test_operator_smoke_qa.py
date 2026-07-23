@@ -242,9 +242,9 @@ def test_full_operator_manual_qa_smoke(tmp_path: Path, monkeypatch):
         store.save(edata)
         escrow = store.escrow_status(chain, escrow["escrow_id"])
     assert escrow["status"] == "funded"
-    store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": merchant.address})
+    store.escrow_action(chain, escrow["escrow_id"], {"action": "release", "signer": "buyer", "to_address": merchant.address})
     released = store.escrow_action(
-        escrow["escrow_id"], {"action": "release", "signer": "mediator", "to_address": merchant.address}
+        chain, escrow["escrow_id"], {"action": "release", "signer": "mediator", "to_address": merchant.address}
     )
     assert released["status"] == "released"
     assert released["payout_plan"]["outputs"][0]["address"] == merchant.address

@@ -108,7 +108,7 @@ def test_release_cannot_fire_before_escrow_is_funded(tmp_path: Path):
         },
     )
     with pytest.raises(AppError, match="must be funded"):
-        store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": buyer.segwit_address})
+        store.escrow_action(chain, escrow["escrow_id"], {"action": "release", "signer": buyer.segwit_address})
 
 
 def test_terminal_state_rejects_further_actions(tmp_path: Path):
@@ -129,11 +129,11 @@ def test_terminal_state_rejects_further_actions(tmp_path: Path):
     )
     escrow = _fund(store, chain, escrow)
     assert escrow["status"] == "funded"
-    store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": buyer.segwit_address})
-    released = store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": seller.segwit_address})
+    store.escrow_action(chain, escrow["escrow_id"], {"action": "release", "signer": buyer.segwit_address})
+    released = store.escrow_action(chain, escrow["escrow_id"], {"action": "release", "signer": seller.segwit_address})
     assert released["status"] == "released"
     with pytest.raises(AppError, match="already released"):
-        store.escrow_action(escrow["escrow_id"], {"action": "refund", "signer": buyer.segwit_address})
+        store.escrow_action(chain, escrow["escrow_id"], {"action": "refund", "signer": buyer.segwit_address})
 
 
 def test_contracts_record_reflects_current_status_after_action(tmp_path: Path):
@@ -153,7 +153,7 @@ def test_contracts_record_reflects_current_status_after_action(tmp_path: Path):
         },
     )
     escrow = _fund(store, chain, escrow)
-    store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": buyer.segwit_address})
-    store.escrow_action(escrow["escrow_id"], {"action": "release", "signer": seller.segwit_address})
+    store.escrow_action(chain, escrow["escrow_id"], {"action": "release", "signer": buyer.segwit_address})
+    store.escrow_action(chain, escrow["escrow_id"], {"action": "release", "signer": seller.segwit_address})
     data = store.load()
     assert data["contracts"][escrow["escrow_id"]]["status"] == "released"

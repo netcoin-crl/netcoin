@@ -4320,7 +4320,76 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
                 pass
         return esc_rec
 
-    def escrow_action(self, escrow_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _escrow_funding_prevout(self, chain: Any, rec: dict[str, Any]) -> Any:
+        """Resolve the specific on-chain output that funded this escrow (not
+        just any UTXO currently sitting at the escrow address -- two escrows
+        between the same three participants share an address, so only the
+        exact funding txid:vout can be trusted as *this* escrow's coin)."""
+        txid = str(rec.get("funding_txid") or "")
+        if not txid:
+            raise AppError("escrow has no recorded funding transaction to settle from")
+        found = chain.get_transaction(txid)
+        if not found:
+            raise AppError("escrow funding transaction is no longer available on this node's chain")
+        tx, _block = found
+        vout = next((i for i, o in enumerate(tx.outputs) if o.address == rec.get("escrow_address")), None)
+        if vout is None:
+            raise AppError("could not locate the escrow's funding output in its own funding transaction")
+        prevout = chain.utxo_set().get(f"{txid}:{vout}")
+        if prevout is None:
+            raise AppError("the escrow's funding output has already been spent elsewhere")
+        return prevout
+
+    def _build_escrow_settlement_psbt(
+        self, chain: Any, rec: dict[str, Any], to_address: str, escrow_id: str, action: str
+    ) -> dict[str, Any] | None:
+        """Build a real, spendable 2-of-3 PSBT against the escrow's actual
+        funding UTXO -- release/refund previously only ever produced a
+        generic operator payout plan with no connection to the multisig
+        coin actually holding the funds. Returns None (rather than raising)
+        on any resolution failure so a stale/pruned funding reference can't
+        block the release/refund status transition itself; the caller
+        records the reason for operators to see."""
+        from ..params import MIN_RELAY_FEE_PER_KB
+        from ..psbt import PartiallySignedTransaction
+        from ..script import multisig_redeem_script
+
+        try:
+            prevout = self._escrow_funding_prevout(chain, rec)
+            redeem_script = multisig_redeem_script(
+                2, [rec["buyer_pubkey"], rec["seller_pubkey"], rec["mediator_pubkey"]]
+            )
+            # A 2-of-3 P2SH scriptSig (redeem script + 2 DER signatures) is
+            # much bigger than a single-key spend -- measured ~820 vbytes for
+            # 1 input + up to 2 outputs. The unsigned skeleton here has no
+            # signatures yet to size accurately, and DER signature length
+            # varies by a few bytes, so estimate generously (1000 vbytes) to
+            # comfortably clear min relay fee once actually broadcast.
+            fee_sats = max(1, (1000 * MIN_RELAY_FEE_PER_KB + 999) // 1000)
+            spend_sats = min(int(rec["amount_sats"]), int(prevout.output.amount) - fee_sats)
+            if spend_sats <= 0:
+                raise AppError("escrow funding output cannot cover the payout amount and fee")
+            outputs = [TxOutput(amount=spend_sats, address=to_address)]
+            change_sats = int(prevout.output.amount) - spend_sats - fee_sats
+            if change_sats > 0:
+                outputs.append(TxOutput(amount=change_sats, address=rec["escrow_address"]))
+            psbt = PartiallySignedTransaction.create([prevout], outputs)
+            psbt.set_multisig_input(0, redeem_script)
+            return {
+                "unsigned_psbt": "netpsbt:" + psbt.to_base64(),
+                "redeem_script": redeem_script,
+                "spend_sats": spend_sats,
+                "fee_sats": fee_sats,
+                "funding_outpoint": prevout.outpoint(),
+            }
+        except AppError as exc:
+            self.audit(
+                "escrow.settlement_psbt_failed",
+                {"escrow_id": escrow_id, "action": action, "reason": str(exc)},
+            )
+            return None
+
+    def escrow_action(self, chain: Any, escrow_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = self.load()
         rec = data.get("escrows", {}).get(escrow_id)
         if not rec:
@@ -4384,6 +4453,14 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
                     [{"address": to_addr, "amount_sats": int(rec["amount_sats"])}],
                     memo=f"Escrow {action} {escrow_id}",
                 )
+                # The payout_plan above is a generic operator-signed proposal,
+                # disconnected from the real 2-of-3 multisig coin that's
+                # actually holding the funds. settlement carries a real,
+                # spendable PSBT against that exact funding output -- once
+                # two of the three participants sign it (the same PSBT
+                # sign/combine/extract flow the wallet already exposes), it
+                # can be broadcast directly with no operator involved at all.
+                rec["settlement"] = self._build_escrow_settlement_psbt(chain, rec, to_addr, escrow_id, action)
                 rec["status"] = "released" if action == "release" else "refunded"
             else:
                 rec["status"] = "pending_" + action
@@ -5704,7 +5781,7 @@ def _route_app_post_uncached(
     if path == "/escrows":
         return 200, store.create_escrow(chain, body)
     if path.startswith("/escrows/") and path.endswith("/action"):
-        return 200, store.escrow_action(path.split("/")[2], body)
+        return 200, store.escrow_action(chain, path.split("/")[2], body)
     if path == "/polls":
         return 200, store.create_poll(body)
     if path.startswith("/polls/") and path.endswith("/vote"):
