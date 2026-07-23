@@ -1075,7 +1075,12 @@ def cmd_miner(args: argparse.Namespace) -> None:
                 sys.stdout.flush()
             if args.sync_after:
                 try:
-                    post_json(f"{node}/sync", {}, timeout=timeout)
+                    # The miner doesn't wait on or use the sync result --
+                    # ?wait=0 kicks it off on the node in the background
+                    # instead of blocking this request (and the node's
+                    # response to anything else) until every peer has been
+                    # contacted sequentially.
+                    post_json(f"{node}/sync?wait=0", {}, timeout=timeout)
                 except Exception:
                     pass
     except KeyboardInterrupt:

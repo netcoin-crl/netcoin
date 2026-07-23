@@ -1686,8 +1686,22 @@ def make_handler(node: NetCoinNode, *, trust_proxy_headers: bool = False):
                         node.add_peer(str(peer))
                     self.send_json({"ok": True, "peers": sorted(node.peers)})
                 elif parsed.path == "/sync":
-                    adopted = node.sync_all()
-                    self.send_json({"ok": True, "adopted_chains": adopted, "info": node.info()})
+                    # sync_all() contacts every peer sequentially (headers,
+                    # any missing block bodies, now mempool backfill too) --
+                    # for a node with many peers or one that's far behind,
+                    # that can take a while. Callers that only care about the
+                    # side effect (the miner's --sync-after, background
+                    # --sync-interval) don't need to block on the full
+                    # response; ?wait=0 kicks it off in a background thread
+                    # instead. Default stays synchronous so existing callers
+                    # that read adopted_chains/info from the response are
+                    # unaffected.
+                    if parse_qs(parsed.query).get("wait", ["1"])[0] in ("0", "false", "no"):
+                        Thread(target=node.sync_all, daemon=True).start()
+                        self.send_json({"ok": True, "started": True})
+                    else:
+                        adopted = node.sync_all()
+                        self.send_json({"ok": True, "adopted_chains": adopted, "info": node.info()})
                 elif parsed.path == "/relay":
                     delivered = node.drain_relay_queue()
                     self.send_json({"ok": True, "delivered": delivered, "queue": len(node._relay_queue)})
