@@ -834,12 +834,38 @@ class NetCoinNode:
             oldest = next(iter(self.orphans))
             del self.orphans[oldest]
 
+    def sync_mempool_from_peer(self, peer: str) -> int:
+        """Pull a peer's current mempool contents.
+
+        Gossip only relays a transaction at the moment it's broadcast -- a
+        node that joins (or reconnects) after that moment never receives it,
+        so its own mempool silently diverges from peers it's otherwise fully
+        synced with. Without this, a node mining against its own (stale,
+        possibly empty) mempool can keep finding valid blocks that never
+        include transactions the rest of the network is waiting to confirm.
+        """
+        peer = peer.rstrip("/")
+        added = 0
+        try:
+            data = self.fetch_json(f"{peer}/mempool?limit=2000")
+        except Exception:
+            return 0
+        for tx_data in data.get("transactions", []):
+            try:
+                tx = Transaction.from_dict(tx_data)
+                self.chain.add_mempool_transaction(tx)
+                added += 1
+            except Exception:
+                continue  # already known, invalid, or conflicting -- skip it
+        return added
+
     def sync_all(self) -> int:
         adopted = 0
         for peer in list(self.peers):
             try:
                 if self.sync_from_peer(peer):
                     adopted += 1
+                self.sync_mempool_from_peer(peer)
                 self.score_peer(peer, 1)  # reachable + compatible
             except Exception:
                 self.score_peer(peer, -1, reason="sync failure")  # unreachable/bad
