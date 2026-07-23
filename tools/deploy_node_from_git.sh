@@ -28,13 +28,25 @@ DEPLOY_PYTHON="${NETCOIN_DEPLOY_PYTHON:-3.13}"
 ENABLE_FAST_CRYPTO="${NETCOIN_ENABLE_FAST_CRYPTO:-1}"
 REF="${1:-main}"
 
+UV_INSTALLER_VERSION="0.9.16"
+UV_INSTALLER_SHA256="81b9594996c7ed9d95bbfb80e7fbdcc4fe1cc9ae83983b4ae86b39c603269207"
+
 ensure_uv() {
   if ! command -v uv >/dev/null 2>&1; then
     if [ -x "$HOME/.local/bin/uv" ]; then
       export PATH="$HOME/.local/bin:$PATH"
     else
-      echo "==> Installing uv for managed Python $DEPLOY_PYTHON"
-      curl -LsSf https://astral.sh/uv/install.sh | sh
+      # Pin to a specific installer script version + checksum instead of
+      # piping the "latest" installer straight into sh -- that gave a
+      # compromised or mistakenly-published astral.sh release unauthenticated
+      # root-equivalent code execution on every seed at deploy time.
+      echo "==> Installing uv $UV_INSTALLER_VERSION for managed Python $DEPLOY_PYTHON"
+      local installer
+      installer="$(mktemp)"
+      curl -LsSf "https://astral.sh/uv/$UV_INSTALLER_VERSION/install.sh" -o "$installer"
+      echo "$UV_INSTALLER_SHA256  $installer" | sha256sum -c - || { echo "!! uv installer checksum mismatch; aborting" >&2; rm -f "$installer"; exit 1; }
+      sh "$installer"
+      rm -f "$installer"
       export PATH="$HOME/.local/bin:$PATH"
     fi
   fi
@@ -67,8 +79,17 @@ if [ ! -d "$GIT_CLONE/.git" ]; then
   git clone "$GIT_URL" "$GIT_CLONE"
 fi
 git -C "$GIT_CLONE" fetch --tags --prune origin
-git -C "$GIT_CLONE" checkout -q "$REF"
-git -C "$GIT_CLONE" pull --ff-only origin "$REF" 2>/dev/null || true
+# Resolve REF to an origin ref if one exists (branch), else assume it's
+# already a fetched tag/commit. Then hard-reset onto it rather than
+# checkout+pull -- the previous `pull --ff-only ... || true` silently
+# swallowed *any* pull failure (auth error, non-ff divergence, network
+# blip), so a deploy could silently proceed on stale source with no
+# indication the fetch never landed.
+if git -C "$GIT_CLONE" show-ref --verify --quiet "refs/remotes/origin/$REF"; then
+  git -C "$GIT_CLONE" checkout -q -B "$REF" "origin/$REF"
+else
+  git -C "$GIT_CLONE" checkout -q "$REF"
+fi
 echo "    at $(git -C "$GIT_CLONE" describe --tags --always) ($(git -C "$GIT_CLONE" rev-parse --short HEAD))"
 
 echo "==> Test gate (pytest from the git checkout)"

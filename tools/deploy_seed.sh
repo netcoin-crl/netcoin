@@ -39,13 +39,25 @@ if [ -z "$SOURCE" ] && [ -z "$ZIP" ]; then
   exit 2
 fi
 
+UV_INSTALLER_VERSION="0.9.16"
+UV_INSTALLER_SHA256="81b9594996c7ed9d95bbfb80e7fbdcc4fe1cc9ae83983b4ae86b39c603269207"
+
 ensure_uv() {
   if ! command -v uv >/dev/null 2>&1; then
     if [ -x "$HOME/.local/bin/uv" ]; then
       export PATH="$HOME/.local/bin:$PATH"
     else
-      echo "==> Installing uv for managed Python $DEPLOY_PYTHON"
-      curl -LsSf https://astral.sh/uv/install.sh | sh
+      # Pin to a specific installer script version + checksum instead of
+      # piping the "latest" installer straight into sh -- that gave a
+      # compromised or mistakenly-published astral.sh release unauthenticated
+      # root-equivalent code execution on every seed at deploy time.
+      echo "==> Installing uv $UV_INSTALLER_VERSION for managed Python $DEPLOY_PYTHON"
+      local installer
+      installer="$(mktemp)"
+      curl -LsSf "https://astral.sh/uv/$UV_INSTALLER_VERSION/install.sh" -o "$installer"
+      echo "$UV_INSTALLER_SHA256  $installer" | sha256sum -c - || { echo "!! uv installer checksum mismatch; aborting" >&2; rm -f "$installer"; exit 1; }
+      sh "$installer"
+      rm -f "$installer"
       export PATH="$HOME/.local/bin:$PATH"
     fi
   fi
