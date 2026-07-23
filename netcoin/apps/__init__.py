@@ -477,10 +477,18 @@ class AppStore:
 
         self.storage_backend = normalize_storage_backend(os.environ.get("NETCOIN_APP_STORAGE"))
         self.lock = RLock()
+        self._conn: sqlite3.Connection | None = None
 
     def _sqlite_conn(self) -> sqlite3.Connection:
+        # AppStore is a single long-lived instance for the life of the node
+        # process (see node.py), so a fresh connect() + CREATE TABLE IF NOT
+        # EXISTS + migration-row INSERT on every single load()/save() call
+        # was pure overhead repeated on every app-layer API request. Schema
+        # setup now runs once; the connection is reused after that.
+        if self._conn is not None:
+            return self._conn
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(self.sqlite_path)
+        conn = sqlite3.connect(self.sqlite_path, check_same_thread=False)
         conn.execute(
             "CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)"
         )
@@ -494,6 +502,8 @@ class AppStore:
             "INSERT OR IGNORE INTO app_migrations(version, name, applied_at) VALUES (?, ?, ?)",
             (APP_SCHEMA_VERSION, "initial_app_state_json_blob", now()),
         )
+        conn.commit()
+        self._conn = conn
         return conn
 
     def _load_sqlite(self) -> dict[str, Any]:
