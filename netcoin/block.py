@@ -114,9 +114,6 @@ class Block:
 
         return block_weight(self)
 
-    def total_fees_placeholder(self) -> int:
-        return 0
-
     def is_over_weight_limit(self) -> bool:
         return self.weight() > MAX_BLOCK_WEIGHT
 

@@ -7,6 +7,7 @@ has no blocks, no indexer database, or no market/faucet/exchange state yet.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import time
@@ -115,10 +116,8 @@ def explorer_address_live(chain: Any, address: str, *, limit: int = 100) -> dict
             }
         )
     txids = []
-    try:
+    with contextlib.suppress(Exception):
         txids = sorted(getattr(chain, "address_index", {}).get(address, set()), reverse=True)[:limit]
-    except Exception:
-        pass
     history = []
     for txid in txids:
         txp = _tx_payload(chain, txid) or {"txid": txid}
@@ -284,10 +283,8 @@ def explorer_search_live(chain: Any, store: Any, query: str, *, limit: int = 25)
             pass
 
     data: dict[str, Any] = {}
-    try:
+    with contextlib.suppress(Exception):
         data = store.load()
-    except Exception:
-        pass
 
     def add_match(kind: str, item_id: str, label: str, haystacks: list[str]) -> None:
         if len(result["matches"]) >= limit:
