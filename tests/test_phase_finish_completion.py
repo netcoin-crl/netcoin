@@ -122,8 +122,8 @@ def test_community_payout_plans_rewards_and_tip_buttons(tmp_path: Path):
     )
     claimed = store.claim_gift({"claim_code": gift["claim_code"], "address": miner.address})
     assert claimed["payout_plan"]["kind"] == "gift"
-    bounty = store.create_bounty({"title": "fix", "reward": "1"})
-    awarded = store.award_bounty(bounty["bounty_id"], {"address": miner.address})
+    bounty = store.create_bounty(chain, {"title": "fix", "reward": "1"})
+    awarded = store.award_bounty(chain, bounty["bounty_id"], {"address": miner.address})
     assert awarded["payout_plan"]["kind"] == "bounty"
     reward = store.create_reward({"address": miner.address, "amount": "0.3", "reason": "testing"})
     assert reward["payout_plan"]["kind"] == "reward"

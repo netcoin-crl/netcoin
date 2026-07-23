@@ -225,7 +225,7 @@ def test_bounty_cannot_be_awarded_by_a_non_sponsor_http_caller(tmp_path: Path):
     store = AppStore(chain.data_dir)
     sponsor, attacker = Wallet.create(), Wallet.create()
 
-    bounty = store.create_bounty({"title": "Fix a bug", "sponsor_address": sponsor.segwit_address})
+    bounty = store.create_bounty(None, {"title": "Fix a bug", "sponsor_address": sponsor.segwit_address})
     path = "/community/bounties/" + bounty["bounty_id"] + "/award"
     with pytest.raises(AppError, match="only the bounty sponsor"):
         route_app_post(

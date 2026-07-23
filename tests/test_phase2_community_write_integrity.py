@@ -49,9 +49,9 @@ def test_close_poll_cannot_be_reopened_via_arbitrary_status(tmp_path: Path):
 
 def test_bounty_id_collision_is_rejected(tmp_path: Path):
     store = AppStore(tmp_path / "chain")
-    store.create_bounty({"title": "Fix a bug", "bounty_id": "fixed-bounty"})
+    store.create_bounty(None, {"title": "Fix a bug", "bounty_id": "fixed-bounty"})
     with pytest.raises(AppError, match="already exists"):
-        store.create_bounty({"title": "Another bug", "bounty_id": "fixed-bounty"})
+        store.create_bounty(None, {"title": "Another bug", "bounty_id": "fixed-bounty"})
 
 
 def test_improvement_vote_requires_voter_and_blocks_double_voting(tmp_path: Path):

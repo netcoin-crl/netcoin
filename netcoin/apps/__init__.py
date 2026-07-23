@@ -2821,7 +2821,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
                 return gift
         raise AppError("gift not found")
 
-    def create_bounty(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_bounty(self, chain: Any, payload: dict[str, Any]) -> dict[str, Any]:
         actor = verified_http_actor(payload)
         bounty_id = str(payload.get("bounty_id") or clean_id("bty"))
         if bounty_id in self.load().get("bounties", {}):
@@ -2829,17 +2829,44 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         reward_sats = parse_amount_sats(
             payload.get("reward_sats", payload.get("reward", payload.get("amount", 0))), "bounty reward"
         )
+        sponsor_address = actor or str(payload.get("sponsor_address") or "")
+        # A bounty with no linked escrow was previously just a sponsor's
+        # unbacked promise -- a winner could be awarded a payout_plan pointing
+        # at funds the sponsor never actually locked up. Requiring a real,
+        # already-funded 2-of-3 escrow (buyer == sponsor) here means the
+        # reward is provably backed by an on-chain coin before anyone starts
+        # submitting work, the same way create_escrow itself proves funding.
+        escrow_id = str(payload.get("escrow_id") or "").strip()
+        if escrow_id:
+            data = self.load()
+            escrow = data.get("escrows", {}).get(escrow_id)
+            if not escrow:
+                raise AppError(f"escrow {escrow_id} not found")
+            if self._expire_escrow_if_stale(data, escrow):
+                self.save(data)
+                raise AppError("escrow funding window expired before it was funded")
+            if escrow.get("status") != "funded":
+                raise AppError("escrow must be funded before it can back a bounty")
+            if sponsor_address and normalize_address(escrow.get("buyer_address")) != normalize_address(sponsor_address):
+                raise AppError("bounty sponsor must be the escrow's buyer (the funding party)")
+            if int(escrow.get("amount_sats", 0)) < reward_sats:
+                raise AppError("escrow amount is smaller than the bounty reward")
+            for other in data.get("bounties", {}).values():
+                if other.get("escrow_id") == escrow_id:
+                    raise AppError(f"escrow {escrow_id} already backs bounty {other.get('bounty_id')}")
         record = {
             "bounty_id": bounty_id,
             "title": str(payload.get("title") or "Untitled bounty")[:140],
             "description": str(payload.get("description") or "")[:2000],
             "reward_sats": reward_sats,
             "reward": sats_to_amount(reward_sats),
-            "sponsor_address": actor or str(payload.get("sponsor_address") or ""),
+            "sponsor_address": sponsor_address,
             "status": "open",
             "submissions": [],
             "winner_address": None,
             "payout_txid": None,
+            "escrow_id": escrow_id or None,
+            "escrow_backed": bool(escrow_id),
             "created_at": now(),
         }
         data = self.load()
@@ -2867,11 +2894,13 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         self.save(data)
         return submission
 
-    def award_bounty(self, bounty_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def award_bounty(self, chain: Any, bounty_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = self.load()
         bounty = data["bounties"].get(bounty_id)
         if not bounty:
             raise AppError("bounty not found")
+        if bounty.get("status") == "awarded" or bounty.get("winner_address"):
+            raise AppError("bounty has already been awarded")
         # /bounties isn't in SENSITIVE_WRITE_PREFIXES, so a signed envelope is only
         # verified if the caller happens to supply one -- required=True here means
         # awarding (unlike listing/submitting) always demands one, since it decides
@@ -2888,7 +2917,25 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
                 "awarded_at": now(),
             }
         )
-        if not bounty.get("payout_txid"):
+        escrow_id = bounty.get("escrow_id")
+        if not bounty.get("payout_txid") and escrow_id:
+            escrow = data.get("escrows", {}).get(escrow_id)
+            if not escrow:
+                raise AppError(f"bounty's backing escrow {escrow_id} is missing")
+            if escrow.get("status") in {"released", "refunded", "canceled"}:
+                raise AppError(f"bounty's backing escrow is already {escrow['status']}")
+            # Settle straight from the real 2-of-3 escrow coin to the winner --
+            # the same PSBT construction escrow_action's own release path uses --
+            # rather than a generic operator payout_plan disconnected from the
+            # funds. This also permanently locks the escrow itself so the
+            # sponsor can't separately release/refund the same coin elsewhere.
+            settlement = self._build_escrow_settlement_psbt(chain, escrow, winner, escrow_id, "bounty_award")
+            bounty["settlement"] = settlement
+            bounty["status"] = "ready_for_wallet_signing" if settlement else "awarded"
+            escrow["status"] = "released"
+            escrow["updated_at"] = now()
+            data.setdefault("contracts", {}).setdefault(escrow_id, {"contract_id": escrow_id})["status"] = "released"
+        elif not bounty.get("payout_txid"):
             bounty["payout_plan"] = self.plan_payout(
                 "bounty",
                 [{"address": winner, "amount_sats": bounty["reward_sats"]}],
@@ -5749,13 +5796,13 @@ def _route_app_post_uncached(
     if path == "/exchange/reserve-attestations":
         return 200, store.run_reserve_attestation(chain, body)
     if path == "/community/bounties":
-        return 200, store.create_bounty(body)
+        return 200, store.create_bounty(chain, body)
     if path.startswith("/community/bounties/") and path.endswith("/submit"):
         bounty_id = path.split("/")[3]
         return 200, store.submit_bounty(bounty_id, body)
     if path.startswith("/community/bounties/") and path.endswith("/award"):
         bounty_id = path.split("/")[3]
-        return 200, store.award_bounty(bounty_id, body)
+        return 200, store.award_bounty(chain, bounty_id, body)
     if path == "/custody/policy":
         return 200, store.set_payout_signing_policy(body)
     if path.startswith("/admin/payouts/") and path.endswith("/review"):

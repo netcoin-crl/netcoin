@@ -99,8 +99,8 @@ def test_app_store_invoice_username_merchant_community_wallet_and_network(tmp_pa
 
     airdrop = store.airdrop({"addresses": [merchant.address, "bad"], "amount": "0.1"})
     assert airdrop["valid_count"] == 1
-    bounty = store.create_bounty({"title": "bug", "reward": "2"})
-    awarded = store.award_bounty(bounty["bounty_id"], {"address": merchant.address})
+    bounty = store.create_bounty(chain, {"title": "bug", "reward": "2"})
+    awarded = store.award_bounty(chain, bounty["bounty_id"], {"address": merchant.address})
     assert awarded["winner_address"] == merchant.address
 
     statement = store.wallet_statement(chain, payer.address)
