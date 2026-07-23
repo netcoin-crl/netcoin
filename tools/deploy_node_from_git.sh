@@ -77,7 +77,18 @@ install_package "$GIT_CLONE"
 ( cd "$GIT_CLONE" && "$VENV/bin/python" -m pytest -q ) || { echo "!! tests failed; aborting deploy"; exit 1; }
 
 echo "==> Backing up current node package"
-sudo cp -a "$SRC_DIR/netcoin" "$SRC_DIR/netcoin.bak-$(date +%s)"
+BACKUP="$SRC_DIR/netcoin.bak-$(date +%s)"
+sudo cp -a "$SRC_DIR/netcoin" "$BACKUP"
+
+rollback() {
+  echo "!! rolling back to pre-deploy node package"
+  sudo rm -rf "$SRC_DIR/netcoin"
+  sudo cp -a "$BACKUP" "$SRC_DIR/netcoin"
+  sudo chown -R "$(id -u):$(id -g)" "$SRC_DIR/netcoin"
+  install_package "$SRC_DIR" || true
+  sudo systemctl daemon-reload || true
+  sudo systemctl restart "$SERVICE" || true
+}
 
 echo "==> Syncing node package + pyproject from git (leaves sites/app files untouched)"
 sudo rsync -a --delete "$GIT_CLONE/netcoin/" "$SRC_DIR/netcoin/"
@@ -94,7 +105,9 @@ sleep 3
 
 if curl -fsS "http://127.0.0.1:$PORT/info" >/dev/null; then
   echo "==> Deploy OK — node $VER healthy on :$PORT"
+  sudo rm -rf "$BACKUP"
 else
   echo "!! health check failed; check: journalctl -u $SERVICE -n 30"
+  rollback
   exit 1
 fi

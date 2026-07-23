@@ -43,6 +43,25 @@ if [ "$DRY_RUN" -eq 0 ] && [ "$YES" -ne 1 ]; then
   exit 2
 fi
 
+# A bad --prefix (empty, "/", or a shallow real directory) must never reach
+# `rm -rf` below -- this is the only thing standing between a --remove-data
+# run and deleting something that isn't the node install.
+case "$PREFIX" in
+  "" | "/" | "/*")
+    echo "refusing to operate on unsafe prefix: '$PREFIX'" >&2
+    exit 2
+    ;;
+esac
+if [ "$REMOVE_DATA" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
+  case "$PREFIX" in
+    */.netcoin-public-node | */.netcoin-public-node/) : ;;
+    *)
+      echo "refusing --remove-data on prefix '$PREFIX': expected it to end in .netcoin-public-node (override the name with --service-name, not by pointing --prefix elsewhere)" >&2
+      exit 2
+      ;;
+  esac
+fi
+
 if command -v systemctl >/dev/null 2>&1; then
   run systemctl --user stop "$SERVICE_NAME" || true
   run systemctl --user disable "$SERVICE_NAME" || true

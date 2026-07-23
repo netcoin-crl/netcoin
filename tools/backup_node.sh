@@ -31,7 +31,11 @@ copy_if_present() {
   local src="$1" name="$2"
   if [ -e "$src" ]; then
     mkdir -p "$DEST/$name"
-    cp -a "$src" "$DEST/$name/" 2>/dev/null || true
+    # No `|| true` here: a silently-failed cp used to produce a backup
+    # archive that looked fine (correct manifest, correct filename) but was
+    # missing the wallet/data files it claimed to contain. Fail the whole
+    # backup instead of shipping a hollow one.
+    cp -a "$src" "$DEST/$name/"
     echo "  + $name <- $src"
   else
     echo "  - $name (skipped; $src not found)"
@@ -61,6 +65,22 @@ ARCHIVE="$OUTPUT_DIR/netcoin-backup-$STAMP.tar.gz"
 tar -czf "$ARCHIVE" -C "$STAGE" "netcoin-backup-$STAMP"
 chmod 600 "$ARCHIVE"
 rm -rf "$STAGE"
+
+# Optional at-rest encryption: set NETCOIN_BACKUP_GPG_RECIPIENT to a GPG key
+# ID/fingerprint/email to encrypt the archive (which contains wallet files)
+# before it lands on disk, instead of relying on chmod 600 + operator
+# discipline to keep it private.
+if [ -n "${NETCOIN_BACKUP_GPG_RECIPIENT:-}" ]; then
+  if command -v gpg >/dev/null 2>&1; then
+    gpg --batch --yes --trust-model always -r "$NETCOIN_BACKUP_GPG_RECIPIENT" \
+      -o "$ARCHIVE.gpg" --encrypt "$ARCHIVE"
+    shred -u "$ARCHIVE" 2>/dev/null || rm -f "$ARCHIVE"
+    ARCHIVE="$ARCHIVE.gpg"
+    chmod 600 "$ARCHIVE"
+  else
+    echo "!! NETCOIN_BACKUP_GPG_RECIPIENT set but gpg is not installed; leaving archive unencrypted" >&2
+  fi
+fi
 
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum "$ARCHIVE"
