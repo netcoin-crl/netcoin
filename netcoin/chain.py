@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import time
 from collections.abc import Iterable, Sequence
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from .block import (
@@ -120,6 +122,21 @@ class ChainError(ValueError):
     """Raised when chain state or consensus validation fails."""
 
 
+def _locked(method):
+    """Serialize a Blockchain mutation entry point on self.lock (an RLock,
+    so a locked method calling another locked method on the same thread is
+    safe). Applied only to the top-level methods HTTP handlers call
+    directly -- their internal nested helpers (remove_mempool_transactions,
+    purge_invalid_mempool, reindex, ...) are already covered transitively."""
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self.lock:
+            return method(self, *args, **kwargs)
+
+    return wrapper
+
+
 class Blockchain:
     """A small Bitcoin-like blockchain database.
 
@@ -138,6 +155,14 @@ class Blockchain:
     ):
         self.data_dir = Path(data_dir)
         self.autosave = autosave
+        # ThreadingHTTPServer hands every request its own thread, and node.py
+        # shares one Blockchain instance across all of them. Nothing here was
+        # ever synchronized -- concurrent add_block/mine_block/mempool calls
+        # could race on self.chain/self.mempool/self._utxos with no lock at
+        # all. Reentrant so a locked method calling another locked method on
+        # the same thread (e.g. mine_block's internal bookkeeping) can't
+        # deadlock on itself.
+        self.lock = RLock()
         # Optional premine baked into the genesis (used by a relaunch to carry
         # balances forward from a snapshot). None => the standard empty genesis.
         self._genesis_allocation = genesis_allocation
@@ -298,6 +323,7 @@ class Blockchain:
             "transaction_ids": txids,
         }
 
+    @_locked
     def address_balance_summary(self, address: str) -> dict[str, Any]:
         if not validate_address(address):
             raise ChainError("address is not a valid NetCoin address")
@@ -661,6 +687,7 @@ class Blockchain:
                         coinbase=tx.is_coinbase,
                     )
 
+    @_locked
     def utxo_set(self, include_mempool: bool = False) -> dict[str, SpendableOutput]:
         # Serve a copy of the persistent UTXO cache so callers can mutate freely.
         utxos = dict(self._utxos)
@@ -671,6 +698,7 @@ class Blockchain:
                 self.apply_regular_transaction(tx, utxos, height)
         return utxos
 
+    @_locked
     def utxos_for_address(self, address: str, *, include_immature: bool = False) -> list[SpendableOutput]:
         if not validate_address(address):
             raise ChainError("address is not a valid NetCoin address")
@@ -686,6 +714,7 @@ class Blockchain:
         result.sort(key=lambda item: (item.height, item.txid, item.vout))
         return result
 
+    @_locked
     def balances_for_address(self, address: str) -> dict[str, int]:
         if not validate_address(address):
             raise ChainError("address is not a valid NetCoin address")
@@ -905,6 +934,7 @@ class Blockchain:
                 conflicts.append(existing)
         return conflicts
 
+    @_locked
     def add_mempool_transaction(self, tx: Transaction, *, save: bool = True) -> str:
         txid = tx.txid()
         if tx.is_coinbase:
@@ -960,6 +990,7 @@ class Blockchain:
             self.save_mempool()
         return txid
 
+    @_locked
     def add_mempool_package(self, txs: Sequence[Transaction], *, save: bool = True) -> list[str]:
         """Accept a small ancestor/descendant package using aggregate fee policy.
 
@@ -1021,6 +1052,7 @@ class Blockchain:
         except (ChainError, TransactionError):
             return 0
 
+    @_locked
     def evict_expired_mempool(self, max_age_seconds: int, now: float | None = None, *, save: bool = True) -> int:
         """Drop mempool transactions older than max_age_seconds. Returns count."""
         now = time.time() if now is None else now
@@ -1073,6 +1105,7 @@ class Blockchain:
             self.mempool_times.pop(txid, None)
         self.save_mempool()
 
+    @_locked
     def clear_mempool(self) -> int:
         """Drop every unconfirmed transaction. Confirmed blocks and UTXOs stay intact."""
         count = len(self.mempool)
@@ -1196,6 +1229,7 @@ class Blockchain:
     # Mining, chain selection, headers, explorer helpers
     # ------------------------------------------------------------------
 
+    @_locked
     def mine_block(self, miner_address: str) -> Block:
         if not validate_address(miner_address):
             raise ChainError("miner address is not a valid NetCoin address")
@@ -1253,6 +1287,7 @@ class Blockchain:
         self._persist_appended_tip(candidate)
         return candidate
 
+    @_locked
     def add_block(self, block: Block) -> str:
         block_hash = block.hash()
         if self.block_by_hash(block_hash) is not None:
@@ -1368,6 +1403,7 @@ class Blockchain:
         self.purge_invalid_mempool()
         self.save_chain()
 
+    @_locked
     def replace_chain(self, blocks: Sequence[Block]) -> bool:
         self.assert_valid_chain(blocks)
         if blocks[0].hash() != self.chain[0].hash():
@@ -1446,6 +1482,7 @@ class Blockchain:
             consensus_version=consensus_rules_at_height(self.height()).version,
         )
 
+    @_locked
     def prune(self, keep_depth: int) -> dict[str, Any]:
         """Drop block bodies below tip-keep_depth from disk, keeping headers and a
         UTXO snapshot (SQLite backend only). The running node is unaffected; on the
