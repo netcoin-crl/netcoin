@@ -2279,12 +2279,20 @@
     return Math.max(1, Math.min(n, MAX_WALLET_SEND_INPUTS));
   }
   function estimateVsize(nInputs) {
-    // segwit p2wpkh: ~68 vbytes/input, ~31/output (recipient + change), ~11 overhead.
-    return 11 + nInputs * 68 + 2 * 31;
+    // Shared with W.selectCoins's own opportunistic-consolidation budget
+    // (webwallet-browser/src/wallet.mjs) so the fee this computes can never
+    // be undercut by a send that ends up sweeping in more dust UTXOs than
+    // this function assumed -- previously selectCoins always swept in every
+    // spendable UTXO up to 500 inputs with no vsize bound, so a wallet with
+    // many small coins could build a transaction far bigger than any fee
+    // estimated from amount alone, and the send would fail on the node with
+    // "transaction fee is below min relay fee" even for a tiny payment.
+    return W?.estimateVsize ? W.estimateVsize(nInputs) : (11 + nInputs * 68 + 2 * 31);
   }
   function autoFeeTiers(amountSats) {
     const nInputs = estimateInputsForAmount(amountSats);
-    const vsize = estimateVsize(nInputs);
+    const consolidationBudget = W?.CONSOLIDATION_VSIZE_BUDGET || 20000;
+    const vsize = Math.max(estimateVsize(nInputs), consolidationBudget);
     const nodePresets = feeEstimatePayload?.presets || {};
     const fromNode = (name, fallbackRate) => {
       const preset = nodePresets[name] || {};

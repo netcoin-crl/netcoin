@@ -4,4 +4,5 @@ export {
   newSeedPhrase, seedPhraseToEntropy, verifySeedPhrase,
   privateKeyFromSeedPhrase, newRandomPrivateKey, walletFromPrivateKey,
   buildSignedPayment, buildBatchPayment, buildUsernameClaim, buildUsernameTransfer, selectCoins, addressToScriptPubkey, allWalletAddresses,
+  estimateVsize, CONSOLIDATION_VSIZE_BUDGET,
 } from "./wallet.mjs";

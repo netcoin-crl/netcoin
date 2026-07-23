@@ -11,7 +11,7 @@ import {
   xonlyFromPriv, p2trAddress, p2trScriptPubkey, signP2trInput,
   legacyAddress, p2shSegwitAddress, signMessage,
 } from "../src/netcoin.mjs";
-import { privateKeyFromSeedPhrase, walletFromPrivateKey, verifySeedPhrase, addressToScriptPubkey, buildSignedPayment } from "../src/wallet.mjs";
+import { privateKeyFromSeedPhrase, walletFromPrivateKey, verifySeedPhrase, addressToScriptPubkey, buildSignedPayment, selectCoins, estimateVsize, CONSOLIDATION_VSIZE_BUDGET } from "../src/wallet.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fx = JSON.parse(readFileSync(join(here, "fixtures.json"), "utf8"));
@@ -80,6 +80,28 @@ try {
   zeroFeeRejected = true;
 }
 check("zero-fee payment is rejected", zeroFeeRejected, true);
+
+// selectCoins previously swept in every spendable UTXO (up to 500) as
+// opportunistic consolidation with no size bound, so a wallet holding many
+// small coins could build a transaction far bigger than any fee estimated
+// from the send amount alone -- the node would then reject it with
+// "transaction fee is below min relay fee" even for a tiny payment. A
+// wallet with 300 dust-sized coins sending a small amount must not sweep
+// them all into one transaction; the actual selected count's estimated
+// vsize must stay within the documented consolidation budget.
+const dustUtxos = Array.from({ length: 300 }, (_, i) => ({
+  txid: i.toString(16).padStart(64, "0"), vout: 0, amount: 2000,
+}));
+const dustSelection = selectCoins(dustUtxos, 100000, 500);
+check("dust consolidation stays within the vsize budget", estimateVsize(dustSelection.chosen.length) <= CONSOLIDATION_VSIZE_BUDGET, true);
+check("dust consolidation does not sweep every coin in the wallet", dustSelection.chosen.length < dustUtxos.length, true);
+// A send that genuinely needs more inputs than the consolidation budget
+// allows (because the amount itself demands it, not because of
+// opportunistic sweeping) must still succeed -- the budget only bounds the
+// *extra* dust sweep-in, never the coins required to cover the target.
+const bigTarget = dustUtxos.length * 2000 - 5000; // needs ~298 of the 300 coins
+const bigSelection = selectCoins(dustUtxos, bigTarget, 500);
+check("selection still covers a target that needs more than the budget implies", bigSelection.total >= bigTarget, true);
 
 // 5b. signMessage must produce the exact Python signature (same digest, same
 // low-S/RFC6979 signature, same recovery-bit header byte).

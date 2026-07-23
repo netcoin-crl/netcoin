@@ -124,8 +124,27 @@ export function addressToScriptPubkey(address) {
   } catch { fail(); }
 }
 
+// Segwit p2wpkh single-key spend estimate (matches the node's real
+// BIP141 vsize formula in netcoin/serialization.py: (weight+3)//4).
+const SEGWIT_INPUT_VSIZE = 68;
+const OUTPUT_VSIZE = 31;
+const TX_OVERHEAD_VSIZE = 11;
+export function estimateVsize(numInputs, numOutputs = 2) {
+  return TX_OVERHEAD_VSIZE + numInputs * SEGWIT_INPUT_VSIZE + numOutputs * OUTPUT_VSIZE;
+}
+
+// Bounds the opportunistic dust-sweep below so a send's actual transaction
+// size stays predictable -- a fee computed before selection runs (the
+// caller always picks a fee first, then calls selectCoins) can only stay
+// valid if the actual chosen input count can't run away unboundedly.
+export const CONSOLIDATION_VSIZE_BUDGET = 20000;
+
 // Consolidating coin selection: cover the target largest-first, then sweep in
-// the smallest coins up to maxInputs so every send also shrinks the UTXO set.
+// the smallest coins -- up to maxInputs AND a vsize budget -- so every send
+// also shrinks the UTXO set, without silently sweeping every dust coin in
+// the wallet into one transaction (which previously made the actual tx far
+// bigger than any fee computed beforehand could account for, causing sends
+// to fail with "fee below min relay fee" even for a small payment amount).
 // utxos: [{txid,vout,amount,(script_pubkey)}].
 export function selectCoins(utxos, target, maxInputs = 500) {
   const desc = [...utxos].sort((a, b) => b.amount - a.amount);
@@ -146,6 +165,7 @@ export function selectCoins(utxos, target, maxInputs = 500) {
   for (const u of [...utxos].sort((a, b) => a.amount - b.amount)) {
     if (chosen.length >= maxInputs) break;
     if (coreOps.has(u.txid + ":" + u.vout)) continue;
+    if (estimateVsize(chosen.length + 1) > CONSOLIDATION_VSIZE_BUDGET) break;
     chosen.push(u); total += u.amount;
   }
   return { chosen, total };
