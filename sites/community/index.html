@@ -6,7 +6,7 @@
   <title>NetCoin Community</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
   <link rel="stylesheet" href="site-shell.css?v=20260721-structured-ui" />
-  <link rel="stylesheet" href="community.css?v=20260721-leaderboard-fix" />
+  <link rel="stylesheet" href="community.css?v=20260723-images-reddit-pass" />
 </head>
 <body>
   <div class="shell community-shell">
@@ -46,6 +46,11 @@
             <div class="compose-top"><h2>Create post</h2><div class="sort-pills" role="group" aria-label="Sort posts"><button id="sortHot" class="secondary small active" type="button" data-sort="hot">Hot</button><button id="sortNew" class="secondary small" type="button" data-sort="new">New</button><button id="sortTop" class="secondary small" type="button" data-sort="top">Top</button><button id="refreshPosts" class="secondary small" type="button">Refresh</button></div></div>
             <div class="compose-grid"><input id="postName" placeholder="Name" maxlength="80" /><select id="postCategory"><option>general</option><option>help</option><option>mining</option><option>wallet</option><option>merchant</option><option>ideas</option></select></div>
             <textarea id="postMessage" placeholder="Share an update or question. Never post keys or seed phrases." maxlength="1200"></textarea>
+            <div class="image-picker">
+              <input id="postImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hide" />
+              <button id="postImageBtn" class="secondary small" type="button">Add image</button>
+              <div id="postImagePreview" class="image-preview hide"><img id="postImagePreviewImg" alt="preview" /><button type="button" id="postImageClear" class="link-btn">Remove</button></div>
+            </div>
             <button id="postMessageBtn" type="button">Post</button><p id="postResult" class="toast"></p>
           </div>
           <div id="postFeed" class="reddit-feed"></div>
@@ -54,11 +59,18 @@
         <section class="tab-panel" id="tab-comments">
           <div class="section-card card">
             <div class="section-head"><h2>Thread comments</h2><button id="refreshComments" class="secondary small" type="button">Refresh</button></div>
-            <input id="commentPostId" placeholder="Post ID" maxlength="160" />
-            <div id="commentList" class="comment-list"><p class="muted">Open comments from any post.</p></div>
-            <div class="comment-compose">
+            <p class="muted">Open comments from any post in the feed, or look one up by post ID.</p>
+            <div class="comment-lookup"><input id="commentPostId" placeholder="Post ID" maxlength="160" /><button id="commentLookupBtn" class="secondary small" type="button">Load</button></div>
+            <div id="commentList" class="comment-thread"><div class="empty-state">Pick a post from the feed (or paste a post ID above) to view its comments.</div></div>
+            <div class="comment-compose card-inset">
+              <h3 class="u-my-10-4">Add a comment</h3>
               <input id="commentName" placeholder="Name" maxlength="80" />
               <textarea id="commentMessage" placeholder="Add a comment. Never post secrets." maxlength="1200"></textarea>
+              <div class="image-picker">
+                <input id="commentImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hide" />
+                <button id="commentImageBtn" class="secondary small" type="button">Add image</button>
+                <div id="commentImagePreview" class="image-preview hide"><img id="commentImagePreviewImg" alt="preview" /><button type="button" id="commentImageClear" class="link-btn">Remove</button></div>
+              </div>
               <button id="submitComment" type="button">Comment</button>
               <p id="commentResult" class="toast"></p>
             </div>
@@ -110,6 +122,11 @@
               <h2>Post in this circle</h2>
               <input id="circlePostName" placeholder="Name" maxlength="80" />
               <textarea id="circlePostMessage" placeholder="Share an update or question with this circle. Never post keys or seed phrases." maxlength="1200"></textarea>
+              <div class="image-picker">
+                <input id="circlePostImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hide" />
+                <button id="circlePostImageBtn" class="secondary small" type="button">Add image</button>
+                <div id="circlePostImagePreview" class="image-preview hide"><img id="circlePostImagePreviewImg" alt="preview" /><button type="button" id="circlePostImageClear" class="link-btn">Remove</button></div>
+              </div>
               <button id="circlePostBtn" type="button">Post</button><p id="circlePostResult" class="toast"></p>
             </div>
             <div id="circlePinnedPost"></div>
@@ -179,7 +196,7 @@
 
     <p class="footer">NetCoin Community is public testnet coordination.</p>
   </div>
-  <script src="community.js?v=20260722-circle-rules-pins"></script>
+  <script src="community.js?v=20260723-images-reddit-pass"></script>
   <script src="site-shell.js?v=20260721-structured-ui"></script>
 </body>
 </html>
