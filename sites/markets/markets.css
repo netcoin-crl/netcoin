@@ -38,13 +38,14 @@ body[data-site="markets"] .wrap {
 }
 .mkt-banner .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
 
-/* sub-nav: search + category chips */
+/* sub-nav: search-first row, then category tabs below (Polymarket layout) */
 .mkt-subnav {
   position: sticky; top: 0; z-index: 20;
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  padding: 12px 0; margin-bottom: 8px;
-  background: linear-gradient(var(--bg) 72%, transparent);
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 0 10px; margin-bottom: 8px;
+  background: linear-gradient(var(--bg) 78%, transparent);
 }
+.mkt-search-row { display: flex; align-items: center; gap: 12px; }
 
 .discover-panel {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px;
@@ -83,18 +84,53 @@ body[data-site="markets"] .wrap {
   font-weight: 850 !important; cursor: pointer;
 }
 .mkt-search {
-  flex: 1 1 260px; min-width: 200px;
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 14px; border: 1px solid var(--line); border-radius: 999px;
+  flex: 1 1 auto; min-width: 200px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 18px; border: 1px solid var(--line); border-radius: 999px;
   background: var(--surface);
+  transition: border-color .15s;
 }
+.mkt-search:focus-within { border-color: var(--accent); }
 .mkt-search input {
   flex: 1; border: 0 !important; background: transparent !important; color: var(--fg) !important;
-  font-size: 15px; outline: none; padding: 8px 0 !important; width: auto !important;
+  font-size: 16px; outline: none; padding: 10px 0 !important; width: auto !important;
 }
-.mkt-search svg { width: 16px; height: 16px; color: var(--mut); flex: none; }
-.mkt-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.mkt-search svg { width: 18px; height: 18px; color: var(--mut); flex: none; }
+.mkt-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .mkt-chips::-webkit-scrollbar { display: none; }
+
+/* sort toggle bar above the grid */
+.mkt-sortbar { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 0 14px; }
+.mkt-sortbar::-webkit-scrollbar { display: none; }
+.sort-toggle {
+  flex: none; width: auto !important; padding: 7px 14px !important;
+  border: 1px solid transparent !important; border-radius: 999px !important;
+  background: transparent !important; color: var(--mut) !important;
+  font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.sort-toggle:hover { color: var(--fg) !important; background: var(--surface) !important; }
+.sort-toggle.active { color: var(--fg) !important; background: var(--surface-3) !important; border-color: var(--line) !important; }
+
+/* featured / trending strip */
+.feat-section { margin: 4px 0 22px; }
+.feat-title { margin: 0 0 12px; font-size: 17px; font-weight: 800; color: var(--fg); }
+.feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.feat-card {
+  display: flex; flex-direction: column; gap: 10px; cursor: pointer;
+  padding: 18px; border: 1px solid var(--line); border-radius: 14px;
+  background: linear-gradient(180deg, var(--surface), var(--surface-2));
+  transition: transform .12s, border-color .12s, box-shadow .12s;
+}
+.feat-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow); }
+.feat-head { display: flex; gap: 12px; align-items: flex-start; }
+.feat-q { font-size: 16px; font-weight: 700; line-height: 1.35; color: var(--fg); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.feat-chart { height: 90px; overflow: hidden; }
+.feat-chart .sparkline { height: 90px; }
+.feat-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.feat-chance { display: flex; flex-direction: column; min-width: 0; }
+.feat-chance .pct { font-size: 30px; font-weight: 800; color: var(--fg); line-height: 1; }
+.feat-chance .lbl { font-size: 12px; color: var(--mut); }
+.feat-card .yn { padding: 11px 16px !important; font-size: 14px; }
 .new-market-btn {
   flex: none; width: auto !important; min-height: 40px !important;
   padding: 9px 16px !important; border: 0 !important; border-radius: 999px !important;

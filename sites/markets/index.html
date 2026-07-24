@@ -29,13 +29,17 @@
       <!-- GRID VIEW -->
       <section id="gridView">
         <div class="mkt-subnav">
-          <div class="mkt-search">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            <input id="searchInput" type="search" placeholder="Search markets" autocomplete="off" />
+          <div class="mkt-search-row">
+            <div class="mkt-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input id="searchInput" type="search" placeholder="Search markets" autocomplete="off" />
+            </div>
+            <button id="newMarketButton" class="new-market-btn" type="button">New market</button>
           </div>
           <div class="mkt-chips" id="categoryChips"></div>
-          <button id="newMarketButton" class="new-market-btn" type="button">New market</button>
         </div>
+
+        <section class="feat-section hidden" id="featuredSection" aria-label="Trending markets"></section>
 
         <section class="discover-panel" aria-label="Market discovery">
           <div>
@@ -57,6 +61,7 @@
         </section>
 
         <div class="mkt-metrics" id="marketMetrics" aria-live="polite"></div>
+        <div class="mkt-sortbar" id="sortBar"></div>
         <div class="mkt-grid" id="marketGrid"></div>
       </section>
 

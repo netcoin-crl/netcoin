@@ -2,7 +2,7 @@
 
 (() => {
   const $ = (sel) => document.querySelector(sel);
-  const state = { markets: [], selectedId: "", apiOk: false, usingLocalMarkets: false, view: "grid", category: "All", query: "", tab: "orderbook", tradeSide: "yes", tradeOutcomeId: "" };
+  const state = { markets: [], selectedId: "", apiOk: false, usingLocalMarkets: false, view: "grid", category: "All", query: "", sort: "trending", tab: "orderbook", tradeSide: "yes", tradeOutcomeId: "" };
   const apiBase = localStorage.getItem("netcoinApiBase") || "/api";
   const localMarketsKey = "nc.markets.local.v1";
 
@@ -150,6 +150,74 @@
       `<button class="chip${c === state.category ? " active" : ""}" type="button" data-cat="${esc(c)}">${esc(c)}</button>`).join("");
     $("#categoryChips").querySelectorAll("[data-cat]").forEach((b) => b.addEventListener("click", () => { state.category = b.getAttribute("data-cat"); renderGrid(); renderChips(); }));
   }
+  const SORTS = [
+    ["trending", "Trending"],
+    ["new", "New"],
+    ["ending", "Ending soon"],
+    ["volume", "Volume"],
+  ];
+  const volumeSats = (m) => Number((m.stats || {}).volume_sats || 0);
+  const tradeScore = (m) => (m.trades || []).length;
+  function trendingScore(m) {
+    // volume dominates, recent trade activity nudges markets with fresh interest upward.
+    return volumeSats(m) + tradeScore(m) * 5000;
+  }
+  function sortMarkets(list, sort) {
+    const copy = list.slice();
+    if (sort === "new") return copy.sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0));
+    if (sort === "ending") return copy.sort((a, b) => {
+      const ao = a.status !== "open", bo = b.status !== "open";
+      if (ao !== bo) return ao ? 1 : -1;
+      return Number(a.close_time || Infinity) - Number(b.close_time || Infinity);
+    });
+    if (sort === "volume") return copy.sort((a, b) => volumeSats(b) - volumeSats(a));
+    return copy.sort((a, b) => trendingScore(b) - trendingScore(a));
+  }
+  function renderSortBar() {
+    const bar = $("#sortBar");
+    if (!bar) return;
+    bar.innerHTML = SORTS.map(([key, label]) =>
+      `<button class="sort-toggle${state.sort === key ? " active" : ""}" type="button" data-sort="${key}">${esc(label)}</button>`).join("");
+    bar.querySelectorAll("[data-sort]").forEach((b) => b.addEventListener("click", () => { state.sort = b.getAttribute("data-sort"); renderGrid(); renderSortBar(); renderFeatured(); }));
+  }
+  function featuredMarkets() {
+    return sortMarkets(state.markets.filter((m) => m.status === "open"), "trending").slice(0, 4);
+  }
+  function featuredCardHtml(m) {
+    const avatar = esc(String(m.question || "?").trim().charAt(0).toUpperCase() || "N");
+    const vol = ((m.stats || {}).volume) || m.volume || "0";
+    const yo = isBinary(m) ? yesOutcome(m) : null;
+    const c = yo ? displayCents(m, yo.outcome_id) : null;
+    const chance = c != null
+      ? `<div class="feat-chance"><span class="pct">${fmtPct(c)}</span><span class="lbl">chance</span></div>`
+      : "";
+    const buttons = isBinary(m)
+      ? `<div class="yn-btns"><button class="yn yn-yes" data-buy="yes" data-id="${esc(m.market_id)}">Yes ${fmtCents(displayCents(m, yo.outcome_id))}</button><button class="yn yn-no" data-buy="no" data-id="${esc(m.market_id)}">No ${fmtCents(displayCents(m, (noOutcome(m) || {}).outcome_id))}</button></div>`
+      : `<div class="yn-btns"><button class="yn yn-yes" data-id="${esc(m.market_id)}">View market</button></div>`;
+    return `<article class="feat-card" data-id="${esc(m.market_id)}">
+        <div class="feat-head"><div class="mkt-avatar">${avatar}</div><div class="feat-q">${esc(m.question)}</div></div>
+        <div class="feat-chart">${sparkline(m)}</div>
+        <div class="feat-row">${chance}${buttons}</div>
+        <div class="mkt-foot"><span>Vol ${esc(vol)}</span><span>${m.status === "open" ? `closes ${fmtTime(m.close_time)}` : esc(m.status)}</span></div>
+      </article>`;
+  }
+  function renderFeatured() {
+    const wrap = $("#featuredSection");
+    if (!wrap) return;
+    const list = featuredMarkets();
+    if (!list.length) { wrap.innerHTML = ""; wrap.classList.add("hidden"); return; }
+    wrap.classList.remove("hidden");
+    wrap.innerHTML = `<h2 class="feat-title">Trending markets</h2><div class="feat-grid">${list.map(featuredCardHtml).join("")}</div>`;
+    wrap.querySelectorAll("[data-id]").forEach((el) => el.addEventListener("click", (e) => {
+      if (e.target.closest("[data-buy]")) return;
+      openDetail(el.getAttribute("data-id"));
+    }));
+    wrap.querySelectorAll("[data-buy]").forEach((b) => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.tradeSide = b.getAttribute("data-buy");
+      openDetail(b.getAttribute("data-id"));
+    }));
+  }
   function renderMetrics(totals) {
     const s = totals || {};
     const rows = [
@@ -162,9 +230,10 @@
   }
   function visibleMarkets() {
     const q = state.query.trim().toLowerCase();
-    return state.markets.filter((m) =>
+    const filtered = state.markets.filter((m) =>
       (state.category === "All" || String(m.category) === state.category) &&
       (!q || String(m.question).toLowerCase().includes(q)));
+    return sortMarkets(filtered, state.sort);
   }
   function cardHtml(m) {
     const avatar = esc(String(m.question || "?").trim().charAt(0).toUpperCase() || "N");
@@ -498,7 +567,7 @@
     box.querySelectorAll("[data-open-market]").forEach((button) => button.addEventListener("click", () => openDetail(button.getAttribute("data-open-market"))));
   }
 
-  function renderAll(totals) { renderMetrics(totals); renderChips(); renderResolutionQueue(); if (state.view === "grid") renderGrid(); else renderDetail(); }
+  function renderAll(totals) { renderMetrics(totals); renderChips(); renderSortBar(); renderFeatured(); renderResolutionQueue(); if (state.view === "grid") renderGrid(); else renderDetail(); }
 
   /* ---------------- API actions (unchanged wiring) ---------------- */
   async function loadMarkets() {
@@ -518,6 +587,9 @@
       state.apiOk = false;
       $("#apiStatus").textContent = locals.length ? `API offline · ${locals.length} local draft${locals.length === 1 ? "" : "s"}` : `API offline`;
       renderMetrics({ count: locals.length, open: locals.filter((m) => m.status === "open").length, resolved: 0, volume: "0" });
+      renderChips();
+      renderSortBar();
+      renderFeatured();
       renderResolutionQueue();
       renderGrid();
       log("Market load failed", { error: err.message });

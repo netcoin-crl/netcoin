@@ -3,3 +3,15 @@
 .metric-row{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 14px;font-size:13px}.metric-row span{border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--mut)}
 .pnl-pos{color:var(--accent);font-weight:700}.pnl-neg{color:var(--err,#ff6b6b);font-weight:700}.pnl-flat{color:var(--mut)}
 .mini-table tbody tr:hover{background:rgba(255,255,255,.03)}
+.portfolio-card{margin-bottom:16px}
+.orders-card{border-color:var(--line);background:rgba(255,255,255,.02)}
+.portfolio-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.portfolio-head h2{margin:0}
+.trader-switch{display:flex;align-items:center;gap:8px}
+.trader-switch label{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.trader-switch input{width:180px!important;padding:7px 10px!important;border-radius:8px!important}
+.trader-switch button{width:auto!important;padding:7px 12px!important;border-radius:8px!important}
+.empty-portfolio{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:28px 8px;text-align:left}
+.empty-portfolio p{margin:0}
+.explore-btn{display:inline-flex;margin-top:6px;padding:10px 18px;border-radius:999px;background:var(--accent);color:#05231a;font-weight:800;text-decoration:none;font-size:14px}
+.explore-btn:hover{filter:brightness(1.05)}
