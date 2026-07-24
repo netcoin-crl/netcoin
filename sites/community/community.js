@@ -209,7 +209,7 @@ function circleProgressHtml(c) {
   const pct = Math.min(100, Math.round((members / threshold) * 100));
   return c.status === 'active'
     ? `<span class="tag ok">active</span>`
-    : `<div class="circle-progress"><div class="circle-progress-bar" style="width:${pct}%"></div></div><span class="muted">${members}/${threshold} to activate</span>`;
+    : `<div class="circle-progress" role="progressbar" aria-valuenow="${members}" aria-valuemin="0" aria-valuemax="${threshold}"><div class="circle-progress-bar" style="width:${pct}%"></div></div><span class="circle-progress-label"><strong>${members}/${threshold}</strong> joined &mdash; live at ${threshold}</span>`;
 }
 function cardCircle(c) {
   return `<article class="reddit-card" data-post-id="${esc(c.circle_id || '')}"><div class="post-body"><div class="post-meta"><span class="tag">${esc(c.status || 'proposed')}</span><span>u/${esc(c.creator || 'Anonymous')}</span><span>${esc(timeLabel(c.created_at))}</span></div><h3><button type="button" class="link-btn" data-open-circle="${esc(c.circle_id || '')}">${esc(c.name || c.circle_id || 'Circle')}</button></h3><p>${esc(c.description || 'No description yet.')}</p>${circleProgressHtml(c)}<div class="post-actions"><button type="button" data-join-circle="${esc(c.circle_id || '')}">Join</button></div></div></article>`;
@@ -405,6 +405,16 @@ async function boot() {
     if (circleMatch) openCircleDetail(decodeURIComponent(circleMatch[1]));
   } catch { $('#communityDot').className = 'dot err'; setText('#communityStatus', 'API unavailable'); }
 }
+// Remember the "Your name" field used for joining/proposing circles across
+// visits, so returning to the tab (or reloading) doesn't force re-typing it
+// before Join works.
+const CIRCLE_NAME_KEY = 'nc.circleName.v1';
+(() => {
+  const input = $('#circleCreator');
+  if (!input) return;
+  try { const saved = localStorage.getItem(CIRCLE_NAME_KEY); if (saved) input.value = saved; } catch {}
+  input.addEventListener('change', () => { try { localStorage.setItem(CIRCLE_NAME_KEY, input.value.trim()); } catch {} });
+})();
 $$('.community-tabs button').forEach(btn => btn.addEventListener('click', () => openTab(btn.dataset.tab)));
 $$('[data-open-tab]').forEach(a => a.addEventListener('click', (ev) => { ev.preventDefault(); openTab(a.dataset.openTab); }));
 $$('[data-sort]').forEach(btn => btn.addEventListener('click', () => {
@@ -516,9 +526,13 @@ document.addEventListener('click', async (ev) => {
   if (openCircle && openCircle.dataset.openCircle) { openTab('circles'); openCircleDetail(openCircle.dataset.openCircle); return; }
   const join = ev.target.closest('[data-join-circle]');
   if (join && join.dataset.joinCircle) {
+    const member = ($('#circleCreator')?.value || '').trim();
+    if (!member) {
+      $('#circleCreator')?.focus();
+      setToast('#circleResult', 'Add your name above so we know who is joining.', 'err');
+      return;
+    }
     try {
-      const member = $('#circleCreator').value || localStorage.getItem('nc.apiKey.v1') || prompt('Your name to join this circle:') || '';
-      if (!member) return;
       await post('/community/circles/' + encodeURIComponent(join.dataset.joinCircle) + '/join', { member });
       await loadCircles();
       if (activeCircleId) openCircleDetail(activeCircleId);
