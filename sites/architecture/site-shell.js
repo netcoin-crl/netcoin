@@ -45,7 +45,7 @@
 
     { href: 'https://governance.netcoin.online', host: 'governance.netcoin.online', label: 'Governance', detail: 'NIPs and votes', group: 'Ecosystem', adminOnly: true },
     { href: 'https://treasury.netcoin.online', host: 'treasury.netcoin.online', label: 'Treasury', detail: 'grants and spending', group: 'Ecosystem', adminOnly: true },
-    { href: 'https://community.netcoin.online', host: 'community.netcoin.online', label: 'Community', detail: 'posts and bounties', group: 'Ecosystem' },
+    { href: 'https://community.netcoin.online', host: 'community.netcoin.online', label: 'Community', detail: 'posts and bounties', group: 'Core', primary: true },
     { href: 'https://learn.netcoin.online', host: 'learn.netcoin.online', label: 'Learn', detail: 'guides', group: 'Ecosystem' },
 
     { href: 'https://docs.netcoin.online', host: 'docs.netcoin.online', label: 'Docs', detail: 'reference', group: 'Build' },
@@ -73,7 +73,8 @@
         ['Download', 'https://download.netcoin.online'],
         ['Home', 'https://netcoin.online'],
         ['Markets', 'https://markets.netcoin.online'],
-        ['Wallet', 'https://wallet.netcoin.online']
+        ['Wallet', 'https://wallet.netcoin.online'],
+        ['Community', 'https://community.netcoin.online']
       ]
     },
     {
@@ -108,7 +109,6 @@
         ['Treasury', 'https://treasury.netcoin.online'],
         ['NIPs', 'https://governance.netcoin.online'],
         ['Roadmap', 'https://governance.netcoin.online#roadmap'],
-        ['Community', 'https://community.netcoin.online'],
         ['Ideas', 'https://community.netcoin.online#ideas'],
         ['Bounties', 'https://community.netcoin.online#bounties'],
         ['Learn', 'https://learn.netcoin.online'],
@@ -210,7 +210,7 @@
     let groupLinks = links.filter((link) => link.group === group);
     if (viewLevel === 'simple') groupLinks = groupLinks.filter((link) => !link.adminOnly);
     if (group === 'Core') {
-      const order = ['Home', 'Wallet', 'Explorer', 'Markets', 'Download'];
+      const order = ['Home', 'Wallet', 'Explorer', 'Markets', 'Community', 'Download'];
       return groupLinks.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
     }
     const order = modes[activeMode].groups;
@@ -225,7 +225,7 @@
     });
   }
 
-  const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets'];
+  const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets', 'Community'];
 
   function directoryHtml(includePrimaryCore = true) {
     return sortedGroups().map((group) => {

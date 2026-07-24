@@ -30,7 +30,6 @@
 
     <nav class="community-tabs" aria-label="Community sections">
       <button type="button" class="active" data-tab="posts">Posts</button>
-      <button type="button" data-tab="comments">Comments</button>
       <button type="button" data-tab="ideas">Ideas</button>
       <button type="button" data-tab="bounties">Bounties</button>
       <button type="button" data-tab="circles">Circles</button>
@@ -60,7 +59,7 @@
           <div id="commentPostHeader" class="hide"></div>
           <div class="section-card card">
             <div class="section-head"><h2>Thread</h2><button id="refreshComments" class="secondary small" type="button">Refresh</button></div>
-            <div id="commentList" class="comment-thread"><div class="empty-state">Pick a post from the feed (click its "comments" link) to open its thread here.</div></div>
+            <div id="commentList" class="comment-thread"><div class="empty-state">Click a post's "comments" link from Posts, Ideas, or a circle to open its thread here.</div></div>
             <div class="comment-compose card-inset">
               <h3 class="u-my-10-4">Add a comment</h3>
               <input id="commentName" placeholder="Name" maxlength="80" />
@@ -74,7 +73,7 @@
               <p id="commentResult" class="toast"></p>
             </div>
             <details class="comment-lookup-fallback">
-              <summary class="muted">Power user: open a thread by post ID</summary>
+              <summary class="muted">Jump to a post by ID</summary>
               <div class="comment-lookup"><input id="commentPostId" placeholder="Post ID" maxlength="160" /><button id="commentLookupBtn" class="secondary small" type="button">Load</button></div>
             </details>
           </div>
@@ -97,20 +96,24 @@
 
         <section class="tab-panel" id="tab-circles">
           <div id="circleBrowse">
-            <div class="compose-card card">
-              <div class="compose-top"><h2>Propose a circle</h2><button id="refreshCircles" class="secondary small" type="button">Refresh</button></div>
-              <p class="muted">A circle is a focused group inside Community (e.g. "Mining Ops", "Merchant Builders"). Propose one, then share it &mdash; it goes live automatically once 5 people join.</p>
-              <input id="circleName" placeholder="Circle name" maxlength="60" />
-              <textarea id="circleDescription" placeholder="What is this circle for?" maxlength="500"></textarea>
-              <textarea id="circleRules" placeholder="Rules, optional (e.g. be kind, no spam, on-topic only)" maxlength="1000"></textarea>
-              <input id="circleCreator" placeholder="Your name" maxlength="80" />
-              <button id="submitCircle" type="button">Propose circle</button><p id="circleResult" class="toast"></p>
+            <p class="muted circles-intro">A circle is a focused group inside Community (e.g. "Mining Ops", "Merchant Builders"). Any circle you propose or join below goes live automatically once <strong>5 people join</strong> &mdash; until then it shows a join-progress bar.</p>
+            <div class="section-card card circle-identity-card">
+              <div class="section-head"><h2>Your name</h2></div>
+              <p class="muted">Used to join circles, propose new ones, and post inside them.</p>
+              <input id="circleCreator" placeholder="Your name" maxlength="80" autocomplete="off" />
             </div>
             <div class="section-card card">
-              <div class="section-head"><h2>Find a circle</h2></div>
+              <div class="section-head"><h2>Find a circle</h2><button id="refreshCircles" class="secondary small" type="button">Refresh</button></div>
               <input id="circleSearch" type="search" placeholder="Search circles by name or description" autocomplete="off" />
             </div>
             <div id="circleFeed" class="reddit-feed"></div>
+            <div class="compose-card card circle-propose">
+              <div class="compose-top"><h2>Propose a new circle</h2></div>
+              <input id="circleName" placeholder="Circle name" maxlength="60" />
+              <textarea id="circleDescription" placeholder="What is this circle for?" maxlength="500"></textarea>
+              <textarea id="circleRules" placeholder="Rules, optional (e.g. be kind, no spam, on-topic only)" maxlength="1000"></textarea>
+              <button id="submitCircle" type="button">Propose circle</button><p id="circleResult" class="toast"></p>
+            </div>
           </div>
           <div id="circleDetail" class="hide">
             <button id="btnBackToCircles" class="secondary small" type="button">&larr; All circles</button>

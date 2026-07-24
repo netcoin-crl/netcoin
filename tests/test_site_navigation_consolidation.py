@@ -29,7 +29,7 @@ def test_site_shell_core_tabs_render_flat_without_a_details_wrapper():
     shell = read("sites/shared/site-shell.js")
     assert "function coreTabsHtml()" in shell
     assert "function categoryTabsHtml()" in shell
-    assert "const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets']" in shell
+    assert "const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets', 'Community']" in shell
     assert "filter((group) => group.title !== 'Core')" in shell
     assert "<summary>More</summary>" in shell
 
