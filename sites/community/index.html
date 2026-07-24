@@ -6,7 +6,7 @@
   <title>NetCoin Community</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'" />
   <link rel="stylesheet" href="site-shell.css?v=20260721-structured-ui" />
-  <link rel="stylesheet" href="community.css?v=20260723-images-reddit-pass" />
+  <link rel="stylesheet" href="community.css?v=20260723b-reddit-structure" />
 </head>
 <body>
   <div class="shell community-shell">
@@ -57,11 +57,10 @@
         </section>
 
         <section class="tab-panel" id="tab-comments">
+          <div id="commentPostHeader" class="hide"></div>
           <div class="section-card card">
-            <div class="section-head"><h2>Thread comments</h2><button id="refreshComments" class="secondary small" type="button">Refresh</button></div>
-            <p class="muted">Open comments from any post in the feed, or look one up by post ID.</p>
-            <div class="comment-lookup"><input id="commentPostId" placeholder="Post ID" maxlength="160" /><button id="commentLookupBtn" class="secondary small" type="button">Load</button></div>
-            <div id="commentList" class="comment-thread"><div class="empty-state">Pick a post from the feed (or paste a post ID above) to view its comments.</div></div>
+            <div class="section-head"><h2>Thread</h2><button id="refreshComments" class="secondary small" type="button">Refresh</button></div>
+            <div id="commentList" class="comment-thread"><div class="empty-state">Pick a post from the feed (click its "comments" link) to open its thread here.</div></div>
             <div class="comment-compose card-inset">
               <h3 class="u-my-10-4">Add a comment</h3>
               <input id="commentName" placeholder="Name" maxlength="80" />
@@ -74,6 +73,10 @@
               <button id="submitComment" type="button">Comment</button>
               <p id="commentResult" class="toast"></p>
             </div>
+            <details class="comment-lookup-fallback">
+              <summary class="muted">Power user: open a thread by post ID</summary>
+              <div class="comment-lookup"><input id="commentPostId" placeholder="Post ID" maxlength="160" /><button id="commentLookupBtn" class="secondary small" type="button">Load</button></div>
+            </details>
           </div>
         </section>
 
@@ -111,26 +114,42 @@
           </div>
           <div id="circleDetail" class="hide">
             <button id="btnBackToCircles" class="secondary small" type="button">&larr; All circles</button>
-            <div class="section-card card">
-              <div class="section-head"><h2 id="circleDetailName">Circle</h2><span id="circleDetailStatus" class="tag"></span></div>
-              <p id="circleDetailDescription" class="muted"></p>
-              <div id="circleDetailRules" class="hide"><h3 class="u-my-10-4">Rules</h3><p id="circleDetailRulesText" class="muted"></p></div>
-              <div id="circleDetailProgress"></div>
+            <div class="circle-banner card">
+              <div class="circle-banner-icon">c/</div>
+              <div class="circle-banner-body">
+                <div class="section-head"><h2 id="circleDetailName">Circle</h2><span id="circleDetailStatus" class="tag"></span></div>
+                <p id="circleDetailDescription" class="muted"></p>
+                <div id="circleDetailProgress"></div>
+              </div>
               <div class="post-actions"><button type="button" id="circleDetailJoin">Join</button></div>
             </div>
-            <div class="compose-card card">
-              <h2>Post in this circle</h2>
-              <input id="circlePostName" placeholder="Name" maxlength="80" />
-              <textarea id="circlePostMessage" placeholder="Share an update or question with this circle. Never post keys or seed phrases." maxlength="1200"></textarea>
-              <div class="image-picker">
-                <input id="circlePostImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hide" />
-                <button id="circlePostImageBtn" class="secondary small" type="button">Add image</button>
-                <div id="circlePostImagePreview" class="image-preview hide"><img id="circlePostImagePreviewImg" alt="preview" /><button type="button" id="circlePostImageClear" class="link-btn">Remove</button></div>
+            <div class="circle-detail-layout">
+              <div class="circle-detail-main">
+                <div class="compose-card card">
+                  <h2>Post in this circle</h2>
+                  <input id="circlePostName" placeholder="Name" maxlength="80" />
+                  <textarea id="circlePostMessage" placeholder="Share an update or question with this circle. Never post keys or seed phrases." maxlength="1200"></textarea>
+                  <div class="image-picker">
+                    <input id="circlePostImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hide" />
+                    <button id="circlePostImageBtn" class="secondary small" type="button">Add image</button>
+                    <div id="circlePostImagePreview" class="image-preview hide"><img id="circlePostImagePreviewImg" alt="preview" /><button type="button" id="circlePostImageClear" class="link-btn">Remove</button></div>
+                  </div>
+                  <button id="circlePostBtn" type="button">Post</button><p id="circlePostResult" class="toast"></p>
+                </div>
+                <div id="circlePinnedPost"></div>
+                <div id="circlePostFeed" class="reddit-feed"></div>
               </div>
-              <button id="circlePostBtn" type="button">Post</button><p id="circlePostResult" class="toast"></p>
+              <aside class="circle-detail-sidebar">
+                <div class="card sidebar-card" id="circleDetailRules">
+                  <h2>Rules</h2>
+                  <p id="circleDetailRulesText" class="muted"></p>
+                </div>
+                <div class="card sidebar-card">
+                  <h2>Moderators</h2>
+                  <p id="circleDetailMods" class="muted"></p>
+                </div>
+              </aside>
             </div>
-            <div id="circlePinnedPost"></div>
-            <div id="circlePostFeed" class="reddit-feed"></div>
           </div>
         </section>
 
@@ -174,6 +193,13 @@
 
       <aside class="community-sidebar">
         <div class="card sidebar-card">
+          <h2>About Community</h2>
+          <p class="muted">NetCoin's public testnet coordination space &mdash; posts, circles, ideas, and bounties.</p>
+          <div id="aboutCommunity" class="about-stats"></div>
+          <h3 class="u-my-10-4">Top circles</h3>
+          <div id="aboutTopCircles" class="about-top-circles"></div>
+        </div>
+        <div class="card sidebar-card">
           <h2>Quick links</h2>
           <a href="#posts" data-open-tab="posts">Posts</a>
           <a href="#ideas" data-open-tab="ideas">Ideas</a>
@@ -196,7 +222,7 @@
 
     <p class="footer">NetCoin Community is public testnet coordination.</p>
   </div>
-  <script src="community.js?v=20260723-images-reddit-pass"></script>
+  <script src="community.js?v=20260723b-reddit-structure"></script>
   <script src="site-shell.js?v=20260721-structured-ui"></script>
 </body>
 </html>

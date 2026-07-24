@@ -4,6 +4,11 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let activePostSort = 'hot';
 let activeCommentPost = '';
+// Posts we've already fetched (main feed + circle feeds) keyed by post_id, so
+// the comment-thread view can show the full post at the top without a
+// dedicated "get single post" backend endpoint.
+const postsIndex = new Map();
+function indexPosts(posts) { for (const p of posts || []) if (p && p.post_id) postsIndex.set(p.post_id, p); }
 
 // --- Inline image support -------------------------------------------------
 // This project has no object storage/CDN, so images are downscaled/compressed
@@ -220,15 +225,28 @@ async function loadPosts() {
     const d = await api('/community/posts?limit=80&sort=' + encodeURIComponent(activePostSort));
     const posts = d.posts || [];
     setText('#postCount', d.count ?? posts.length);
+    indexPosts(posts);
     feed.innerHTML = posts.length ? posts.map(cardPost).join('') : '<div class="empty-state">No posts yet. Start the first thread.</div>';
   } catch (e) { feed.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+}
+// Renders the full post at the top of the thread view, Reddit-style, when we
+// have it in postsIndex (fed from the main/circle feeds the user clicked
+// from). Falls back to a bare heading when a post was reached purely via the
+// power-user "paste a post ID" lookup path.
+function renderCommentPostHeader(id) {
+  const box = $('#commentPostHeader');
+  if (!box) return;
+  const p = postsIndex.get(id);
+  box.innerHTML = p ? cardPost(p) : '';
+  box.classList.toggle('hide', !p);
 }
 async function loadComments(postId) {
   const id = postId || activeCommentPost || $('#commentPostId')?.value || '';
   const out = $('#commentList');
-  if (!id) { out.innerHTML = '<div class="empty-state">Pick a post from the feed (or paste a post ID above) to view its comments.</div>'; return; }
+  if (!id) { out.innerHTML = '<div class="empty-state">Pick a post from the feed (or paste a post ID above) to view its comments.</div>'; renderCommentPostHeader(''); return; }
   activeCommentPost = id;
   $('#commentPostId').value = id;
+  renderCommentPostHeader(id);
   try {
     const d = await api('/community/posts/' + encodeURIComponent(id) + '/comments');
     out.innerHTML = (d.comments || []).length ? renderCommentTree(d.comments) : '<div class="empty-state">No comments yet. Be the first to reply.</div>';
@@ -302,7 +320,26 @@ async function loadCircles() {
     const d = await api('/community/circles');
     allCircles = d.circles || [];
     renderCircleFeed();
+    renderAboutCommunity();
   } catch (e) { feed.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+}
+// Reddit's "About Community" sidebar card, built from data we already have
+// on hand (post count, circle count/top circles) rather than a new endpoint.
+function renderAboutCommunity() {
+  const box = $('#aboutCommunity');
+  if (!box) return;
+  const postCount = $('#postCount')?.textContent || '—';
+  const activeCircles = allCircles.filter((c) => c.status === 'active');
+  box.innerHTML = `
+    <div class="about-stat"><b>${esc(postCount)}</b><span>Posts</span></div>
+    <div class="about-stat"><b>${esc(allCircles.length)}</b><span>Circles</span></div>
+    <div class="about-stat"><b>${esc(activeCircles.length)}</b><span>Active</span></div>
+  `;
+  const top = $('#aboutTopCircles');
+  if (top) {
+    top.innerHTML = activeCircles.slice(0, 5).map((c) => `<button type="button" class="link-btn" data-open-circle="${esc(c.circle_id || '')}">c/${esc(c.name || c.circle_id || '')}</button>`).join('')
+      || '<p class="muted">No active circles yet.</p>';
+  }
 }
 let activeCircleId = '';
 async function loadCirclePosts(circleId) {
@@ -313,6 +350,7 @@ async function loadCirclePosts(circleId) {
   try {
     const d = await api('/community/posts?limit=80&circle_id=' + encodeURIComponent(circleId));
     const posts = d.posts || [];
+    indexPosts(posts);
     const pinnedId = c.pinned_post_id || '';
     const pinned = pinnedId ? posts.find((p) => p.post_id === pinnedId) : null;
     pinnedBox.innerHTML = pinned ? cardPost(pinned, { canPin: isCreator, circleId, isPinned: true }) : '';
@@ -333,6 +371,8 @@ function openCircleDetail(circleId) {
   const rulesBox = $('#circleDetailRules');
   if (c.rules) { rulesBox.classList.remove('hide'); $('#circleDetailRulesText').textContent = c.rules; }
   else { rulesBox.classList.add('hide'); }
+  const members = c.members || [];
+  $('#circleDetailMods').textContent = 'u/' + (c.creator || 'Anonymous') + (members.length ? ` • ${members.length} member${members.length === 1 ? '' : 's'}` : '');
   $('#circleDetailStatus').textContent = c.status || 'proposed';
   $('#circleDetailStatus').className = 'tag' + (c.status === 'active' ? ' ok' : '');
   $('#circleDetailProgress').innerHTML = circleProgressHtml(c);
@@ -360,6 +400,7 @@ async function boot() {
   else if (['posts', 'comments', 'ideas', 'bounties', 'circles', 'leaderboards', 'tools', 'mod'].includes(initial)) openTab(initial);
   try {
     await Promise.all([loadPosts(), loadIdeas(), loadBounties(), loadCircles(), loadLeaderboards(), loadModQueue()]);
+    renderAboutCommunity();
     $('#communityDot').className = 'dot ok'; setText('#communityStatus', 'API online');
     if (circleMatch) openCircleDetail(decodeURIComponent(circleMatch[1]));
   } catch { $('#communityDot').className = 'dot err'; setText('#communityStatus', 'API unavailable'); }
@@ -472,7 +513,7 @@ document.addEventListener('click', async (ev) => {
     return;
   }
   const openCircle = ev.target.closest('[data-open-circle]');
-  if (openCircle && openCircle.dataset.openCircle) { openCircleDetail(openCircle.dataset.openCircle); return; }
+  if (openCircle && openCircle.dataset.openCircle) { openTab('circles'); openCircleDetail(openCircle.dataset.openCircle); return; }
   const join = ev.target.closest('[data-join-circle]');
   if (join && join.dataset.joinCircle) {
     try {
