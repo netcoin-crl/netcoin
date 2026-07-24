@@ -51,6 +51,22 @@ def test_markets_buy_stays_on_markets_and_requires_a_published_market() -> None:
     assert "function deleteMarket" in js
 
 
+def test_trade_panel_supports_selling_not_just_buying() -> None:
+    # The buy panel previously only ever submitted BUY orders (side was
+    # hardcoded), so a book could only ever fill with one-sided resting buy
+    # orders that never cross an opposite order -- the displayed "chance %"
+    # froze at whatever the first buy's default price was (50%) because real
+    # two-sided price discovery was impossible from the normal UI. A Buy/Sell
+    # toggle wired into the real order side is what fixes that.
+    js = read("sites/markets/markets.js")
+    assert 'orderSide: "buy"' in js
+    assert 'data-order-side="buy"' in js
+    assert 'data-order-side="sell"' in js
+    assert '"[data-order-side]"' in js
+    assert 'side: state.orderSide === "sell" ? "sell" : "buy"' in js
+    assert 'side: "buy",' not in js
+
+
 def test_site_profile_controls_are_hidden_from_public_shell() -> None:
     shell = read("sites/shared/site-shell.js")
     css = read("sites/shared/site-shell.css")

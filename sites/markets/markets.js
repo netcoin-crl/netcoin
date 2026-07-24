@@ -2,7 +2,7 @@
 
 (() => {
   const $ = (sel) => document.querySelector(sel);
-  const state = { markets: [], selectedId: "", apiOk: false, usingLocalMarkets: false, view: "grid", category: "All", query: "", sort: "trending", tab: "orderbook", tradeSide: "yes", tradeOutcomeId: "" };
+  const state = { markets: [], selectedId: "", apiOk: false, usingLocalMarkets: false, view: "grid", category: "All", query: "", sort: "trending", tab: "orderbook", tradeSide: "yes", tradeOutcomeId: "", orderSide: "buy" };
   const apiBase = localStorage.getItem("netcoinApiBase") || "/api";
   const localMarketsKey = "nc.markets.local.v1";
 
@@ -344,16 +344,25 @@
       ? `<div class="side-toggle"><button type="button" data-side="yes" class="${state.tradeSide === "yes" ? "sel-yes" : ""}">Yes ${fmtCents(displayCents(m, (yesOutcome(m) || {}).outcome_id))}</button><button type="button" data-side="no" class="${state.tradeSide === "no" ? "sel-no" : ""}">No ${fmtCents(displayCents(m, (noOutcome(m) || {}).outcome_id))}</button></div>`
       : `<div class="trade-field"><label>Outcome</label><select id="tradeOutcome">${(m.outcomes || []).map((o) => `<option value="${esc(o.outcome_id)}"${o.outcome_id === outcomeId ? " selected" : ""}>${esc(o.label)} · ${fmtCents(displayCents(m, o.outcome_id))}</option>`).join("")}</select></div>`;
     const noSide = binary && state.tradeSide === "no";
-    return `<h3>${resolved ? "Market closed" : "Buy shares"}</h3>
+    const isSell = state.orderSide === "sell";
+    // Without a real Sell control here, the buy panel could only ever submit
+    // BUY orders -- a buy can only match against an opposite SELL, so with
+    // no way to sell/short from this panel the book fills up with one-sided
+    // resting buy orders that never cross, and the displayed price/chance
+    // freezes at whatever the first buy defaulted to. This toggle is what
+    // lets real two-sided price discovery happen at all.
+    const buySellRow = `<div class="side-toggle buy-sell-toggle"><button type="button" data-order-side="buy" class="${!isSell ? "sel-yes" : ""}">Buy</button><button type="button" data-order-side="sell" class="${isSell ? "sel-no" : ""}">Sell</button></div>`;
+    return `<h3>${resolved ? "Market closed" : isSell ? "Sell shares" : "Buy shares"}</h3>
+      ${buySellRow}
       ${sideRow}
       <div class="trade-field"><label>Shares</label><input id="tradeShares" type="number" min="1" value="5" ${resolved ? "disabled" : ""} /></div>
       <div class="trade-field"><label>Limit price (¢)</label><input id="tradePrice" type="number" min="1" max="99" value="${priceC}" ${resolved ? "disabled" : ""} /></div>
       <div class="trade-summary">
         <div class="row"><span>Avg price</span><b id="sumPrice">${priceC}¢</b></div>
-        <div class="row"><span>Cost</span><b id="sumCost">—</b></div>
+        <div class="row"><span>${isSell ? "Proceeds" : "Cost"}</span><b id="sumCost">—</b></div>
         <div class="row"><span>Payout if wins</span><b id="sumPayout">—</b></div>
       </div>
-      <button class="buy-btn ${noSide ? "no" : ""}" id="tradeBuy" ${resolved ? "disabled" : ""}>${resolved ? "Resolved" : localDraft ? "Publish & buy" : `Buy ${binary ? (noSide ? "No" : "Yes") : "shares"}`}</button>
+      <button class="buy-btn ${noSide && !isSell ? "no" : ""} ${isSell ? "sell" : ""}" id="tradeBuy" ${resolved ? "disabled" : ""}>${resolved ? "Resolved" : localDraft ? "Publish & buy" : `${isSell ? "Sell" : "Buy"} ${binary ? (noSide ? "No" : "Yes") : "shares"}`}</button>
       <button class="secondary" id="deleteMarket" type="button">Delete market</button>
       <details class="trade-adv"><summary>Advanced</summary><div class="adv-body">
         <div class="trade-field"><label>Order type</label><select id="tradeType"><option value="limit">Limit</option><option value="market">Market</option><option value="ioc">IOC</option><option value="fok">FOK</option></select></div>
@@ -408,6 +417,7 @@
     $("#detailMain").querySelectorAll("[data-cancel]").forEach((b) => b.addEventListener("click", () => cancelOrder(b.getAttribute("data-cancel"))));
     const panel = $("#tradePanel");
     panel.querySelectorAll("[data-side]").forEach((b) => b.addEventListener("click", () => { state.tradeSide = b.getAttribute("data-side"); $("#tradePanel").innerHTML = tradePanel(m); wireDetail(m); updateTradeSummary(); }));
+    panel.querySelectorAll("[data-order-side]").forEach((b) => b.addEventListener("click", () => { state.orderSide = b.getAttribute("data-order-side"); $("#tradePanel").innerHTML = tradePanel(m); wireDetail(m); updateTradeSummary(); }));
     const to = $("#tradeOutcome"); if (to) to.addEventListener("change", () => { state.tradeOutcomeId = to.value; $("#tradePrice") ; $("#tradePanel").innerHTML = tradePanel(m); wireDetail(m); updateTradeSummary(); });
     ["tradeShares", "tradePrice"].forEach((id) => { const el = $("#" + id); if (el) el.addEventListener("input", updateTradeSummary); });
     const buy = $("#tradeBuy"); if (buy) buy.addEventListener("click", () => doTradeBuy(m));
@@ -418,7 +428,7 @@
     const priceC = Number(($("#tradePrice") || {}).value || 0);
     return {
       outcome_id: state.tradeOutcomeId,
-      side: "buy",
+      side: state.orderSide === "sell" ? "sell" : "buy",
       order_type: type,
       time_in_force: type === "ioc" ? "IOC" : type === "fok" ? "FOK" : "GTC",
       quantity: Number(($("#tradeShares") || {}).value || 0),
