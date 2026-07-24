@@ -47,7 +47,7 @@ def test_shared_site_shell_uses_phase0_primary_nav_and_modes():
     assert "label: 'Developers', detail: 'SDKs and client libraries', group: 'Build'" in shell
     assert "site-nav-group" in shell
     assert "<summary>More</summary>" in shell
-    assert "const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets']" in shell
+    assert "const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets', 'Community']" in shell
     assert "const primary = links.filter((link) => link.primary);" not in shell
     assert "label: 'Features'," not in shell
     assert "label: 'Architecture'," not in shell

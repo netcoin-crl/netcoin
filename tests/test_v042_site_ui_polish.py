@@ -83,7 +83,7 @@ def test_v042_tool_and_javascript_parse() -> None:
 def test_minimalist_shell_reduces_nav_and_type_scale() -> None:
     js = (ROOT / "sites" / "shared" / "site-shell.js").read_text(encoding="utf-8")
     css = (ROOT / "sites" / "shared" / "site-shell.css").read_text(encoding="utf-8")
-    assert "const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets']" in js
+    assert "const primaryNavLabels = ['Home', 'Wallet', 'Explorer', 'Markets', 'Community']" in js
     assert "site-nav-more" in js
     assert "font-size:clamp(24px,2.7vw,36px)!important" in css
     assert "--max:1280px!important" in css
