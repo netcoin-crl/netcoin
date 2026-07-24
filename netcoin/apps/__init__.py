@@ -8,6 +8,7 @@ stored next to the node data directory.
 
 from __future__ import annotations
 
+import base64
 import csv
 import hashlib
 import hmac
@@ -208,6 +209,44 @@ def looks_like_sensitive_secret(text: str) -> bool:
         else:
             hex_run = 0
     return False
+
+
+COMMUNITY_IMAGE_MAX_BYTES = 300 * 1024
+COMMUNITY_IMAGE_MIME_PREFIXES = (
+    "data:image/jpeg;base64,",
+    "data:image/jpg;base64,",
+    "data:image/png;base64,",
+    "data:image/webp;base64,",
+    "data:image/gif;base64,",
+)
+
+
+def validate_community_image(value: Any, field: str = "image") -> str:
+    """Validate an optional inline image supplied as a base64 data URI.
+
+    Community posts/comments have no object storage, so small images are stored
+    inline as data URIs in the JSON app-store. This performs lightweight gating
+    consistent with looks_like_sensitive_secret above: a MIME-prefix allowlist
+    check plus a hard decoded-size cap, not full image-byte validation.
+    """
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    prefix = next((p for p in COMMUNITY_IMAGE_MIME_PREFIXES if text.lower().startswith(p)), None)
+    if not prefix:
+        raise AppError(f"{field} must be a data URI image (jpeg, png, webp, or gif)")
+    payload = text[len(prefix) :]
+    try:
+        decoded = base64.b64decode(payload, validate=True)
+    except Exception as exc:
+        raise AppError(f"{field} is not valid base64 image data") from exc
+    if not decoded:
+        raise AppError(f"{field} is empty")
+    if len(decoded) > COMMUNITY_IMAGE_MAX_BYTES:
+        raise AppError(f"{field} exceeds the {COMMUNITY_IMAGE_MAX_BYTES // 1024}KB size limit")
+    return text
 
 
 def parse_amount_sats(value: Any, field: str = "amount") -> int:
@@ -3041,6 +3080,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
         category = str(payload.get("category") or "general")[:40].lower()
         if category not in {"general", "help", "mining", "wallet", "merchant", "ideas"}:
             category = "general"
+        image = validate_community_image(payload.get("image"), field="image")
         rec = {
             "post_id": clean_id("post"),
             "name": name,
@@ -3048,6 +3088,7 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             "category": category,
             "address": str(payload.get("address") or "")[:140],
             "circle_id": str(payload.get("circle_id") or "")[:80],
+            "image": image,
             "created_at": now(),
             "status": "visible",
         }
@@ -3115,12 +3156,14 @@ def verify_netcoin_webhook(raw_body: bytes, header: str, secret: str) -> bool:
             for c in data.get("community_comments", [])
         ):
             raise AppError("parent comment not found on this post")
+        image = validate_community_image(payload.get("image"), field="image")
         rec = {
             "comment_id": clean_id("comment"),
             "post_id": post_id,
             "parent_comment_id": parent_comment_id,
             "name": name,
             "message": message,
+            "image": image,
             "created_at": now(),
             "status": "visible",
         }

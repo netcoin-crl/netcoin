@@ -5,6 +5,119 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 let activePostSort = 'hot';
 let activeCommentPost = '';
 
+// --- Inline image support -------------------------------------------------
+// This project has no object storage/CDN, so images are downscaled/compressed
+// client-side and submitted as base64 data URIs (server enforces a ~300KB cap).
+const IMAGE_MAX_DIM = 1200;
+const IMAGE_MAX_BYTES = 290 * 1024; // stay comfortably under the server's 300KB cap
+const imageState = {}; // key -> data URI (or '' when cleared)
+
+function readFileAsDataUri(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+function loadImageEl(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not decode image'));
+    img.src = src;
+  });
+}
+async function compressImageFile(file) {
+  const raw = await readFileAsDataUri(file);
+  const img = await loadImageEl(raw);
+  let { width, height } = img;
+  if (width > IMAGE_MAX_DIM || height > IMAGE_MAX_DIM) {
+    const scale = IMAGE_MAX_DIM / Math.max(width, height);
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, width, height);
+  let quality = 0.85;
+  let out = canvas.toDataURL('image/jpeg', quality);
+  while (out.length * 0.75 > IMAGE_MAX_BYTES && quality > 0.3) {
+    quality -= 0.1;
+    out = canvas.toDataURL('image/jpeg', quality);
+  }
+  if (out.length * 0.75 > IMAGE_MAX_BYTES) throw new Error('Image is too large even after compression');
+  return out;
+}
+// Wires a file input + preview + clear button as a matched trio, keeping the
+// resulting data URI in imageState[key] for the composer to read at submit time.
+function wireImagePicker(key, inputSel, btnSel, previewWrapSel, previewImgSel, clearSel, resultSel) {
+  const input = $(inputSel);
+  const btn = $(btnSel);
+  const wrap = $(previewWrapSel);
+  const img = $(previewImgSel);
+  const clearBtn = $(clearSel);
+  if (!input || !btn || !wrap || !img || !clearBtn) return;
+  btn.addEventListener('click', () => input.click());
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    try {
+      const dataUri = await compressImageFile(file);
+      imageState[key] = dataUri;
+      img.src = dataUri;
+      wrap.classList.remove('hide');
+    } catch (e) {
+      setToast(resultSel, e.message, 'err');
+    } finally {
+      input.value = '';
+    }
+  });
+  clearBtn.addEventListener('click', () => {
+    imageState[key] = '';
+    img.src = '';
+    wrap.classList.add('hide');
+  });
+}
+function takeImage(key) {
+  const v = imageState[key] || '';
+  imageState[key] = '';
+  return v;
+}
+function resetImagePreview(previewWrapSel, previewImgSel) {
+  const wrap = $(previewWrapSel);
+  const img = $(previewImgSel);
+  if (wrap) wrap.classList.add('hide');
+  if (img) img.src = '';
+}
+function postMediaHtml(imageUri, cls = 'post-image') {
+  if (!imageUri) return '';
+  return `<div class="${cls}"><img src="${esc(imageUri)}" data-lightbox-src="${esc(imageUri)}" alt="attached image" loading="lazy" /></div>`;
+}
+function openLightbox(src) {
+  let box = $('#imageLightbox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'imageLightbox';
+    box.className = 'lightbox hide';
+    box.innerHTML = '<button type="button" class="lightbox-close" aria-label="Close">&times;</button><img alt="expanded image" />';
+    document.body.appendChild(box);
+    box.addEventListener('click', (ev) => { if (ev.target === box || ev.target.closest('.lightbox-close')) closeLightbox(); });
+    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closeLightbox(); });
+  }
+  box.querySelector('img').src = src;
+  box.classList.remove('hide');
+}
+function closeLightbox() {
+  const box = $('#imageLightbox');
+  if (box) box.classList.add('hide');
+}
+document.addEventListener('click', (ev) => {
+  const target = ev.target.closest('[data-lightbox-src]');
+  if (target) openLightbox(target.dataset.lightboxSrc);
+});
+
 async function api(path, options = {}) {
   const res = await fetch('/api' + path, options);
   const text = await res.text();
@@ -31,10 +144,10 @@ function openTab(name) {
   $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
   if (history.replaceState) history.replaceState(null, '', '#' + name);
 }
-function redditCard({ postId = '', score = 0, title = '', body = '', meta = [], tag = '', commentCount = 0, actions = [] }) {
+function redditCard({ postId = '', score = 0, title = '', body = '', meta = [], tag = '', commentCount = 0, actions = [], image = '' }) {
   const metaHtml = [tag ? `<span class="tag">${esc(tag)}</span>` : '', ...meta.map(esc)].filter(Boolean).map(x => x.startsWith('<') ? x : `<span>${x}</span>`).join('');
   const actionHtml = actions.map(a => a.html || `<button type="button" ${a.attr || ''}>${esc(a.label)}</button>`).join('');
-  return `<article class="reddit-card" data-post-id="${esc(postId)}"><div class="vote-rail"><button type="button" data-vote-post="${esc(postId)}" data-direction="up" aria-label="upvote">▲</button><strong>${esc(score)}</strong><button type="button" data-vote-post="${esc(postId)}" data-direction="down" aria-label="downvote">▼</button></div><div class="post-body"><div class="post-meta">${metaHtml}</div><h3>${esc(title)}</h3><p>${esc(body)}</p><div class="post-stats"><button type="button" data-open-comments="${esc(postId)}">${Number(commentCount || 0)} comments</button><span>${esc(postId)}</span></div>${actionHtml ? `<div class="post-actions">${actionHtml}</div>` : ''}</div></article>`;
+  return `<article class="reddit-card" data-post-id="${esc(postId)}"><div class="vote-rail"><button type="button" data-vote-post="${esc(postId)}" data-direction="up" aria-label="upvote">▲</button><strong>${esc(score)}</strong><button type="button" data-vote-post="${esc(postId)}" data-direction="down" aria-label="downvote">▼</button></div><div class="post-body"><div class="post-meta">${metaHtml}</div><h3>${esc(title)}</h3><p>${esc(body)}</p>${postMediaHtml(image)}<div class="post-stats"><button type="button" data-open-comments="${esc(postId)}">${Number(commentCount || 0)} comments</button><span>${esc(postId)}</span></div>${actionHtml ? `<div class="post-actions">${actionHtml}</div>` : ''}</div></article>`;
 }
 function cardPost(p, opts = {}) {
   const actions = [{ html: `<button type="button" data-report-post="${esc(p.post_id || '')}">Report</button>` }];
@@ -48,6 +161,7 @@ function cardPost(p, opts = {}) {
     body: p.message || '',
     tag: p.category || 'general',
     commentCount: p.comment_count || 0,
+    image: p.image || '',
     meta: ['u/' + (p.name || p.author || 'Anonymous'), timeLabel(p.created_at), (p.sort ? 'sort:' + p.sort : '')].filter(Boolean),
     actions
   });
@@ -68,7 +182,7 @@ function cardBounty(b) {
 }
 function commentCard(c, depth = 0) {
   const indent = depth > 0 ? ` style="margin-left:${Math.min(depth, 6) * 20}px"` : '';
-  return `<article class="comment-card" data-comment-id="${esc(c.comment_id || '')}"${indent}><div><b>u/${esc(c.name || 'Anonymous')}</b><span>${esc(timeLabel(c.created_at))}</span></div><p>${esc(c.message || '')}</p><button type="button" class="link-btn" data-reply-to="${esc(c.comment_id || '')}" style="font-size:11px">Reply</button></article>`;
+  return `<article class="comment-card reddit-comment" data-comment-id="${esc(c.comment_id || '')}"${indent}><div class="comment-meta"><b>u/${esc(c.name || 'Anonymous')}</b><span>${esc(timeLabel(c.created_at))}</span></div><p>${esc(c.message || '')}</p>${postMediaHtml(c.image || '', 'comment-image')}<div class="comment-actions"><button type="button" class="link-btn" data-reply-to="${esc(c.comment_id || '')}">Reply</button></div></article>`;
 }
 // Comments come back flat (post_id + optional parent_comment_id); build a
 // reply tree client-side so nesting is just a display concern, not a
@@ -112,12 +226,12 @@ async function loadPosts() {
 async function loadComments(postId) {
   const id = postId || activeCommentPost || $('#commentPostId')?.value || '';
   const out = $('#commentList');
-  if (!id) { out.innerHTML = '<p class="muted">Pick a post to view comments.</p>'; return; }
+  if (!id) { out.innerHTML = '<div class="empty-state">Pick a post from the feed (or paste a post ID above) to view its comments.</div>'; return; }
   activeCommentPost = id;
   $('#commentPostId').value = id;
   try {
     const d = await api('/community/posts/' + encodeURIComponent(id) + '/comments');
-    out.innerHTML = (d.comments || []).length ? renderCommentTree(d.comments) : '<p class="muted">No comments yet.</p>';
+    out.innerHTML = (d.comments || []).length ? renderCommentTree(d.comments) : '<div class="empty-state">No comments yet. Be the first to reply.</div>';
   } catch (e) { out.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
 }
 async function loadIdeas() {
@@ -257,19 +371,23 @@ $$('[data-sort]').forEach(btn => btn.addEventListener('click', () => {
   $$('[data-sort]').forEach(b => b.classList.toggle('active', b === btn));
   loadPosts();
 }));
+wireImagePicker('post', '#postImage', '#postImageBtn', '#postImagePreview', '#postImagePreviewImg', '#postImageClear', '#postResult');
+wireImagePicker('comment', '#commentImage', '#commentImageBtn', '#commentImagePreview', '#commentImagePreviewImg', '#commentImageClear', '#commentResult');
+wireImagePicker('circlePost', '#circlePostImage', '#circlePostImageBtn', '#circlePostImagePreview', '#circlePostImagePreviewImg', '#circlePostImageClear', '#circlePostResult');
 $('#postMessageBtn')?.addEventListener('click', async () => {
   try {
-    const d = await post('/community/posts', { name: $('#postName').value, category: $('#postCategory').value, message: $('#postMessage').value });
-    setToast('#postResult', 'Posted ' + (d.post_id || ''), 'ok'); $('#postMessage').value = ''; await loadPosts();
+    const d = await post('/community/posts', { name: $('#postName').value, category: $('#postCategory').value, message: $('#postMessage').value, image: takeImage('post') });
+    setToast('#postResult', 'Posted ' + (d.post_id || ''), 'ok'); $('#postMessage').value = ''; resetImagePreview('#postImagePreview', '#postImagePreviewImg'); await loadPosts();
   } catch (e) { setToast('#postResult', e.message, 'err'); }
 });
 let replyingToCommentId = '';
 $('#submitComment')?.addEventListener('click', async () => {
   try {
     const id = $('#commentPostId').value || activeCommentPost;
-    const d = await post('/community/posts/' + encodeURIComponent(id) + '/comments', { name: $('#commentName').value, message: $('#commentMessage').value, parent_comment_id: replyingToCommentId });
+    const d = await post('/community/posts/' + encodeURIComponent(id) + '/comments', { name: $('#commentName').value, message: $('#commentMessage').value, parent_comment_id: replyingToCommentId, image: takeImage('comment') });
     setToast('#commentResult', replyingToCommentId ? 'Replied ' + (d.comment_id || '') : 'Commented ' + (d.comment_id || ''), 'ok');
     $('#commentMessage').value = '';
+    resetImagePreview('#commentImagePreview', '#commentImagePreviewImg');
     replyingToCommentId = '';
     $('#submitComment').textContent = 'Comment';
     await loadComments(id); await loadPosts();
@@ -289,6 +407,7 @@ $('#submitReport')?.addEventListener('click', async () => {
 });
 $('#refreshPosts')?.addEventListener('click', loadPosts);
 $('#refreshComments')?.addEventListener('click', () => loadComments());
+$('#commentLookupBtn')?.addEventListener('click', () => loadComments($('#commentPostId')?.value || ''));
 $('#refreshIdeas')?.addEventListener('click', loadIdeas);
 $('#refreshBounties')?.addEventListener('click', loadBounties);
 $('#refreshLeaderboards')?.addEventListener('click', loadLeaderboards);
@@ -299,8 +418,8 @@ $('#btnBackToCircles')?.addEventListener('click', backToCircles);
 $('#circlePostBtn')?.addEventListener('click', async () => {
   if (!activeCircleId) return;
   try {
-    const d = await post('/community/posts', { name: $('#circlePostName').value, category: 'general', message: $('#circlePostMessage').value, circle_id: activeCircleId });
-    setToast('#circlePostResult', 'Posted ' + (d.post_id || ''), 'ok'); $('#circlePostMessage').value = ''; await loadCirclePosts(activeCircleId);
+    const d = await post('/community/posts', { name: $('#circlePostName').value, category: 'general', message: $('#circlePostMessage').value, circle_id: activeCircleId, image: takeImage('circlePost') });
+    setToast('#circlePostResult', 'Posted ' + (d.post_id || ''), 'ok'); $('#circlePostMessage').value = ''; resetImagePreview('#circlePostImagePreview', '#circlePostImagePreviewImg'); await loadCirclePosts(activeCircleId);
   } catch (e) { setToast('#circlePostResult', e.message, 'err'); }
 });
 $$('[data-leader-tab]').forEach(btn => btn.addEventListener('click', () => {
