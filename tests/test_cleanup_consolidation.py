@@ -39,7 +39,7 @@ def test_public_surfaces_use_product_names_not_internal_phase_labels() -> None:
         "wallet-availability-card",
         "operator-status-grid",
         "Public testnet hub",
-        "NetCoin public testnet.",
+        "A real blockchain you can actually read.",
     ):
         assert token in joined
 

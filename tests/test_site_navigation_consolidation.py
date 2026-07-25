@@ -50,7 +50,7 @@ def test_site_shell_copies_stay_in_sync_for_all_subdomains():
 
 def test_homepage_presents_consolidated_navigation_buckets():
     html = read("sites/www/index.html")
-    assert "NetCoin public testnet." in html
+    assert "A real blockchain you can actually read." in html
     assert "https://community.netcoin.online" in html
     assert 'href="https://governance.netcoin.online">Governance</a>' in html
     assert "<h2>Build</h2>" in html

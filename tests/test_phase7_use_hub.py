@@ -12,7 +12,7 @@ def test_homepage_exposes_sleek_use_hub_without_production_claims():
     css = read("sites/www/ui-polish.css")
 
     assert "Public testnet hub" in html
-    assert "NetCoin public testnet." in html
+    assert "A real blockchain you can actually read." in html
     assert "Developer Console" in html
     assert "https://developers.netcoin.online/console.html" in html
     assert "https://docs.netcoin.online/localnet.html" in html
