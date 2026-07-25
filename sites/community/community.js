@@ -212,7 +212,12 @@ function circleProgressHtml(c) {
     : `<div class="circle-progress" role="progressbar" aria-valuenow="${members}" aria-valuemin="0" aria-valuemax="${threshold}"><div class="circle-progress-bar" style="width:${pct}%"></div></div><span class="circle-progress-label"><strong>${members}/${threshold}</strong> joined &mdash; live at ${threshold}</span>`;
 }
 function cardCircle(c) {
-  return `<article class="reddit-card" data-post-id="${esc(c.circle_id || '')}"><div class="post-body"><div class="post-meta"><span class="tag">${esc(c.status || 'proposed')}</span><span>u/${esc(c.creator || 'Anonymous')}</span><span>${esc(timeLabel(c.created_at))}</span></div><h3><button type="button" class="link-btn" data-open-circle="${esc(c.circle_id || '')}">${esc(c.name || c.circle_id || 'Circle')}</button></h3><p>${esc(c.description || 'No description yet.')}</p>${circleProgressHtml(c)}<div class="post-actions"><button type="button" data-join-circle="${esc(c.circle_id || '')}">Join</button></div></div></article>`;
+  // Circles have no vote rail (no up/downvote concept), but .reddit-card's
+  // CSS is a 2-column grid (vote-rail | post-body) -- without a first child
+  // to fill that 54px column, grid auto-placement squeezed the entire card
+  // into it instead of the wide column, wrapping every line word-by-word.
+  // The circle-card modifier below switches it back to a single column.
+  return `<article class="reddit-card circle-card" data-post-id="${esc(c.circle_id || '')}"><div class="post-body"><div class="post-meta"><span class="tag">${esc(c.status || 'proposed')}</span><span>u/${esc(c.creator || 'Anonymous')}</span><span>${esc(timeLabel(c.created_at))}</span></div><h3><button type="button" class="link-btn" data-open-circle="${esc(c.circle_id || '')}">${esc(c.name || c.circle_id || 'Circle')}</button></h3><p>${esc(c.description || 'No description yet.')}</p>${circleProgressHtml(c)}<div class="post-actions"><button type="button" data-join-circle="${esc(c.circle_id || '')}">Join</button></div></div></article>`;
 }
 function modCard(item) {
   const r = item.report || {};
