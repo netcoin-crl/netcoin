@@ -6,7 +6,7 @@
   },
   "description": "NetCoin non-custodial in-browser wallet (keys + signing client-side)",
   "devDependencies": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.2"
   },
   "name": "netcoin-webwallet",
   "private": true,
